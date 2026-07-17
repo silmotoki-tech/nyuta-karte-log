@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>にゅうたカルテ記録</title>
+<meta name="description" content="にゅうた動物病院向け カルテ記録蓄積アプリ" />
+<meta name="theme-color" content="#6fb82b" />
+
+<link rel="manifest" href="./manifest.json" />
+<link rel="icon" href="./icons/favicon.png" />
+<link rel="apple-touch-icon" href="./icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="カルテ記録" />
+
+<link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <img class="app-header__icon" src="./icons/icon-192.png" alt="" />
+    <h1 class="app-header__title">にゅうたカルテ記録</h1>
+  </header>
+
+  <main class="app-main">
+
+    <!-- 画面0: パスコード入力 -->
+    <section id="screen-passcode" class="screen" data-screen="passcode" hidden>
+      <div class="card">
+        <h2 class="card__title">パスコードを入力してください</h2>
+        <p class="card__hint">院内用の4桁パスコードを入力してください</p>
+
+        <input
+          id="passcode-input"
+          class="input input--large input--center"
+          type="password"
+          inputmode="numeric"
+          autocomplete="off"
+          maxlength="4"
+          placeholder="••••"
+          aria-label="パスコード（4桁）"
+        />
+
+        <p id="passcode-error" class="error-text" role="alert" hidden></p>
+
+        <button id="btn-passcode-next" class="btn btn--primary btn--block" type="button">
+          確認する
+        </button>
+      </div>
+    </section>
+
+    <!-- 画面1: カルテ番号入力 -->
+    <section id="screen-karte" class="screen" data-screen="karte" hidden>
+      <div class="card">
+        <h2 class="card__title">カルテ番号を入力してください</h2>
+        <p class="card__hint">5桁の数字を入力してください</p>
+
+        <input
+          id="karte-number-input"
+          class="input input--large input--center"
+          type="text"
+          inputmode="numeric"
+          autocomplete="off"
+          maxlength="5"
+          placeholder="00000"
+          aria-label="カルテ番号（5桁）"
+        />
+
+        <p id="karte-error" class="error-text" role="alert" hidden></p>
+
+        <button id="btn-karte-next" class="btn btn--primary btn--block" type="button">
+          次へ
+        </button>
+      </div>
+    </section>
+
+    <!-- 画面2: 動物名の確認・登録 -->
+    <section id="screen-animal" class="screen" data-screen="animal" hidden>
+      <div class="card">
+        <button id="btn-animal-back" class="link-back" type="button">&larr; カルテ番号を修正する</button>
+
+        <h2 class="card__title">
+          カルテ番号 <span id="animal-karte-number" class="badge badge--number"></span>
+        </h2>
+
+        <label class="label" for="animal-name-input">動物名（カナ）</label>
+        <input
+          id="animal-name-input"
+          class="input"
+          type="text"
+          autocomplete="off"
+          placeholder="例）タロウ"
+          aria-label="動物名（カナ）"
+        />
+        <p id="animal-registered-hint" class="card__hint" hidden>
+          登録済みの動物名です。番号の入力ミスがないか確認してください。
+        </p>
+
+        <p id="animal-error" class="error-text" role="alert" hidden></p>
+
+        <button id="btn-animal-next" class="btn btn--primary btn--block" type="button">
+          この内容で次へ
+        </button>
+      </div>
+    </section>
+
+    <!-- 画面3: 記入・時系列一覧 -->
+    <section id="screen-entry" class="screen" data-screen="entry" hidden>
+      <div class="entry-topbar">
+        <button id="btn-entry-back" class="link-back" type="button">&larr; カルテ番号を変更する</button>
+        <div class="entry-topbar__info">
+          <span class="badge badge--number" id="entry-karte-number"></span>
+          <span class="badge badge--animal" id="entry-animal-name"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">記入者を選択してください</h2>
+
+        <div class="author-group">
+          <p class="author-group__label">獣医師</p>
+          <div class="author-buttons" id="author-buttons-vet"></div>
+        </div>
+
+        <div class="author-group">
+          <p class="author-group__label">看護師</p>
+          <div class="author-buttons" id="author-buttons-nurse"></div>
+        </div>
+
+        <label class="label" for="entry-text-input">記入内容</label>
+        <textarea
+          id="entry-text-input"
+          class="textarea"
+          rows="5"
+          placeholder="記入内容を入力してください"
+        ></textarea>
+
+        <p id="entry-error" class="error-text" role="alert" hidden></p>
+
+        <button id="btn-entry-save" class="btn btn--primary btn--block" type="button">
+          保存する
+        </button>
+      </div>
+
+      <div class="card">
+        <h2 class="card__title">これまでの記録</h2>
+        <p id="entries-empty" class="card__hint" hidden>まだ記録がありません。</p>
+        <ul id="entries-list" class="entries-list"></ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<template id="entry-item-template">
+  <li class="entry-item">
+    <div class="entry-item__view">
+      <div class="entry-item__meta">
+        <span class="entry-item__date"></span>
+        <span class="entry-item__author badge badge--author"></span>
+        <span class="entry-item__edited">（編集済み）</span>
+      </div>
+      <p class="entry-item__text"></p>
+      <div class="entry-item__actions">
+        <button class="btn btn--small btn--outline entry-item__edit-btn" type="button">編集</button>
+        <button class="btn btn--small btn--danger-outline entry-item__delete-btn" type="button">削除</button>
+      </div>
+    </div>
+
+    <div class="entry-item__edit" hidden>
+      <p class="entry-item__edit-label">記入者</p>
+      <div class="author-buttons entry-item__edit-author-buttons"></div>
+      <textarea class="textarea entry-item__edit-text" rows="4"></textarea>
+      <div class="entry-item__actions">
+        <button class="btn btn--small btn--primary entry-item__save-btn" type="button">保存</button>
+        <button class="btn btn--small btn--outline entry-item__cancel-btn" type="button">キャンセル</button>
+      </div>
+    </div>
+  </li>
+</template>
+
+<div id="toast" class="toast" hidden></div>
+
+<script type="module" src="./js/app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js").catch(() => {
+        // オフライン非対応でもアプリ自体は動作するため握りつぶす
+      });
+    });
+  }
+</script>
+</body>
+</html>
