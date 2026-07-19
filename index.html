@@ -21,164 +21,733 @@
   <header class="app-header">
     <img class="app-header__icon" src="./icons/icon-192.png" alt="" />
     <h1 class="app-header__title">にゅうたカルテ記録</h1>
+    <div class="app-header__spacer"></div>
+    <div class="app-header__karte" id="header-karte" hidden>
+      <span class="badge badge--number" id="header-karte-number"></span>
+      <span class="badge badge--animal" id="header-animal-name"></span>
+    </div>
+    <button id="btn-open-settings" class="btn btn--header" type="button" title="設定">
+      設定
+    </button>
   </header>
 
-  <main class="app-main">
+  <div class="layout">
 
-    <!-- 画面0: パスコード入力 -->
-    <section id="screen-passcode" class="screen" data-screen="passcode" hidden>
-      <div class="card">
-        <h2 class="card__title">パスコードを入力してください</h2>
-        <p class="card__hint">院内用の4桁パスコードを入力してください</p>
-
-        <input
-          id="passcode-input"
-          class="input input--large input--center"
-          type="password"
-          inputmode="numeric"
-          autocomplete="off"
-          maxlength="4"
-          placeholder="••••"
-          aria-label="パスコード（4桁）"
-        />
-
-        <p id="passcode-error" class="error-text" role="alert" hidden></p>
-
-        <button id="btn-passcode-next" class="btn btn--primary btn--block" type="button">
-          確認する
-        </button>
+    <!-- ============ 左カラム: 見出し（目次） ============ -->
+    <aside class="col col--left" id="col-left">
+      <div class="left-head">
+        <h2 class="col__title">見出し</h2>
+        <label class="star-filter" id="star-filter-wrap" hidden>
+          <input type="checkbox" id="star-filter" />
+          <span>★のみ</span>
+        </label>
       </div>
-    </section>
+      <p class="col-empty" id="left-empty">カルテを開くと<br />見出しが表示されます。</p>
+      <ul class="headline-list" id="headline-list" hidden></ul>
+    </aside>
 
-    <!-- 画面1: カルテ番号入力 -->
-    <section id="screen-karte" class="screen" data-screen="karte" hidden>
-      <div class="card">
-        <h2 class="card__title">カルテ番号を入力してください</h2>
-        <p class="card__hint">5桁の数字を入力してください</p>
+    <!-- ============ 中央カラム: 記入・時系列 ============ -->
+    <section class="col col--center" id="col-center">
 
-        <input
-          id="karte-number-input"
-          class="input input--large input--center"
-          type="text"
-          inputmode="numeric"
-          autocomplete="off"
-          maxlength="5"
-          placeholder="00000"
-          aria-label="カルテ番号（5桁）"
-        />
-
-        <p id="karte-error" class="error-text" role="alert" hidden></p>
-
-        <button id="btn-karte-next" class="btn btn--primary btn--block" type="button">
-          次へ
-        </button>
-      </div>
-    </section>
-
-    <!-- 画面2: 動物名の確認・登録 -->
-    <section id="screen-animal" class="screen" data-screen="animal" hidden>
-      <div class="card">
-        <button id="btn-animal-back" class="link-back" type="button">&larr; カルテ番号を修正する</button>
-
-        <h2 class="card__title">
-          カルテ番号 <span id="animal-karte-number" class="badge badge--number"></span>
-        </h2>
-
-        <label class="label" for="animal-name-input">動物名（カナ）</label>
-        <input
-          id="animal-name-input"
-          class="input"
-          type="text"
-          autocomplete="off"
-          placeholder="例）タロウ"
-          aria-label="動物名（カナ）"
-        />
-        <p id="animal-registered-hint" class="card__hint" hidden>
-          登録済みの動物名です。番号の入力ミスがないか確認してください。
-        </p>
-
-        <p id="animal-error" class="error-text" role="alert" hidden></p>
-
-        <button id="btn-animal-next" class="btn btn--primary btn--block" type="button">
-          この内容で次へ
-        </button>
-      </div>
-    </section>
-
-    <!-- 画面3: 記入・時系列一覧 -->
-    <section id="screen-entry" class="screen" data-screen="entry" hidden>
-      <div class="entry-topbar">
-        <button id="btn-entry-back" class="link-back" type="button">&larr; カルテ番号を変更する</button>
-        <div class="entry-topbar__info">
-          <span class="badge badge--number" id="entry-karte-number"></span>
-          <span class="badge badge--animal" id="entry-animal-name"></span>
+      <!-- 状態: パスコード -->
+      <div class="center-gate" id="gate-passcode">
+        <div class="card gate-card">
+          <h2 class="card__title">パスコードを入力してください</h2>
+          <p class="card__hint">院内用の4桁パスコードを入力してください</p>
+          <input
+            id="passcode-input"
+            class="input input--large input--center"
+            type="password"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="4"
+            placeholder="••••"
+            aria-label="パスコード（4桁）"
+          />
+          <p id="passcode-error" class="error-text" role="alert" hidden></p>
+          <button id="btn-passcode-next" class="btn btn--primary btn--block" type="button">
+            確認する
+          </button>
         </div>
       </div>
 
-      <div class="card">
-        <h2 class="card__title">記入者を選択してください</h2>
-
-        <div class="author-group">
-          <p class="author-group__label">獣医師</p>
-          <div class="author-buttons" id="author-buttons-vet"></div>
+      <!-- 状態: カルテ番号入力 -->
+      <div class="center-gate" id="gate-karte" hidden>
+        <div class="card gate-card">
+          <h2 class="card__title">カルテ番号を入力してください</h2>
+          <p class="card__hint">5桁の数字を入力してください</p>
+          <input
+            id="karte-number-input"
+            class="input input--large input--center"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="5"
+            placeholder="00000"
+            aria-label="カルテ番号（5桁）"
+          />
+          <p id="karte-error" class="error-text" role="alert" hidden></p>
+          <button id="btn-karte-next" class="btn btn--primary btn--block" type="button">
+            次へ
+          </button>
         </div>
-
-        <div class="author-group">
-          <p class="author-group__label">看護師</p>
-          <div class="author-buttons" id="author-buttons-nurse"></div>
-        </div>
-
-        <label class="label" for="entry-text-input">記入内容</label>
-        <textarea
-          id="entry-text-input"
-          class="textarea"
-          rows="5"
-          placeholder="記入内容を入力してください"
-        ></textarea>
-
-        <p id="entry-error" class="error-text" role="alert" hidden></p>
-
-        <button id="btn-entry-save" class="btn btn--primary btn--block" type="button">
-          保存する
-        </button>
       </div>
 
-      <div class="card">
-        <h2 class="card__title">これまでの記録</h2>
-        <p id="entries-empty" class="card__hint" hidden>まだ記録がありません。</p>
-        <ul id="entries-list" class="entries-list"></ul>
+      <!-- 状態: 動物名の確認・登録 -->
+      <div class="center-gate" id="gate-animal" hidden>
+        <div class="card gate-card">
+          <button id="btn-animal-back" class="link-back" type="button">&larr; カルテ番号を修正する</button>
+          <h2 class="card__title">
+            カルテ番号 <span id="animal-karte-number" class="badge badge--number"></span>
+          </h2>
+          <label class="label" for="animal-name-input">動物名（カナ）</label>
+          <input
+            id="animal-name-input"
+            class="input"
+            type="text"
+            autocomplete="off"
+            placeholder="例）タロウ"
+            aria-label="動物名（カナ）"
+          />
+          <p id="animal-registered-hint" class="card__hint" hidden>
+            登録済みの動物名です。番号の入力ミスがないか確認してください。
+          </p>
+          <p id="animal-error" class="error-text" role="alert" hidden></p>
+          <button id="btn-animal-next" class="btn btn--primary btn--block" type="button">
+            この内容で次へ
+          </button>
+        </div>
+      </div>
+
+      <!-- 状態: メイン作業エリア（記入 + 時系列） -->
+      <div class="center-main" id="center-main" hidden>
+
+        <!-- カルテ情報バー -->
+        <div class="karte-bar">
+          <button id="btn-change-karte" class="link-back" type="button">&larr; カルテを変更</button>
+          <div class="karte-bar__info">
+            <span class="badge badge--number" id="main-karte-number"></span>
+            <span class="badge badge--animal" id="main-animal-name"></span>
+          </div>
+          <button id="btn-open-templates" class="btn btn--small btn--outline" type="button">定型文の管理</button>
+        </div>
+
+        <!-- 入力フォーム -->
+        <div class="entry-form">
+          <!-- 記入者（横一列・単一選択） -->
+          <div class="field">
+            <span class="label">記入者</span>
+            <div class="author-row" id="author-row"></div>
+          </div>
+
+          <!-- 見出し + カテゴリ + ★ -->
+          <div class="field">
+            <label class="label" for="headline-input">見出し（その日のメインの出来事）</label>
+            <input
+              id="headline-input"
+              class="input"
+              type="text"
+              autocomplete="off"
+              placeholder="例）左前肢の跛行で来院"
+            />
+            <div class="headline-options">
+              <div class="category-buttons" id="category-buttons"></div>
+              <button id="btn-important" class="star-toggle" type="button" aria-pressed="false" title="重要（★）">
+                <span class="star-toggle__icon">★</span>
+                <span class="star-toggle__label">重要</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 記録日 -->
+          <div class="field field--inline">
+            <label class="label" for="record-date-input">記録日</label>
+            <input id="record-date-input" class="input input--date" type="date" />
+            <span class="field__note" id="record-date-note"></span>
+          </div>
+
+          <!-- 本文 -->
+          <div class="field">
+            <label class="label" for="body-input">本文</label>
+            <textarea
+              id="body-input"
+              class="textarea"
+              rows="5"
+              placeholder="診療内容を入力してください"
+            ></textarea>
+          </div>
+
+          <!-- 定型文ボタン -->
+          <div class="field">
+            <span class="label">定型文</span>
+            <div class="template-buttons" id="template-buttons"></div>
+            <p class="field__note" id="template-empty" hidden>
+              定型文は「定型文の管理」から登録できます。
+            </p>
+          </div>
+        </div>
+
+        <!-- 保存アクション（常に表示） -->
+        <div class="entry-actions">
+          <p id="entry-error" class="error-text" role="alert" hidden></p>
+          <button id="btn-entry-save" class="btn btn--primary btn--block" type="button">
+            保存する
+          </button>
+        </div>
+
+        <!-- 時系列（記録日順） -->
+        <div class="timeline-wrap">
+          <h2 class="col__title timeline-title">これまでの記録（新しい順）</h2>
+          <p id="timeline-empty" class="col-empty" hidden>まだ記録がありません。</p>
+          <ul class="timeline" id="timeline"></ul>
+        </div>
+
       </div>
     </section>
 
-  </main>
+    <!-- ============ 右カラム: 患者情報タブ ============ -->
+    <aside class="col col--right" id="col-right">
+      <div class="right-tabs" id="right-tabs" role="tablist" aria-label="患者情報">
+        <button class="right-tab" type="button" data-tab="history">既往歴</button>
+        <button class="right-tab is-active" type="button" data-tab="exam">検査予定</button>
+        <button class="right-tab" type="button" data-tab="meds">薬剤情報</button>
+        <button class="right-tab" type="button" data-tab="proc">処置ログ</button>
+        <button class="right-tab" type="button" data-tab="qa">自由質問</button>
+      </div>
+
+      <p class="right-empty" id="right-empty">
+        カルテを開くと、ここに患者情報が表示されます。
+      </p>
+
+      <!-- 既往歴 -->
+      <div class="right-panel" id="panel-history" data-panel="history" hidden>
+        <div class="exam-toolbar">
+          <button id="btn-history-add" class="btn btn--small btn--primary" type="button">
+            既往歴を追加
+          </button>
+        </div>
+        <p class="field__note" id="patient-history-empty">登録された既往歴はありません。</p>
+        <ul class="meds-list" id="patient-history-list"></ul>
+      </div>
+
+      <!-- A. 検査予定 -->
+      <div class="right-panel" id="panel-exam" data-panel="exam" hidden>
+        <div class="exam-toolbar">
+          <button id="btn-open-exam-items" class="btn btn--small btn--outline" type="button">
+            検査項目の管理
+          </button>
+        </div>
+
+        <!-- 次回予定 -->
+        <section class="exam-section">
+          <div class="exam-section__head">
+            <h3 class="exam-section__title">次回予定</h3>
+            <button id="btn-exam-new" class="btn btn--small btn--primary" type="button">予定を登録</button>
+          </div>
+
+          <div class="exam-next-card" id="exam-next-card">
+            <p class="exam-next-empty" id="exam-next-empty">次回予定はありません。</p>
+            <div id="exam-next-body" hidden>
+              <p class="exam-alert" id="exam-next-alert" hidden></p>
+              <p class="exam-next-item" id="exam-next-item"></p>
+              <p class="exam-next-date" id="exam-next-date"></p>
+              <p class="exam-next-note" id="exam-next-note" hidden></p>
+              <div class="exam-next-actions">
+                <button id="btn-exam-complete" class="btn btn--small btn--primary" type="button">完了</button>
+                <button id="btn-exam-edit" class="btn btn--small btn--outline" type="button">編集</button>
+                <button id="btn-exam-end" class="btn btn--small btn--danger-outline" type="button">終了</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 定期スケジュール -->
+        <section class="exam-section">
+          <div class="exam-section__head">
+            <h3 class="exam-section__title">定期検査スケジュール</h3>
+            <button id="btn-exam-recurring-add" class="btn btn--small btn--outline" type="button">追加</button>
+          </div>
+          <p class="field__note" id="exam-recurring-empty">登録された定期スケジュールはありません。</p>
+          <ul class="exam-list" id="exam-recurring-list"></ul>
+        </section>
+
+        <!-- 実施履歴 -->
+        <section class="exam-section">
+          <h3 class="exam-section__title">実施履歴</h3>
+          <p class="field__note" id="exam-history-empty">まだ実施履歴がありません。</p>
+          <ul class="exam-list" id="exam-history-list"></ul>
+        </section>
+      </div>
+
+      <!-- B. 薬剤情報 -->
+      <div class="right-panel" id="panel-meds" data-panel="meds" hidden>
+        <div class="exam-toolbar">
+          <button id="btn-open-med-items" class="btn btn--small btn--outline" type="button">
+            薬剤マスタの管理
+          </button>
+          <button id="btn-med-add" class="btn btn--small btn--primary" type="button">
+            薬剤を追加
+          </button>
+        </div>
+        <p class="field__note" id="meds-empty">登録された薬剤はありません。</p>
+        <ul class="meds-list" id="meds-list"></ul>
+      </div>
+
+      <!-- C. 処置ログ（空） -->
+      <div class="right-panel" data-panel="proc" hidden>
+        <div class="right-placeholder">
+          <p class="right-placeholder__badge">準備中</p>
+          <p class="right-placeholder__text">処置ログタブは次のステップで実装予定です。</p>
+        </div>
+      </div>
+
+      <!-- D. 自由質問 -->
+      <div class="right-panel" id="panel-qa" data-panel="qa" hidden>
+        <div class="qa-compose">
+          <label class="label" for="free-qa-input">この患者について質問</label>
+          <textarea
+            id="free-qa-input"
+            class="textarea"
+            rows="3"
+            placeholder="例）腎臓の経過で注意すべき記載は？"
+          ></textarea>
+          <div class="qa-compose__actions">
+            <button id="btn-free-qa-ask" class="btn btn--small btn--primary" type="button">
+              質問する
+            </button>
+          </div>
+          <p id="free-qa-key-hint" class="qa-key-hint" hidden>
+            APIキーが未設定です。
+            <button id="btn-free-qa-open-settings" class="link-inline" type="button">設定画面</button>
+            でAPIキーを設定してください。
+          </p>
+          <p id="free-qa-error" class="error-text" role="alert" hidden></p>
+          <p class="field__note">中央カラムの時系列全文をコンテキストにAIが回答し、結果を保存します。</p>
+        </div>
+
+        <section class="exam-section">
+          <h3 class="exam-section__title">質問履歴</h3>
+          <p class="field__note" id="free-qa-empty">まだ質問はありません。</p>
+          <ul class="qa-list" id="free-qa-list"></ul>
+        </section>
+      </div>
+    </aside>
+
+  </div>
 </div>
 
-<template id="entry-item-template">
-  <li class="entry-item">
-    <div class="entry-item__view">
-      <div class="entry-item__meta">
-        <span class="entry-item__date"></span>
-        <span class="entry-item__author badge badge--author"></span>
-        <span class="entry-item__edited">（編集済み）</span>
+<!-- 時系列エントリのテンプレート -->
+<template id="timeline-item-template">
+  <li class="tl-item" data-category="none">
+    <span class="tl-item__bar"></span>
+    <div class="tl-item__content">
+      <div class="tl-item__head">
+        <button class="tl-item__star" type="button" aria-pressed="false" title="重要（★）">★</button>
+        <span class="tl-item__dot"></span>
+        <span class="tl-item__headline"></span>
+        <span class="tl-item__cat-label"></span>
       </div>
-      <p class="entry-item__text"></p>
-      <div class="entry-item__actions">
-        <button class="btn btn--small btn--outline entry-item__edit-btn" type="button">編集</button>
-        <button class="btn btn--small btn--danger-outline entry-item__delete-btn" type="button">削除</button>
-      </div>
-    </div>
-
-    <div class="entry-item__edit" hidden>
-      <p class="entry-item__edit-label">記入者</p>
-      <div class="author-buttons entry-item__edit-author-buttons"></div>
-      <textarea class="textarea entry-item__edit-text" rows="4"></textarea>
-      <div class="entry-item__actions">
-        <button class="btn btn--small btn--primary entry-item__save-btn" type="button">保存</button>
-        <button class="btn btn--small btn--outline entry-item__cancel-btn" type="button">キャンセル</button>
+      <div class="tl-item__meta"></div>
+      <p class="tl-item__body"></p>
+      <div class="tl-item__actions">
+        <button class="btn btn--small btn--danger-outline tl-item__delete" type="button">削除</button>
       </div>
     </div>
   </li>
 </template>
+
+<!-- 左カラム 見出し項目のテンプレート -->
+<template id="headline-item-template">
+  <li class="hl-item">
+    <button class="hl-item__btn" type="button">
+      <span class="hl-item__dot"></span>
+      <span class="hl-item__star" aria-hidden="true">★</span>
+      <span class="hl-item__text"></span>
+      <span class="hl-item__date"></span>
+    </button>
+  </li>
+</template>
+
+<!-- 定型文管理モーダル -->
+<div class="modal" id="templates-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="templates-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="templates-modal-title">定型文の管理</h2>
+      <button class="modal__close" id="btn-close-templates" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <ul class="tpl-list" id="tpl-list"></ul>
+      <p class="field__note" id="tpl-list-empty" hidden>登録された定型文はありません。</p>
+
+      <div class="tpl-editor">
+        <h3 class="tpl-editor__title" id="tpl-editor-title">新しい定型文を追加</h3>
+        <label class="label" for="tpl-label-input">ボタン名</label>
+        <input id="tpl-label-input" class="input" type="text" placeholder="例）狂犬病ワクチン接種" />
+        <label class="label" for="tpl-text-input">挿入される本文</label>
+        <textarea id="tpl-text-input" class="textarea" rows="3" placeholder="ボタンを押したときに本文へ挿入される文章"></textarea>
+        <p id="tpl-error" class="error-text" role="alert" hidden></p>
+        <div class="tpl-editor__actions">
+          <button id="btn-tpl-save" class="btn btn--small btn--primary" type="button">追加する</button>
+          <button id="btn-tpl-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 検査予定: 登録・編集モーダル -->
+<div class="modal" id="exam-plan-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-plan-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-plan-modal-title">次回予定を登録</h2>
+      <button class="modal__close" id="btn-close-exam-plan" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <span class="label">検査項目</span>
+        <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
+        <label class="exam-other-check">
+          <input type="checkbox" id="exam-plan-other" />
+          <span>その他（フリーテキスト）</span>
+        </label>
+        <input
+          id="exam-plan-custom-item"
+          class="input"
+          type="text"
+          placeholder="検査項目名を入力"
+          hidden
+        />
+      </div>
+
+      <div class="field">
+        <label class="label" for="exam-plan-due-date">目安日</label>
+        <input id="exam-plan-due-date" class="input input--date" type="date" />
+        <div class="quick-date-buttons" id="exam-plan-quick-dates"></div>
+        <p class="field__note" id="exam-plan-window-note"></p>
+      </div>
+
+      <div class="field">
+        <label class="label" for="exam-plan-note">メモ（任意）</label>
+        <input id="exam-plan-note" class="input" type="text" placeholder="例）術後フォロー" />
+      </div>
+
+      <div class="field">
+        <label class="exam-other-check">
+          <input type="checkbox" id="exam-plan-enable-recurring" />
+          <span>定期検査としても登録する</span>
+        </label>
+        <div id="exam-plan-recurring-fields" hidden>
+          <label class="label" for="exam-plan-interval">間隔</label>
+          <select id="exam-plan-interval" class="input"></select>
+        </div>
+      </div>
+
+      <p id="exam-plan-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-exam-plan-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-exam-plan-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 検査予定: 完了記録モーダル -->
+<div class="modal" id="exam-complete-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="exam-complete-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-complete-title">検査を完了として記録</h2>
+      <button class="modal__close" id="btn-close-exam-complete" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <label class="label" for="exam-complete-date">実施日</label>
+        <input id="exam-complete-date" class="input input--date" type="date" />
+      </div>
+      <div class="field">
+        <label class="label" for="exam-complete-note">メモ（任意）</label>
+        <input id="exam-complete-note" class="input" type="text" placeholder="例）異常なし" />
+      </div>
+      <p id="exam-complete-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-exam-complete-save" class="btn btn--small btn--primary" type="button">完了として記録</button>
+        <button id="btn-exam-complete-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 検査予定: 完了後の次アクション -->
+<div class="modal" id="exam-after-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="exam-after-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-after-title">次の予定は？</h2>
+      <button class="modal__close" id="btn-close-exam-after" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p class="field__note" id="exam-after-summary" hidden></p>
+      <p class="card__hint">実施を記録しました。次の予定を入力するか、終了を選んでください。</p>
+      <div class="tpl-editor__actions">
+        <button id="btn-exam-after-next" class="btn btn--small btn--primary" type="button">次の予定を入力する</button>
+        <button id="btn-exam-after-end" class="btn btn--small btn--outline" type="button">終了する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 検査項目マスタ管理モーダル -->
+<div class="modal" id="exam-items-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-items-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-items-modal-title">検査項目の管理</h2>
+      <button class="modal__close" id="btn-close-exam-items" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <ul class="tpl-list" id="exam-items-list"></ul>
+      <p class="field__note" id="exam-items-list-empty" hidden>登録された検査項目はありません。</p>
+
+      <div class="tpl-editor">
+        <h3 class="tpl-editor__title" id="exam-item-editor-title">新しい検査項目を追加</h3>
+        <label class="label" for="exam-item-label-input">項目名</label>
+        <input id="exam-item-label-input" class="input" type="text" placeholder="例）血液検査" />
+        <p id="exam-item-error" class="error-text" role="alert" hidden></p>
+        <div class="tpl-editor__actions">
+          <button id="btn-exam-item-save" class="btn btn--small btn--primary" type="button">追加する</button>
+          <button id="btn-exam-item-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 既往歴: 追加モーダル -->
+<div class="modal" id="history-add-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="history-add-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="history-add-modal-title">既往歴を追加</h2>
+      <button class="modal__close" id="btn-close-history-add" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <label class="label" for="history-add-title">タイトル</label>
+        <input id="history-add-title" class="input" type="text" placeholder="例）慢性腎臓病" />
+      </div>
+      <div class="field">
+        <span class="label">種別</span>
+        <div class="exam-item-buttons" id="history-add-type-buttons"></div>
+      </div>
+      <div class="field">
+        <label class="label" for="history-add-first-noted">初回記載日</label>
+        <input id="history-add-first-noted" class="input input--date" type="date" />
+      </div>
+      <div class="field">
+        <label class="label" for="history-add-note">初期メモ（任意）</label>
+        <textarea id="history-add-note" class="textarea" rows="3" placeholder="経過や詳細（あとから追記もできます）"></textarea>
+      </div>
+      <p class="field__note">新規登録時の状態は「進行中」です。完治・完結したら詳細から終了に切り替えられます。</p>
+      <p id="history-add-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-history-add-save" class="btn btn--small btn--primary" type="button">追加する</button>
+        <button id="btn-history-add-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 既往歴: メモ追記モーダル -->
+<div class="modal" id="history-note-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="history-note-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="history-note-modal-title">メモを追記</h2>
+      <button class="modal__close" id="btn-close-history-note" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <label class="label" for="history-note-date">日付</label>
+        <input id="history-note-date" class="input input--date" type="date" />
+      </div>
+      <div class="field">
+        <label class="label" for="history-note-text">内容</label>
+        <textarea id="history-note-text" class="textarea" rows="4" placeholder="経過や詳細を追記"></textarea>
+      </div>
+      <p class="field__note">既存のメモは上書きされず、日付付きで積み上がります。</p>
+      <p id="history-note-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-history-note-save" class="btn btn--small btn--primary" type="button">追記する</button>
+        <button id="btn-history-note-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 薬剤: 追加モーダル -->
+<div class="modal" id="med-add-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="med-add-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="med-add-modal-title">薬剤を追加</h2>
+      <button class="modal__close" id="btn-close-med-add" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <span class="label">薬剤名</span>
+        <div class="exam-item-buttons" id="med-add-item-buttons"></div>
+        <label class="exam-other-check">
+          <input type="checkbox" id="med-add-other" />
+          <span>その他（手打ちで追加）</span>
+        </label>
+        <input
+          id="med-add-custom-name"
+          class="input"
+          type="text"
+          placeholder="薬剤名を入力"
+          hidden
+        />
+      </div>
+      <div class="field">
+        <span class="label">カテゴリ</span>
+        <div class="med-category-buttons" id="med-add-category-buttons"></div>
+        <p class="field__note">A=治療の主力 / B=補助的 / C=過去に使った程度</p>
+      </div>
+      <p id="med-add-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-med-add-save" class="btn btn--small btn--primary" type="button">追加する</button>
+        <button id="btn-med-add-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 薬剤: 出来事追加モーダル -->
+<div class="modal" id="med-event-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="med-event-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="med-event-modal-title">出来事を追加</h2>
+      <button class="modal__close" id="btn-close-med-event" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <span class="label">種類</span>
+        <div class="exam-item-buttons" id="med-event-type-buttons"></div>
+      </div>
+      <div class="field">
+        <label class="label" for="med-event-date">日付（必須）</label>
+        <input id="med-event-date" class="input input--date" type="date" />
+      </div>
+
+      <div class="field" id="med-event-change-options" hidden>
+        <span class="label">変更内容（増量・減量時）</span>
+        <label class="exam-other-check">
+          <input type="checkbox" id="med-event-freq-check" />
+          <span>回数を変更</span>
+        </label>
+        <div id="med-event-freq-block" hidden>
+          <div class="quick-date-buttons" id="med-event-freq-presets"></div>
+          <label class="exam-other-check">
+            <input type="checkbox" id="med-event-freq-other" />
+            <span>その他</span>
+          </label>
+          <input id="med-event-freq-other-input" class="input" type="text" placeholder="回数変更の内容" hidden />
+        </div>
+
+        <label class="exam-other-check">
+          <input type="checkbox" id="med-event-amount-check" />
+          <span>1回の量を変更</span>
+        </label>
+        <div id="med-event-amount-block" hidden>
+          <div class="quick-date-buttons" id="med-event-amount-presets"></div>
+          <label class="exam-other-check">
+            <input type="checkbox" id="med-event-amount-other" />
+            <span>その他</span>
+          </label>
+          <input id="med-event-amount-other-input" class="input" type="text" placeholder="量変更の内容" hidden />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="med-event-detail">一言メモ（任意）</label>
+        <input id="med-event-detail" class="input" type="text" placeholder="例）食欲低下のため減量" />
+      </div>
+
+      <p id="med-event-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-med-event-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-med-event-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 薬剤マスタ管理モーダル -->
+<div class="modal" id="med-items-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="med-items-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="med-items-modal-title">薬剤マスタの管理</h2>
+      <button class="modal__close" id="btn-close-med-items" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <ul class="tpl-list" id="med-items-list"></ul>
+      <p class="field__note" id="med-items-list-empty" hidden>登録された薬剤はありません。</p>
+      <div class="tpl-editor">
+        <h3 class="tpl-editor__title" id="med-item-editor-title">新しい薬剤を追加</h3>
+        <label class="label" for="med-item-label-input">薬剤名</label>
+        <input id="med-item-label-input" class="input" type="text" placeholder="例）アモキシシリン" />
+        <p id="med-item-error" class="error-text" role="alert" hidden></p>
+        <div class="tpl-editor__actions">
+          <button id="btn-med-item-save" class="btn btn--small btn--primary" type="button">追加する</button>
+          <button id="btn-med-item-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 設定（APIキー） -->
+<div class="modal" id="settings-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="settings-modal-title">設定</h2>
+      <button class="modal__close" id="btn-close-settings" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <section class="settings-section">
+        <h3 class="settings-section__title">Anthropic APIキー</h3>
+        <p class="field__note">
+          APIキーはコードに埋め込みません。このiPadのブラウザ（localStorage）にだけ保存されます。
+        </p>
+        <div class="settings-status-row">
+          <span class="label">状態</span>
+          <span id="settings-api-key-status" class="settings-status is-empty">未設定</span>
+        </div>
+        <div class="tpl-editor__actions">
+          <button id="btn-settings-scan-qr" class="btn btn--small btn--primary" type="button">
+            QRコードを読み取ってAPIキーを設定
+          </button>
+          <button id="btn-settings-delete-key" class="btn btn--small btn--danger-outline" type="button" disabled>
+            キーを削除する
+          </button>
+        </div>
+        <div id="settings-qr-section" class="settings-qr" hidden>
+          <p class="field__note">カメラにAPIキーのQRコードをかざしてください。</p>
+          <div id="settings-qr-reader" class="settings-qr__reader"></div>
+          <button id="btn-settings-stop-scan" class="btn btn--small btn--outline" type="button" hidden>
+            読み取りをやめる
+          </button>
+        </div>
+        <p id="settings-error" class="error-text" role="alert" hidden></p>
+      </section>
+    </div>
+  </div>
+</div>
 
 <div id="toast" class="toast" hidden></div>
 

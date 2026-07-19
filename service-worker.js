@@ -2,7 +2,7 @@
 // アプリの見た目（HTML/CSS/JS/アイコン）だけをキャッシュし、
 // Firebaseとの通信（データ本体）はキャッシュせず常にネットワークを利用する。
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v8";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -14,6 +14,13 @@ const APP_SHELL_FILES = [
   "./js/firebase-app.js",
   "./js/auth.js",
   "./js/db.js",
+  "./js/exam-plan-ui.js",
+  "./js/meds-ui.js",
+  "./js/history-ui.js",
+  "./js/api-key.js",
+  "./js/anthropic.js",
+  "./js/settings-ui.js",
+  "./js/free-qa-ui.js",
   "./js/app.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

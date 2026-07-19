@@ -2,33 +2,79 @@ import {
   getAnimalName,
   setAnimalName,
   addEntry,
-  updateEntry,
+  setEntryImportant,
   deleteEntry,
   subscribeEntries,
+  subscribeTemplates,
+  addTemplate,
+  updateTemplate,
+  deleteTemplate,
 } from "./db.js";
+import {
+  initExamPlanUI,
+  enterExamPlan,
+  leaveExamPlan,
+} from "./exam-plan-ui.js";
+import {
+  initMedsUI,
+  enterMeds,
+  leaveMeds,
+} from "./meds-ui.js";
+import {
+  initHistoryUI,
+  enterHistory,
+  leaveHistory,
+} from "./history-ui.js";
+import { initSettingsUI } from "./settings-ui.js";
+import {
+  initFreeQaUI,
+  enterFreeQa,
+  leaveFreeQa,
+  notifyApiKeyChanged,
+} from "./free-qa-ui.js";
 
-const VETS = ["院長", "大辻", "川邉", "齋藤", "横井", "德永"];
-const NURSES = ["種田", "竹内", "神子島", "大澤", "川合", "嶋本", "道野"];
+// 記入者（獣医師・看護師を区別せず1列）
+const AUTHORS = [
+  "院長", "大辻", "川邉", "齋藤", "横井", "德永",
+  "種田", "竹内", "神子島", "大澤", "川合", "嶋本", "道野",
+];
 
-const state = {
-  karteNumber: null,
-  animalName: null,
-  selectedAuthor: null,
-  entries: [],
-  unsubscribeEntries: null,
-};
-
-// --- DOM参照 -----------------------------------------------------------
-
-const screens = {
-  passcode: document.getElementById("screen-passcode"),
-  karte: document.getElementById("screen-karte"),
-  animal: document.getElementById("screen-animal"),
-  entry: document.getElementById("screen-entry"),
-};
+// 見出しカテゴリ（細分化しない）
+const CATEGORIES = [
+  { id: "none", label: "通常", short: "" },
+  { id: "ope", label: "オペ / 救急 / 麻酔", short: "オペ" },
+  { id: "admission", label: "入院", short: "入院" },
+  { id: "referral", label: "紹介", short: "紹介" },
+];
 
 const PASSCODE = "2211";
 const PASSCODE_SESSION_KEY = "nyutaKartePasscodeVerified";
+
+const state = {
+  centerState: "passcode",
+  karteNumber: null,
+  animalName: null,
+  entries: [],
+  unsubscribeEntries: null,
+  templates: [],
+  starFilter: false,
+  // 入力中エントリの下書き状態
+  draft: {
+    author: null,
+    category: "none",
+    important: false,
+    usedTemplate: false,
+  },
+  // 定型文編集中のID（null なら新規追加モード）
+  editingTemplateId: null,
+};
+
+// --- DOM参照 -------------------------------------------------------------
+
+const gatePasscode = document.getElementById("gate-passcode");
+const gateKarte = document.getElementById("gate-karte");
+const gateAnimal = document.getElementById("gate-animal");
+const centerMain = document.getElementById("center-main");
 
 const passcodeInput = document.getElementById("passcode-input");
 const passcodeError = document.getElementById("passcode-error");
@@ -45,27 +91,64 @@ const animalError = document.getElementById("animal-error");
 const btnAnimalNext = document.getElementById("btn-animal-next");
 const btnAnimalBack = document.getElementById("btn-animal-back");
 
-const entryKarteNumberEl = document.getElementById("entry-karte-number");
-const entryAnimalNameEl = document.getElementById("entry-animal-name");
-const btnEntryBack = document.getElementById("btn-entry-back");
-const authorButtonsVet = document.getElementById("author-buttons-vet");
-const authorButtonsNurse = document.getElementById("author-buttons-nurse");
-const entryTextInput = document.getElementById("entry-text-input");
+const mainKarteNumberEl = document.getElementById("main-karte-number");
+const mainAnimalNameEl = document.getElementById("main-animal-name");
+const btnChangeKarte = document.getElementById("btn-change-karte");
+const btnOpenTemplates = document.getElementById("btn-open-templates");
+
+const headerKarte = document.getElementById("header-karte");
+const headerKarteNumber = document.getElementById("header-karte-number");
+const headerAnimalName = document.getElementById("header-animal-name");
+
+const authorRow = document.getElementById("author-row");
+const headlineInput = document.getElementById("headline-input");
+const categoryButtonsEl = document.getElementById("category-buttons");
+const btnImportant = document.getElementById("btn-important");
+const recordDateInput = document.getElementById("record-date-input");
+const recordDateNote = document.getElementById("record-date-note");
+const bodyInput = document.getElementById("body-input");
+const templateButtonsEl = document.getElementById("template-buttons");
+const templateEmptyEl = document.getElementById("template-empty");
 const entryError = document.getElementById("entry-error");
 const btnEntrySave = document.getElementById("btn-entry-save");
 
-const entriesListEl = document.getElementById("entries-list");
-const entriesEmptyEl = document.getElementById("entries-empty");
-const entryItemTemplate = document.getElementById("entry-item-template");
+const timelineEl = document.getElementById("timeline");
+const timelineEmptyEl = document.getElementById("timeline-empty");
+const timelineItemTemplate = document.getElementById("timeline-item-template");
+
+const leftEmpty = document.getElementById("left-empty");
+const headlineList = document.getElementById("headline-list");
+const headlineItemTemplate = document.getElementById("headline-item-template");
+const starFilterWrap = document.getElementById("star-filter-wrap");
+const starFilterInput = document.getElementById("star-filter");
+
+const templatesModal = document.getElementById("templates-modal");
+const btnCloseTemplates = document.getElementById("btn-close-templates");
+const tplList = document.getElementById("tpl-list");
+const tplListEmpty = document.getElementById("tpl-list-empty");
+const tplLabelInput = document.getElementById("tpl-label-input");
+const tplTextInput = document.getElementById("tpl-text-input");
+const tplError = document.getElementById("tpl-error");
+const tplEditorTitle = document.getElementById("tpl-editor-title");
+const btnTplSave = document.getElementById("btn-tpl-save");
+const btnTplCancel = document.getElementById("btn-tpl-cancel");
 
 const toastEl = document.getElementById("toast");
 
 // --- 共通ユーティリティ ---------------------------------------------------
 
-function showScreen(name) {
-  Object.entries(screens).forEach(([key, el]) => {
-    el.hidden = key !== name;
-  });
+function showCenterState(s) {
+  state.centerState = s;
+  gatePasscode.hidden = s !== "passcode";
+  gateKarte.hidden = s !== "karte";
+  gateAnimal.hidden = s !== "animal";
+  centerMain.hidden = s !== "main";
+
+  const inMain = s === "main";
+  leftEmpty.hidden = inMain;
+  headlineList.hidden = !inMain;
+  starFilterWrap.hidden = !inMain;
+  headerKarte.hidden = !inMain;
 }
 
 function showError(el, message) {
@@ -84,50 +167,68 @@ function showToast(message, { isError = false } = {}) {
   }, 2600);
 }
 
-function formatDateTime(value) {
-  const date = typeof value === "number" ? new Date(value) : new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function setBusy(button, busy, busyLabel, idleLabel) {
   button.disabled = busy;
   button.textContent = busy ? busyLabel : idleLabel;
 }
 
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function dateStrFromMs(ms) {
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function mdFromStr(dateStr) {
+  if (!dateStr) return "";
+  const [, m, d] = dateStr.split("-");
+  if (!m || !d) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+function hmFromMs(ms) {
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getHours()}:${pad2(d.getMinutes())}`;
+}
+
+function mdhmFromMs(ms) {
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${pad2(d.getMinutes())}`;
+}
+
+function categoryShort(id) {
+  const c = CATEGORIES.find((cat) => cat.id === id);
+  return c ? c.short : "";
+}
+
 /**
- * 記入者選択ボタン群を生成する。
- * 同じ selectionState オブジェクトを共有する複数グループ（獣医師/看護師）で
- * 単一選択（1人だけ選べる）を実現する。
+ * 時系列エントリのメタ情報テキストを生成する。
+ * 遡って入力された（記録日と入力日が異なる）場合は両方の日付を併記する。
  */
-function createAuthorButtonGroup(names, selectionState, onChange) {
-  return names.map((name) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "author-btn";
-    btn.textContent = name;
-    btn.dataset.author = name;
-    btn.addEventListener("click", () => {
-      selectionState.selected = name;
-      onChange(name);
-    });
-    return btn;
-  });
+function buildEntryMeta(entry) {
+  const rec = entry.recordDate;
+  const ms = entry.enteredMs || Date.parse(entry.enteredAtIso || "") || 0;
+  const enteredDateStr = ms ? dateStrFromMs(ms) : "";
+  const author = entry.author || "";
+
+  if (rec && enteredDateStr && enteredDateStr !== rec) {
+    return `${mdFromStr(rec)}の記録　（${mdhmFromMs(ms)} 入力・記入者：${author}）`;
+  }
+  const timePart = ms ? `${hmFromMs(ms)} 入力・` : "";
+  return `${mdFromStr(rec)}　（${timePart}記入者：${author}）`;
 }
 
-function renderAuthorSelection(buttons, selectionState) {
-  buttons.forEach((btn) => {
-    btn.classList.toggle("is-selected", btn.dataset.author === selectionState.selected);
-  });
-}
-
-// --- 画面0: パスコード入力 -----------------------------------------------
+// --- 状態0: パスコード入力 -----------------------------------------------
 
 passcodeInput.addEventListener("input", () => {
   passcodeInput.value = passcodeInput.value.replace(/[^0-9]/g, "").slice(0, 4);
@@ -145,14 +246,12 @@ btnPasscodeNext.addEventListener("click", handlePasscodeNext);
 
 function handlePasscodeNext() {
   const value = passcodeInput.value.trim();
-
   if (value !== PASSCODE) {
     showError(passcodeError, "パスコードが正しくありません。");
     passcodeInput.value = "";
     passcodeInput.focus();
     return;
   }
-
   showError(passcodeError, "");
   try {
     sessionStorage.setItem(PASSCODE_SESSION_KEY, "1");
@@ -160,8 +259,7 @@ function handlePasscodeNext() {
     console.error("セッション情報の保存に失敗しました", err);
   }
   passcodeInput.value = "";
-  showScreen("karte");
-  setTimeout(() => karteNumberInput.focus(), 0);
+  goToKarte();
 }
 
 function isPasscodeVerified() {
@@ -172,11 +270,15 @@ function isPasscodeVerified() {
   }
 }
 
-// --- 画面1: カルテ番号入力 -----------------------------------------------
+// --- 状態1: カルテ番号入力 -----------------------------------------------
+
+function goToKarte() {
+  showCenterState("karte");
+  setTimeout(() => karteNumberInput.focus(), 0);
+}
 
 karteNumberInput.addEventListener("input", () => {
-  const digitsOnly = karteNumberInput.value.replace(/[^0-9]/g, "").slice(0, 5);
-  karteNumberInput.value = digitsOnly;
+  karteNumberInput.value = karteNumberInput.value.replace(/[^0-9]/g, "").slice(0, 5);
   showError(karteError, "");
 });
 
@@ -209,7 +311,7 @@ async function handleKarteNext() {
     animalRegisteredHint.hidden = !existingName;
     showError(animalError, "");
 
-    showScreen("animal");
+    showCenterState("animal");
     setTimeout(() => animalNameInput.focus(), 0);
   } catch (err) {
     console.error(err);
@@ -222,12 +324,11 @@ async function handleKarteNext() {
   }
 }
 
-// --- 画面2: 動物名の確認・登録 --------------------------------------------
+// --- 状態2: 動物名の確認・登録 --------------------------------------------
 
 btnAnimalBack.addEventListener("click", () => {
   showError(animalError, "");
-  showScreen("karte");
-  setTimeout(() => karteNumberInput.focus(), 0);
+  goToKarte();
 });
 
 animalNameInput.addEventListener("keydown", (event) => {
@@ -254,7 +355,7 @@ async function handleAnimalNext() {
       await setAnimalName(state.karteNumber, name);
     }
     state.animalName = name;
-    enterEntryScreen();
+    enterMain();
   } catch (err) {
     console.error(err);
     showError(animalError, "動物名の保存に失敗しました。もう一度お試しください。");
@@ -263,67 +364,160 @@ async function handleAnimalNext() {
   }
 }
 
-// --- 画面3: 記入・時系列一覧 ----------------------------------------------
+// --- 状態3: メイン作業エリア ----------------------------------------------
 
-const mainAuthorSelection = { selected: null };
-const mainVetButtons = createAuthorButtonGroup(VETS, mainAuthorSelection, () => {
-  renderAuthorSelection([...mainVetButtons, ...mainNurseButtons], mainAuthorSelection);
-  showError(entryError, "");
+// 記入者ボタン（横一列・単一選択）
+AUTHORS.forEach((name) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "author-btn";
+  btn.textContent = name;
+  btn.dataset.author = name;
+  btn.addEventListener("click", () => {
+    state.draft.author = name;
+    renderAuthorSelection();
+    showError(entryError, "");
+  });
+  authorRow.appendChild(btn);
 });
-const mainNurseButtons = createAuthorButtonGroup(NURSES, mainAuthorSelection, () => {
-  renderAuthorSelection([...mainVetButtons, ...mainNurseButtons], mainAuthorSelection);
-  showError(entryError, "");
-});
-mainVetButtons.forEach((btn) => authorButtonsVet.appendChild(btn));
-mainNurseButtons.forEach((btn) => authorButtonsNurse.appendChild(btn));
 
-btnEntryBack.addEventListener("click", () => {
-  leaveEntryScreen();
-  showScreen("karte");
+function renderAuthorSelection() {
+  authorRow.querySelectorAll(".author-btn").forEach((btn) => {
+    btn.classList.toggle("is-selected", btn.dataset.author === state.draft.author);
+  });
+}
+
+// カテゴリボタン
+CATEGORIES.forEach((cat) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "category-btn";
+  btn.dataset.category = cat.id;
+  const dot = document.createElement("span");
+  dot.className = "category-btn__dot";
+  const label = document.createElement("span");
+  label.textContent = cat.label;
+  btn.append(dot, label);
+  btn.addEventListener("click", () => {
+    state.draft.category = cat.id;
+    renderCategorySelection();
+  });
+  categoryButtonsEl.appendChild(btn);
+});
+
+function renderCategorySelection() {
+  categoryButtonsEl.querySelectorAll(".category-btn").forEach((btn) => {
+    btn.classList.toggle("is-selected", btn.dataset.category === state.draft.category);
+  });
+}
+
+// ★トグル（入力中エントリ用）
+btnImportant.addEventListener("click", () => {
+  state.draft.important = !state.draft.important;
+  btnImportant.setAttribute("aria-pressed", String(state.draft.important));
+});
+
+// 記録日
+recordDateInput.addEventListener("change", updateRecordDateNote);
+
+function updateRecordDateNote() {
+  const value = recordDateInput.value;
+  if (value && value !== todayStr()) {
+    recordDateNote.textContent = "過去の日付に遡って記録します";
+  } else {
+    recordDateNote.textContent = "";
+  }
+}
+
+btnChangeKarte.addEventListener("click", () => {
+  leaveMain();
+  goToKarte();
   karteNumberInput.value = "";
-  setTimeout(() => karteNumberInput.focus(), 0);
 });
 
 btnEntrySave.addEventListener("click", handleEntrySave);
 
-function enterEntryScreen() {
-  entryKarteNumberEl.textContent = state.karteNumber;
-  entryAnimalNameEl.textContent = state.animalName;
-  entryTextInput.value = "";
-  showError(entryError, "");
-
-  showScreen("entry");
-
-  if (state.unsubscribeEntries) {
-    state.unsubscribeEntries();
-  }
-  state.unsubscribeEntries = subscribeEntries(state.karteNumber, (entries) => {
-    state.entries = entries;
-    renderEntries(entries);
-  });
+function resetDraft() {
+  state.draft.category = "none";
+  state.draft.important = false;
+  state.draft.usedTemplate = false;
+  // 記入者は続けて記入することが多いため保持する
+  headlineInput.value = "";
+  bodyInput.value = "";
+  btnImportant.setAttribute("aria-pressed", "false");
+  recordDateInput.value = todayStr();
+  renderCategorySelection();
+  updateRecordDateNote();
+  // フォームを先頭（記入者）まで戻す
+  const formEl = document.querySelector(".entry-form");
+  if (formEl) formEl.scrollTop = 0;
 }
 
-function leaveEntryScreen() {
+function enterMain() {
+  mainKarteNumberEl.textContent = state.karteNumber;
+  mainAnimalNameEl.textContent = state.animalName;
+  headerKarteNumber.textContent = state.karteNumber;
+  headerAnimalName.textContent = state.animalName;
+
+  recordDateInput.max = todayStr();
+  resetDraft();
+  renderAuthorSelection();
+  showError(entryError, "");
+
+  showCenterState("main");
+
+  if (state.unsubscribeEntries) state.unsubscribeEntries();
+  state.unsubscribeEntries = subscribeEntries(state.karteNumber, (entries) => {
+    state.entries = entries;
+    renderEntries();
+  });
+
+  enterExamPlan(state.karteNumber);
+  enterMeds(state.karteNumber);
+  enterHistory(state.karteNumber);
+  enterFreeQa(state.karteNumber);
+}
+
+function leaveMain() {
   if (state.unsubscribeEntries) {
     state.unsubscribeEntries();
     state.unsubscribeEntries = null;
   }
+  leaveExamPlan();
+  leaveMeds();
+  leaveHistory();
+  leaveFreeQa();
   state.karteNumber = null;
   state.animalName = null;
   state.entries = [];
-  mainAuthorSelection.selected = null;
-  renderAuthorSelection([...mainVetButtons, ...mainNurseButtons], mainAuthorSelection);
+  state.draft.author = null;
+  state.starFilter = false;
+  starFilterInput.checked = false;
+  timelineEl.innerHTML = "";
+  headlineList.innerHTML = "";
 }
 
 async function handleEntrySave() {
-  const text = entryTextInput.value.trim();
+  const headline = headlineInput.value.trim();
+  const body = bodyInput.value.trim();
+  const recordDate = recordDateInput.value;
 
-  if (!mainAuthorSelection.selected) {
+  if (!state.draft.author) {
     showError(entryError, "記入者を選択してください。");
     return;
   }
-  if (!text) {
-    showError(entryError, "記入内容を入力してください。");
+  if (!headline) {
+    showError(entryError, "見出しを入力してください。");
+    headlineInput.focus();
+    return;
+  }
+  if (!body) {
+    showError(entryError, "本文を入力してください。");
+    bodyInput.focus();
+    return;
+  }
+  if (!recordDate) {
+    showError(entryError, "記録日を選択してください。");
     return;
   }
 
@@ -332,11 +526,17 @@ async function handleEntrySave() {
 
   try {
     await addEntry(state.karteNumber, {
-      author: mainAuthorSelection.selected,
-      text,
+      recordDate,
+      headline,
+      category: state.draft.category,
+      important: state.draft.important,
+      author: state.draft.author,
+      body,
+      source: state.draft.usedTemplate ? "template" : "manual",
     });
-    entryTextInput.value = "";
+    resetDraft();
     showToast("保存しました。");
+    headlineInput.focus();
   } catch (err) {
     console.error(err);
     showError(entryError, "保存に失敗しました。もう一度お試しください。");
@@ -345,94 +545,74 @@ async function handleEntrySave() {
   }
 }
 
-// --- 記録一覧の表示・編集・削除 -------------------------------------------
+// --- 時系列・見出しの描画 -------------------------------------------------
 
-function renderEntries(entries) {
-  entriesListEl.innerHTML = "";
-  entriesEmptyEl.hidden = entries.length > 0;
+function visibleEntries() {
+  // db から渡される state.entries は記録日の昇順（古い→新しい）。
+  // 表示は「新しい→古い」の降順にするため、コピーして反転する。
+  // 時系列と左カラムの見出しは同じ配列を使うため、並び順は常に一致する。
+  const list = state.starFilter
+    ? state.entries.filter((e) => e.important)
+    : state.entries.slice();
+  return list.reverse();
+}
+
+function renderEntries() {
+  const entries = visibleEntries();
+  renderTimeline(entries);
+  renderHeadlines(entries);
+}
+
+function renderTimeline(entries) {
+  timelineEl.innerHTML = "";
+  timelineEmptyEl.hidden = entries.length > 0;
+  if (state.starFilter && entries.length === 0) {
+    timelineEmptyEl.hidden = false;
+    timelineEmptyEl.textContent = "★が付いた記録はありません。";
+  } else {
+    timelineEmptyEl.textContent = "まだ記録がありません。";
+  }
 
   entries.forEach((entry) => {
-    entriesListEl.appendChild(createEntryListItem(entry));
+    timelineEl.appendChild(createTimelineItem(entry));
   });
 }
 
-function createEntryListItem(entry) {
-  const fragment = entryItemTemplate.content.cloneNode(true);
-  const li = fragment.querySelector(".entry-item");
+function createTimelineItem(entry) {
+  const fragment = timelineItemTemplate.content.cloneNode(true);
+  const li = fragment.querySelector(".tl-item");
+  li.id = `tl-${entry.id}`;
+  li.dataset.category = entry.category || "none";
 
-  const viewEl = li.querySelector(".entry-item__view");
-  const dateEl = li.querySelector(".entry-item__date");
-  const authorEl = li.querySelector(".entry-item__author");
-  const textEl = li.querySelector(".entry-item__text");
+  const starBtn = li.querySelector(".tl-item__star");
+  const headlineEl = li.querySelector(".tl-item__headline");
+  const catLabelEl = li.querySelector(".tl-item__cat-label");
+  const metaEl = li.querySelector(".tl-item__meta");
+  const bodyEl = li.querySelector(".tl-item__body");
+  const deleteBtn = li.querySelector(".tl-item__delete");
 
-  const editEl = li.querySelector(".entry-item__edit");
-  const editAuthorButtonsEl = li.querySelector(".entry-item__edit-author-buttons");
-  const editTextEl = li.querySelector(".entry-item__edit-text");
+  starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
+  headlineEl.textContent = entry.headline || "（見出しなし）";
+  catLabelEl.textContent = categoryShort(entry.category);
+  metaEl.textContent = buildEntryMeta(entry);
+  bodyEl.textContent = entry.body || "";
 
-  const editBtn = li.querySelector(".entry-item__edit-btn");
-  const deleteBtn = li.querySelector(".entry-item__delete-btn");
-  const saveBtn = li.querySelector(".entry-item__save-btn");
-  const cancelBtn = li.querySelector(".entry-item__cancel-btn");
-
-  li.classList.toggle("is-edited", Boolean(entry.updatedAt));
-  dateEl.textContent = formatDateTime(entry.createdAt || entry.date);
-  authorEl.textContent = entry.author;
-  textEl.textContent = entry.text;
-
-  const editSelection = { selected: entry.author };
-  const editButtons = [
-    ...createAuthorButtonGroup(VETS, editSelection, () => {
-      renderAuthorSelection(editButtons, editSelection);
-    }),
-    ...createAuthorButtonGroup(NURSES, editSelection, () => {
-      renderAuthorSelection(editButtons, editSelection);
-    }),
-  ];
-  editButtons.forEach((btn) => editAuthorButtonsEl.appendChild(btn));
-  renderAuthorSelection(editButtons, editSelection);
-
-  editBtn.addEventListener("click", () => {
-    editSelection.selected = entry.author;
-    renderAuthorSelection(editButtons, editSelection);
-    editTextEl.value = entry.text;
-    viewEl.hidden = true;
-    editEl.hidden = false;
-  });
-
-  cancelBtn.addEventListener("click", () => {
-    editEl.hidden = true;
-    viewEl.hidden = false;
-  });
-
-  saveBtn.addEventListener("click", async () => {
-    const newText = editTextEl.value.trim();
-    if (!editSelection.selected) {
-      showToast("記入者を選択してください。", { isError: true });
-      return;
-    }
-    if (!newText) {
-      showToast("記入内容を入力してください。", { isError: true });
-      return;
-    }
-    setBusy(saveBtn, true, "保存中...", "保存");
+  starBtn.addEventListener("click", async () => {
+    const next = !(entry.important);
+    starBtn.setAttribute("aria-pressed", String(next));
     try {
-      await updateEntry(state.karteNumber, entry.id, {
-        author: editSelection.selected,
-        text: newText,
-      });
-      editEl.hidden = true;
-      viewEl.hidden = false;
-      showToast("更新しました。");
+      await setEntryImportant(state.karteNumber, entry.id, next);
     } catch (err) {
       console.error(err);
-      showToast("更新に失敗しました。", { isError: true });
-    } finally {
-      setBusy(saveBtn, false, "保存中...", "保存");
+      starBtn.setAttribute("aria-pressed", String(entry.important));
+      showToast("★の更新に失敗しました。", { isError: true });
     }
   });
 
   deleteBtn.addEventListener("click", async () => {
-    const ok = window.confirm("この記録を削除しますか？この操作は取り消せません。");
+    const ok = window.confirm(
+      "この記録を削除しますか？（訂正は削除ではなく、新しい記録の追記で行ってください）"
+    );
     if (!ok) return;
     setBusy(deleteBtn, true, "削除中...", "削除");
     try {
@@ -448,12 +628,238 @@ function createEntryListItem(entry) {
   return li;
 }
 
+function renderHeadlines(entries) {
+  headlineList.innerHTML = "";
+  entries.forEach((entry) => {
+    const fragment = headlineItemTemplate.content.cloneNode(true);
+    const li = fragment.querySelector(".hl-item");
+    const btn = li.querySelector(".hl-item__btn");
+    const dot = li.querySelector(".hl-item__dot");
+    const textEl = li.querySelector(".hl-item__text");
+    const dateEl = li.querySelector(".hl-item__date");
+
+    li.classList.toggle("is-important", Boolean(entry.important));
+    dot.dataset.category = entry.category || "none";
+    textEl.textContent = entry.headline || "（見出しなし）";
+    dateEl.textContent = mdFromStr(entry.recordDate);
+
+    btn.addEventListener("click", () => jumpToEntry(entry.id, li));
+    headlineList.appendChild(li);
+  });
+}
+
+function jumpToEntry(entryId, headlineLi) {
+  const target = document.getElementById(`tl-${entryId}`);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  target.classList.add("is-flash");
+  setTimeout(() => target.classList.remove("is-flash"), 1200);
+
+  headlineList.querySelectorAll(".hl-item__btn").forEach((b) => b.classList.remove("is-target"));
+  headlineLi.querySelector(".hl-item__btn").classList.add("is-target");
+}
+
+// ★フィルタ
+starFilterInput.addEventListener("change", () => {
+  state.starFilter = starFilterInput.checked;
+  renderEntries();
+});
+
+// --- 定型文 ---------------------------------------------------------------
+
+function renderTemplateButtons() {
+  templateButtonsEl.innerHTML = "";
+  templateEmptyEl.hidden = state.templates.length > 0;
+
+  state.templates.forEach((tpl) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "template-btn";
+    btn.textContent = tpl.label || "(名称未設定)";
+    btn.addEventListener("click", () => insertTemplate(tpl));
+    templateButtonsEl.appendChild(btn);
+  });
+}
+
+function insertTemplate(tpl) {
+  // 見出しが空なら定型文名を見出しに、本文には定型文テキストを追記する。
+  if (!headlineInput.value.trim() && tpl.label) {
+    headlineInput.value = tpl.label;
+  }
+  const current = bodyInput.value;
+  const insertText = tpl.text || "";
+  bodyInput.value = current
+    ? `${current.replace(/\s*$/, "")}\n${insertText}`
+    : insertText;
+  state.draft.usedTemplate = true;
+  bodyInput.focus();
+  showError(entryError, "");
+}
+
+// --- 定型文管理モーダル ---------------------------------------------------
+
+btnOpenTemplates.addEventListener("click", openTemplatesModal);
+btnCloseTemplates.addEventListener("click", closeTemplatesModal);
+templatesModal.querySelector("[data-close-modal]").addEventListener("click", closeTemplatesModal);
+btnTplSave.addEventListener("click", handleTemplateSave);
+btnTplCancel.addEventListener("click", resetTemplateEditor);
+
+function openTemplatesModal() {
+  resetTemplateEditor();
+  renderTemplateList();
+  templatesModal.hidden = false;
+}
+
+function closeTemplatesModal() {
+  templatesModal.hidden = true;
+}
+
+function renderTemplateList() {
+  tplList.innerHTML = "";
+  tplListEmpty.hidden = state.templates.length > 0;
+
+  state.templates.forEach((tpl) => {
+    const li = document.createElement("li");
+    li.className = "tpl-list-item";
+
+    const info = document.createElement("div");
+    info.className = "tpl-list-item__info";
+    const label = document.createElement("div");
+    label.className = "tpl-list-item__label";
+    label.textContent = tpl.label || "(名称未設定)";
+    const text = document.createElement("div");
+    text.className = "tpl-list-item__text";
+    text.textContent = tpl.text || "";
+    info.append(label, text);
+
+    const actions = document.createElement("div");
+    actions.className = "tpl-list-item__actions";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "btn btn--small btn--outline";
+    editBtn.textContent = "編集";
+    editBtn.addEventListener("click", () => startEditTemplate(tpl));
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn btn--small btn--danger-outline";
+    delBtn.textContent = "削除";
+    delBtn.addEventListener("click", () => handleTemplateDelete(tpl));
+    actions.append(editBtn, delBtn);
+
+    li.append(info, actions);
+    tplList.appendChild(li);
+  });
+}
+
+function startEditTemplate(tpl) {
+  state.editingTemplateId = tpl.id;
+  tplEditorTitle.textContent = "定型文を編集";
+  tplLabelInput.value = tpl.label || "";
+  tplTextInput.value = tpl.text || "";
+  btnTplSave.textContent = "更新する";
+  btnTplCancel.hidden = false;
+  showError(tplError, "");
+  tplLabelInput.focus();
+}
+
+function resetTemplateEditor() {
+  state.editingTemplateId = null;
+  tplEditorTitle.textContent = "新しい定型文を追加";
+  tplLabelInput.value = "";
+  tplTextInput.value = "";
+  btnTplSave.textContent = "追加する";
+  btnTplCancel.hidden = true;
+  showError(tplError, "");
+}
+
+async function handleTemplateSave() {
+  const label = tplLabelInput.value.trim();
+  const text = tplTextInput.value.trim();
+  if (!label) {
+    showError(tplError, "ボタン名を入力してください。");
+    return;
+  }
+
+  showError(tplError, "");
+  const editingId = state.editingTemplateId;
+  setBusy(btnTplSave, true, "保存中...", editingId ? "更新する" : "追加する");
+  try {
+    if (editingId) {
+      await updateTemplate(editingId, { label, text });
+      showToast("定型文を更新しました。");
+    } else {
+      await addTemplate({ label, text });
+      showToast("定型文を追加しました。");
+    }
+    resetTemplateEditor();
+  } catch (err) {
+    console.error(err);
+    showError(tplError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    setBusy(btnTplSave, false, "保存中...", state.editingTemplateId ? "更新する" : "追加する");
+  }
+}
+
+async function handleTemplateDelete(tpl) {
+  const ok = window.confirm(`定型文「${tpl.label}」を削除しますか？`);
+  if (!ok) return;
+  try {
+    await deleteTemplate(tpl.id);
+    if (state.editingTemplateId === tpl.id) resetTemplateEditor();
+    showToast("定型文を削除しました。");
+  } catch (err) {
+    console.error(err);
+    showToast("削除に失敗しました。", { isError: true });
+  }
+}
+
 // --- 初期化 --------------------------------------------------------------
 
+subscribeTemplates((templates) => {
+  state.templates = templates;
+  renderTemplateButtons();
+  if (!templatesModal.hidden) renderTemplateList();
+});
+
+renderCategorySelection();
+
+initExamPlanUI({
+  showToast,
+  showError,
+  setBusy,
+});
+
+initMedsUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.draft.author || "",
+});
+
+initHistoryUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.draft.author || "",
+});
+
+initSettingsUI({
+  showToast,
+  showError,
+  onApiKeyChange: notifyApiKeyChanged,
+});
+
+initFreeQaUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.draft.author || "",
+  getTimelineEntries: () => state.entries || [],
+});
+
 if (isPasscodeVerified()) {
-  showScreen("karte");
-  setTimeout(() => karteNumberInput.focus(), 0);
+  goToKarte();
 } else {
-  showScreen("passcode");
+  showCenterState("passcode");
   setTimeout(() => passcodeInput.focus(), 0);
 }
