@@ -1,8 +1,12 @@
 // にゅうたカルテ記録アプリ用 Service Worker
 // アプリの見た目（HTML/CSS/JS/アイコン）だけをキャッシュし、
 // Firebaseとの通信（データ本体）はキャッシュせず常にネットワークを利用する。
+//
+// HTML/JS/CSS はネットワーク優先にする。
+// （キャッシュ優先だとデプロイ後に古い app.js と新しい index.html が混在し、
+//  パスコード画面が進まなくなる事故が起きうる）
 
-const CACHE_VERSION = "v8";
+const CACHE_VERSION = "v9";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -50,8 +54,31 @@ self.addEventListener("activate", (event) => {
         )
       )
       .then(() => self.clients.claim())
+      .then(() =>
+        self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      )
+      .then((clients) => {
+        // 新しいシェルを確実に読み込ませる
+        clients.forEach((client) => {
+          if (client.url && "navigate" in client) {
+            client.navigate(client.url);
+          }
+        });
+      })
   );
 });
+
+function isAppShellRequest(request, url) {
+  if (request.mode === "navigate") return true;
+  const path = url.pathname;
+  return (
+    path.endsWith(".html") ||
+    path.endsWith(".js") ||
+    path.endsWith(".css") ||
+    path.endsWith("/") ||
+    path.endsWith("/nyuta-karte-log")
+  );
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -68,8 +95,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // アプリシェルはキャッシュファーストで表示を高速化し、
-  // 取得できたら裏側でキャッシュを更新する。
+  // HTML / JS / CSS はネットワーク優先（オフライン時のみキャッシュ）
+  if (isAppShellRequest(request, url)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || Response.error()))
+    );
+    return;
+  }
+
+  // アイコン等はキャッシュ優先
   event.respondWith(
     caches.match(request).then((cached) => {
       const networkFetch = fetch(request)
