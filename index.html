@@ -382,6 +382,7 @@
       <div class="tl-item__meta"></div>
       <p class="tl-item__body"></p>
       <div class="tl-item__actions">
+        <button class="btn btn--small btn--outline tl-item__edit" type="button">編集</button>
         <button class="btn btn--small btn--danger-outline tl-item__delete" type="button">削除</button>
       </div>
     </div>
@@ -399,6 +400,47 @@
     </button>
   </li>
 </template>
+
+<!-- 時系列エントリ編集モーダル -->
+<div class="modal" id="entry-edit-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="entry-edit-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="entry-edit-modal-title">記録を編集</h2>
+      <button class="modal__close" id="btn-close-entry-edit" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <span class="label">編集者</span>
+        <div class="author-row" id="entry-edit-author-row"></div>
+        <p class="field__note">この編集を行った人を選択してください。</p>
+      </div>
+      <div class="field">
+        <label class="label" for="entry-edit-headline">見出し</label>
+        <input id="entry-edit-headline" class="input" type="text" autocomplete="off" />
+      </div>
+      <div class="field">
+        <span class="label">カテゴリ</span>
+        <div class="headline-options">
+          <div class="category-buttons" id="entry-edit-category-buttons"></div>
+          <button id="entry-edit-important" class="star-toggle" type="button" aria-pressed="false" title="重要（★）">
+            <span class="star-toggle__icon">★</span>
+            <span class="star-toggle__label">重要</span>
+          </button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="entry-edit-body">本文</label>
+        <textarea id="entry-edit-body" class="textarea" rows="6"></textarea>
+      </div>
+      <p id="entry-edit-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-entry-edit-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-entry-edit-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- 定型文管理モーダル -->
 <div class="modal" id="templates-modal" hidden>

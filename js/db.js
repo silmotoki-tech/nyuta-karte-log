@@ -8,9 +8,12 @@
 //   karte/{カルテ番号}/entries/{entryId}/headline        … 見出し（その日のメインの出来事）
 //   karte/{カルテ番号}/entries/{entryId}/category        … カテゴリ（"none"|"ope"|"admission"|"referral"）
 //   karte/{カルテ番号}/entries/{entryId}/important       … 重要フラグ（★, true/false）
-//   karte/{カルテ番号}/entries/{entryId}/author          … 記入者名
+//   karte/{カルテ番号}/entries/{entryId}/author          … 記入者名（初回）
 //   karte/{カルテ番号}/entries/{entryId}/body            … 本文フリーテキスト
 //   karte/{カルテ番号}/entries/{entryId}/source          … "manual"|"template"（AI解析対象の判定に使用予定）
+//   karte/{カルテ番号}/entries/{entryId}/lastEditedAt    … 最終編集時刻（サーバータイムスタンプ, 任意）
+//   karte/{カルテ番号}/entries/{entryId}/lastEditedAtIso … 最終編集時刻ISO（表示用, 任意）
+//   karte/{カルテ番号}/entries/{entryId}/lastEditedBy    … 最終編集者名（任意）
 //
 //   templates/{templateId}/label                        … 定型文ボタンのラベル
 //   templates/{templateId}/text                         … 挿入される本文
@@ -55,8 +58,9 @@
 //   freeQA/{カルテ番号}/{questionId}/askedAt             … ISO文字列
 //   freeQA/{カルテ番号}/{questionId}/askedBy
 //
-// 方針: 既存記録は上書きしない（追記型）。訂正は新しいエントリの追記で行う。
-//       例外的に「重要フラグ(★)の切り替え」と「誤入力エントリの削除」のみ許可する。
+// 方針: 参照用メモとしてエントリの直接編集（上書き）を許可する。
+//       最終編集日時・編集者のみ記録し、詳細な差分履歴は持たない。
+//       誤入力エントリの削除も許可する。
 //       検査予定は手動操作専用（AI解析には頼らない）。
 
 import {
@@ -130,11 +134,33 @@ export async function addEntry(
 }
 
 /**
- * 重要フラグ(★)のみを切り替える。本文などの記録内容は変更しない。
+ * 重要フラグ(★)のみを切り替える。
  */
 export async function setEntryImportant(karteNumber, entryId, important) {
   await authReady;
   await update(entryRef(karteNumber, entryId), { important: Boolean(important) });
+}
+
+/**
+ * 既存エントリを上書き更新する（見出し・本文・カテゴリ・★）。
+ * 最終編集日時・編集者を記録する（差分履歴は残さない）。
+ */
+export async function updateEntry(
+  karteNumber,
+  entryId,
+  { headline, body, category, important, editedBy }
+) {
+  await authReady;
+  const now = new Date();
+  await update(entryRef(karteNumber, entryId), {
+    headline: headline || "",
+    body: body || "",
+    category: category || "none",
+    important: Boolean(important),
+    lastEditedAt: serverTimestamp(),
+    lastEditedAtIso: now.toISOString(),
+    lastEditedBy: editedBy || "",
+  });
 }
 
 /**
@@ -205,8 +231,28 @@ function normalizeEntry(id, raw) {
   entry.category = entry.category || "none";
   entry.important = Boolean(entry.important);
   entry.source = entry.source || "manual";
+  entry.lastEditedBy = entry.lastEditedBy || "";
+  entry.lastEditedAtIso = entry.lastEditedAtIso || "";
+  entry.lastEditedMs = resolveLastEditedMs(entry);
 
   return entry;
+}
+
+function resolveLastEditedMs(entry) {
+  if (typeof entry.lastEditedAt === "number") return entry.lastEditedAt;
+  if (entry.lastEditedAt && typeof entry.lastEditedAt === "object") {
+    if (typeof entry.lastEditedAt.seconds === "number") {
+      return entry.lastEditedAt.seconds * 1000;
+    }
+    if (typeof entry.lastEditedAt._seconds === "number") {
+      return entry.lastEditedAt._seconds * 1000;
+    }
+  }
+  if (entry.lastEditedAtIso) {
+    const parsed = Date.parse(entry.lastEditedAtIso);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return 0;
 }
 
 function resolveEnteredMs(entry) {

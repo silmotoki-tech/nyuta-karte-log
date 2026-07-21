@@ -2,6 +2,7 @@ import {
   getAnimalName,
   setAnimalName,
   addEntry,
+  updateEntry,
   setEntryImportant,
   deleteEntry,
   subscribeEntries,
@@ -79,6 +80,13 @@ const state = {
   editingTemplateId: null,
   // 新規記録の入力エリアが開いているか
   composing: false,
+  // 編集中エントリ
+  editingEntryId: null,
+  editDraft: {
+    author: null,
+    category: "none",
+    important: false,
+  },
 };
 
 // --- DOM参照 -------------------------------------------------------------
@@ -125,6 +133,17 @@ const templateEmptyEl = document.getElementById("template-empty");
 const entryError = document.getElementById("entry-error");
 const btnEntrySave = document.getElementById("btn-entry-save");
 const btnEntryCancel = document.getElementById("btn-entry-cancel");
+
+const entryEditModal = document.getElementById("entry-edit-modal");
+const btnCloseEntryEdit = document.getElementById("btn-close-entry-edit");
+const entryEditAuthorRow = document.getElementById("entry-edit-author-row");
+const entryEditHeadline = document.getElementById("entry-edit-headline");
+const entryEditCategoryButtons = document.getElementById("entry-edit-category-buttons");
+const entryEditImportant = document.getElementById("entry-edit-important");
+const entryEditBody = document.getElementById("entry-edit-body");
+const entryEditError = document.getElementById("entry-edit-error");
+const btnEntryEditSave = document.getElementById("btn-entry-edit-save");
+const btnEntryEditCancel = document.getElementById("btn-entry-edit-cancel");
 
 const timelineEl = document.getElementById("timeline");
 const timelineEmptyEl = document.getElementById("timeline-empty");
@@ -294,11 +313,23 @@ function buildEntryMeta(entry) {
   const enteredDateStr = ms ? dateStrFromMs(ms) : "";
   const author = entry.author || "";
 
+  let base = "";
   if (rec && enteredDateStr && enteredDateStr !== rec) {
-    return `${mdFromStr(rec)}の記録　（${mdhmFromMs(ms)} 入力・記入者：${author}）`;
+    base = `${mdFromStr(rec)}の記録　（${mdhmFromMs(ms)} 入力・記入者：${author}）`;
+  } else {
+    const timePart = ms ? `${hmFromMs(ms)} 入力・` : "";
+    base = `${mdFromStr(rec)}　（${timePart}記入者：${author}）`;
   }
-  const timePart = ms ? `${hmFromMs(ms)} 入力・` : "";
-  return `${mdFromStr(rec)}　（${timePart}記入者：${author}）`;
+
+  const editMs =
+    entry.lastEditedMs || Date.parse(entry.lastEditedAtIso || "") || 0;
+  if (editMs && entry.lastEditedBy) {
+    return `${base}　／　最終編集 ${mdhmFromMs(editMs)}・${entry.lastEditedBy}`;
+  }
+  if (editMs) {
+    return `${base}　／　最終編集 ${mdhmFromMs(editMs)}`;
+  }
+  return base;
 }
 
 // --- 状態0: パスコード入力 -----------------------------------------------
@@ -472,6 +503,30 @@ function renderAuthorSelection() {
   });
 }
 
+// 編集モーダル用・編集者ボタン
+AUTHORS.forEach((name) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "author-btn";
+  btn.textContent = name;
+  btn.dataset.author = name;
+  btn.addEventListener("click", () => {
+    state.editDraft.author = name;
+    renderEditAuthorSelection();
+    showError(entryEditError, "");
+  });
+  entryEditAuthorRow?.appendChild(btn);
+});
+
+function renderEditAuthorSelection() {
+  entryEditAuthorRow?.querySelectorAll(".author-btn").forEach((btn) => {
+    btn.classList.toggle(
+      "is-selected",
+      btn.dataset.author === state.editDraft.author
+    );
+  });
+}
+
 // カテゴリボタン
 CATEGORIES.forEach((cat) => {
   const btn = document.createElement("button");
@@ -491,10 +546,120 @@ CATEGORIES.forEach((cat) => {
 });
 
 function renderCategorySelection() {
-  categoryButtonsEl.querySelectorAll(".category-btn").forEach((btn) => {
+  categoryButtonsEl?.querySelectorAll(".category-btn").forEach((btn) => {
     btn.classList.toggle("is-selected", btn.dataset.category === state.draft.category);
   });
 }
+
+// 編集モーダル用カテゴリ
+CATEGORIES.forEach((cat) => {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "category-btn";
+  btn.dataset.category = cat.id;
+  const dot = document.createElement("span");
+  dot.className = "category-btn__dot";
+  const label = document.createElement("span");
+  label.textContent = cat.label;
+  btn.append(dot, label);
+  btn.addEventListener("click", () => {
+    state.editDraft.category = cat.id;
+    renderEditCategorySelection();
+  });
+  entryEditCategoryButtons?.appendChild(btn);
+});
+
+function renderEditCategorySelection() {
+  entryEditCategoryButtons?.querySelectorAll(".category-btn").forEach((btn) => {
+    btn.classList.toggle(
+      "is-selected",
+      btn.dataset.category === state.editDraft.category
+    );
+  });
+}
+
+entryEditImportant?.addEventListener("click", () => {
+  state.editDraft.important = !state.editDraft.important;
+  entryEditImportant.setAttribute(
+    "aria-pressed",
+    String(state.editDraft.important)
+  );
+});
+
+function openEntryEdit(entry) {
+  state.editingEntryId = entry.id;
+  state.editDraft = {
+    author: state.draft.author || null,
+    category: entry.category || "none",
+    important: Boolean(entry.important),
+  };
+  if (entryEditHeadline) entryEditHeadline.value = entry.headline || "";
+  if (entryEditBody) entryEditBody.value = entry.body || "";
+  entryEditImportant?.setAttribute(
+    "aria-pressed",
+    String(state.editDraft.important)
+  );
+  renderEditAuthorSelection();
+  renderEditCategorySelection();
+  showError(entryEditError, "");
+  if (entryEditModal) entryEditModal.hidden = false;
+  setTimeout(() => entryEditHeadline?.focus(), 0);
+}
+
+function closeEntryEdit() {
+  state.editingEntryId = null;
+  state.editDraft = { author: null, category: "none", important: false };
+  if (entryEditModal) entryEditModal.hidden = true;
+  showError(entryEditError, "");
+}
+
+async function handleEntryEditSave() {
+  if (!state.editingEntryId || !state.karteNumber) return;
+
+  const headline = (entryEditHeadline?.value || "").trim();
+  const body = (entryEditBody?.value || "").trim();
+
+  if (!state.editDraft.author) {
+    showError(entryEditError, "編集者を選択してください。");
+    return;
+  }
+  if (!headline) {
+    showError(entryEditError, "見出しを入力してください。");
+    entryEditHeadline?.focus();
+    return;
+  }
+  if (!body) {
+    showError(entryEditError, "本文を入力してください。");
+    entryEditBody?.focus();
+    return;
+  }
+
+  showError(entryEditError, "");
+  setBusy(btnEntryEditSave, true, "保存中...", "保存する");
+  try {
+    await updateEntry(state.karteNumber, state.editingEntryId, {
+      headline,
+      body,
+      category: state.editDraft.category,
+      important: state.editDraft.important,
+      editedBy: state.editDraft.author,
+    });
+    closeEntryEdit();
+    showToast("編集内容を保存しました。");
+  } catch (err) {
+    console.error(err);
+    showError(entryEditError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    setBusy(btnEntryEditSave, false, "保存中...", "保存する");
+  }
+}
+
+btnCloseEntryEdit?.addEventListener("click", closeEntryEdit);
+btnEntryEditCancel?.addEventListener("click", closeEntryEdit);
+entryEditModal
+  ?.querySelector("[data-close-modal]")
+  ?.addEventListener("click", closeEntryEdit);
+btnEntryEditSave?.addEventListener("click", handleEntryEditSave);
 
 // ★トグル（入力中エントリ用）
 btnImportant.addEventListener("click", () => {
@@ -582,6 +747,7 @@ function leaveMain() {
   leaveHistory();
   leaveFreeQa();
   closeCompose({ reset: true });
+  closeEntryEdit();
   state.karteNumber = null;
   state.animalName = null;
   state.entries = [];
@@ -691,6 +857,7 @@ function createTimelineItem(entry) {
   const catLabelEl = li.querySelector(".tl-item__cat-label");
   const metaEl = li.querySelector(".tl-item__meta");
   const bodyEl = li.querySelector(".tl-item__body");
+  const editBtn = li.querySelector(".tl-item__edit");
   const deleteBtn = li.querySelector(".tl-item__delete");
 
   starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
@@ -700,7 +867,7 @@ function createTimelineItem(entry) {
   bodyEl.textContent = entry.body || "";
 
   starBtn.addEventListener("click", async () => {
-    const next = !(entry.important);
+    const next = !entry.important;
     starBtn.setAttribute("aria-pressed", String(next));
     try {
       await setEntryImportant(state.karteNumber, entry.id, next);
@@ -711,9 +878,11 @@ function createTimelineItem(entry) {
     }
   });
 
+  editBtn?.addEventListener("click", () => openEntryEdit(entry));
+
   deleteBtn.addEventListener("click", async () => {
     const ok = window.confirm(
-      "この記録を削除しますか？（訂正は削除ではなく、新しい記録の追記で行ってください）"
+      "この記録を削除しますか？（入力ミスなど、明らかな誤りのときだけ削除してください）"
     );
     if (!ok) return;
     setBusy(deleteBtn, true, "削除中...", "削除");
