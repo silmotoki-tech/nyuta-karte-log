@@ -5,6 +5,7 @@ import {
   setEntryImportant,
   deleteEntry,
   subscribeEntries,
+  sortEntriesDescending,
   subscribeTemplates,
   addTemplate,
   updateTemplate,
@@ -568,13 +569,13 @@ async function handleEntrySave() {
 // --- 時系列・見出しの描画 -------------------------------------------------
 
 function visibleEntries() {
-  // db から渡される state.entries は記録日の昇順（古い→新しい）。
-  // 表示は「新しい→古い」の降順にするため、コピーして反転する。
-  // 時系列と左カラムの見出しは同じ配列を使うため、並び順は常に一致する。
-  const list = state.starFilter
+  // 記録日の降順（新しい→古い）。同一記録日は入力時刻の降順。
+  // db 側でも降順だが、描画直前にもう一度並べ替えて順序を保証する。
+  // 時系列（中央）と見出し（左）は同じ配列を forEach するため常に一致する。
+  const filtered = state.starFilter
     ? state.entries.filter((e) => e.important)
-    : state.entries.slice();
-  return list.reverse();
+    : state.entries;
+  return sortEntriesDescending(filtered);
 }
 
 function renderEntries() {

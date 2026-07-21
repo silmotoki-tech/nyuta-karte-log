@@ -164,8 +164,7 @@ export function subscribeEntries(karteNumber, callback) {
         const entries = Object.entries(value).map(([id, entry]) =>
           normalizeEntry(id, entry)
         );
-        entries.sort(compareEntries);
-        callback(entries);
+        callback(sortEntriesDescending(entries));
       });
     })
     .catch((err) => {
@@ -212,6 +211,15 @@ function normalizeEntry(id, raw) {
 
 function resolveEnteredMs(entry) {
   if (typeof entry.enteredAt === "number") return entry.enteredAt;
+  // Firebase の Timestamp 風オブジェクトにも対応
+  if (entry.enteredAt && typeof entry.enteredAt === "object") {
+    if (typeof entry.enteredAt.seconds === "number") {
+      return entry.enteredAt.seconds * 1000;
+    }
+    if (typeof entry.enteredAt._seconds === "number") {
+      return entry.enteredAt._seconds * 1000;
+    }
+  }
   const iso = entry.enteredAtIso || entry.date || entry.createdAt;
   const parsed = iso != null ? Date.parse(iso) : NaN;
   if (!Number.isNaN(parsed)) return parsed;
@@ -224,6 +232,14 @@ function compareEntries(a, b) {
   const rd = (b.recordDate || "").localeCompare(a.recordDate || "");
   if (rd !== 0) return rd;
   return (b.enteredMs || 0) - (a.enteredMs || 0);
+}
+
+/**
+ * 記録日・入力時刻の降順（新しい→古い）に並べた新しい配列を返す。
+ * UI（時系列・見出し）からも再利用して順序を保証する。
+ */
+export function sortEntriesDescending(entries) {
+  return [...(entries || [])].sort(compareEntries);
 }
 
 function toDateStr(value) {
