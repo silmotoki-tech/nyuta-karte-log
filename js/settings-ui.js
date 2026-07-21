@@ -1,6 +1,7 @@
-// 設定画面（Anthropic APIキーのQR読取・状態表示・削除）。
+// 設定画面（Anthropic APIキーのQR読取・状態表示・削除・バージョン表示）。
 
 import { hasApiKey, setApiKey, clearApiKey } from "./api-key.js";
+import { APP_VERSION, CACHE_LABEL } from "./app-version.js";
 
 let deps = {
   showToast: () => {},
@@ -21,6 +22,7 @@ const btnStopScan = document.getElementById("btn-settings-stop-scan");
 const qrReaderEl = document.getElementById("settings-qr-reader");
 const qrSection = document.getElementById("settings-qr-section");
 const settingsError = document.getElementById("settings-error");
+const settingsVersionEl = document.getElementById("settings-app-version");
 
 export function initSettingsUI(helpers = {}) {
   deps = { ...deps, ...helpers };
@@ -33,12 +35,19 @@ export function initSettingsUI(helpers = {}) {
   btnStopScan?.addEventListener("click", stopQrScan);
   btnDeleteKey?.addEventListener("click", handleDeleteKey);
   refreshApiKeyStatus();
+  refreshVersionLabel();
 }
 
 export function openSettings() {
   deps.showError(settingsError, "");
   refreshApiKeyStatus();
+  refreshVersionLabel();
   if (settingsModal) settingsModal.hidden = false;
+}
+
+function refreshVersionLabel() {
+  if (!settingsVersionEl) return;
+  settingsVersionEl.textContent = `バージョン ${APP_VERSION}（${CACHE_LABEL}）`;
 }
 
 export async function closeSettings() {

@@ -54,23 +54,22 @@
 
 <!-- ============ 本編（パスコード認証後に表示） ============ -->
 <div id="app-shell" class="app" hidden>
-  <header class="app-header">
-    <img class="app-header__icon" src="./icons/icon-192.png" alt="" />
-    <h1 class="app-header__title">にゅうたカルテ記録</h1>
-    <div class="app-header__spacer"></div>
-    <div class="app-header__karte" id="header-karte" hidden>
-      <span class="badge badge--number" id="header-karte-number"></span>
-      <span class="badge badge--animal" id="header-animal-name"></span>
-    </div>
-    <button id="btn-open-settings" class="btn btn--header" type="button" title="設定">
-      設定
-    </button>
-  </header>
-
   <div class="layout">
 
-    <!-- ============ 左カラム: 見出し（目次） ============ -->
+    <!-- ============ 左カラム: 患者情報 + 見出し ============ -->
     <aside class="col col--left" id="col-left">
+      <div class="left-patient" id="left-patient" hidden>
+        <div class="left-patient__top">
+          <p class="left-patient__label" id="left-patient-label"></p>
+          <button id="btn-open-settings" class="btn btn--small btn--outline" type="button" title="設定">
+            設定
+          </button>
+        </div>
+        <button id="btn-change-karte" class="link-back left-patient__change" type="button">
+          &larr; カルテを変更
+        </button>
+      </div>
+
       <div class="left-head">
         <h2 class="col__title">見出し</h2>
         <label class="star-filter" id="star-filter-wrap" hidden>
@@ -136,77 +135,82 @@
       <!-- 状態: メイン作業エリア（記入 + 時系列） -->
       <div class="center-main" id="center-main" hidden>
 
-        <!-- カルテ情報バー -->
-        <div class="karte-bar">
-          <button id="btn-change-karte" class="link-back" type="button">&larr; カルテを変更</button>
-          <div class="karte-bar__info">
-            <span class="badge badge--number" id="main-karte-number"></span>
-            <span class="badge badge--animal" id="main-animal-name"></span>
-          </div>
-          <button id="btn-open-templates" class="btn btn--small btn--outline" type="button">定型文の管理</button>
+        <div class="center-toolbar">
+          <button id="btn-start-compose" class="btn btn--small btn--primary" type="button">
+            新しく記録を追加
+          </button>
+          <button id="btn-open-templates" class="btn btn--small btn--outline" type="button">
+            定型文の管理
+          </button>
         </div>
 
-        <!-- 入力フォーム -->
-        <div class="entry-form">
-          <!-- 記入者（横一列・単一選択） -->
-          <div class="field">
-            <span class="label">記入者</span>
-            <div class="author-row" id="author-row"></div>
-          </div>
+        <!-- 入力フォーム（「新しく記録を追加」時のみ開く） -->
+        <div id="entry-composer" class="entry-composer" hidden>
+          <div class="entry-form">
+            <!-- 記入者（選択したら隠す） -->
+            <div class="field" id="author-field">
+              <span class="label">記入者</span>
+              <div class="author-row" id="author-row"></div>
+            </div>
 
-          <!-- 見出し + カテゴリ + ★ -->
-          <div class="field">
-            <label class="label" for="headline-input">見出し（その日のメインの出来事）</label>
-            <input
-              id="headline-input"
-              class="input"
-              type="text"
-              autocomplete="off"
-              placeholder="例）左前肢の跛行で来院"
-            />
-            <div class="headline-options">
-              <div class="category-buttons" id="category-buttons"></div>
-              <button id="btn-important" class="star-toggle" type="button" aria-pressed="false" title="重要（★）">
-                <span class="star-toggle__icon">★</span>
-                <span class="star-toggle__label">重要</span>
-              </button>
+            <!-- 見出し + カテゴリ + ★ -->
+            <div class="field">
+              <label class="label" for="headline-input">見出し（その日のメインの出来事）</label>
+              <input
+                id="headline-input"
+                class="input"
+                type="text"
+                autocomplete="off"
+                placeholder="例）左前肢の跛行で来院"
+              />
+              <div class="headline-options">
+                <div class="category-buttons" id="category-buttons"></div>
+                <button id="btn-important" class="star-toggle" type="button" aria-pressed="false" title="重要（★）">
+                  <span class="star-toggle__icon">★</span>
+                  <span class="star-toggle__label">重要</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 記録日 -->
+            <div class="field field--inline">
+              <label class="label" for="record-date-input">記録日</label>
+              <input id="record-date-input" class="input input--date" type="date" />
+              <span class="field__note" id="record-date-note"></span>
+            </div>
+
+            <!-- 本文 -->
+            <div class="field">
+              <label class="label" for="body-input">本文</label>
+              <textarea
+                id="body-input"
+                class="textarea"
+                rows="5"
+                placeholder="診療内容を入力してください"
+              ></textarea>
+            </div>
+
+            <!-- 定型文ボタン -->
+            <div class="field">
+              <span class="label">定型文</span>
+              <div class="template-buttons" id="template-buttons"></div>
+              <p class="field__note" id="template-empty" hidden>
+                定型文は「定型文の管理」から登録できます。
+              </p>
             </div>
           </div>
 
-          <!-- 記録日 -->
-          <div class="field field--inline">
-            <label class="label" for="record-date-input">記録日</label>
-            <input id="record-date-input" class="input input--date" type="date" />
-            <span class="field__note" id="record-date-note"></span>
+          <div class="entry-actions">
+            <p id="entry-error" class="error-text" role="alert" hidden></p>
+            <div class="entry-actions__row">
+              <button id="btn-entry-save" class="btn btn--primary" type="button">
+                保存する
+              </button>
+              <button id="btn-entry-cancel" class="btn btn--outline" type="button">
+                やめる
+              </button>
+            </div>
           </div>
-
-          <!-- 本文 -->
-          <div class="field">
-            <label class="label" for="body-input">本文</label>
-            <textarea
-              id="body-input"
-              class="textarea"
-              rows="5"
-              placeholder="診療内容を入力してください"
-            ></textarea>
-          </div>
-
-          <!-- 定型文ボタン -->
-          <div class="field">
-            <span class="label">定型文</span>
-            <div class="template-buttons" id="template-buttons"></div>
-            <p class="field__note" id="template-empty" hidden>
-              定型文は「定型文の管理」から登録できます。
-            </p>
-          </div>
-        </div>
-
-        <!-- 保存アクション（常に表示） -->
-        <div class="entry-actions">
-          <p id="entry-error" class="error-text" role="alert" hidden></p>
-          <button id="btn-entry-save" class="btn btn--primary btn--block" type="button">
-            保存する
-          </button>
         </div>
 
         <!-- 時系列（記録日順） -->
@@ -760,6 +764,10 @@
         </div>
         <p id="settings-error" class="error-text" role="alert" hidden></p>
       </section>
+      <section class="settings-section settings-section--version">
+        <h3 class="settings-section__title">アプリ情報</h3>
+        <p class="settings-version" id="settings-app-version">バージョン —</p>
+      </section>
     </div>
   </div>
 </div>
@@ -767,20 +775,5 @@
 <div id="toast" class="toast" hidden></div>
 
 <script type="module" src="./js/app.js"></script>
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("./service-worker.js", { updateViaCache: "none" })
-        .then((reg) => {
-          // デプロイ後の古いシェル残留を防ぐ
-          reg.update().catch(() => {});
-        })
-        .catch(() => {
-          // オフライン非対応でもアプリ自体は動作するため握りつぶす
-        });
-    });
-  }
-</script>
 </body>
 </html>

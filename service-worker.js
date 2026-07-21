@@ -2,11 +2,13 @@
 // アプリの見た目（HTML/CSS/JS/アイコン）だけをキャッシュし、
 // Firebaseとの通信（データ本体）はキャッシュせず常にネットワークを利用する。
 //
-// HTML/JS/CSS はネットワーク優先にする。
-// （キャッシュ優先だとデプロイ後に古い app.js と新しい index.html が混在し、
-//  パスコード画面が進まなくなる事故が起きうる）
+// HTML/JS/CSS はネットワーク優先。
+// 新バージョンの有効化はクライアントからの SKIP_WAITING メッセージで行う
+// （記入中の強制リロードを避けるため、install 時の自動 skipWaiting はしない）。
+//
+// ※ CACHE_VERSION を上げるときは js/app-version.js の APP_VERSION / CACHE_LABEL も合わせて更新する。
 
-const CACHE_VERSION = "v11";
+const CACHE_VERSION = "v12";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -25,6 +27,8 @@ const APP_SHELL_FILES = [
   "./js/anthropic.js",
   "./js/settings-ui.js",
   "./js/free-qa-ui.js",
+  "./js/app-version.js",
+  "./js/sw-update.js",
   "./js/app.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -35,11 +39,14 @@ const APP_SHELL_FILES = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL_FILES))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL_FILES))
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
@@ -54,17 +61,6 @@ self.addEventListener("activate", (event) => {
         )
       )
       .then(() => self.clients.claim())
-      .then(() =>
-        self.clients.matchAll({ type: "window", includeUncontrolled: true })
-      )
-      .then((clients) => {
-        // 新しいシェルを確実に読み込ませる
-        clients.forEach((client) => {
-          if (client.url && "navigate" in client) {
-            client.navigate(client.url);
-          }
-        });
-      })
   );
 });
 
@@ -89,13 +85,10 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // 自分自身のオリジン（アプリ本体）以外は Service Worker で扱わず、
-  // ブラウザに任せる（Firebase / CDN 等への通信をそのまま素通しする）。
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  // HTML / JS / CSS はネットワーク優先（オフライン時のみキャッシュ）
   if (isAppShellRequest(request, url)) {
     event.respondWith(
       fetch(request)
@@ -106,12 +99,13 @@ self.addEventListener("fetch", (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || Response.error()))
+        .catch(() =>
+          caches.match(request).then((cached) => cached || Response.error())
+        )
     );
     return;
   }
 
-  // アイコン等はキャッシュ優先
   event.respondWith(
     caches.match(request).then((cached) => {
       const networkFetch = fetch(request)

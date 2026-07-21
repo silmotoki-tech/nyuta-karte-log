@@ -33,6 +33,10 @@ import {
   leaveFreeQa,
   notifyApiKeyChanged,
 } from "./free-qa-ui.js";
+import {
+  initServiceWorkerUpdates,
+  applyWaitingUpdate,
+} from "./sw-update.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -69,6 +73,8 @@ const state = {
   },
   // 定型文編集中のID（null なら新規追加モード）
   editingTemplateId: null,
+  // 新規記録の入力エリアが開いているか
+  composing: false,
 };
 
 // --- DOM参照 -------------------------------------------------------------
@@ -95,14 +101,13 @@ const animalError = document.getElementById("animal-error");
 const btnAnimalNext = document.getElementById("btn-animal-next");
 const btnAnimalBack = document.getElementById("btn-animal-back");
 
-const mainKarteNumberEl = document.getElementById("main-karte-number");
-const mainAnimalNameEl = document.getElementById("main-animal-name");
+const leftPatient = document.getElementById("left-patient");
+const leftPatientLabel = document.getElementById("left-patient-label");
 const btnChangeKarte = document.getElementById("btn-change-karte");
 const btnOpenTemplates = document.getElementById("btn-open-templates");
-
-const headerKarte = document.getElementById("header-karte");
-const headerKarteNumber = document.getElementById("header-karte-number");
-const headerAnimalName = document.getElementById("header-animal-name");
+const btnStartCompose = document.getElementById("btn-start-compose");
+const entryComposer = document.getElementById("entry-composer");
+const authorField = document.getElementById("author-field");
 
 const authorRow = document.getElementById("author-row");
 const headlineInput = document.getElementById("headline-input");
@@ -115,6 +120,7 @@ const templateButtonsEl = document.getElementById("template-buttons");
 const templateEmptyEl = document.getElementById("template-empty");
 const entryError = document.getElementById("entry-error");
 const btnEntrySave = document.getElementById("btn-entry-save");
+const btnEntryCancel = document.getElementById("btn-entry-cancel");
 
 const timelineEl = document.getElementById("timeline");
 const timelineEmptyEl = document.getElementById("timeline-empty");
@@ -167,7 +173,51 @@ function showCenterState(s) {
   leftEmpty.hidden = inMain;
   headlineList.hidden = !inMain;
   starFilterWrap.hidden = !inMain;
-  headerKarte.hidden = !inMain;
+  if (leftPatient) leftPatient.hidden = !inMain;
+  if (!inMain) closeCompose({ reset: true });
+}
+
+function formatPatientLabel(animalName, karteNumber) {
+  const name = (animalName || "").trim() || "（名前未設定）";
+  const withChan = /ちゃん$/.test(name) ? name : `${name}ちゃん`;
+  return `${withChan}（No.${karteNumber || "-----"}）`;
+}
+
+function updateLeftPatient() {
+  if (!leftPatientLabel) return;
+  leftPatientLabel.textContent = formatPatientLabel(
+    state.animalName,
+    state.karteNumber
+  );
+}
+
+function setAuthorFieldVisible(visible) {
+  if (authorField) authorField.hidden = !visible;
+}
+
+function openCompose() {
+  state.composing = true;
+  if (entryComposer) entryComposer.hidden = false;
+  if (btnStartCompose) btnStartCompose.hidden = true;
+  resetDraft({ keepAuthor: false });
+  // 記入者が未選択なら表示。選択済みなら隠す
+  setAuthorFieldVisible(!state.draft.author);
+  renderAuthorSelection();
+  showError(entryError, "");
+  setTimeout(() => {
+    if (!state.draft.author) return;
+    headlineInput?.focus();
+  }, 0);
+}
+
+function closeCompose({ reset = true } = {}) {
+  state.composing = false;
+  if (entryComposer) entryComposer.hidden = true;
+  if (btnStartCompose) btnStartCompose.hidden = false;
+  if (reset) {
+    resetDraft({ keepAuthor: false });
+    showError(entryError, "");
+  }
 }
 
 function showError(el, message) {
@@ -397,13 +447,15 @@ AUTHORS.forEach((name) => {
   btn.addEventListener("click", () => {
     state.draft.author = name;
     renderAuthorSelection();
+    setAuthorFieldVisible(false);
     showError(entryError, "");
+    headlineInput?.focus();
   });
-  authorRow.appendChild(btn);
+  authorRow?.appendChild(btn);
 });
 
 function renderAuthorSelection() {
-  authorRow.querySelectorAll(".author-btn").forEach((btn) => {
+  authorRow?.querySelectorAll(".author-btn").forEach((btn) => {
     btn.classList.toggle("is-selected", btn.dataset.author === state.draft.author);
   });
 }
@@ -456,33 +508,42 @@ btnChangeKarte.addEventListener("click", () => {
   karteNumberInput.value = "";
 });
 
+btnStartCompose?.addEventListener("click", () => {
+  openCompose();
+});
+
+btnEntryCancel?.addEventListener("click", () => {
+  closeCompose({ reset: true });
+});
+
 btnEntrySave.addEventListener("click", handleEntrySave);
 
-function resetDraft() {
+// 本文入力開始時に記入者未選択なら記入者欄を出す
+bodyInput?.addEventListener("focus", () => {
+  if (!state.composing) return;
+  if (!state.draft.author) setAuthorFieldVisible(true);
+});
+
+function resetDraft({ keepAuthor = false } = {}) {
+  if (!keepAuthor) state.draft.author = null;
   state.draft.category = "none";
   state.draft.important = false;
   state.draft.usedTemplate = false;
-  // 記入者は続けて記入することが多いため保持する
-  headlineInput.value = "";
-  bodyInput.value = "";
-  btnImportant.setAttribute("aria-pressed", "false");
-  recordDateInput.value = todayStr();
+  if (headlineInput) headlineInput.value = "";
+  if (bodyInput) bodyInput.value = "";
+  btnImportant?.setAttribute("aria-pressed", "false");
+  if (recordDateInput) recordDateInput.value = todayStr();
   renderCategorySelection();
   updateRecordDateNote();
-  // フォームを先頭（記入者）まで戻す
+  renderAuthorSelection();
   const formEl = document.querySelector(".entry-form");
   if (formEl) formEl.scrollTop = 0;
 }
 
 function enterMain() {
-  mainKarteNumberEl.textContent = state.karteNumber;
-  mainAnimalNameEl.textContent = state.animalName;
-  headerKarteNumber.textContent = state.karteNumber;
-  headerAnimalName.textContent = state.animalName;
-
-  recordDateInput.max = todayStr();
-  resetDraft();
-  renderAuthorSelection();
+  updateLeftPatient();
+  if (recordDateInput) recordDateInput.max = todayStr();
+  closeCompose({ reset: true });
   showError(entryError, "");
 
   showCenterState("main");
@@ -508,22 +569,31 @@ function leaveMain() {
   leaveMeds();
   leaveHistory();
   leaveFreeQa();
+  closeCompose({ reset: true });
   state.karteNumber = null;
   state.animalName = null;
   state.entries = [];
   state.draft.author = null;
   state.starFilter = false;
-  starFilterInput.checked = false;
-  timelineEl.innerHTML = "";
-  headlineList.innerHTML = "";
+  if (starFilterInput) starFilterInput.checked = false;
+  if (timelineEl) timelineEl.innerHTML = "";
+  if (headlineList) headlineList.innerHTML = "";
+  if (leftPatientLabel) leftPatientLabel.textContent = "";
 }
 
 async function handleEntrySave() {
+  if (!state.composing) {
+    openCompose();
+    showError(entryError, "内容を入力してから保存してください。");
+    return;
+  }
+
   const headline = headlineInput.value.trim();
   const body = bodyInput.value.trim();
   const recordDate = recordDateInput.value;
 
   if (!state.draft.author) {
+    setAuthorFieldVisible(true);
     showError(entryError, "記入者を選択してください。");
     return;
   }
@@ -555,9 +625,8 @@ async function handleEntrySave() {
       body,
       source: state.draft.usedTemplate ? "template" : "manual",
     });
-    resetDraft();
+    closeCompose({ reset: true });
     showToast("保存しました。");
-    headlineInput.focus();
   } catch (err) {
     console.error(err);
     showError(entryError, "保存に失敗しました。もう一度お試しください。");
@@ -876,6 +945,31 @@ initFreeQaUI({
   setBusy,
   getSelectedAuthor: () => state.draft.author || "",
   getTimelineEntries: () => state.entries || [],
+});
+
+initServiceWorkerUpdates({
+  onUpdateAvailable: (reg) => {
+    // 記入中はバナーで確認を取り、同意後にだけ最新化
+    const banner = document.createElement("div");
+    banner.className = "sw-update-banner";
+    banner.setAttribute("role", "status");
+    banner.innerHTML = `
+      <p class="sw-update-banner__text">新しいバージョンがあります。更新しますか？</p>
+      <div class="sw-update-banner__actions">
+        <button type="button" class="btn btn--small btn--primary" data-sw-update>更新する</button>
+        <button type="button" class="btn btn--small btn--outline" data-sw-dismiss>あとで</button>
+      </div>
+    `;
+    banner.querySelector("[data-sw-update]").addEventListener("click", () => {
+      applyWaitingUpdate(reg);
+    });
+    banner.querySelector("[data-sw-dismiss]").addEventListener("click", () => {
+      banner.remove();
+    });
+    // 既存バナーがあれば差し替え
+    document.querySelectorAll(".sw-update-banner").forEach((el) => el.remove());
+    document.body.appendChild(banner);
+  },
 });
 
 if (isPasscodeVerified()) {
