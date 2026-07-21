@@ -26,7 +26,8 @@
 //   examPlan/{カルテ番号}/nextPlan                       … 次回予定（1件 or null）
 //     { item, dueDateFrom, dueDateTo, note, recurringId }
 //   examPlan/{カルテ番号}/recurring/{id}                 … 定期検査スケジュール
-//     { item, intervalMonths, lastDone, windowDays }
+//     { item, intervalDays, intervalUnit, intervalValue, lastDone, windowDays }
+//     ※旧データは intervalMonths のみの場合あり → 読み取り時に日数へ換算
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
 //     { item, date, note }
 //
@@ -39,7 +40,11 @@
 //   medications/{カルテ番号}/{drugId}/sideEffectNote
 //   medications/{カルテ番号}/{drugId}/expiryEstimate     … 処方切れ目安日 "YYYY-MM-DD" or ""
 //   medications/{カルテ番号}/{drugId}/events/{eventId}
-//     { date, type, detail, frequencyChange, amountChange, changedBy }
+//     { date, type, detail, frequencyChange, frequency, amountChange, changedBy,
+//       lastEditedAt, lastEditedBy }
+//     frequencyChange: 表示用ラベル（互換のため残す）
+//     frequency: { kind, label, periodDays?, times?, weekdays? } … 構造化（任意）
+//     lastEditedAt / lastEditedBy: 編集時のみ
 //     type: "add"(継続)|"increase"|"decrease"|"stop"|"resume"
 //
 //   history/{カルテ番号}/{entryId}/schemaVersion         … 既往歴
@@ -568,19 +573,33 @@ export async function deleteExamHistory(karteNumber, historyId) {
 
 /**
  * 定期検査スケジュールを追加する。
+ * intervalDays を正とし、表示用に intervalUnit / intervalValue も保存する。
+ * 旧クライアント向けに、単位が月のときだけ intervalMonths も併記する。
  */
 export async function addExamRecurring(
   karteNumber,
-  { item, intervalMonths, lastDone, windowDays }
+  { item, intervalDays, intervalUnit, intervalValue, intervalMonths, lastDone, windowDays }
 ) {
   await ensureExamPlanRoot(karteNumber);
   const newRef = push(ref(db, `examPlan/${karteNumber}/recurring`));
-  await set(newRef, {
+  const days = Number(intervalDays) || 0;
+  const unit = intervalUnit || "day";
+  const value = Number(intervalValue) || 0;
+  const payload = {
     item: item || "",
-    intervalMonths: Number(intervalMonths) || 0,
+    intervalDays: days,
+    intervalUnit: unit,
+    intervalValue: value,
     lastDone: lastDone || "",
     windowDays: typeof windowDays === "number" ? windowDays : 14,
-  });
+  };
+  // 互換: 月指定なら旧フィールドも残す
+  if (unit === "month" && value > 0) {
+    payload.intervalMonths = value;
+  } else if (intervalMonths != null) {
+    payload.intervalMonths = Number(intervalMonths) || 0;
+  }
+  await set(newRef, payload);
   return newRef.key;
 }
 
@@ -591,7 +610,11 @@ export async function updateExamRecurring(karteNumber, recurringId, fields) {
   await authReady;
   const payload = {};
   if (fields.item != null) payload.item = fields.item;
-  if (fields.intervalMonths != null) payload.intervalMonths = Number(fields.intervalMonths);
+  if (fields.intervalDays != null) payload.intervalDays = Number(fields.intervalDays);
+  if (fields.intervalUnit != null) payload.intervalUnit = fields.intervalUnit;
+  if (fields.intervalValue != null) payload.intervalValue = Number(fields.intervalValue);
+  // null を渡すと RTDB から旧 intervalMonths を削除できる
+  if ("intervalMonths" in fields) payload.intervalMonths = fields.intervalMonths;
   if (fields.lastDone != null) payload.lastDone = fields.lastDone;
   if (fields.windowDays != null) payload.windowDays = Number(fields.windowDays);
   await update(ref(db, `examPlan/${karteNumber}/recurring/${recurringId}`), payload);
@@ -745,7 +768,7 @@ export function subscribeMedications(karteNumber, callback) {
  */
 export async function addMedication(
   karteNumber,
-  { name, category, sideEffectNote, expiryEstimate, changedBy, eventDate }
+  { name, category, sideEffectNote, expiryEstimate, changedBy, eventDate, frequencyChange, frequency }
 ) {
   await authReady;
   const newRef = push(medicationsRef(karteNumber));
@@ -763,7 +786,8 @@ export async function addMedication(
     date,
     type: "add",
     detail: "開始／継続",
-    frequencyChange: "",
+    frequencyChange: frequencyChange || "",
+    frequency: frequency || null,
     amountChange: "",
     changedBy: changedBy || "",
   });
@@ -802,19 +826,48 @@ export async function deleteMedication(karteNumber, drugId) {
 export async function addMedicationEvent(
   karteNumber,
   drugId,
-  { date, type, detail, frequencyChange, amountChange, changedBy }
+  { date, type, detail, frequencyChange, frequency, amountChange, changedBy }
 ) {
   await authReady;
   const newRef = push(ref(db, `medications/${karteNumber}/${drugId}/events`));
-  await set(newRef, {
+  const payload = {
     date: date || "",
     type: type || "add",
     detail: detail || "",
     frequencyChange: frequencyChange || "",
     amountChange: amountChange || "",
     changedBy: changedBy || "",
-  });
+  };
+  if (frequency && typeof frequency === "object") {
+    payload.frequency = frequency;
+  }
+  await set(newRef, payload);
   return newRef.key;
+}
+
+/**
+ * 出来事を上書き更新する（最終編集日時・編集者を記録）。
+ */
+export async function updateMedicationEvent(
+  karteNumber,
+  drugId,
+  eventId,
+  fields,
+  editedBy = ""
+) {
+  await authReady;
+  const payload = {
+    lastEditedAt: new Date().toISOString(),
+    lastEditedBy: editedBy || "",
+  };
+  if (fields.date != null) payload.date = fields.date;
+  if (fields.type != null) payload.type = fields.type;
+  if (fields.detail != null) payload.detail = fields.detail;
+  if (fields.frequencyChange != null) payload.frequencyChange = fields.frequencyChange;
+  if (fields.amountChange != null) payload.amountChange = fields.amountChange;
+  // null で frequency キーを削除できる
+  if ("frequency" in fields) payload.frequency = fields.frequency;
+  await update(ref(db, `medications/${karteNumber}/${drugId}/events/${eventId}`), payload);
 }
 
 /**

@@ -1161,6 +1161,141 @@ html.is-unlocked .app {
   color: var(--color-green-dark);
 }
 
+/* 定期検査: 間隔単位・テンキー */
+.interval-unit-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.interval-unit-btn {
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-cream);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.interval-unit-btn.is-selected {
+  border-color: var(--color-green);
+  background-color: var(--color-green-light);
+  color: var(--color-green-dark);
+}
+
+.interval-value-display {
+  margin: 10px 0 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-cream);
+  border: 1.5px solid var(--color-border);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-brown);
+  text-align: center;
+  letter-spacing: 0.04em;
+}
+
+.label--sub {
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-brown);
+}
+
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-width: 280px;
+}
+
+.numpad__btn {
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-white);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  min-height: 44px;
+}
+
+.numpad__btn:hover {
+  background-color: var(--color-green-light);
+  border-color: var(--color-green);
+}
+
+.numpad__btn--action {
+  font-size: 0.82rem;
+  background-color: var(--color-cream);
+}
+
+.numpad__btn--confirm {
+  background-color: var(--color-green-light);
+  border-color: var(--color-green);
+  color: var(--color-green-dark);
+}
+
+.freq-mode-buttons {
+  margin-bottom: 8px;
+}
+
+.freq-dual-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.freq-field {
+  cursor: pointer;
+  margin: 0;
+  font-family: inherit;
+  width: 100%;
+}
+
+.freq-field.is-active {
+  border-color: var(--color-green);
+  background-color: var(--color-green-light);
+  color: var(--color-green-dark);
+}
+
+.weekday-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.weekday-btn {
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-cream);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.weekday-btn.is-selected {
+  border-color: var(--color-green);
+  background-color: var(--color-green-light);
+  color: var(--color-green-dark);
+}
+
 /* ===== 薬剤情報タブ ===== */
 .meds-list {
   list-style: none;

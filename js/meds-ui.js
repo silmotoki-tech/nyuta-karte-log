@@ -8,11 +8,21 @@ import {
   updateMedication,
   deleteMedication,
   addMedicationEvent,
+  updateMedicationEvent,
   deleteMedicationEvent,
   addMedicationItem,
   updateMedicationItem,
   deleteMedicationItem,
 } from "./db.js";
+import {
+  FREQ_PRESETS_ABSOLUTE,
+  FREQ_PRESETS_TRANSITION,
+  createEmptyFreqDraft,
+  freqDraftFromEvent,
+  resolveFrequencyDraft,
+  eventFrequencyText,
+  bindFrequencyPicker,
+} from "./freq-picker.js";
 
 const APPROACHING_DAYS = 7;
 const RECENT_DAYS = 30;
@@ -23,14 +33,6 @@ const EVENT_TYPES = [
   { id: "decrease", label: "減量" },
   { id: "stop", label: "中止" },
   { id: "resume", label: "再開" },
-];
-
-const FREQUENCY_PRESETS = [
-  "1日2回→1回",
-  "1日3回→2回",
-  "1日3回→1回",
-  "1日1回→2回",
-  "1日2回→3回",
 ];
 
 const AMOUNT_PRESETS = [
@@ -63,13 +65,14 @@ const state = {
   expandedIds: new Set(),
   editingMasterId: null,
   eventDraft: {
+    mode: "create", // create | edit
     drugId: null,
+    eventId: null,
     type: "add",
     date: "",
     changeFrequency: false,
     changeAmount: false,
-    frequencyPreset: "",
-    frequencyOther: "",
+    freq: createEmptyFreqDraft("preset"),
     amountPreset: "",
     amountOther: "",
     detail: "",
@@ -79,8 +82,12 @@ const state = {
     customName: "",
     useOther: false,
     category: "B",
+    freq: createEmptyFreqDraft("preset"),
   },
 };
+
+let addFreqPicker = null;
+let eventFreqPicker = null;
 
 // --- DOM -----------------------------------------------------------------
 
@@ -108,17 +115,48 @@ const eventFreqCheck = document.getElementById("med-event-freq-check");
 const eventAmountCheck = document.getElementById("med-event-amount-check");
 const eventFreqBlock = document.getElementById("med-event-freq-block");
 const eventAmountBlock = document.getElementById("med-event-amount-block");
-const eventFreqPresets = document.getElementById("med-event-freq-presets");
 const eventAmountPresets = document.getElementById("med-event-amount-presets");
-const eventFreqOtherCheck = document.getElementById("med-event-freq-other");
 const eventAmountOtherCheck = document.getElementById("med-event-amount-other");
-const eventFreqOtherInput = document.getElementById("med-event-freq-other-input");
 const eventAmountOtherInput = document.getElementById("med-event-amount-other-input");
 const eventDetail = document.getElementById("med-event-detail");
 const eventError = document.getElementById("med-event-error");
 const btnEventSave = document.getElementById("btn-med-event-save");
 const btnEventCancel = document.getElementById("btn-med-event-cancel");
 const btnCloseEventModal = document.getElementById("btn-close-med-event");
+
+const addFreqEls = {
+  modes: document.getElementById("med-add-freq-modes"),
+  presets: document.getElementById("med-add-freq-presets"),
+  panelPreset: document.getElementById("med-add-freq-panel-preset"),
+  panelEveryN: document.getElementById("med-add-freq-panel-every-n"),
+  panelWeekly: document.getElementById("med-add-freq-panel-weekly"),
+  panelWeekdays: document.getElementById("med-add-freq-panel-weekdays"),
+  panelOther: document.getElementById("med-add-freq-panel-other"),
+  everyNPeriod: document.getElementById("med-add-freq-period"),
+  everyNTimes: document.getElementById("med-add-freq-times"),
+  everyNNumpad: document.getElementById("med-add-freq-every-n-numpad"),
+  weeklyDisplay: document.getElementById("med-add-freq-weekly-display"),
+  weeklyNumpad: document.getElementById("med-add-freq-weekly-numpad"),
+  weekdays: document.getElementById("med-add-freq-weekdays"),
+  otherInput: document.getElementById("med-add-freq-other-input"),
+};
+
+const eventFreqEls = {
+  modes: document.getElementById("med-event-freq-modes"),
+  presets: document.getElementById("med-event-freq-presets"),
+  panelPreset: document.getElementById("med-event-freq-panel-preset"),
+  panelEveryN: document.getElementById("med-event-freq-panel-every-n"),
+  panelWeekly: document.getElementById("med-event-freq-panel-weekly"),
+  panelWeekdays: document.getElementById("med-event-freq-panel-weekdays"),
+  panelOther: document.getElementById("med-event-freq-panel-other"),
+  everyNPeriod: document.getElementById("med-event-freq-period"),
+  everyNTimes: document.getElementById("med-event-freq-times"),
+  everyNNumpad: document.getElementById("med-event-freq-every-n-numpad"),
+  weeklyDisplay: document.getElementById("med-event-freq-weekly-display"),
+  weeklyNumpad: document.getElementById("med-event-freq-weekly-numpad"),
+  weekdays: document.getElementById("med-event-freq-weekdays"),
+  otherInput: document.getElementById("med-event-freq-other-input"),
+};
 
 const medItemsModal = document.getElementById("med-items-modal");
 const medItemsList = document.getElementById("med-items-list");
@@ -167,6 +205,13 @@ function ymdFromStr(dateStr) {
   const [y, m, d] = dateStr.split("-");
   if (!y || !m || !d) return dateStr;
   return `${y}/${Number(m)}/${Number(d)}`;
+}
+
+function mdhmFromIso(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
 function daysBetween(fromStr, toStr) {
@@ -245,8 +290,9 @@ export function initMedsUI(helpers = {}) {
   wireEventModal();
   wireMedItemsModal();
   buildEventTypeButtons();
-  buildFreqAmountPresets();
+  buildAmountPresets();
   buildAddCategoryButtons();
+  initFrequencyPickers();
 
   state.unsubscribeItems = subscribeMedicationItems((items) => {
     state.medicationItems = items;
@@ -580,21 +626,34 @@ function createEventItem(drug, ev) {
   const meta = document.createElement("div");
   meta.className = "exam-list-item__meta";
   const parts = [];
-  if (ev.frequencyChange) parts.push(`回数: ${ev.frequencyChange}`);
+  const freqText = eventFrequencyText(ev);
+  if (freqText) parts.push(`回数: ${freqText}`);
   if (ev.amountChange) parts.push(`量: ${ev.amountChange}`);
   if (ev.detail) parts.push(ev.detail);
   if (ev.changedBy) parts.push(`記入: ${ev.changedBy}`);
+  if (ev.lastEditedAt) {
+    const when = mdhmFromIso(ev.lastEditedAt);
+    const by = ev.lastEditedBy ? `・${ev.lastEditedBy}` : "";
+    parts.push(`最終編集 ${when}${by}`);
+  }
   meta.textContent = parts.join("　") || "—";
   info.append(title, meta);
 
   const actions = document.createElement("div");
   actions.className = "exam-list-item__actions";
+
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "btn btn--small btn--outline";
+  editBtn.textContent = "編集";
+  editBtn.addEventListener("click", () => openEventModal(drug.id, ev));
+
   const delBtn = document.createElement("button");
   delBtn.type = "button";
   delBtn.className = "btn btn--small btn--danger-outline";
   delBtn.textContent = "削除";
   delBtn.addEventListener("click", async () => {
-    const ok = window.confirm("この出来事を削除しますか？");
+    const ok = window.confirm("この出来事を削除しますか？（入力ミスの訂正向けです）");
     if (!ok) return;
     try {
       await deleteMedicationEvent(state.karteNumber, drug.id, ev.id);
@@ -604,7 +663,7 @@ function createEventItem(drug, ev) {
       deps.showToast("削除に失敗しました。", { isError: true });
     }
   });
-  actions.appendChild(delBtn);
+  actions.append(editBtn, delBtn);
   li.append(info, actions);
   return li;
 }
@@ -617,6 +676,28 @@ function wireToolbar() {
 }
 
 // --- 薬剤追加モーダル -----------------------------------------------------
+
+function initFrequencyPickers() {
+  addFreqPicker = bindFrequencyPicker(addFreqEls, {
+    getDraft: () => state.addDraft.freq,
+    setDraft: (next) => {
+      state.addDraft.freq = next;
+    },
+    getPresets: () => FREQ_PRESETS_ABSOLUTE,
+    showError: (msg) => deps.showError(addError, msg),
+  });
+  addFreqPicker.init();
+
+  eventFreqPicker = bindFrequencyPicker(eventFreqEls, {
+    getDraft: () => state.eventDraft.freq,
+    setDraft: (next) => {
+      state.eventDraft.freq = next;
+    },
+    getPresets: () => [...FREQ_PRESETS_ABSOLUTE, ...FREQ_PRESETS_TRANSITION],
+    showError: (msg) => deps.showError(eventError, msg),
+  });
+  eventFreqPicker.init();
+}
 
 function wireAddModal() {
   btnCloseAddModal?.addEventListener("click", closeAddModal);
@@ -685,13 +766,21 @@ function renderAddItemButtons() {
 }
 
 function openAddModal() {
-  state.addDraft = { name: "", customName: "", useOther: false, category: "B" };
+  state.addDraft = {
+    name: "",
+    customName: "",
+    useOther: false,
+    category: "B",
+    freq: createEmptyFreqDraft("preset"),
+  };
   addOtherCheck.checked = false;
   addCustomName.hidden = true;
   addCustomName.value = "";
+  if (addFreqEls.otherInput) addFreqEls.otherInput.value = "";
   deps.showError(addError, "");
   renderAddItemButtons();
   renderAddCategorySelection();
+  addFreqPicker?.render();
   addModal.hidden = false;
 }
 
@@ -704,6 +793,12 @@ async function handleAddSave() {
   if (addOtherCheck.checked) name = addCustomName.value.trim();
   if (!name) {
     deps.showError(addError, "薬剤名を選択するか、「その他」で入力してください。");
+    return;
+  }
+
+  const freqResolved = resolveFrequencyDraft(state.addDraft.freq, { required: false });
+  if (!freqResolved.ok) {
+    deps.showError(addError, freqResolved.message);
     return;
   }
 
@@ -723,6 +818,8 @@ async function handleAddSave() {
       category: state.addDraft.category,
       changedBy: deps.getSelectedAuthor() || "",
       eventDate: todayStr(),
+      frequencyChange: freqResolved.frequencyChange || "",
+      frequency: freqResolved.frequency || null,
     });
     // subscribe の再描画は expandedIds 設定前に走ることがあるため、ここで付け直して描画する
     state.expandedIds.add(drugId);
@@ -748,18 +845,11 @@ function wireEventModal() {
   eventFreqCheck?.addEventListener("change", () => {
     state.eventDraft.changeFrequency = eventFreqCheck.checked;
     eventFreqBlock.hidden = !eventFreqCheck.checked;
+    if (eventFreqCheck.checked) eventFreqPicker?.render();
   });
   eventAmountCheck?.addEventListener("change", () => {
     state.eventDraft.changeAmount = eventAmountCheck.checked;
     eventAmountBlock.hidden = !eventAmountCheck.checked;
-  });
-  eventFreqOtherCheck?.addEventListener("change", () => {
-    eventFreqOtherInput.hidden = !eventFreqOtherCheck.checked;
-    if (eventFreqOtherCheck.checked) {
-      state.eventDraft.frequencyPreset = "";
-      renderFreqPresets();
-      eventFreqOtherInput.focus();
-    }
   });
   eventAmountOtherCheck?.addEventListener("change", () => {
     eventAmountOtherInput.hidden = !eventAmountOtherCheck.checked;
@@ -783,19 +873,32 @@ function buildEventTypeButtons() {
     btn.addEventListener("click", () => {
       state.eventDraft.type = t.id;
       renderEventTypeSelection();
-      const needsChange = t.id === "increase" || t.id === "decrease";
-      eventChangeOptions.hidden = !needsChange;
-      if (!needsChange) {
-        eventFreqCheck.checked = false;
-        eventAmountCheck.checked = false;
-        eventFreqBlock.hidden = true;
-        eventAmountBlock.hidden = true;
-        state.eventDraft.changeFrequency = false;
-        state.eventDraft.changeAmount = false;
-      }
+      applyEventChangeOptionsVisibility();
     });
     eventTypeButtons.appendChild(btn);
   });
+}
+
+function applyEventChangeOptionsVisibility() {
+  const type = state.eventDraft.type;
+  const isEdit = state.eventDraft.mode === "edit";
+  const needsChange = type === "increase" || type === "decrease";
+
+  if (isEdit) {
+    // 編集時は種別を問わず頻度・量を直せる（入力ミス訂正用）
+    eventChangeOptions.hidden = false;
+    return;
+  }
+
+  eventChangeOptions.hidden = !needsChange;
+  if (!needsChange) {
+    eventFreqCheck.checked = false;
+    eventAmountCheck.checked = false;
+    eventFreqBlock.hidden = true;
+    eventAmountBlock.hidden = true;
+    state.eventDraft.changeFrequency = false;
+    state.eventDraft.changeAmount = false;
+  }
 }
 
 function renderEventTypeSelection() {
@@ -804,28 +907,8 @@ function renderEventTypeSelection() {
   });
 }
 
-function buildFreqAmountPresets() {
-  renderFreqPresets();
+function buildAmountPresets() {
   renderAmountPresets();
-}
-
-function renderFreqPresets() {
-  if (!eventFreqPresets) return;
-  eventFreqPresets.innerHTML = "";
-  FREQUENCY_PRESETS.forEach((label) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "quick-date-btn";
-    btn.textContent = label;
-    btn.classList.toggle("is-selected", state.eventDraft.frequencyPreset === label);
-    btn.addEventListener("click", () => {
-      eventFreqOtherCheck.checked = false;
-      eventFreqOtherInput.hidden = true;
-      state.eventDraft.frequencyPreset = label;
-      renderFreqPresets();
-    });
-    eventFreqPresets.appendChild(btn);
-  });
 }
 
 function renderAmountPresets() {
@@ -847,49 +930,98 @@ function renderAmountPresets() {
   });
 }
 
-function openEventModal(drugId) {
+function openEventModal(drugId, eventToEdit = null) {
   const drug = state.drugs.find((d) => d.id === drugId);
-  state.eventDraft = {
-    drugId,
-    type: "add",
-    date: todayStr(),
-    changeFrequency: false,
-    changeAmount: false,
-    frequencyPreset: "",
-    frequencyOther: "",
-    amountPreset: "",
-    amountOther: "",
-    detail: "",
-  };
-  eventModalTitle.textContent = `出来事を追加 — ${drug?.name || ""}`;
-  eventDate.value = todayStr();
-  eventDetail.value = "";
-  eventFreqCheck.checked = false;
-  eventAmountCheck.checked = false;
-  eventFreqBlock.hidden = true;
-  eventAmountBlock.hidden = true;
-  eventChangeOptions.hidden = true;
-  eventFreqOtherCheck.checked = false;
-  eventAmountOtherCheck.checked = false;
-  eventFreqOtherInput.hidden = true;
-  eventAmountOtherInput.hidden = true;
-  eventFreqOtherInput.value = "";
-  eventAmountOtherInput.value = "";
+  const isEdit = Boolean(eventToEdit);
+
+  if (isEdit) {
+    const hasFreq = Boolean(eventFrequencyText(eventToEdit) || eventToEdit.frequencyChange);
+    const hasAmount = Boolean(eventToEdit.amountChange);
+    let amountPreset = "";
+    let amountOther = "";
+    let useAmountOther = false;
+    if (hasAmount) {
+      if (AMOUNT_PRESETS.includes(eventToEdit.amountChange)) {
+        amountPreset = eventToEdit.amountChange;
+      } else {
+        useAmountOther = true;
+        amountOther = eventToEdit.amountChange;
+      }
+    }
+
+    state.eventDraft = {
+      mode: "edit",
+      drugId,
+      eventId: eventToEdit.id,
+      type: eventToEdit.type || "add",
+      date: eventToEdit.date || todayStr(),
+      changeFrequency: hasFreq,
+      changeAmount: hasAmount,
+      freq: freqDraftFromEvent(eventToEdit),
+      amountPreset,
+      amountOther,
+      detail: eventToEdit.detail || "",
+    };
+
+    eventModalTitle.textContent = `出来事を編集 — ${drug?.name || ""}`;
+    eventDate.value = state.eventDraft.date;
+    eventDetail.value = state.eventDraft.detail;
+    eventFreqCheck.checked = hasFreq;
+    eventAmountCheck.checked = hasAmount;
+    eventFreqBlock.hidden = !hasFreq;
+    eventAmountBlock.hidden = !hasAmount;
+    eventAmountOtherCheck.checked = useAmountOther;
+    eventAmountOtherInput.hidden = !useAmountOther;
+    eventAmountOtherInput.value = amountOther;
+    if (eventFreqEls.otherInput) {
+      eventFreqEls.otherInput.value = state.eventDraft.freq.other || "";
+    }
+  } else {
+    state.eventDraft = {
+      mode: "create",
+      drugId,
+      eventId: null,
+      type: "add",
+      date: todayStr(),
+      changeFrequency: false,
+      changeAmount: false,
+      freq: createEmptyFreqDraft("preset"),
+      amountPreset: "",
+      amountOther: "",
+      detail: "",
+    };
+    eventModalTitle.textContent = `出来事を追加 — ${drug?.name || ""}`;
+    eventDate.value = todayStr();
+    eventDetail.value = "";
+    eventFreqCheck.checked = false;
+    eventAmountCheck.checked = false;
+    eventFreqBlock.hidden = true;
+    eventAmountBlock.hidden = true;
+    eventAmountOtherCheck.checked = false;
+    eventAmountOtherInput.hidden = true;
+    eventAmountOtherInput.value = "";
+    if (eventFreqEls.otherInput) eventFreqEls.otherInput.value = "";
+  }
+
   deps.showError(eventError, "");
   renderEventTypeSelection();
-  renderFreqPresets();
   renderAmountPresets();
+  applyEventChangeOptionsVisibility();
+  eventFreqPicker?.render();
   eventModal.hidden = false;
 }
 
 function closeEventModal() {
   if (eventModal) eventModal.hidden = true;
+  state.eventDraft.mode = "create";
+  state.eventDraft.eventId = null;
 }
 
 async function handleEventSave() {
   const draft = state.eventDraft;
   const date = eventDate.value;
   const type = draft.type;
+  const isEdit = draft.mode === "edit" && draft.eventId;
   if (!date) {
     deps.showError(eventError, "日付を選択してください。");
     return;
@@ -900,16 +1032,49 @@ async function handleEventSave() {
   }
 
   let frequencyChange = "";
+  let frequency = null;
   let amountChange = "";
-  if (type === "increase" || type === "decrease") {
+
+  if (isEdit) {
+    // 編集: チェックONなら必須、OFFならクリア
     if (eventFreqCheck.checked) {
-      frequencyChange = eventFreqOtherCheck.checked
-        ? eventFreqOtherInput.value.trim()
-        : draft.frequencyPreset;
-      if (!frequencyChange) {
-        deps.showError(eventError, "回数変更の内容を選ぶか入力してください。");
+      const freqResolved = resolveFrequencyDraft(draft.freq, { required: true });
+      if (!freqResolved.ok || freqResolved.empty) {
+        deps.showError(
+          eventError,
+          freqResolved.message || "回数の内容を選ぶか入力してください。"
+        );
         return;
       }
+      frequencyChange = freqResolved.frequencyChange;
+      frequency = freqResolved.frequency;
+    } else {
+      frequencyChange = "";
+      frequency = null;
+    }
+    if (eventAmountCheck.checked) {
+      amountChange = eventAmountOtherCheck.checked
+        ? eventAmountOtherInput.value.trim()
+        : draft.amountPreset;
+      if (!amountChange) {
+        deps.showError(eventError, "量変更の内容を選ぶか入力してください。");
+        return;
+      }
+    } else {
+      amountChange = "";
+    }
+  } else if (type === "increase" || type === "decrease") {
+    if (eventFreqCheck.checked) {
+      const freqResolved = resolveFrequencyDraft(draft.freq, { required: true });
+      if (!freqResolved.ok || freqResolved.empty) {
+        deps.showError(
+          eventError,
+          freqResolved.message || "回数変更の内容を選ぶか入力してください。"
+        );
+        return;
+      }
+      frequencyChange = freqResolved.frequencyChange;
+      frequency = freqResolved.frequency;
     }
     if (eventAmountCheck.checked) {
       amountChange = eventAmountOtherCheck.checked
@@ -925,16 +1090,36 @@ async function handleEventSave() {
   deps.showError(eventError, "");
   deps.setBusy(btnEventSave, true, "保存中...", "保存する");
   try {
-    await addMedicationEvent(state.karteNumber, draft.drugId, {
-      date,
-      type,
-      detail: eventDetail.value.trim(),
-      frequencyChange,
-      amountChange,
-      changedBy: deps.getSelectedAuthor() || "",
-    });
-    closeEventModal();
-    deps.showToast("出来事を追加しました。");
+    if (isEdit) {
+      await updateMedicationEvent(
+        state.karteNumber,
+        draft.drugId,
+        draft.eventId,
+        {
+          date,
+          type,
+          detail: eventDetail.value.trim(),
+          frequencyChange,
+          frequency,
+          amountChange,
+        },
+        deps.getSelectedAuthor() || ""
+      );
+      closeEventModal();
+      deps.showToast("編集内容を保存しました。");
+    } else {
+      await addMedicationEvent(state.karteNumber, draft.drugId, {
+        date,
+        type,
+        detail: eventDetail.value.trim(),
+        frequencyChange,
+        frequency,
+        amountChange,
+        changedBy: deps.getSelectedAuthor() || "",
+      });
+      closeEventModal();
+      deps.showToast("出来事を追加しました。");
+    }
   } catch (err) {
     console.error(err);
     deps.showError(eventError, "保存に失敗しました。もう一度お試しください。");

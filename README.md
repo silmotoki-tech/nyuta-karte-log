@@ -22,8 +22,8 @@
   - **定型文ボタン**（ワンタップで見出し・本文へ挿入）。定型文は「定型文の管理」から追加・編集・削除でき、Firebaseにマスタとして保持。
   - 記録は直接編集（上書き）可能。最終編集日時・編集者を記録する。誤入力の削除と★の切り替えも可能。
 - **右カラム（タブ切替）**: 既往歴／検査予定／薬剤情報／処置ログ／自由質問。
-  - **検査予定（実装済み）**: 検査項目マスタからボタン選択（その他はフリーテキスト）、カレンダー＋クイック日付、次回予定1件（完了/終了/編集）、定期検査スケジュール（○ヶ月ごと・目安幅±14日・完了時に自動再計算）、実施履歴、期限超過・期限接近のアラート。データは `examPlan/{カルテ番号}`（`schemaVersion` 付き）。
-  - **薬剤情報（実装済み）**: 薬剤マスタから選択（手打ち可）、出来事履歴（継続/増量/減量/中止/再開）、増減時の回数・量のプリセット、カテゴリA/B/C、副作用メモ、処方切れ目安アラート、直近30日の🔵サイン。使用状況は最新出来事から自動導出。データは `medications/{カルテ番号}/{drugId}`（`schemaVersion` 付き）。
+  - **検査予定（実装済み）**: 検査項目マスタからボタン選択（その他はフリーテキスト）、カレンダー＋日／週／月テンキーの相対指定（双方向連動）、次回予定1件（完了/終了/編集）、定期検査スケジュール（日／週／月＋テンキー入力・内部は日数保存・目安幅±14日・完了時に自動再計算）、実施履歴、期限超過・期限接近のアラート。データは `examPlan/{カルテ番号}`（`schemaVersion` 付き）。
+  - **薬剤情報（実装済み）**: 薬剤マスタから選択（手打ち可）、出来事履歴（継続/増量/減量/中止/再開・編集/削除可）、投与頻度（よくあるパターン／○日に○回／週○回／曜日指定／その他）、増減時の量プリセット、カテゴリA/B/C、副作用メモ、処方切れ目安アラート、直近30日の🔵サイン。使用状況は最新出来事から自動導出。データは `medications/{カルテ番号}/{drugId}`（`schemaVersion` 付き）。
   - **既往歴（実装済み）**: 疾患／手術歴／紹介・専門治療歴をテーマ別に一覧。進行中（🟢）と終了（⚪）でグループ表示（進行中が上）。ワンタップで状態切替、タップで詳細（タイトル・種別・初回記載日・最終更新日・追記型メモ）。手動追加に加え、将来のAI提案フローからも同じAPIで登録可能な設計。データは `history/{カルテ番号}/{entryId}`（`schemaVersion` 付き）。
   - **処置ログ（実装済み）**: 注射・点滴など単発の処置を日付＋内容で記録。手動追加／編集／削除。最終編集日時・編集者を記録。データは `procedures/{カルテ番号}/{entryId}`（`schemaVersion` 付き）。
   - **自由質問（実装済み）**: 中央カラムの時系列全文をコンテキストに Anthropic API（Claude Sonnet）へ質問。回答は Firebase に保存し、最新順で一覧。再検索で最新カルテ内容で回答を更新。APIキーは設定画面のQR読取で localStorage に保存（コードには埋め込まない）。データは `freeQA/{カルテ番号}/{questionId}`（`schemaVersion` 付き）。
@@ -45,6 +45,7 @@
 │   ├── db.js                 # Realtime Databaseへの読み書き（エントリ・定型文・右カラム各タブ）
 │   ├── exam-plan-ui.js        # 右カラム「検査予定」タブのUIと操作
 │   ├── meds-ui.js             # 右カラム「薬剤情報」タブのUIと操作
+│   ├── freq-picker.js         # 投与頻度の指定UI（テンキー・曜日など）
 │   ├── history-ui.js          # 右カラム「既往歴」タブのUIと操作
 │   ├── procedures-ui.js       # 右カラム「処置ログ」タブのUIと操作
 │   ├── api-key.js             # Anthropic APIキーの localStorage 管理
@@ -167,7 +168,10 @@ examPlan/
     recurring/
       {id}/
         item: "血液検査"
-        intervalMonths: 3
+        intervalDays: 90                     # 保存の正（日数に統一）
+        intervalUnit: "month"                # day | week | month（表示用）
+        intervalValue: 3                     # 単位に対する数値（表示用）
+        intervalMonths: 3                    # 旧データ互換（月指定時のみ併記）
         lastDone: "2026-07-17"
         windowDays: 14
     history/
@@ -189,9 +193,16 @@ medications/
           date: "2026-07-18"
           type: "decrease"                   # add|increase|decrease|stop|resume
           detail: "食欲低下のため"
-          frequencyChange: "1日2回→1回"
+          frequencyChange: "3日に1回"         # 表示用ラベル
+          frequency:                         # 構造化（任意）
+            kind: "every_n_days"             # preset|every_n_days|weekly_count|weekdays|other
+            periodDays: 3
+            times: 1
+            label: "3日に1回"
           amountChange: ""
           changedBy: "院長"
+          lastEditedAt: "2026-07-21T03:00:00.000Z"  # 編集時のみ
+          lastEditedBy: "院長"
 
 history/                                     # 患者の既往歴（時系列から独立したテーマ別一覧）
   {カルテ番号}/
