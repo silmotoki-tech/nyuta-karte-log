@@ -40,6 +40,11 @@ import {
   notifyApiKeyChanged,
 } from "./free-qa-ui.js";
 import {
+  initAiSuggestUI,
+  runAiSuggestAfterSave,
+  isAiReviewBlocking,
+} from "./ai-suggest-ui.js";
+import {
   initServiceWorkerUpdates,
   applyWaitingUpdate,
 } from "./sw-update.js";
@@ -375,6 +380,10 @@ function handlePasscodeNext() {
 }
 
 function logoutToPasscode() {
+  if (isAiReviewBlocking()) {
+    showToast("AI提案の確認が終わるまで、ログアウトできません。", { isError: true });
+    return;
+  }
   try {
     clearPasscodeVerified();
   } catch (err) {
@@ -689,6 +698,10 @@ function updateRecordDateNote() {
 }
 
 btnChangeKarte.addEventListener("click", () => {
+  if (isAiReviewBlocking()) {
+    showToast("AI提案の確認が終わるまで、カルテ切替はできません。", { isError: true });
+    return;
+  }
   leaveMain();
   goToKarte();
   karteNumberInput.value = "";
@@ -806,17 +819,31 @@ async function handleEntrySave() {
   setBusy(btnEntrySave, true, "保存中...", "保存する");
 
   try {
+    const source = state.draft.usedTemplate ? "template" : "manual";
+    const author = state.draft.author;
     await addEntry(state.karteNumber, {
       recordDate,
       headline,
       category: state.draft.category,
       important: state.draft.important,
-      author: state.draft.author,
+      author,
       body,
-      source: state.draft.usedTemplate ? "template" : "manual",
+      source,
     });
+    const karteNumber = state.karteNumber;
     closeCompose({ reset: true });
     showToast("保存しました。");
+
+    // 定型文入力は対象外。手動入力のみ AI 提案フローへ
+    if (source === "manual") {
+      await runAiSuggestAfterSave({
+        karteNumber,
+        body,
+        headline,
+        recordDate,
+        author,
+      });
+    }
   } catch (err) {
     console.error(err);
     showError(entryError, "保存に失敗しました。もう一度お試しください。");
@@ -1146,6 +1173,14 @@ initFreeQaUI({
   setBusy,
   getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
   getTimelineEntries: () => state.entries || [],
+});
+
+initAiSuggestUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+  onBlockingChange: () => {},
 });
 
 initServiceWorkerUpdates({

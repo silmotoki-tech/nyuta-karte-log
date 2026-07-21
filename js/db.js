@@ -764,6 +764,16 @@ export function subscribeMedications(karteNumber, callback) {
 }
 
 /**
+ * 薬剤一覧を1回だけ取得する（AI提案の既存薬剤照合用）。
+ */
+export async function fetchMedicationsOnce(karteNumber) {
+  await authReady;
+  const snapshot = await get(medicationsRef(karteNumber));
+  const value = snapshot.val() || {};
+  return Object.entries(value).map(([id, raw]) => normalizeMedication(id, raw));
+}
+
+/**
  * 薬剤を新規追加する。初期出来事（継続）を1件付ける。
  */
 export async function addMedication(

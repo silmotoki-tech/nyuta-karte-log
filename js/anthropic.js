@@ -129,3 +129,77 @@ export async function askClaude({
   }
   return text;
 }
+
+/**
+ * Anthropic API に任意の system / user プロンプトで問い合わせ、回答テキストを返す。
+ * 自由質問（askClaude）と同じ通信経路を使う。
+ */
+export async function askClaudeWithPrompt({
+  system,
+  user,
+  model = DEFAULT_MODEL,
+  maxTokens = MAX_TOKENS,
+}) {
+  if (!hasApiKey()) {
+    throw new ApiKeyMissingError();
+  }
+  const apiKey = getApiKey();
+  const res = await fetch(ANTHROPIC_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      system: system || "",
+      messages: [{ role: "user", content: user || "" }],
+    }),
+  });
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (_) {
+    data = null;
+  }
+
+  if (!res.ok) {
+    const msg =
+      data?.error?.message ||
+      data?.message ||
+      `Anthropic APIエラー (HTTP ${res.status})`;
+    throw new Error(msg);
+  }
+
+  const text = (data?.content || [])
+    .filter((block) => block && block.type === "text")
+    .map((block) => block.text)
+    .join("")
+    .trim();
+
+  if (!text) {
+    throw new Error("AIからの回答が空でした。");
+  }
+  return text;
+}
+
+/**
+ * 回答テキストから JSON オブジェクトを取り出す（```json フェンス対応）。
+ */
+export function extractJsonObject(text) {
+  if (!text) return null;
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const raw = (fenced ? fenced[1] : text).trim();
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(raw.slice(start, end + 1));
+  } catch (_) {
+    return null;
+  }
+}

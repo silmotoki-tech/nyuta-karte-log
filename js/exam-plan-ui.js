@@ -1439,3 +1439,18 @@ async function handleExamItemSave() {
     );
   }
 }
+
+/**
+ * AI提案フローなど外部からの次回予定登録。
+ */
+export async function addExamPlanFromExternal(karteNumber, { item, dueDate, note }) {
+  const window = expandSingleDate(dueDate, DEFAULT_WINDOW_DAYS);
+  if (!window) throw new Error("検査予定の日付が不正です。");
+  await setNextExamPlan(karteNumber, {
+    item: item || "",
+    dueDateFrom: window.dueDateFrom,
+    dueDateTo: window.dueDateTo,
+    note: note || "",
+    recurringId: null,
+  });
+}

@@ -2099,3 +2099,89 @@ select.input {
     grid-template-columns: 170px minmax(0, 1fr) 260px;
   }
 }
+
+/* ===== AI提案フロー ===== */
+.ai-suggest-loading-text {
+  margin: 0 0 16px;
+  text-align: center;
+  color: var(--color-brown);
+  font-weight: 600;
+}
+
+.ai-suggest-spinner {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 8px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-green);
+  border-radius: 50%;
+  animation: ai-suggest-spin 0.8s linear infinite;
+}
+
+@keyframes ai-suggest-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-suggest-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}
+
+.ai-suggest-card {
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-white);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-suggest-card.is-done {
+  opacity: 0.65;
+  background-color: var(--color-cream);
+}
+
+.ai-suggest-card__kind {
+  align-self: flex-start;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--color-green-dark);
+  background-color: var(--color-green-light);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+}
+
+.ai-suggest-card__summary {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.ai-suggest-card__detail {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.ai-suggest-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.ai-suggest-card__status {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-brown);
+}

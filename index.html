@@ -954,6 +954,56 @@
 
 <div id="toast" class="toast" hidden></div>
 
+<!-- AI提案: 解析中 -->
+<div class="modal" id="ai-suggest-loading-modal" hidden>
+  <div class="modal__backdrop"></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="ai-suggest-loading-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="ai-suggest-loading-title">AIが記録を確認中</h2>
+    </div>
+    <div class="modal__body">
+      <p class="ai-suggest-loading-text">右カラムへ登録できそうな内容を解析しています…</p>
+      <div class="ai-suggest-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+</div>
+
+<!-- AI提案: 確認一覧（強制フロー） -->
+<div class="modal" id="ai-suggest-review-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="ai-suggest-review-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="ai-suggest-review-title">AIからの提案</h2>
+    </div>
+    <div class="modal__body">
+      <p class="field__note" id="ai-suggest-progress"></p>
+      <p class="field__note">すべての提案に「確定する」または「無視する」を選ぶまで、次のカルテ操作には進めません。</p>
+      <ul class="ai-suggest-list" id="ai-suggest-list"></ul>
+      <p class="field__note" id="ai-suggest-empty" hidden>提案はありません。</p>
+      <p id="ai-suggest-error" class="error-text" role="alert" hidden></p>
+    </div>
+  </div>
+</div>
+
+<!-- AI提案: 検査・薬剤・日付の調整 -->
+<div class="modal" id="ai-suggest-adjust-modal" hidden>
+  <div class="modal__backdrop"></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="ai-suggest-adjust-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="ai-suggest-adjust-title">提案内容の確認</h2>
+      <button class="modal__close" id="btn-close-ai-suggest-adjust" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div id="ai-suggest-adjust-body"></div>
+      <p id="ai-suggest-adjust-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-ai-suggest-adjust-confirm" class="btn btn--small btn--primary" type="button">この内容で確定</button>
+        <button id="btn-ai-suggest-adjust-cancel" class="btn btn--small btn--outline" type="button">戻る</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="./js/app.js"></script>
 </body>
 </html>

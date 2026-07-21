@@ -13,6 +13,7 @@ import {
   addMedicationItem,
   updateMedicationItem,
   deleteMedicationItem,
+  fetchMedicationsOnce,
 } from "./db.js";
 import {
   FREQ_PRESETS_ABSOLUTE,
@@ -1237,4 +1238,68 @@ async function handleMedItemSave() {
       state.editingMasterId ? "更新する" : "追加する"
     );
   }
+}
+
+/**
+ * AI提案フローなど外部からの薬剤登録・出来事追加。
+ */
+export async function applyMedicationSuggestionFromExternal(karteNumber, payload = {}) {
+  const name = (payload.name || "").trim();
+  if (!name) throw new Error("薬剤名が空です。");
+
+  const action = payload.action || "add";
+  const category = ["A", "B", "C"].includes(payload.category) ? payload.category : "B";
+  const frequencyChange = payload.frequencyChange || "";
+  const frequency = payload.frequency || null;
+  const detail = payload.detail || "";
+  const changedBy = payload.changedBy || "";
+  const eventDate = payload.eventDate || todayStr();
+  const expiryEstimate = payload.expiryEstimate || "";
+
+  const drugs = await fetchMedicationsOnce(karteNumber);
+  const existing = drugs.find((d) => d.name === name);
+
+  if (!existing || action === "add") {
+    if (existing && action === "add") {
+      await addMedicationEvent(karteNumber, existing.id, {
+        date: eventDate,
+        type: "add",
+        detail: detail || "開始／継続",
+        frequencyChange,
+        frequency,
+        amountChange: "",
+        changedBy,
+      });
+      if (expiryEstimate) {
+        await updateMedication(karteNumber, existing.id, { expiryEstimate });
+      }
+      return existing.id;
+    }
+    return addMedication(karteNumber, {
+      name,
+      category,
+      expiryEstimate,
+      changedBy,
+      eventDate,
+      frequencyChange,
+      frequency,
+    });
+  }
+
+  const type = ["increase", "decrease", "stop", "resume", "add"].includes(action)
+    ? action
+    : "add";
+  await addMedicationEvent(karteNumber, existing.id, {
+    date: eventDate,
+    type,
+    detail,
+    frequencyChange,
+    frequency,
+    amountChange: payload.amountChange || "",
+    changedBy,
+  });
+  if (expiryEstimate) {
+    await updateMedication(karteNumber, existing.id, { expiryEstimate });
+  }
+  return existing.id;
 }
