@@ -53,6 +53,65 @@ body {
   flex-direction: column;
 }
 
+.app[hidden] {
+  display: none !important;
+}
+
+/* ===== 起動時ロック画面（本編レイアウトとは独立） ===== */
+.lock-screen {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(111, 184, 43, 0.22), transparent 60%),
+    linear-gradient(165deg, #eaf6db 0%, var(--color-cream) 45%, #f1e6dd 100%);
+}
+
+.lock-screen[hidden] {
+  display: none !important;
+}
+
+/* セッション済みの初回描画用（JS起動前のチラつき防止） */
+html.is-unlocked .lock-screen {
+  display: none !important;
+}
+
+html.is-unlocked .app {
+  display: flex !important;
+}
+
+.lock-screen__inner {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.lock-screen__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(107, 72, 52, 0.12);
+}
+
+.lock-screen__brand {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-brown);
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
+.lock-screen__card {
+  width: 100%;
+}
+
 /* ===== ヘッダー ===== */
 .app-header {
   display: flex;

@@ -51,7 +51,8 @@ const PASSCODE = "2211";
 const PASSCODE_SESSION_KEY = "nyutaKartePasscodeVerified";
 
 const state = {
-  centerState: "passcode",
+  centerState: "karte",
+  unlocked: false,
   karteNumber: null,
   animalName: null,
   entries: [],
@@ -71,7 +72,9 @@ const state = {
 
 // --- DOM参照 -------------------------------------------------------------
 
-const gatePasscode = document.getElementById("gate-passcode");
+const screenLock = document.getElementById("screen-lock");
+const appShell = document.getElementById("app-shell");
+
 const gateKarte = document.getElementById("gate-karte");
 const gateAnimal = document.getElementById("gate-animal");
 const centerMain = document.getElementById("center-main");
@@ -137,9 +140,24 @@ const toastEl = document.getElementById("toast");
 
 // --- 共通ユーティリティ ---------------------------------------------------
 
+function showLockScreen() {
+  state.unlocked = false;
+  document.documentElement.classList.remove("is-unlocked");
+  if (screenLock) screenLock.hidden = false;
+  if (appShell) appShell.hidden = true;
+}
+
+function unlockAppShell() {
+  state.unlocked = true;
+  document.documentElement.classList.add("is-unlocked");
+  if (screenLock) screenLock.hidden = true;
+  if (appShell) appShell.hidden = false;
+}
+
 function showCenterState(s) {
+  // 本編内の中央カラム状態のみ（ロック画面とは独立）
   state.centerState = s;
-  gatePasscode.hidden = s !== "passcode";
+  if (!state.unlocked) return;
   gateKarte.hidden = s !== "karte";
   gateAnimal.hidden = s !== "animal";
   centerMain.hidden = s !== "main";
@@ -259,6 +277,7 @@ function handlePasscodeNext() {
     console.error("セッション情報の保存に失敗しました", err);
   }
   passcodeInput.value = "";
+  unlockAppShell();
   goToKarte();
 }
 
@@ -273,6 +292,7 @@ function isPasscodeVerified() {
 // --- 状態1: カルテ番号入力 -----------------------------------------------
 
 function goToKarte() {
+  unlockAppShell();
   showCenterState("karte");
   setTimeout(() => karteNumberInput.focus(), 0);
 }
@@ -860,6 +880,6 @@ initFreeQaUI({
 if (isPasscodeVerified()) {
   goToKarte();
 } else {
-  showCenterState("passcode");
+  showLockScreen();
   setTimeout(() => passcodeInput.focus(), 0);
 }

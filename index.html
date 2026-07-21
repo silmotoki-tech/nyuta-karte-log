@@ -15,9 +15,45 @@
 <meta name="apple-mobile-web-app-title" content="カルテ記録" />
 
 <link rel="stylesheet" href="./css/style.css" />
+<script>
+  // セッション済みならロック画面の一瞬表示を抑える（挙動自体は app.js が正）
+  try {
+    if (sessionStorage.getItem("nyutaKartePasscodeVerified") === "1") {
+      document.documentElement.classList.add("is-unlocked");
+    }
+  } catch (e) {}
+</script>
 </head>
 <body>
-<div class="app">
+
+<!-- ============ 起動時ロック画面（認証前はこれだけ表示） ============ -->
+<div id="screen-lock" class="lock-screen" aria-label="パスコード入力">
+  <div class="lock-screen__inner">
+    <img class="lock-screen__icon" src="./icons/icon-192.png" alt="" />
+    <h1 class="lock-screen__brand">にゅうたカルテ記録</h1>
+    <div class="card lock-screen__card">
+      <h2 class="card__title">パスコードを入力してください</h2>
+      <p class="card__hint">院内用の4桁パスコードを入力してください</p>
+      <input
+        id="passcode-input"
+        class="input input--large input--center"
+        type="password"
+        inputmode="numeric"
+        autocomplete="off"
+        maxlength="4"
+        placeholder="••••"
+        aria-label="パスコード（4桁）"
+      />
+      <p id="passcode-error" class="error-text" role="alert" hidden></p>
+      <button id="btn-passcode-next" class="btn btn--primary btn--block" type="button">
+        確認する
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 本編（パスコード認証後に表示） ============ -->
+<div id="app-shell" class="app" hidden>
   <header class="app-header">
     <img class="app-header__icon" src="./icons/icon-192.png" alt="" />
     <h1 class="app-header__title">にゅうたカルテ記録</h1>
@@ -49,30 +85,8 @@
     <!-- ============ 中央カラム: 記入・時系列 ============ -->
     <section class="col col--center" id="col-center">
 
-      <!-- 状態: パスコード -->
-      <div class="center-gate" id="gate-passcode">
-        <div class="card gate-card">
-          <h2 class="card__title">パスコードを入力してください</h2>
-          <p class="card__hint">院内用の4桁パスコードを入力してください</p>
-          <input
-            id="passcode-input"
-            class="input input--large input--center"
-            type="password"
-            inputmode="numeric"
-            autocomplete="off"
-            maxlength="4"
-            placeholder="••••"
-            aria-label="パスコード（4桁）"
-          />
-          <p id="passcode-error" class="error-text" role="alert" hidden></p>
-          <button id="btn-passcode-next" class="btn btn--primary btn--block" type="button">
-            確認する
-          </button>
-        </div>
-      </div>
-
       <!-- 状態: カルテ番号入力 -->
-      <div class="center-gate" id="gate-karte" hidden>
+      <div class="center-gate" id="gate-karte">
         <div class="card gate-card">
           <h2 class="card__title">カルテ番号を入力してください</h2>
           <p class="card__hint">5桁の数字を入力してください</p>
@@ -335,6 +349,7 @@
 
   </div>
 </div>
+<!-- /#app-shell -->
 
 <!-- 時系列エントリのテンプレート -->
 <template id="timeline-item-template">

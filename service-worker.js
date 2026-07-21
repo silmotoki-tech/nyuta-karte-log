@@ -6,7 +6,7 @@
 // （キャッシュ優先だとデプロイ後に古い app.js と新しい index.html が混在し、
 //  パスコード画面が進まなくなる事故が起きうる）
 
-const CACHE_VERSION = "v9";
+const CACHE_VERSION = "v10";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
