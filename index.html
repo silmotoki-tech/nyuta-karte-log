@@ -324,12 +324,15 @@
         <ul class="meds-list" id="meds-list"></ul>
       </div>
 
-      <!-- C. 処置ログ（空） -->
-      <div class="right-panel" data-panel="proc" hidden>
-        <div class="right-placeholder">
-          <p class="right-placeholder__badge">準備中</p>
-          <p class="right-placeholder__text">処置ログタブは次のステップで実装予定です。</p>
+      <!-- C. 処置ログ -->
+      <div class="right-panel" id="panel-proc" data-panel="proc" hidden>
+        <div class="exam-toolbar">
+          <button id="btn-procedure-add" class="btn btn--small btn--primary" type="button">
+            処置を追加
+          </button>
         </div>
+        <p class="field__note" id="procedures-empty">登録された処置ログはありません。</p>
+        <ul class="proc-list" id="procedures-list"></ul>
       </div>
 
       <!-- D. 自由質問 -->
@@ -779,6 +782,42 @@
           <button id="btn-med-item-save" class="btn btn--small btn--primary" type="button">追加する</button>
           <button id="btn-med-item-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 処置ログ: 追加・編集モーダル -->
+<div class="modal" id="procedure-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="procedure-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="procedure-modal-title">処置ログを追加</h2>
+      <button class="modal__close" id="btn-close-procedure-modal" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <label class="label" for="procedure-date">日付</label>
+        <input id="procedure-date" class="input input--date" type="date" />
+      </div>
+      <div class="field">
+        <label class="label" for="procedure-content">処置内容</label>
+        <textarea
+          id="procedure-content"
+          class="textarea"
+          rows="4"
+          placeholder="例）皮下点滴 100ml、皮下注射（セファロスポリン）"
+        ></textarea>
+      </div>
+      <div class="field">
+        <span class="label">記入者 / 編集者</span>
+        <p class="field__note" id="procedure-author-hint"></p>
+        <div class="author-row" id="procedure-author-row"></div>
+      </div>
+      <p id="procedure-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-procedure-save" class="btn btn--small btn--primary" type="button">追加する</button>
+        <button id="btn-procedure-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
       </div>
     </div>
   </div>

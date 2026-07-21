@@ -58,6 +58,13 @@
 //   freeQA/{カルテ番号}/{questionId}/askedAt             … ISO文字列
 //   freeQA/{カルテ番号}/{questionId}/askedBy
 //
+//   procedures/{カルテ番号}/{entryId}/schemaVersion      … 処置ログ
+//   procedures/{カルテ番号}/{entryId}/date               … "YYYY-MM-DD"
+//   procedures/{カルテ番号}/{entryId}/content            … 処置内容
+//   procedures/{カルテ番号}/{entryId}/confirmedBy        … 記入者
+//   procedures/{カルテ番号}/{entryId}/lastEditedAt       … 最終編集ISO（任意）
+//   procedures/{カルテ番号}/{entryId}/lastEditedBy       … 最終編集者（任意）
+//
 // 方針: 参照用メモとしてエントリの直接編集（上書き）を許可する。
 //       最終編集日時・編集者のみ記録し、詳細な差分履歴は持たない。
 //       誤入力エントリの削除も許可する。
@@ -1126,4 +1133,128 @@ export async function updateFreeQAAnswer(
 export async function deleteFreeQA(karteNumber, questionId) {
   await authReady;
   await remove(freeQaEntryRef(karteNumber, questionId));
+}
+
+// --- 処置ログ（procedures） -----------------------------------------------
+
+export const PROCEDURE_SCHEMA_VERSION = 1;
+
+function proceduresRootRef(karteNumber) {
+  return ref(db, `procedures/${karteNumber}`);
+}
+
+function procedureEntryRef(karteNumber, entryId) {
+  return ref(db, `procedures/${karteNumber}/${entryId}`);
+}
+
+function normalizeProcedureEntry(id, raw) {
+  const entry = {
+    id,
+    schemaVersion: PROCEDURE_SCHEMA_VERSION,
+    date: "",
+    content: "",
+    confirmedBy: "",
+    lastEditedAt: "",
+    lastEditedBy: "",
+    source: "manual",
+  };
+  if (!raw || typeof raw !== "object") return entry;
+  entry.schemaVersion = raw.schemaVersion || PROCEDURE_SCHEMA_VERSION;
+  entry.date = raw.date || "";
+  entry.content = raw.content || "";
+  entry.confirmedBy = raw.confirmedBy || "";
+  entry.lastEditedAt = raw.lastEditedAt || "";
+  entry.lastEditedBy = raw.lastEditedBy || "";
+  entry.source = raw.source === "ai" ? "ai" : "manual";
+  return entry;
+}
+
+function sortProcedures(entries) {
+  return [...entries].sort((a, b) => {
+    const rd = (b.date || "").localeCompare(a.date || "");
+    if (rd !== 0) return rd;
+    const ed = (b.lastEditedAt || "").localeCompare(a.lastEditedAt || "");
+    if (ed !== 0) return ed;
+    return (b.id || "").localeCompare(a.id || "");
+  });
+}
+
+/**
+ * 処置ログ一覧をリアルタイム監視する（日付の新しい順）。
+ */
+export function subscribeProcedures(karteNumber, callback) {
+  const r = proceduresRootRef(karteNumber);
+  let unsubscribed = false;
+  let listener = null;
+
+  authReady
+    .then(() => {
+      if (unsubscribed) return;
+      listener = onValue(r, (snapshot) => {
+        const value = snapshot.val() || {};
+        const items = Object.entries(value).map(([id, raw]) =>
+          normalizeProcedureEntry(id, raw)
+        );
+        callback(sortProcedures(items));
+      });
+    })
+    .catch((err) => {
+      console.error("処置ログの監視開始に失敗しました", err);
+    });
+
+  return () => {
+    unsubscribed = true;
+    if (listener) {
+      off(r, "value", listener);
+      listener = null;
+    }
+  };
+}
+
+/**
+ * 処置ログを新規追加する。
+ * source を "ai" にすれば、将来のAI提案フローからも同じAPIで登録できる。
+ */
+export async function addProcedure(
+  karteNumber,
+  { date, content, confirmedBy, source = "manual" }
+) {
+  await authReady;
+  const newRef = push(proceduresRootRef(karteNumber));
+  await set(newRef, {
+    schemaVersion: PROCEDURE_SCHEMA_VERSION,
+    date: date || "",
+    content: content || "",
+    confirmedBy: confirmedBy || "",
+    lastEditedAt: "",
+    lastEditedBy: "",
+    source: source === "ai" ? "ai" : "manual",
+  });
+  return newRef.key;
+}
+
+/**
+ * 処置ログを上書き更新する（最終編集日時・編集者を記録）。
+ */
+export async function updateProcedure(
+  karteNumber,
+  entryId,
+  { date, content, editedBy }
+) {
+  await authReady;
+  await update(procedureEntryRef(karteNumber, entryId), {
+    schemaVersion: PROCEDURE_SCHEMA_VERSION,
+    date: date || "",
+    content: content || "",
+    lastEditedAt: new Date().toISOString(),
+    lastEditedBy: editedBy || "",
+  });
+}
+
+/**
+ * 処置ログを削除する。
+ */
+export async function deleteProcedure(karteNumber, entryId) {
+  await authReady;
+  await remove(procedureEntryRef(karteNumber, entryId));
 }

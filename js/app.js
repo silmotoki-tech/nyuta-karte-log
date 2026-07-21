@@ -27,6 +27,11 @@ import {
   enterHistory,
   leaveHistory,
 } from "./history-ui.js";
+import {
+  initProceduresUI,
+  enterProcedures,
+  leaveProcedures,
+} from "./procedures-ui.js";
 import { initSettingsUI } from "./settings-ui.js";
 import {
   initFreeQaUI,
@@ -80,6 +85,8 @@ const state = {
   editingTemplateId: null,
   // 新規記録の入力エリアが開いているか
   composing: false,
+  // 直近に選択した記入者（右カラムの自動記録用。compose 終了後も保持）
+  lastAuthor: null,
   // 編集中エントリ
   editingEntryId: null,
   editDraft: {
@@ -489,6 +496,7 @@ AUTHORS.forEach((name) => {
   btn.dataset.author = name;
   btn.addEventListener("click", () => {
     state.draft.author = name;
+    state.lastAuthor = name;
     renderAuthorSelection();
     setAuthorFieldVisible(false);
     showError(entryError, "");
@@ -512,6 +520,7 @@ AUTHORS.forEach((name) => {
   btn.dataset.author = name;
   btn.addEventListener("click", () => {
     state.editDraft.author = name;
+    state.lastAuthor = name;
     renderEditAuthorSelection();
     showError(entryEditError, "");
   });
@@ -734,6 +743,7 @@ function enterMain() {
   enterExamPlan(state.karteNumber);
   enterMeds(state.karteNumber);
   enterHistory(state.karteNumber);
+  enterProcedures(state.karteNumber);
   enterFreeQa(state.karteNumber);
 }
 
@@ -745,6 +755,7 @@ function leaveMain() {
   leaveExamPlan();
   leaveMeds();
   leaveHistory();
+  leaveProcedures();
   leaveFreeQa();
   closeCompose({ reset: true });
   closeEntryEdit();
@@ -752,6 +763,7 @@ function leaveMain() {
   state.animalName = null;
   state.entries = [];
   state.draft.author = null;
+  // lastAuthor は端末内の作業継続用に残す（カルテ変更後も処置ログ等で使える）
   state.starFilter = false;
   if (starFilterInput) starFilterInput.checked = false;
   if (timelineEl) timelineEl.innerHTML = "";
@@ -1104,14 +1116,21 @@ initMedsUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || "",
+  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
 });
 
 initHistoryUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || "",
+  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+});
+
+initProceduresUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
 });
 
 initSettingsUI({
@@ -1125,7 +1144,7 @@ initFreeQaUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || "",
+  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
   getTimelineEntries: () => state.entries || [],
 });
 
