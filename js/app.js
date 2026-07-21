@@ -37,6 +37,11 @@ import {
   initServiceWorkerUpdates,
   applyWaitingUpdate,
 } from "./sw-update.js";
+import {
+  isPasscodeVerified,
+  setPasscodeVerified,
+  clearPasscodeVerified,
+} from "./passcode-auth.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -53,7 +58,6 @@ const CATEGORIES = [
 ];
 
 const PASSCODE = "2211";
-const PASSCODE_SESSION_KEY = "nyutaKartePasscodeVerified";
 
 const state = {
   centerState: "karte",
@@ -323,21 +327,29 @@ function handlePasscodeNext() {
   }
   showError(passcodeError, "");
   try {
-    sessionStorage.setItem(PASSCODE_SESSION_KEY, "1");
+    setPasscodeVerified();
   } catch (err) {
-    console.error("セッション情報の保存に失敗しました", err);
+    console.error("パスコード認証状態の保存に失敗しました", err);
   }
   passcodeInput.value = "";
   unlockAppShell();
   goToKarte();
 }
 
-function isPasscodeVerified() {
+function logoutToPasscode() {
   try {
-    return sessionStorage.getItem(PASSCODE_SESSION_KEY) === "1";
+    clearPasscodeVerified();
   } catch (err) {
-    return false;
+    console.error(err);
+    showToast("ログアウトに失敗しました。", { isError: true });
+    return;
   }
+  leaveMain();
+  showLockScreen();
+  showCenterState("karte");
+  if (karteNumberInput) karteNumberInput.value = "";
+  showToast("ログアウトしました。");
+  setTimeout(() => passcodeInput?.focus(), 0);
 }
 
 // --- 状態1: カルテ番号入力 -----------------------------------------------
@@ -937,6 +949,7 @@ initSettingsUI({
   showToast,
   showError,
   onApiKeyChange: notifyApiKeyChanged,
+  onLogout: logoutToPasscode,
 });
 
 initFreeQaUI({

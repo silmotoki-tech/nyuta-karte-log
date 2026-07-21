@@ -7,6 +7,7 @@ let deps = {
   showToast: () => {},
   showError: () => {},
   onApiKeyChange: () => {},
+  onLogout: () => {},
 };
 
 let html5Qrcode = null;
@@ -23,6 +24,7 @@ const qrReaderEl = document.getElementById("settings-qr-reader");
 const qrSection = document.getElementById("settings-qr-section");
 const settingsError = document.getElementById("settings-error");
 const settingsVersionEl = document.getElementById("settings-app-version");
+const btnLogout = document.getElementById("btn-settings-logout");
 
 export function initSettingsUI(helpers = {}) {
   deps = { ...deps, ...helpers };
@@ -34,6 +36,7 @@ export function initSettingsUI(helpers = {}) {
   btnScanQr?.addEventListener("click", startQrScan);
   btnStopScan?.addEventListener("click", stopQrScan);
   btnDeleteKey?.addEventListener("click", handleDeleteKey);
+  btnLogout?.addEventListener("click", handleLogout);
   refreshApiKeyStatus();
   refreshVersionLabel();
 }
@@ -214,4 +217,13 @@ function handleDeleteKey() {
     console.error(err);
     deps.showToast("削除に失敗しました。", { isError: true });
   }
+}
+
+async function handleLogout() {
+  const ok = window.confirm(
+    "ログアウトしますか？\n次回起動時にパスコードの再入力が必要になります。"
+  );
+  if (!ok) return;
+  await closeSettings();
+  deps.onLogout();
 }

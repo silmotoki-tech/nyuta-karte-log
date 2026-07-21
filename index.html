@@ -16,9 +16,22 @@
 
 <link rel="stylesheet" href="./css/style.css" />
 <script>
-  // セッション済みならロック画面の一瞬表示を抑える（挙動自体は app.js が正）
+  // 当日認証済みならロック画面の一瞬表示を抑える（挙動自体は app.js が正）
   try {
-    if (sessionStorage.getItem("nyutaKartePasscodeVerified") === "1") {
+    var k = "nyutaKartePasscodeVerified";
+    var dk = "nyutaKartePasscodeVerifiedDate";
+    var now = new Date();
+    var today =
+      now.getFullYear() +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0");
+    var flagged =
+      localStorage.getItem(k) === "1" || sessionStorage.getItem(k) === "1";
+    var savedDate = localStorage.getItem(dk) || "";
+    // 日付キーが無い旧データや前日の認証はロック画面を出す
+    if (flagged && savedDate === today) {
       document.documentElement.classList.add("is-unlocked");
     }
   } catch (e) {}
@@ -763,6 +776,15 @@
           </button>
         </div>
         <p id="settings-error" class="error-text" role="alert" hidden></p>
+      </section>
+      <section class="settings-section">
+        <h3 class="settings-section__title">ログイン</h3>
+        <p class="field__note">
+          パスコード認証は同じ日のうち有効です（日付が変わると再入力が必要になります）。別のスタッフが使う前などにはログアウトしてください。
+        </p>
+        <button id="btn-settings-logout" class="btn btn--small btn--danger-outline" type="button">
+          ログアウト（パスコード認証を解除）
+        </button>
       </section>
       <section class="settings-section settings-section--version">
         <h3 class="settings-section__title">アプリ情報</h3>
