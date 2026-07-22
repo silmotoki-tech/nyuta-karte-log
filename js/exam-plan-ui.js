@@ -9,7 +9,6 @@ import {
   endExamScheduledPlan,
   reviveExamPlanByItem,
   addExamHistory,
-  deleteExamHistory,
   addExamItem,
   updateExamItem,
   deleteExamItem,
@@ -748,23 +747,6 @@ function renderHistory() {
             action: "refresh",
             title: "予定に戻す",
             onClick: () => handleReviveFromHistory(itemName, h.note || ""),
-          },
-          {
-            action: "delete",
-            title: "削除",
-            onClick: async () => {
-              const ok = window.confirm(
-                `履歴「${itemName}（${ymdFromStr(h.date)}）」を削除しますか？`
-              );
-              if (!ok) return;
-              try {
-                await deleteExamHistory(state.karteNumber, h.id);
-                deps.showToast("履歴を削除しました。");
-              } catch (err) {
-                console.error(err);
-                deps.showToast("削除に失敗しました。", { isError: true });
-              }
-            },
           },
         ],
       });
