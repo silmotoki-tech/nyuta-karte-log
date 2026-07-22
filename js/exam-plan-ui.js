@@ -413,9 +413,12 @@ export function initExamPlanUI(helpers = {}) {
 
   state.unsubscribeItems = subscribeExamItems((items) => {
     state.examItems = items;
-    renderExamItemCategoryTabs();
-    renderPlanItemButtons();
-    updateExamItemAddUI();
+    // 予定登録モーダルが開いているときだけボタンを描画（起動時の不要なDOM更新を避ける）
+    if (planModal && !planModal.hidden) {
+      renderExamItemCategoryTabs();
+      renderPlanItemButtons();
+      updateExamItemAddUI();
+    }
   });
 
   renderExamItemCategoryTabs();

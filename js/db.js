@@ -615,6 +615,7 @@ export async function ensureExamItemDefaults() {
 
 /**
  * 検査項目マスタをリアルタイム監視する。order 昇順で callback に渡す。
+ * 初期シード書き込みは監視開始後に遅延実行し、カルテ番号確認など他の通信を塞がない。
  */
 export function subscribeExamItems(callback) {
   const r = examItemsRef();
@@ -622,13 +623,7 @@ export function subscribeExamItems(callback) {
   let listener = null;
 
   authReady
-    .then(async () => {
-      if (unsubscribed) return;
-      try {
-        await ensureExamItemDefaults();
-      } catch (err) {
-        console.error("検査項目マスタの初期化に失敗しました", err);
-      }
+    .then(() => {
       if (unsubscribed) return;
       listener = onValue(r, (snapshot) => {
         const value = snapshot.val() || {};
@@ -640,6 +635,13 @@ export function subscribeExamItems(callback) {
         });
         callback(items);
       });
+      // シードは背面で不足分だけ書く（起動直後の getAnimalName 等と競合させない）
+      setTimeout(() => {
+        if (unsubscribed) return;
+        ensureExamItemDefaults().catch((err) => {
+          console.error("検査項目マスタの初期化に失敗しました", err);
+        });
+      }, 0);
     })
     .catch((err) => {
       console.error("検査項目マスタの監視開始に失敗しました", err);

@@ -483,7 +483,7 @@ html.is-unlocked .app {
 }
 
 .center-gate[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .gate-card {
@@ -1000,7 +1000,7 @@ html.is-unlocked .app {
 }
 
 .right-empty[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .right-panel {
@@ -1015,7 +1015,7 @@ html.is-unlocked .app {
 }
 
 .right-panel[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .right-placeholder {
@@ -2365,7 +2365,7 @@ select.input {
 }
 
 .modal[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .modal__backdrop {
