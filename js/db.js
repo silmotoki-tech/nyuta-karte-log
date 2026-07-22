@@ -1152,6 +1152,22 @@ export async function fetchMedicationItemsOnce() {
   return items;
 }
 
+/**
+ * 検査項目マスタを1回だけ取得する（全分類・内訳含む）。
+ */
+export async function fetchExamItemsOnce() {
+  await authReady;
+  const snapshot = await get(examItemsRef());
+  const value = snapshot.val() || {};
+  const items = Object.entries(value).map(([id, t]) => normalizeExamItem(id, t));
+  items.sort((a, b) => {
+    const ord = (a.order ?? 0) - (b.order ?? 0);
+    if (ord !== 0) return ord;
+    return (a.label || "").localeCompare(b.label || "", "ja");
+  });
+  return items;
+}
+
 export async function addMedicationItem({ label, order }) {
   await authReady;
   const newRef = push(medicationItemsRef());

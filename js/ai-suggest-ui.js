@@ -23,7 +23,9 @@ import {
   updateMedication,
   fetchMedicationsOnce,
   fetchMedicationItemsOnce,
+  fetchExamItemsOnce,
 } from "./db.js";
+import { findExamItemCandidates } from "./exam-item-match.js";
 import { mountNumpad } from "./freq-picker.js";
 
 const KIND_LABELS = {
@@ -50,6 +52,8 @@ const state = {
   suggestions: [],
   /** 各提案カード内の相対日付UI用 */
   dueRelativeById: {},
+  /** 検査項目マスタ（AI確認時の候補照合用） */
+  examMasterItems: [],
 };
 
 // --- DOM ------------------------------------------------------------------
@@ -104,16 +108,33 @@ export async function runAiSuggestAfterSave({
 
   try {
     let masterLabels = [];
+    let examMasterLabels = [];
     try {
       const items = await fetchMedicationItemsOnce();
       masterLabels = items.map((i) => i.label).filter(Boolean);
     } catch (_) {
       masterLabels = [];
     }
+    try {
+      state.examMasterItems = await fetchExamItemsOnce();
+      examMasterLabels = state.examMasterItems
+        .filter((i) => i && i.kind !== "group")
+        .map((i) => i.label)
+        .filter(Boolean);
+    } catch (_) {
+      state.examMasterItems = [];
+      examMasterLabels = [];
+    }
 
     const raw = await askClaudeWithPrompt({
       system: buildSuggestSystemPrompt(),
-      user: buildSuggestUserPrompt({ body, headline, recordDate, masterLabels }),
+      user: buildSuggestUserPrompt({
+        body,
+        headline,
+        recordDate,
+        masterLabels,
+        examMasterLabels,
+      }),
       maxTokens: 2048,
     });
     const parsed = extractJsonObject(raw);
@@ -131,12 +152,21 @@ export async function runAiSuggestAfterSave({
     state.recordDate = recordDate || todayStr();
     state.author = author || deps.getSelectedAuthor() || "";
     state.dueRelativeById = {};
-    state.suggestions = list.map((s, i) => ({
-      ...s,
-      localId: `s-${Date.now()}-${i}`,
-      status: "pending",
-      applying: false,
-    }));
+    state.suggestions = list.map((s, i) => {
+      const data = s.data && typeof s.data === "object" ? { ...s.data } : {};
+      if (s.kind === "exam") {
+        const detected = String(data.item || "").trim();
+        data.detectedItem = detected;
+        data.item = detected;
+      }
+      return {
+        ...s,
+        data,
+        localId: `s-${Date.now()}-${i}`,
+        status: "pending",
+        applying: false,
+      };
+    });
 
     // ローディングを閉じたあと、必ず確認ポップアップを前面に出す
     openReviewModal();
@@ -167,6 +197,7 @@ function buildSuggestSystemPrompt() {
     "",
     "kind別 data:",
     '- exam: { "item": "検査名", "dueDate": "YYYY-MM-DD", "note": "" }',
+    "  検査名は本文の表現でよい。最終的な正式名称は確認画面でマスタ候補から人間が選ぶ。",
     '- medication: 薬剤名の検出のみ。増量・減量・頻度・用法は絶対に提案しない。',
     '  { "name": "薬剤名" }',
     '  summary は必ず「〇〇について、薬剤情報タブで記録しますか？」の形式。',
@@ -179,15 +210,20 @@ function buildSuggestSystemPrompt() {
   ].join("\n");
 }
 
-function buildSuggestUserPrompt({ body, headline, recordDate, masterLabels }) {
+function buildSuggestUserPrompt({ body, headline, recordDate, masterLabels, examMasterLabels }) {
   const masterLine =
     masterLabels && masterLabels.length
       ? `薬剤マスタ（参考）: ${masterLabels.join("、")}`
       : "薬剤マスタ: （未取得。薬剤らしき固有名があれば name のみ提案してよい）";
+  const examLine =
+    examMasterLabels && examMasterLabels.length
+      ? `検査項目マスタ（参考・可能なら近い名称を使う）: ${examMasterLabels.join("、")}`
+      : "検査項目マスタ: （未取得。本文の検査名をそのまま item にしてよい）";
   return [
     `記録日: ${recordDate || "（不明）"}`,
     `見出し: ${headline || "（なし）"}`,
     masterLine,
+    examLine,
     "",
     "本文:",
     body,
@@ -337,11 +373,7 @@ function buildInlineFields(s) {
   const d = s.data;
 
   if (s.kind === "exam") {
-    wrap.appendChild(
-      fieldText("検査項目", d.item || "", (v) => {
-        d.item = v;
-      })
-    );
+    wrap.appendChild(buildExamItemField(s, d));
     wrap.appendChild(buildInlineDateField(s.localId, "dueDate", "目安日", d));
     wrap.appendChild(
       fieldText("メモ（任意）", d.note || "", (v) => {
@@ -450,6 +482,95 @@ function fieldText(label, value, onInput) {
   input.value = value;
   input.addEventListener("input", () => onInput(input.value));
   wrap.append(lab, input);
+  return wrap;
+}
+
+/**
+ * 検査項目: マスタに近そうな候補があればボタンで選べるようにする。
+ * 「検出どおりの文言」も必ず選択肢に残す。
+ */
+function buildExamItemField(s, d) {
+  const detected = String(d.detectedItem || d.item || "").trim();
+  d.detectedItem = detected;
+  if (!d.item) d.item = detected;
+
+  const masterItems = state.examMasterItems || [];
+  const candidates = findExamItemCandidates(detected, masterItems);
+  const masterExact = masterItems.some(
+    (item) => item && item.kind !== "group" && String(item.label || "").trim() === detected
+  );
+  const nearby = candidates.filter((c) => c.label !== detected);
+
+  // 完全一致のみ／候補なし → 従来どおり手入力
+  if (!detected || (masterExact && nearby.length === 0) || nearby.length === 0) {
+    return fieldText("検査項目", d.item || "", (v) => {
+      d.item = v;
+    });
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+  const lab = document.createElement("span");
+  lab.className = "label";
+  lab.textContent = "検査項目";
+
+  const note = document.createElement("p");
+  note.className = "field__note";
+  note.textContent = `AI検出「${detected}」に近いマスタ項目があります。登録に使う名称を選んでください。`;
+
+  const DETECTED_ID = "__detected__";
+  const options = [
+    ...nearby.map((c) => ({ id: c.label, label: c.label })),
+    { id: DETECTED_ID, label: `検出どおり「${detected}」で登録` },
+  ];
+
+  // 既にマスタ名を選んでいればそれを、なければ検出文言を初期選択
+  const current = String(d.item || "").trim();
+  const selectedId = nearby.some((c) => c.label === current)
+    ? current
+    : current === detected || !current
+      ? DETECTED_ID
+      : nearby[0]?.label || DETECTED_ID;
+
+  if (selectedId === DETECTED_ID) {
+    d.item = detected;
+  } else {
+    d.item = selectedId;
+  }
+
+  const row = document.createElement("div");
+  row.className = "exam-item-buttons ai-suggest-exam-candidates";
+  options.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "exam-item-btn";
+    btn.textContent = opt.label;
+    btn.classList.toggle("is-selected", selectedId === opt.id);
+    btn.addEventListener("click", () => {
+      d.item = opt.id === DETECTED_ID ? detected : opt.id;
+      row.querySelectorAll(".exam-item-btn").forEach((b) => b.classList.remove("is-selected"));
+      btn.classList.add("is-selected");
+      if (customInput) {
+        customInput.value = d.item;
+      }
+    });
+    row.appendChild(btn);
+  });
+
+  const customLab = document.createElement("label");
+  customLab.className = "label label--sub";
+  customLab.textContent = "手入力で上書き（任意）";
+  const customInput = document.createElement("input");
+  customInput.className = "input";
+  customInput.type = "text";
+  customInput.value = d.item || "";
+  customInput.placeholder = "例）ACTH通常";
+  customInput.addEventListener("input", () => {
+    d.item = customInput.value;
+    row.querySelectorAll(".exam-item-btn").forEach((b) => b.classList.remove("is-selected"));
+  });
+
+  wrap.append(lab, note, row, customLab, customInput);
   return wrap;
 }
 

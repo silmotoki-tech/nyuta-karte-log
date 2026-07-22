@@ -1444,6 +1444,10 @@ html.is-unlocked .app {
   flex-shrink: 0;
 }
 
+.ai-suggest-exam-candidates {
+  margin: 6px 0 10px;
+}
+
 .exam-item-btn {
   border: 1.5px solid var(--color-border);
   background-color: var(--color-cream);
