@@ -11,8 +11,6 @@ import {
   updateMedicationEvent,
   deleteMedicationEvent,
   addMedicationItem,
-  updateMedicationItem,
-  deleteMedicationItem,
   fetchMedicationsOnce,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
@@ -65,7 +63,6 @@ const state = {
   unsubscribeDrugs: null,
   unsubscribeItems: null,
   expandedIds: new Set(),
-  editingMasterId: null,
   eventDraft: {
     mode: "create", // create | edit
     drugId: null,
@@ -81,8 +78,6 @@ const state = {
   },
   addDraft: {
     name: "",
-    customName: "",
-    useOther: false,
     category: "B",
     freq: createEmptyFreqDraft("preset"),
   },
@@ -96,12 +91,13 @@ let eventFreqPicker = null;
 const medsList = document.getElementById("meds-list");
 const medsEmpty = document.getElementById("meds-empty");
 const btnMedAdd = document.getElementById("btn-med-add");
-const btnOpenMedItems = document.getElementById("btn-open-med-items");
 
 const addModal = document.getElementById("med-add-modal");
 const addItemButtons = document.getElementById("med-add-item-buttons");
-const addOtherCheck = document.getElementById("med-add-other");
-const addCustomName = document.getElementById("med-add-custom-name");
+const addItemsEmpty = document.getElementById("med-add-items-empty");
+const addNewItemInput = document.getElementById("med-add-new-item");
+const btnAddNewItem = document.getElementById("btn-med-add-new-item");
+const addItemError = document.getElementById("med-add-item-error");
 const addCategoryButtons = document.getElementById("med-add-category-buttons");
 const addError = document.getElementById("med-add-error");
 const btnAddSave = document.getElementById("btn-med-add-save");
@@ -159,16 +155,6 @@ const eventFreqEls = {
   weekdays: document.getElementById("med-event-freq-weekdays"),
   otherInput: document.getElementById("med-event-freq-other-input"),
 };
-
-const medItemsModal = document.getElementById("med-items-modal");
-const medItemsList = document.getElementById("med-items-list");
-const medItemsListEmpty = document.getElementById("med-items-list-empty");
-const medItemLabelInput = document.getElementById("med-item-label-input");
-const medItemError = document.getElementById("med-item-error");
-const medItemEditorTitle = document.getElementById("med-item-editor-title");
-const btnMedItemSave = document.getElementById("btn-med-item-save");
-const btnMedItemCancel = document.getElementById("btn-med-item-cancel");
-const btnCloseMedItems = document.getElementById("btn-close-med-items");
 
 // --- 日付・ステータス -----------------------------------------------------
 
@@ -290,7 +276,6 @@ export function initMedsUI(helpers = {}) {
   wireToolbar();
   wireAddModal();
   wireEventModal();
-  wireMedItemsModal();
   buildEventTypeButtons();
   buildAmountPresets();
   buildAddCategoryButtons();
@@ -299,7 +284,6 @@ export function initMedsUI(helpers = {}) {
   state.unsubscribeItems = subscribeMedicationItems((items) => {
     state.medicationItems = items;
     renderAddItemButtons();
-    if (!medItemsModal.hidden) renderMedItemsList();
   });
 }
 
@@ -686,7 +670,6 @@ function createEventItem(drug, ev) {
 
 function wireToolbar() {
   btnMedAdd?.addEventListener("click", openAddModal);
-  btnOpenMedItems?.addEventListener("click", openMedItemsModal);
 }
 
 // --- 薬剤追加モーダル -----------------------------------------------------
@@ -718,13 +701,11 @@ function wireAddModal() {
   btnAddCancel?.addEventListener("click", closeAddModal);
   addModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeAddModal);
   btnAddSave?.addEventListener("click", handleAddSave);
-  addOtherCheck?.addEventListener("change", () => {
-    state.addDraft.useOther = addOtherCheck.checked;
-    addCustomName.hidden = !addOtherCheck.checked;
-    if (addOtherCheck.checked) {
-      state.addDraft.name = "";
-      renderAddItemButtons();
-      addCustomName.focus();
+  btnAddNewItem?.addEventListener("click", handleAddMedicationItemFromModal);
+  addNewItemInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddMedicationItemFromModal();
     }
   });
 }
@@ -759,19 +740,15 @@ function renderAddCategorySelection() {
 function renderAddItemButtons() {
   if (!addItemButtons) return;
   addItemButtons.innerHTML = "";
+  if (addItemsEmpty) addItemsEmpty.hidden = state.medicationItems.length > 0;
+
   state.medicationItems.forEach((item) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "exam-item-btn";
     btn.textContent = item.label;
-    btn.classList.toggle(
-      "is-selected",
-      !state.addDraft.useOther && state.addDraft.name === item.label
-    );
+    btn.classList.toggle("is-selected", state.addDraft.name === item.label);
     btn.addEventListener("click", () => {
-      addOtherCheck.checked = false;
-      state.addDraft.useOther = false;
-      addCustomName.hidden = true;
       state.addDraft.name = item.label;
       renderAddItemButtons();
     });
@@ -779,17 +756,51 @@ function renderAddItemButtons() {
   });
 }
 
+/**
+ * 薬剤追加モーダル内でマスタへ新規追加し、その薬剤を選択する。
+ */
+async function handleAddMedicationItemFromModal() {
+  const label = addNewItemInput?.value.trim() || "";
+  if (!label) {
+    deps.showError(addItemError, "薬剤名を入力してください。");
+    return;
+  }
+  const exists = state.medicationItems.some(
+    (item) => (item.label || "").trim() === label
+  );
+  if (exists) {
+    state.addDraft.name = label;
+    if (addNewItemInput) addNewItemInput.value = "";
+    deps.showError(addItemError, "");
+    renderAddItemButtons();
+    deps.showToast("既存の薬剤を選択しました。");
+    return;
+  }
+
+  deps.showError(addItemError, "");
+  deps.setBusy(btnAddNewItem, true, "追加中...", "追加");
+  try {
+    await addMedicationItem({ label });
+    state.addDraft.name = label;
+    if (addNewItemInput) addNewItemInput.value = "";
+    renderAddItemButtons();
+    deps.showToast(`「${label}」を追加しました。`);
+  } catch (err) {
+    console.error(err);
+    deps.showError(addItemError, "追加に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnAddNewItem, false, "追加中...", "追加");
+  }
+}
+
 function openAddModal() {
   state.addDraft = {
     name: "",
-    customName: "",
-    useOther: false,
     category: "B",
     freq: createEmptyFreqDraft("preset"),
   };
-  addOtherCheck.checked = false;
-  addCustomName.hidden = true;
-  addCustomName.value = "";
+  if (addNewItemInput) addNewItemInput.value = "";
+  deps.showError(addItemError, "");
   if (addFreqEls.otherInput) addFreqEls.otherInput.value = "";
   deps.showError(addError, "");
   renderAddItemButtons();
@@ -803,10 +814,9 @@ function closeAddModal() {
 }
 
 async function handleAddSave() {
-  let name = state.addDraft.name;
-  if (addOtherCheck.checked) name = addCustomName.value.trim();
+  const name = (state.addDraft.name || "").trim();
   if (!name) {
-    deps.showError(addError, "薬剤名を選択するか、「その他」で入力してください。");
+    deps.showError(addError, "薬剤名を選ぶか、新しい薬剤を追加してください。");
     return;
   }
 
@@ -1139,118 +1149,6 @@ async function handleEventSave() {
     deps.showError(eventError, "保存に失敗しました。もう一度お試しください。");
   } finally {
     deps.setBusy(btnEventSave, false, "保存中...", "保存する");
-  }
-}
-
-// --- 薬剤マスタ管理 -------------------------------------------------------
-
-function wireMedItemsModal() {
-  btnCloseMedItems?.addEventListener("click", closeMedItemsModal);
-  medItemsModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeMedItemsModal);
-  btnMedItemSave?.addEventListener("click", handleMedItemSave);
-  btnMedItemCancel?.addEventListener("click", resetMedItemEditor);
-}
-
-function openMedItemsModal() {
-  resetMedItemEditor();
-  renderMedItemsList();
-  medItemsModal.hidden = false;
-}
-
-function closeMedItemsModal() {
-  if (medItemsModal) medItemsModal.hidden = true;
-}
-
-function renderMedItemsList() {
-  if (!medItemsList) return;
-  medItemsList.innerHTML = "";
-  medItemsListEmpty.hidden = state.medicationItems.length > 0;
-
-  state.medicationItems.forEach((item) => {
-    const li = document.createElement("li");
-    li.className = "tpl-list-item";
-    const info = document.createElement("div");
-    info.className = "tpl-list-item__info";
-    const label = document.createElement("div");
-    label.className = "tpl-list-item__label";
-    label.textContent = item.label || "(名称未設定)";
-    info.appendChild(label);
-
-    li.appendChild(info);
-    enableRowGestures(li, {
-      actions: [
-        {
-          action: "edit",
-          title: "編集",
-          onClick: () => {
-            state.editingMasterId = item.id;
-            medItemEditorTitle.textContent = "薬剤を編集";
-            medItemLabelInput.value = item.label || "";
-            btnMedItemSave.textContent = "更新する";
-            btnMedItemCancel.hidden = false;
-            deps.showError(medItemError, "");
-            medItemLabelInput.focus();
-          },
-        },
-        {
-          action: "delete",
-          title: "削除",
-          onClick: async () => {
-            const ok = window.confirm(`薬剤マスタ「${item.label}」を削除しますか？`);
-            if (!ok) return;
-            try {
-              await deleteMedicationItem(item.id);
-              if (state.editingMasterId === item.id) resetMedItemEditor();
-              deps.showToast("マスタから削除しました。");
-            } catch (err) {
-              console.error(err);
-              deps.showToast("削除に失敗しました。", { isError: true });
-            }
-          },
-        },
-      ],
-    });
-    medItemsList.appendChild(li);
-  });
-}
-
-function resetMedItemEditor() {
-  state.editingMasterId = null;
-  medItemEditorTitle.textContent = "新しい薬剤を追加";
-  medItemLabelInput.value = "";
-  btnMedItemSave.textContent = "追加する";
-  btnMedItemCancel.hidden = true;
-  deps.showError(medItemError, "");
-}
-
-async function handleMedItemSave() {
-  const label = medItemLabelInput.value.trim();
-  if (!label) {
-    deps.showError(medItemError, "薬剤名を入力してください。");
-    return;
-  }
-  deps.showError(medItemError, "");
-  const editingId = state.editingMasterId;
-  deps.setBusy(btnMedItemSave, true, "保存中...", editingId ? "更新する" : "追加する");
-  try {
-    if (editingId) {
-      await updateMedicationItem(editingId, { label });
-      deps.showToast("薬剤マスタを更新しました。");
-    } else {
-      await addMedicationItem({ label });
-      deps.showToast("薬剤マスタに追加しました。");
-    }
-    resetMedItemEditor();
-  } catch (err) {
-    console.error(err);
-    deps.showError(medItemError, "保存に失敗しました。もう一度お試しください。");
-  } finally {
-    deps.setBusy(
-      btnMedItemSave,
-      false,
-      "保存中...",
-      state.editingMasterId ? "更新する" : "追加する"
-    );
   }
 }
 

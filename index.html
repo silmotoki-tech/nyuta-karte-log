@@ -301,9 +301,6 @@
       <!-- B. 薬剤情報 -->
       <div class="right-panel" id="panel-meds" data-panel="meds" hidden>
         <div class="exam-toolbar">
-          <button id="btn-open-med-items" class="btn btn--small btn--outline" type="button">
-            薬剤マスタの管理
-          </button>
           <button id="btn-med-add" class="btn btn--small btn--primary" type="button">
             薬剤を追加
           </button>
@@ -677,17 +674,23 @@
       <div class="field">
         <span class="label">薬剤名</span>
         <div class="exam-item-buttons" id="med-add-item-buttons"></div>
-        <label class="exam-other-check">
-          <input type="checkbox" id="med-add-other" />
-          <span>その他（手打ちで追加）</span>
-        </label>
-        <input
-          id="med-add-custom-name"
-          class="input"
-          type="text"
-          placeholder="薬剤名を入力"
-          hidden
-        />
+        <p class="field__note" id="med-add-items-empty" hidden>まだ登録された薬剤はありません。下で追加できます。</p>
+        <div class="exam-item-add">
+          <label class="label label--sub" for="med-add-new-item">新しい薬剤を追加</label>
+          <div class="exam-item-add__row">
+            <input
+              id="med-add-new-item"
+              class="input"
+              type="text"
+              placeholder="例）アモキシシリン"
+              autocomplete="off"
+            />
+            <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">
+              追加
+            </button>
+          </div>
+          <p id="med-add-item-error" class="error-text" role="alert" hidden></p>
+        </div>
       </div>
       <div class="field">
         <span class="label">カテゴリ</span>
@@ -800,31 +803,6 @@
       <div class="tpl-editor__actions">
         <button id="btn-med-event-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-med-event-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 薬剤マスタ管理モーダル -->
-<div class="modal" id="med-items-modal" hidden>
-  <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="med-items-modal-title">
-    <div class="modal__header">
-      <h2 class="modal__title" id="med-items-modal-title">薬剤マスタの管理</h2>
-      <button class="modal__close" id="btn-close-med-items" type="button" aria-label="閉じる">&times;</button>
-    </div>
-    <div class="modal__body">
-      <ul class="tpl-list" id="med-items-list"></ul>
-      <p class="field__note" id="med-items-list-empty" hidden>登録された薬剤はありません。</p>
-      <div class="tpl-editor">
-        <h3 class="tpl-editor__title" id="med-item-editor-title">新しい薬剤を追加</h3>
-        <label class="label" for="med-item-label-input">薬剤名</label>
-        <input id="med-item-label-input" class="input" type="text" placeholder="例）アモキシシリン" />
-        <p id="med-item-error" class="error-text" role="alert" hidden></p>
-        <div class="tpl-editor__actions">
-          <button id="btn-med-item-save" class="btn btn--small btn--primary" type="button">追加する</button>
-          <button id="btn-med-item-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
-        </div>
       </div>
     </div>
   </div>
