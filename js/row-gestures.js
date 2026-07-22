@@ -3,9 +3,10 @@
 
 import { createIconButton } from "./icon-actions.js";
 
-const SWIPE_THRESHOLD = 48;
+const SWIPE_THRESHOLD = 44;
 const LONG_PRESS_MS = 480;
-const ACTION_BTN_WIDTH = 36;
+/** スワイプで開く操作領域の幅（指で押しやすいサイズ）。通常表示には影響しない。 */
+const ACTION_BTN_WIDTH = 56;
 
 let openRow = null;
 let longPressMenu = null;

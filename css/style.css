@@ -1864,32 +1864,45 @@ select.input {
   justify-content: center;
   gap: 0;
   z-index: 0;
+  min-height: 56px;
 }
 
 .swipeable__actions--edit {
   right: 0;
-  width: var(--swipe-edit-width, 36px);
+  width: var(--swipe-edit-width, 56px);
   background: var(--color-bg-soft, #f3f3f3);
 }
 
 .swipeable__actions--delete {
   left: 0;
-  width: var(--swipe-delete-width, 36px);
+  width: var(--swipe-delete-width, 56px);
   background: rgba(168, 107, 98, 0.12);
 }
 
-.swipeable__action-btn {
-  width: 36px;
-  min-width: 36px;
+/* スワイプ時のみ大きくする（通常の .icon-btn 28px には影響しない） */
+.swipeable__action-btn.icon-btn {
+  width: 56px;
+  min-width: 56px;
   height: auto;
-  min-height: 100%;
+  min-height: 56px;
   border-radius: 0;
   background: transparent;
+}
+
+.swipeable__action-btn.icon-btn .icon-btn__svg {
+  width: 24px;
+  height: 24px;
 }
 
 .swipeable__action-btn.icon-btn--delete {
   background: transparent;
   color: var(--color-danger);
+}
+
+/* 行が薄い場合でも、開いた操作領域は押しやすい高さにする（閉じた状態の行高は変えない） */
+.swipeable.is-actions-open-edit,
+.swipeable.is-actions-open-delete {
+  min-height: 56px;
 }
 
 .swipeable__front {
