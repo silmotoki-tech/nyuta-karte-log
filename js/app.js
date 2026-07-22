@@ -69,6 +69,7 @@ const CATEGORIES = [
 ];
 
 const PASSCODE = "2211";
+const LEFT_COLLAPSE_STORAGE_KEY = "nyuta-left-collapsed";
 
 const state = {
   centerState: "karte",
@@ -128,6 +129,9 @@ const btnAnimalBack = document.getElementById("btn-animal-back");
 const leftPatient = document.getElementById("left-patient");
 const leftPatientLabel = document.getElementById("left-patient-label");
 const btnChangeKarte = document.getElementById("btn-change-karte");
+const layoutEl = document.querySelector("#app-shell .layout");
+const btnLeftCollapse = document.getElementById("btn-left-collapse");
+const leftCollapseIcon = btnLeftCollapse?.querySelector(".left-collapse-btn__icon");
 const btnOpenTemplates = document.getElementById("btn-open-templates");
 const btnStartCompose = document.getElementById("btn-start-compose");
 const entryComposer = document.getElementById("entry-composer");
@@ -181,6 +185,47 @@ const btnTplCancel = document.getElementById("btn-tpl-cancel");
 const toastEl = document.getElementById("toast");
 
 // --- 共通ユーティリティ ---------------------------------------------------
+
+function readLeftCollapsed() {
+  try {
+    return localStorage.getItem(LEFT_COLLAPSE_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeLeftCollapsed(collapsed) {
+  try {
+    localStorage.setItem(LEFT_COLLAPSE_STORAGE_KEY, collapsed ? "1" : "0");
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+/**
+ * 左カラム（見出し一覧）の開閉。中央カラムが空いた幅を受け取る。
+ */
+function setLeftCollapsed(collapsed) {
+  if (!layoutEl || !btnLeftCollapse) return;
+  layoutEl.classList.toggle("is-left-collapsed", collapsed);
+  btnLeftCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  btnLeftCollapse.title = collapsed
+    ? "見出し一覧を開く"
+    : "見出し一覧を折りたたむ";
+  if (leftCollapseIcon) {
+    leftCollapseIcon.textContent = collapsed ? "›" : "‹";
+  }
+  writeLeftCollapsed(collapsed);
+}
+
+function initLeftCollapse() {
+  if (!btnLeftCollapse || !layoutEl) return;
+  setLeftCollapsed(readLeftCollapsed());
+  btnLeftCollapse.addEventListener("click", () => {
+    const next = !layoutEl.classList.contains("is-left-collapsed");
+    setLeftCollapsed(next);
+  });
+}
 
 function showLockScreen() {
   state.unlocked = false;
@@ -1207,6 +1252,8 @@ initServiceWorkerUpdates({
     document.body.appendChild(banner);
   },
 });
+
+initLeftCollapse();
 
 if (isPasscodeVerified()) {
   goToKarte();

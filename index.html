@@ -71,6 +71,17 @@
 
     <!-- ============ 左カラム: 患者情報 + 見出し ============ -->
     <aside class="col col--left" id="col-left">
+      <button
+        type="button"
+        class="left-collapse-btn"
+        id="btn-left-collapse"
+        aria-expanded="true"
+        aria-controls="col-left-inner"
+        title="見出し一覧を折りたたむ"
+      >
+        <span class="left-collapse-btn__icon" aria-hidden="true">‹</span>
+      </button>
+      <div class="col-left__inner" id="col-left-inner">
       <div class="left-patient" id="left-patient" hidden>
         <div class="left-patient__top">
           <p class="left-patient__label" id="left-patient-label"></p>
@@ -92,6 +103,7 @@
       </div>
       <p class="col-empty" id="left-empty">カルテを開くと<br />見出しが表示されます。</p>
       <ul class="headline-list" id="headline-list" hidden></ul>
+      </div>
     </aside>
 
     <!-- ============ 中央カラム: 記入・時系列 ============ -->

@@ -203,7 +203,14 @@ html.is-unlocked .app {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr) 340px;
+  --left-col-width: 210px;
+  --right-col-width: 340px;
+  grid-template-columns: var(--left-col-width) minmax(0, 1fr) var(--right-col-width);
+  transition: grid-template-columns 0.2s ease;
+}
+
+.layout.is-left-collapsed {
+  --left-col-width: 44px;
 }
 
 .col {
@@ -213,12 +220,78 @@ html.is-unlocked .app {
 }
 
 .col--left {
+  position: relative;
   background-color: var(--color-surface-subtle);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   padding: 14px 12px;
   gap: 10px;
+  overflow-x: hidden;
+}
+
+.col-left__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.left-collapse-btn {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  z-index: 6;
+  width: 22px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  background-color: var(--color-white);
+  color: var(--color-brown);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: -1px 1px 4px rgba(44, 48, 52, 0.08);
+  font-family: inherit;
+  transform: translateY(-50%);
+}
+
+.left-collapse-btn:hover {
+  border-color: var(--color-green);
+  background-color: var(--color-green-light);
+}
+
+.left-collapse-btn__icon {
+  display: block;
+}
+
+.layout.is-left-collapsed .col--left {
+  padding: 8px 0;
+  align-items: center;
+  overflow: hidden;
+}
+
+.layout.is-left-collapsed .col-left__inner {
+  display: none;
+}
+
+.layout.is-left-collapsed .left-collapse-btn {
+  position: static;
+  transform: none;
+  width: 32px;
+  height: 44px;
+  margin-top: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 3px rgba(44, 48, 52, 0.08);
 }
 
 .col--center {
@@ -2182,7 +2255,12 @@ select.input {
 /* 画面が狭い場合（保険）: 右カラムを畳む */
 @media (max-width: 820px) {
   .layout {
-    grid-template-columns: 170px minmax(0, 1fr) 260px;
+    --left-col-width: 170px;
+    --right-col-width: 260px;
+  }
+
+  .layout.is-left-collapsed {
+    --left-col-width: 40px;
   }
 }
 
