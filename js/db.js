@@ -20,7 +20,9 @@
 //   templates/{templateId}/order                        … 並び順
 //
 //   examItems/{itemId}/label                            … 検査項目マスタの表示名
+//   examItems/{itemId}/category                         … "blood"|"imaging"|"other"（血液／画像／その他）
 //   examItems/{itemId}/order                            … 並び順
+//     ※初期シードは固定ID（seed-*）。無い場合のみ書き込む
 //
 //   examPlan/{カルテ番号}/schemaVersion                  … データ構造バージョン（v2）
 //   examPlan/{カルテ番号}/plans/{planId}                 … 検査項目ごとの次回予定
@@ -385,8 +387,61 @@ export async function deleteTemplate(templateId) {
 
 // --- 検査項目マスタ -------------------------------------------------------
 
+export const EXAM_ITEM_CATEGORIES = [
+  { id: "blood", label: "血液" },
+  { id: "imaging", label: "画像" },
+  { id: "other", label: "その他" },
+];
+
+const EXAM_ITEM_CATEGORY_IDS = new Set(EXAM_ITEM_CATEGORIES.map((c) => c.id));
+
+/** 初期シード（固定ID。未作成のときだけ書く） */
+const EXAM_ITEM_SEED = [
+  { id: "seed-imaging-abdomen-echo", label: "腹部エコー", category: "imaging", order: 10 },
+  { id: "seed-imaging-heart-echo", label: "心エコー", category: "imaging", order: 20 },
+  { id: "seed-other-chest-set", label: "胸部セット", category: "other", order: 10 },
+  { id: "seed-other-abdomen-set", label: "腹部セット", category: "other", order: 20 },
+];
+
 function examItemsRef() {
   return ref(db, "examItems");
+}
+
+export function normalizeExamItemCategory(category) {
+  const id = String(category || "").trim();
+  return EXAM_ITEM_CATEGORY_IDS.has(id) ? id : "other";
+}
+
+function normalizeExamItem(id, raw) {
+  const row = raw && typeof raw === "object" ? raw : {};
+  return {
+    id,
+    label: row.label || "",
+    category: normalizeExamItemCategory(row.category),
+    order: typeof row.order === "number" ? row.order : 0,
+  };
+}
+
+/**
+ * 初期検査項目を不足分だけ書き込む（既存は上書きしない）。
+ */
+export async function ensureExamItemDefaults() {
+  await authReady;
+  const snap = await get(examItemsRef());
+  const existing = snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
+  const writes = {};
+  EXAM_ITEM_SEED.forEach((seed) => {
+    if (!existing[seed.id]) {
+      writes[seed.id] = {
+        label: seed.label,
+        category: seed.category,
+        order: seed.order,
+      };
+    }
+  });
+  if (Object.keys(writes).length) {
+    await update(examItemsRef(), writes);
+  }
 }
 
 /**
@@ -398,11 +453,17 @@ export function subscribeExamItems(callback) {
   let listener = null;
 
   authReady
-    .then(() => {
+    .then(async () => {
+      if (unsubscribed) return;
+      try {
+        await ensureExamItemDefaults();
+      } catch (err) {
+        console.error("検査項目マスタの初期化に失敗しました", err);
+      }
       if (unsubscribed) return;
       listener = onValue(r, (snapshot) => {
         const value = snapshot.val() || {};
-        const items = Object.entries(value).map(([id, t]) => ({ id, ...t }));
+        const items = Object.entries(value).map(([id, t]) => normalizeExamItem(id, t));
         items.sort((a, b) => {
           const ord = (a.order ?? 0) - (b.order ?? 0);
           if (ord !== 0) return ord;
@@ -424,19 +485,25 @@ export function subscribeExamItems(callback) {
   };
 }
 
-export async function addExamItem({ label, order }) {
+export async function addExamItem({ label, order, category }) {
   await authReady;
   const newRef = push(examItemsRef());
   await set(newRef, {
     label: label || "",
+    category: normalizeExamItemCategory(category),
     order: typeof order === "number" ? order : Date.now(),
   });
   return newRef.key;
 }
 
-export async function updateExamItem(itemId, { label }) {
+export async function updateExamItem(itemId, { label, category }) {
   await authReady;
-  await update(ref(db, `examItems/${itemId}`), { label: label || "" });
+  const patch = {};
+  if (label != null) patch.label = label || "";
+  if (category != null) patch.category = normalizeExamItemCategory(category);
+  if (Object.keys(patch).length) {
+    await update(ref(db, `examItems/${itemId}`), patch);
+  }
 }
 
 export async function deleteExamItem(itemId) {

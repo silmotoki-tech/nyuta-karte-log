@@ -10,6 +10,8 @@ import {
   reviveExamPlanByItem,
   addExamHistory,
   addExamItem,
+  EXAM_ITEM_CATEGORIES,
+  normalizeExamItemCategory,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
 
@@ -47,6 +49,8 @@ const state = {
   karteNumber: null,
   plan: null,
   examItems: [],
+  /** 予定登録モーダル内の検査項目分類タブ */
+  examItemCategory: EXAM_ITEM_CATEGORIES[0]?.id || "blood",
   unsubscribePlan: null,
   unsubscribeItems: null,
   activeTab: "exam",
@@ -100,8 +104,10 @@ const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
 
 const planModal = document.getElementById("exam-plan-modal");
 const planModalTitle = document.getElementById("exam-plan-modal-title");
+const planItemCategories = document.getElementById("exam-plan-item-categories");
 const planItemButtons = document.getElementById("exam-plan-item-buttons");
 const planItemsEmpty = document.getElementById("exam-plan-items-empty");
+const planNewItemLabel = document.getElementById("exam-plan-new-item-label");
 const planNewItemInput = document.getElementById("exam-plan-new-item");
 const btnPlanAddItem = document.getElementById("btn-exam-plan-add-item");
 const planItemError = document.getElementById("exam-plan-item-error");
@@ -387,9 +393,13 @@ export function initExamPlanUI(helpers = {}) {
 
   state.unsubscribeItems = subscribeExamItems((items) => {
     state.examItems = items;
+    renderExamItemCategoryTabs();
     renderPlanItemButtons();
+    updateExamItemAddLabel();
   });
 
+  renderExamItemCategoryTabs();
+  updateExamItemAddLabel();
   showRightEmpty(true);
   switchTab("exam");
 }
@@ -1029,12 +1039,62 @@ function resetDraftDueRelative() {
   state.draft.dueRelativeBuffer = "";
 }
 
+function examItemCategoryLabel(categoryId) {
+  const found = EXAM_ITEM_CATEGORIES.find((c) => c.id === categoryId);
+  return found?.label || "その他";
+}
+
+function itemsInActiveCategory() {
+  const cat = normalizeExamItemCategory(state.examItemCategory);
+  return state.examItems.filter(
+    (item) => normalizeExamItemCategory(item.category) === cat
+  );
+}
+
+function renderExamItemCategoryTabs() {
+  if (!planItemCategories) return;
+  planItemCategories.innerHTML = "";
+  EXAM_ITEM_CATEGORIES.forEach((cat) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "exam-item-category-tab";
+    btn.setAttribute("role", "tab");
+    btn.dataset.category = cat.id;
+    btn.textContent = cat.label;
+    btn.setAttribute("aria-selected", String(state.examItemCategory === cat.id));
+    btn.classList.toggle("is-active", state.examItemCategory === cat.id);
+    btn.addEventListener("click", () => {
+      state.examItemCategory = cat.id;
+      renderExamItemCategoryTabs();
+      renderPlanItemButtons();
+      updateExamItemAddLabel();
+    });
+    planItemCategories.appendChild(btn);
+  });
+}
+
+function updateExamItemAddLabel() {
+  const label = examItemCategoryLabel(state.examItemCategory);
+  if (planNewItemLabel) {
+    planNewItemLabel.textContent = `新しい項目を追加（${label}）`;
+  }
+  if (planNewItemInput) {
+    planNewItemInput.placeholder =
+      state.examItemCategory === "blood"
+        ? "例）CBC"
+        : state.examItemCategory === "imaging"
+          ? "例）レントゲン"
+          : "例）全スク";
+  }
+}
+
 function renderPlanItemButtons() {
   if (!planItemButtons) return;
   planItemButtons.innerHTML = "";
-  if (planItemsEmpty) planItemsEmpty.hidden = state.examItems.length > 0;
+  const items = itemsInActiveCategory();
+  if (planItemsEmpty) planItemsEmpty.hidden = items.length > 0;
 
-  state.examItems.forEach((item) => {
+  items.forEach((item) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "exam-item-btn";
@@ -1050,10 +1110,11 @@ function renderPlanItemButtons() {
 }
 
 /**
- * 予定登録モーダル内で検査項目マスタへ新規追加し、その項目を選択する。
+ * 予定登録モーダル内で、現在の分類の検査項目マスタへ新規追加し選択する。
  */
 async function handleAddExamItemFromPlanModal() {
   const label = planNewItemInput?.value.trim() || "";
+  const category = normalizeExamItemCategory(state.examItemCategory);
   if (!label) {
     deps.showError(planItemError, "項目名を入力してください。");
     return;
@@ -1062,6 +1123,14 @@ async function handleAddExamItemFromPlanModal() {
     (item) => (item.label || "").trim() === label
   );
   if (exists) {
+    const existing = state.examItems.find(
+      (item) => (item.label || "").trim() === label
+    );
+    if (existing) {
+      state.examItemCategory = normalizeExamItemCategory(existing.category);
+      renderExamItemCategoryTabs();
+      updateExamItemAddLabel();
+    }
     state.draft.item = label;
     if (planNewItemInput) planNewItemInput.value = "";
     deps.showError(planItemError, "");
@@ -1073,12 +1142,11 @@ async function handleAddExamItemFromPlanModal() {
   deps.showError(planItemError, "");
   deps.setBusy(btnPlanAddItem, true, "追加中...", "追加");
   try {
-    await addExamItem({ label });
+    await addExamItem({ label, category });
     state.draft.item = label;
     if (planNewItemInput) planNewItemInput.value = "";
-    // subscribe でボタン再描画されるが、反映前でも選択状態を保持
     renderPlanItemButtons();
-    deps.showToast(`「${label}」を追加しました。`);
+    deps.showToast(`「${label}」を${examItemCategoryLabel(category)}に追加しました。`);
   } catch (err) {
     console.error(err);
     deps.showError(planItemError, "追加に失敗しました。もう一度お試しください。");
@@ -1152,6 +1220,19 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     syncDueRelativeUI();
   }
   deps.showError(planError, "");
+  // 選択済み項目があればその分類タブを開く
+  if (state.draft.item) {
+    const matched = state.examItems.find(
+      (item) => (item.label || "").trim() === state.draft.item
+    );
+    if (matched) {
+      state.examItemCategory = normalizeExamItemCategory(matched.category);
+    }
+  } else {
+    state.examItemCategory = EXAM_ITEM_CATEGORIES[0]?.id || "blood";
+  }
+  renderExamItemCategoryTabs();
+  updateExamItemAddLabel();
   renderPlanItemButtons();
   updateWindowNote();
   if (planModal) planModal.hidden = false;

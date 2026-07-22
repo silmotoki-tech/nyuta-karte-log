@@ -1307,6 +1307,38 @@ html.is-unlocked .app {
   gap: 7px;
 }
 
+.exam-item-category-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.exam-item-category-tab {
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-cream);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  padding: 8px 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.exam-item-category-tab:hover:not(:disabled) {
+  border-color: var(--color-brown);
+  color: var(--color-brown);
+}
+
+.exam-item-category-tab.is-active {
+  background-color: var(--color-brown-light);
+  border-color: var(--color-brown);
+  color: var(--color-brown);
+}
+
 .exam-item-add {
   margin-top: 10px;
   display: flex;

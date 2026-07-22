@@ -510,16 +510,24 @@
     <div class="modal__body">
       <div class="field">
         <span class="label">検査項目</span>
+        <div
+          class="exam-item-category-tabs"
+          id="exam-plan-item-categories"
+          role="tablist"
+          aria-label="検査項目の分類"
+        ></div>
         <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
-        <p class="field__note" id="exam-plan-items-empty" hidden>まだ登録された検査項目はありません。下で追加できます。</p>
+        <p class="field__note" id="exam-plan-items-empty" hidden>この分類にはまだ項目がありません。下で追加できます。</p>
         <div class="exam-item-add">
-          <label class="label label--sub" for="exam-plan-new-item">新しい項目を追加</label>
+          <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">
+            新しい項目を追加
+          </label>
           <div class="exam-item-add__row">
             <input
               id="exam-plan-new-item"
               class="input"
               type="text"
-              placeholder="例）血液検査"
+              placeholder="例）CBC"
               autocomplete="off"
             />
             <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">
