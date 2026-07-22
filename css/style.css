@@ -2859,6 +2859,113 @@ select.input {
   overflow-y: auto;
 }
 
+.ai-suggest-exam-stage {
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-white);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-suggest-exam-stage__title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--color-brown);
+}
+
+.ai-suggest-keyword-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-suggest-keyword-btn {
+  position: relative;
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-cream);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s ease;
+}
+
+.ai-suggest-keyword-btn:hover:not(:disabled) {
+  border-color: var(--color-green);
+}
+
+.ai-suggest-keyword-btn.is-selected {
+  background-color: var(--color-green);
+  border-color: var(--color-green);
+  color: var(--color-white);
+}
+
+.ai-suggest-keyword-btn.is-done,
+.ai-suggest-keyword-btn.is-ignored {
+  opacity: 0.72;
+  cursor: default;
+  padding-right: 48px;
+}
+
+.ai-suggest-keyword-btn.is-done {
+  border-color: var(--color-green);
+  background-color: var(--color-green-light);
+}
+
+.ai-suggest-keyword-btn__mark {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--color-green-dark);
+}
+
+.ai-suggest-keyword-btn.is-ignored .ai-suggest-keyword-btn__mark {
+  color: var(--color-text-muted);
+}
+
+.ai-suggest-exam-hint {
+  list-style: none;
+  margin: 0;
+  padding: 4px 2px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.ai-suggest-card--exam-detail {
+  border-color: var(--color-green);
+  box-shadow: 0 0 0 1px rgba(111, 184, 43, 0.25);
+}
+
+.ai-suggest-card__detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.btn--ghost {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 8px;
+  font-family: inherit;
+}
+
+.btn--ghost:hover {
+  color: var(--color-brown);
+}
+
 .ai-suggest-card {
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);

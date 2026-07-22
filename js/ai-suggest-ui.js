@@ -58,6 +58,8 @@ const state = {
   dueRelativeById: {},
   /** 検査項目マスタ（AI確認時の候補照合用） */
   examMasterItems: [],
+  /** 2段階目で開いている検査キーワード（localId） */
+  selectedExamLocalId: null,
 };
 
 // --- DOM ------------------------------------------------------------------
@@ -301,10 +303,16 @@ function closeReviewModal() {
   state.suggestions = [];
   state.karteNumber = null;
   state.dueRelativeById = {};
+  state.selectedExamLocalId = null;
 }
 
 function pendingCount() {
   return state.suggestions.filter((s) => s.status === "pending").length;
+}
+
+function examKeywordLabel(s) {
+  const d = s?.data || {};
+  return String(d.detectedItem || d.item || s?.summary || "検査").trim() || "検査";
 }
 
 function renderReviewList() {
@@ -314,14 +322,150 @@ function renderReviewList() {
   if (reviewProgress) {
     reviewProgress.textContent =
       pending > 0
-        ? `未対応の提案が ${pending} 件あります。内容を確認・修正してから「確定する」か「無視する」を選んでください。登録は確定後のみ行います。`
+        ? `未対応の提案が ${pending} 件あります。検査はキーワードを選んで候補を確認し、「登録」または「無視」を選んでください。`
         : "すべての提案に対応しました。";
   }
   if (reviewEmpty) reviewEmpty.hidden = state.suggestions.length > 0;
 
-  state.suggestions.forEach((s) => {
+  const exams = state.suggestions.filter((s) => s.kind === "exam");
+  const others = state.suggestions.filter((s) => s.kind !== "exam");
+
+  // 選択中が無効になったらクリア／次の未対応へ
+  if (state.selectedExamLocalId) {
+    const selected = exams.find((s) => s.localId === state.selectedExamLocalId);
+    if (!selected || selected.status !== "pending") {
+      const next = exams.find((s) => s.status === "pending");
+      state.selectedExamLocalId = next ? next.localId : null;
+    }
+  }
+
+  if (exams.length) {
+    reviewList.appendChild(createExamKeywordStage(exams));
+    const open = exams.find(
+      (s) => s.localId === state.selectedExamLocalId && s.status === "pending"
+    );
+    if (open) {
+      reviewList.appendChild(createExamDetailCard(open));
+    } else if (exams.some((s) => s.status === "pending")) {
+      const hint = document.createElement("li");
+      hint.className = "ai-suggest-exam-hint";
+      hint.textContent = "上のキーワードを選ぶと、マスタ候補が表示されます。";
+      reviewList.appendChild(hint);
+    }
+  }
+
+  others.forEach((s) => {
     reviewList.appendChild(createSuggestionCard(s));
   });
+}
+
+/**
+ * 1段階目: 検出キーワードのシンプルな一覧。
+ */
+function createExamKeywordStage(exams) {
+  const li = document.createElement("li");
+  li.className = "ai-suggest-exam-stage";
+
+  const title = document.createElement("h3");
+  title.className = "ai-suggest-exam-stage__title";
+  title.textContent = "検出された検査キーワード";
+
+  const note = document.createElement("p");
+  note.className = "field__note";
+  note.textContent = "キーワードを選ぶと、マスタとの照合候補を表示します。";
+
+  const row = document.createElement("div");
+  row.className = "ai-suggest-keyword-row";
+
+  exams.forEach((s) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ai-suggest-keyword-btn";
+    const label = examKeywordLabel(s);
+    btn.textContent = label;
+
+    if (s.status === "done") {
+      btn.classList.add("is-done");
+      const mark = document.createElement("span");
+      mark.className = "ai-suggest-keyword-btn__mark";
+      mark.textContent = "済み";
+      btn.appendChild(mark);
+      btn.disabled = true;
+    } else if (s.status === "ignored") {
+      btn.classList.add("is-ignored");
+      const mark = document.createElement("span");
+      mark.className = "ai-suggest-keyword-btn__mark";
+      mark.textContent = "無視";
+      btn.appendChild(mark);
+      btn.disabled = true;
+    } else {
+      btn.classList.toggle("is-selected", state.selectedExamLocalId === s.localId);
+      btn.addEventListener("click", () => {
+        state.selectedExamLocalId =
+          state.selectedExamLocalId === s.localId ? null : s.localId;
+        deps.showError(reviewError, "");
+        renderReviewList();
+      });
+    }
+    row.appendChild(btn);
+  });
+
+  li.append(title, note, row);
+  return li;
+}
+
+/**
+ * 2段階目: 選んだキーワードの詳細候補＋登録。
+ */
+function createExamDetailCard(s) {
+  const li = document.createElement("li");
+  li.className = "ai-suggest-card ai-suggest-card--exam-detail";
+  li.dataset.localId = s.localId;
+
+  const head = document.createElement("div");
+  head.className = "ai-suggest-card__detail-head";
+  const badge = document.createElement("span");
+  badge.className = "ai-suggest-card__kind";
+  badge.textContent = "検査予定";
+  const title = document.createElement("p");
+  title.className = "ai-suggest-card__summary";
+  title.textContent = `「${examKeywordLabel(s)}」の登録内容`;
+  head.append(badge, title);
+
+  const form = document.createElement("div");
+  form.className = "ai-suggest-card__form";
+  form.appendChild(buildExamItemField(s, s.data));
+  form.appendChild(buildInlineDateField(s.localId, "dueDate", "目安日", s.data));
+
+  const actions = document.createElement("div");
+  actions.className = "ai-suggest-card__actions";
+
+  const confirmBtn = document.createElement("button");
+  confirmBtn.type = "button";
+  confirmBtn.className = "btn btn--small btn--primary";
+  confirmBtn.textContent = "この内容で登録する";
+  confirmBtn.disabled = Boolean(s.applying);
+  confirmBtn.addEventListener("click", () => handleConfirmClick(s.localId, confirmBtn));
+
+  const ignoreBtn = document.createElement("button");
+  ignoreBtn.type = "button";
+  ignoreBtn.className = "btn btn--small btn--outline";
+  ignoreBtn.textContent = "無視する";
+  ignoreBtn.disabled = Boolean(s.applying);
+  ignoreBtn.addEventListener("click", () => markIgnored(s.localId));
+
+  const backBtn = document.createElement("button");
+  backBtn.type = "button";
+  backBtn.className = "btn btn--small btn--ghost";
+  backBtn.textContent = "一覧に戻る";
+  backBtn.addEventListener("click", () => {
+    state.selectedExamLocalId = null;
+    renderReviewList();
+  });
+
+  actions.append(confirmBtn, ignoreBtn, backBtn);
+  li.append(head, form, actions);
+  return li;
 }
 
 function createSuggestionCard(s) {
@@ -376,7 +520,7 @@ function createSuggestionCard(s) {
 }
 
 /**
- * 提案カード内でその場編集できるフィールドを組み立てる。
+ * 提案カード内でその場編集できるフィールドを組み立てる（検査以外）。
  * 入力値は s.data に直接反映する（確定時にこれを登録）。
  */
 function buildInlineFields(s) {
@@ -385,13 +529,7 @@ function buildInlineFields(s) {
   const d = s.data;
 
   if (s.kind === "exam") {
-    wrap.appendChild(buildExamItemField(s, d));
-    wrap.appendChild(buildInlineDateField(s.localId, "dueDate", "目安日", d));
-    wrap.appendChild(
-      fieldText("メモ（任意）", d.note || "", (v) => {
-        d.note = v;
-      })
-    );
+    // 検査は2段階UI側で組み立てる
     return wrap;
   }
 
@@ -786,6 +924,9 @@ function markIgnored(localId) {
   const s = state.suggestions.find((x) => x.localId === localId);
   if (!s || s.status !== "pending" || s.applying) return;
   s.status = "ignored";
+  if (s.kind === "exam" && state.selectedExamLocalId === localId) {
+    state.selectedExamLocalId = null;
+  }
   renderReviewList();
   maybeFinishReview();
 }
@@ -822,13 +963,14 @@ async function handleConfirmClick(localId, confirmBtn) {
   deps.showError(reviewError, "");
   s.applying = true;
   if (confirmBtn) {
-    deps.setBusy(confirmBtn, true, "登録中...", "確定する");
+    deps.setBusy(confirmBtn, true, "登録中...", "この内容で登録する");
   }
 
   try {
     await applySuggestion(s, data);
     s.status = "done";
     s.applying = false;
+    if (s.kind === "exam") state.selectedExamLocalId = null;
     deps.showToast(confirmToastMessage(s));
     renderReviewList();
     maybeFinishReview();
