@@ -837,7 +837,7 @@ async function handleAddSave() {
   deps.showError(addError, "");
   deps.setBusy(btnAddSave, true, "保存中...", "追加する");
   try {
-    const drugId = await addMedication(state.karteNumber, {
+    await addMedication(state.karteNumber, {
       name,
       category: state.addDraft.category,
       changedBy: deps.getSelectedAuthor() || "",
@@ -845,9 +845,6 @@ async function handleAddSave() {
       frequencyChange: freqResolved.frequencyChange || "",
       frequency: freqResolved.frequency || null,
     });
-    // subscribe の再描画は expandedIds 設定前に走ることがあるため、ここで付け直して描画する
-    state.expandedIds.add(drugId);
-    renderMedsList();
     closeAddModal();
     deps.showToast("薬剤を追加しました。");
   } catch (err) {
