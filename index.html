@@ -269,8 +269,11 @@
             既往歴を追加
           </button>
         </div>
-        <p class="field__note" id="patient-history-empty">登録された既往歴はありません。</p>
-        <ul class="meds-list" id="patient-history-list"></ul>
+        <section class="exam-section">
+          <h3 class="exam-section__title">既往歴一覧</h3>
+          <p class="field__note" id="patient-history-empty">登録された既往歴はありません。</p>
+          <ul class="meds-list" id="patient-history-list"></ul>
+        </section>
       </div>
 
       <!-- A. 検査予定 -->
@@ -317,8 +320,11 @@
             薬剤を追加
           </button>
         </div>
-        <p class="field__note" id="meds-empty">登録された薬剤はありません。</p>
-        <ul class="meds-list" id="meds-list"></ul>
+        <section class="exam-section">
+          <h3 class="exam-section__title">薬剤一覧</h3>
+          <p class="field__note" id="meds-empty">登録された薬剤はありません。</p>
+          <ul class="meds-list" id="meds-list"></ul>
+        </section>
       </div>
 
       <!-- C. 処置ログ -->
@@ -328,33 +334,39 @@
             処置を追加
           </button>
         </div>
-        <p class="field__note" id="procedures-empty">登録された処置ログはありません。</p>
-        <ul class="proc-list" id="procedures-list"></ul>
+        <section class="exam-section">
+          <h3 class="exam-section__title">処置ログ一覧</h3>
+          <p class="field__note" id="procedures-empty">登録された処置ログはありません。</p>
+          <ul class="proc-list" id="procedures-list"></ul>
+        </section>
       </div>
 
       <!-- D. 自由質問 -->
       <div class="right-panel" id="panel-qa" data-panel="qa" hidden>
-        <div class="qa-compose">
-          <label class="label" for="free-qa-input">この患者について質問</label>
-          <textarea
-            id="free-qa-input"
-            class="textarea"
-            rows="3"
-            placeholder="例）腎臓の経過で注意すべき記載は？"
-          ></textarea>
-          <div class="qa-compose__actions">
-            <button id="btn-free-qa-ask" class="btn btn--small btn--primary" type="button">
-              質問する
-            </button>
+        <section class="exam-section">
+          <h3 class="exam-section__title">新規質問</h3>
+          <div class="qa-compose">
+            <label class="label" for="free-qa-input">この患者について質問</label>
+            <textarea
+              id="free-qa-input"
+              class="textarea"
+              rows="3"
+              placeholder="例）腎臓の経過で注意すべき記載は？"
+            ></textarea>
+            <div class="qa-compose__actions">
+              <button id="btn-free-qa-ask" class="btn btn--small btn--primary" type="button">
+                質問する
+              </button>
+            </div>
+            <p id="free-qa-key-hint" class="qa-key-hint" hidden>
+              APIキーが未設定です。
+              <button id="btn-free-qa-open-settings" class="link-inline" type="button">設定画面</button>
+              でAPIキーを設定してください。
+            </p>
+            <p id="free-qa-error" class="error-text" role="alert" hidden></p>
+            <p class="field__note">中央カラムの時系列全文をコンテキストにAIが回答し、結果を保存します。</p>
           </div>
-          <p id="free-qa-key-hint" class="qa-key-hint" hidden>
-            APIキーが未設定です。
-            <button id="btn-free-qa-open-settings" class="link-inline" type="button">設定画面</button>
-            でAPIキーを設定してください。
-          </p>
-          <p id="free-qa-error" class="error-text" role="alert" hidden></p>
-          <p class="field__note">中央カラムの時系列全文をコンテキストにAIが回答し、結果を保存します。</p>
-        </div>
+        </section>
 
         <section class="exam-section">
           <h3 class="exam-section__title">質問履歴</h3>

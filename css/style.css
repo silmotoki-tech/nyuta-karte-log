@@ -1008,10 +1008,10 @@ html.is-unlocked .app {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 8px 10px 16px;
+  padding: 8px 10px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .right-panel[hidden] {
@@ -1059,7 +1059,18 @@ html.is-unlocked .app {
 .exam-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  padding: 0 0 12px;
+  margin: 0;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+/* 2つ目以降のセクションは地色を変えて区切りを明確に */
+.right-panel > .exam-section:nth-of-type(n + 2) {
+  background-color: var(--color-surface-subtle);
 }
 
 .exam-section__head {
@@ -1067,13 +1078,43 @@ html.is-unlocked .app {
   align-items: center;
   justify-content: space-between;
   gap: 6px;
+  margin: 0;
+  background-color: var(--color-brown-light);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .exam-section__title {
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: 0.82rem;
+  font-weight: 800;
   color: var(--color-brown);
   margin: 0;
+  padding: 8px 10px;
+  background-color: var(--color-brown-light);
+  border-bottom: 1px solid var(--color-border);
+  letter-spacing: 0.02em;
+}
+
+/* head 内タイトルは親が帯になるので二重線を避ける */
+.exam-section__head .exam-section__title {
+  flex: 1;
+  background-color: transparent;
+  border-bottom: none;
+}
+
+.exam-section > .exam-register-actions,
+.exam-section > .field__note,
+.exam-section > .exam-list,
+.exam-section > .qa-list,
+.exam-section > .meds-list,
+.exam-section > .proc-list,
+.exam-section > .qa-compose {
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.exam-section > .exam-section__title + .field__note,
+.exam-section > .exam-section__head + .exam-register-actions {
+  margin-top: 2px;
 }
 
 /* 右カラム：次回予定は枠付きカードをやめ、色付きテキストで状態を示す */
@@ -1470,13 +1511,19 @@ html.is-unlocked .app {
 
 .meds-category-heading {
   list-style: none;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   color: var(--color-brown);
-  margin: 10px 0 2px;
-  padding: 4px 0 2px;
+  margin: 14px 0 6px;
+  padding: 7px 8px;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-brown-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.meds-category-heading:first-child {
+  margin-top: 4px;
 }
 
 .med-card {
@@ -2423,7 +2470,7 @@ select.input {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .qa-compose__actions {
