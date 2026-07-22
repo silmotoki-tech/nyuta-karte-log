@@ -375,6 +375,20 @@
     </div>
     <div class="modal__body">
       <p class="exam-sheet__item" id="exam-item-sheet-item"></p>
+      <p class="exam-sheet__fasting" id="exam-item-sheet-fasting" hidden></p>
+
+      <div class="field" id="exam-sheet-fasting-field" hidden>
+        <span class="label">絶食</span>
+        <div
+          class="exam-fasting-buttons"
+          id="exam-sheet-fasting-buttons"
+          role="group"
+          aria-label="絶食の要不要"
+        >
+          <button type="button" class="exam-fasting-btn" data-fasting="required">必要</button>
+          <button type="button" class="exam-fasting-btn" data-fasting="none">不要</button>
+        </div>
+      </div>
 
       <div class="field">
         <label class="label" for="exam-sheet-due-date">次回予定日</label>
@@ -516,9 +530,53 @@
           role="tablist"
           aria-label="検査項目の分類"
         ></div>
+        <div class="exam-item-blood-nav" id="exam-plan-blood-nav" hidden>
+          <button
+            type="button"
+            class="exam-item-blood-nav__back"
+            id="btn-exam-plan-blood-back"
+          >
+            ← 戻る
+          </button>
+          <span class="exam-item-blood-nav__label" id="exam-plan-blood-nav-label"></span>
+        </div>
         <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
         <p class="field__note" id="exam-plan-items-empty" hidden>この分類にはまだ項目がありません。下で追加できます。</p>
-        <div class="exam-item-add">
+
+        <div id="exam-plan-item-add-blood-root" hidden>
+          <div class="exam-item-add">
+            <label class="label label--sub" for="exam-plan-new-group">新しい大項目を追加</label>
+            <div class="exam-item-add__row">
+              <input
+                id="exam-plan-new-group"
+                class="input"
+                type="text"
+                placeholder="例）膵臓"
+                autocomplete="off"
+              />
+              <button id="btn-exam-plan-add-group" class="btn btn--small btn--outline" type="button">
+                追加
+              </button>
+            </div>
+          </div>
+          <div class="exam-item-add">
+            <label class="label label--sub" for="exam-plan-new-standalone">新しい独立項目を追加</label>
+            <div class="exam-item-add__row">
+              <input
+                id="exam-plan-new-standalone"
+                class="input"
+                type="text"
+                placeholder="例）CBC"
+                autocomplete="off"
+              />
+              <button id="btn-exam-plan-add-standalone" class="btn btn--small btn--outline" type="button">
+                追加
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="exam-item-add" id="exam-plan-item-add-default">
           <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">
             新しい項目を追加
           </label>
@@ -534,8 +592,22 @@
               追加
             </button>
           </div>
-          <p id="exam-plan-item-error" class="error-text" role="alert" hidden></p>
         </div>
+        <p id="exam-plan-item-error" class="error-text" role="alert" hidden></p>
+      </div>
+
+      <div class="field" id="exam-plan-fasting-field" hidden>
+        <span class="label">絶食</span>
+        <div
+          class="exam-fasting-buttons"
+          id="exam-plan-fasting-buttons"
+          role="group"
+          aria-label="絶食の要不要"
+        >
+          <button type="button" class="exam-fasting-btn" data-fasting="required">必要</button>
+          <button type="button" class="exam-fasting-btn" data-fasting="none">不要</button>
+        </div>
+        <p class="field__note">血液検査の予定では、絶食の要不要を選んでください。</p>
       </div>
 
       <div class="field">

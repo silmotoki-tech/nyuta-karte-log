@@ -1346,6 +1346,90 @@ html.is-unlocked .app {
   gap: 6px;
 }
 
+.exam-item-blood-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.exam-item-blood-nav[hidden],
+.field[hidden],
+.exam-sheet__fasting[hidden],
+#exam-plan-item-add-blood-root[hidden],
+#exam-plan-item-add-default[hidden] {
+  display: none !important;
+}
+
+.exam-item-blood-nav__back {
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-cream);
+  color: var(--color-brown);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.exam-item-blood-nav__back:hover {
+  border-color: var(--color-brown);
+}
+
+.exam-item-blood-nav__label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.exam-item-btn--group {
+  border-style: dashed;
+}
+
+.exam-item-btn--group::after {
+  content: " ›";
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.exam-fasting-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exam-fasting-btn {
+  min-width: 88px;
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-cream);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.exam-fasting-btn:hover {
+  border-color: var(--color-brown);
+}
+
+.exam-fasting-btn.is-selected {
+  background-color: var(--color-brown-light);
+  border-color: var(--color-brown);
+  color: var(--color-brown);
+}
+
+.exam-sheet__fasting {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-brown);
+}
+
 .exam-item-add__row {
   display: flex;
   gap: 8px;

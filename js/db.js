@@ -21,15 +21,13 @@
 //
 //   examItems/{itemId}/label                            … 検査項目マスタの表示名
 //   examItems/{itemId}/category                         … "blood"|"imaging"|"other"（血液／画像／その他）
+//   examItems/{itemId}/kind                             … "group"|"leaf"（大項目／選択可能な項目）
+//   examItems/{itemId}/parentId                         … 内訳の親大項目ID（トップレベルは空）
 //   examItems/{itemId}/order                            … 並び順
 //     ※初期シードは固定ID（seed-*）。無い場合のみ書き込む
-//
-//   examPlan/{カルテ番号}/schemaVersion                  … データ構造バージョン（v2）
-//   examPlan/{カルテ番号}/plans/{planId}                 … 検査項目ごとの次回予定
-//     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note }
-//     ※dueDate が正。dueDateFrom/To は同日で旧互換。baselineDate は色分け用の基準日
-//     ※旧 nextPlan（1件）は読み込み時に plans["legacy-next"] へ移す。旧 recurring は無視
-//     ※旧 ended/ は読み込み時に無視（終了＝plans から削除のみ。復活は実施履歴から）
+//   examPlan/{カルテ番号}/plans/{planId}
+//     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note, fasting }
+//     ※fasting: "required"|"none"|""（血液の絶食。画像・その他は空）
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
 //     { item, date, note }
 //
@@ -395,12 +393,169 @@ export const EXAM_ITEM_CATEGORIES = [
 
 const EXAM_ITEM_CATEGORY_IDS = new Set(EXAM_ITEM_CATEGORIES.map((c) => c.id));
 
+/** 絶食フラグ: required=必要 / none=不要 / 空=未設定（画像・その他） */
+export const EXAM_FASTING = {
+  REQUIRED: "required",
+  NONE: "none",
+};
+
+export function normalizeExamFasting(value) {
+  const v = String(value || "").trim();
+  if (v === EXAM_FASTING.REQUIRED || v === EXAM_FASTING.NONE) return v;
+  return "";
+}
+
+export function examFastingLabel(value) {
+  const v = normalizeExamFasting(value);
+  if (v === EXAM_FASTING.REQUIRED) return "必要";
+  if (v === EXAM_FASTING.NONE) return "不要";
+  return "";
+}
+
+/**
+ * 血液シードの親子を展開するヘルパー。
+ * @param {{ id: string, label: string, order: number, children: { id: string, label: string }[] }} group
+ */
+function bloodGroupSeed(group) {
+  const rows = [
+    {
+      id: group.id,
+      label: group.label,
+      category: "blood",
+      kind: "group",
+      parentId: "",
+      order: group.order,
+    },
+  ];
+  (group.children || []).forEach((child, index) => {
+    rows.push({
+      id: child.id,
+      label: child.label,
+      category: "blood",
+      kind: "leaf",
+      parentId: group.id,
+      order: (index + 1) * 10,
+    });
+  });
+  return rows;
+}
+
 /** 初期シード（固定ID。未作成のときだけ書く） */
 const EXAM_ITEM_SEED = [
-  { id: "seed-imaging-abdomen-echo", label: "腹部エコー", category: "imaging", order: 10 },
-  { id: "seed-imaging-heart-echo", label: "心エコー", category: "imaging", order: 20 },
-  { id: "seed-other-chest-set", label: "胸部セット", category: "other", order: 10 },
-  { id: "seed-other-abdomen-set", label: "腹部セット", category: "other", order: 20 },
+  ...bloodGroupSeed({
+    id: "seed-blood-liver",
+    label: "肝臓",
+    order: 10,
+    children: [
+      { id: "seed-blood-liver-alt", label: "ALT" },
+      { id: "seed-blood-liver-ast", label: "AST" },
+      { id: "seed-blood-liver-alp", label: "ALP" },
+      { id: "seed-blood-liver-ggt", label: "GGT" },
+      { id: "seed-blood-liver-tbil", label: "総ビリルビン" },
+      { id: "seed-blood-liver-tba-prepost", label: "TBA(pre・post)" },
+      { id: "seed-blood-liver-tba-post", label: "TBA(post)" },
+    ],
+  }),
+  ...bloodGroupSeed({
+    id: "seed-blood-kidney",
+    label: "腎臓",
+    order: 20,
+    children: [
+      { id: "seed-blood-kidney-bun", label: "BUN" },
+      { id: "seed-blood-kidney-cre", label: "Cre" },
+      { id: "seed-blood-kidney-panel-idexx", label: "腎パネル(IDEXX)" },
+      { id: "seed-blood-kidney-electrolyte", label: "電解質" },
+      { id: "seed-blood-kidney-ca", label: "Ca" },
+      { id: "seed-blood-kidney-ip", label: "IP" },
+    ],
+  }),
+  ...bloodGroupSeed({
+    id: "seed-blood-lipid",
+    label: "脂質",
+    order: 30,
+    children: [
+      { id: "seed-blood-lipid-tcho", label: "T-Cho" },
+      { id: "seed-blood-lipid-tg", label: "TG" },
+    ],
+  }),
+  ...bloodGroupSeed({
+    id: "seed-blood-hormone",
+    label: "ホルモン",
+    order: 40,
+    children: [
+      { id: "seed-blood-hormone-acth", label: "ACTH通常" },
+      { id: "seed-blood-hormone-acth-matsuki", label: "ACTH松木式" },
+      { id: "seed-blood-hormone-t4", label: "T4" },
+      { id: "seed-blood-hormone-ft4", label: "fT4" },
+    ],
+  }),
+  { id: "seed-blood-cbc", label: "CBC", category: "blood", kind: "leaf", parentId: "", order: 100 },
+  {
+    id: "seed-blood-glucose-antosense",
+    label: "血糖(アントセンス)",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 110,
+  },
+  {
+    id: "seed-blood-glucose-drychem",
+    label: "血糖(ドライケム)",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 120,
+  },
+  { id: "seed-blood-crp", label: "CRP", category: "blood", kind: "leaf", parentId: "", order: 130 },
+  { id: "seed-blood-saa", label: "SAA", category: "blood", kind: "leaf", parentId: "", order: 140 },
+  {
+    id: "seed-blood-checkup-fujifilm",
+    label: "健診セット(FUJIFILM)",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 150,
+  },
+  {
+    id: "seed-blood-checkup-idexx",
+    label: "健診セット(IDEXX)",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 160,
+  },
+  {
+    id: "seed-imaging-abdomen-echo",
+    label: "腹部エコー",
+    category: "imaging",
+    kind: "leaf",
+    parentId: "",
+    order: 10,
+  },
+  {
+    id: "seed-imaging-heart-echo",
+    label: "心エコー",
+    category: "imaging",
+    kind: "leaf",
+    parentId: "",
+    order: 20,
+  },
+  {
+    id: "seed-other-chest-set",
+    label: "胸部セット",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 10,
+  },
+  {
+    id: "seed-other-abdomen-set",
+    label: "腹部セット",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 20,
+  },
 ];
 
 function examItemsRef() {
@@ -412,13 +567,31 @@ export function normalizeExamItemCategory(category) {
   return EXAM_ITEM_CATEGORY_IDS.has(id) ? id : "other";
 }
 
+export function normalizeExamItemKind(kind) {
+  return String(kind || "").trim() === "group" ? "group" : "leaf";
+}
+
 function normalizeExamItem(id, raw) {
   const row = raw && typeof raw === "object" ? raw : {};
+  const kind = normalizeExamItemKind(row.kind);
+  const parentId = String(row.parentId || "").trim();
   return {
     id,
     label: row.label || "",
     category: normalizeExamItemCategory(row.category),
+    kind,
+    parentId: kind === "group" ? "" : parentId,
     order: typeof row.order === "number" ? row.order : 0,
+  };
+}
+
+function examItemSeedPayload(seed) {
+  return {
+    label: seed.label,
+    category: normalizeExamItemCategory(seed.category),
+    kind: normalizeExamItemKind(seed.kind),
+    parentId: seed.parentId || "",
+    order: seed.order,
   };
 }
 
@@ -432,11 +605,7 @@ export async function ensureExamItemDefaults() {
   const writes = {};
   EXAM_ITEM_SEED.forEach((seed) => {
     if (!existing[seed.id]) {
-      writes[seed.id] = {
-        label: seed.label,
-        category: seed.category,
-        order: seed.order,
-      };
+      writes[seed.id] = examItemSeedPayload(seed);
     }
   });
   if (Object.keys(writes).length) {
@@ -485,22 +654,38 @@ export function subscribeExamItems(callback) {
   };
 }
 
-export async function addExamItem({ label, order, category }) {
+export async function addExamItem({
+  label,
+  order,
+  category,
+  kind = "leaf",
+  parentId = "",
+}) {
   await authReady;
+  const resolvedKind = normalizeExamItemKind(kind);
   const newRef = push(examItemsRef());
   await set(newRef, {
     label: label || "",
     category: normalizeExamItemCategory(category),
+    kind: resolvedKind,
+    parentId: resolvedKind === "group" ? "" : String(parentId || "").trim(),
     order: typeof order === "number" ? order : Date.now(),
   });
   return newRef.key;
 }
 
-export async function updateExamItem(itemId, { label, category }) {
+export async function updateExamItem(itemId, { label, category, kind, parentId }) {
   await authReady;
   const patch = {};
   if (label != null) patch.label = label || "";
   if (category != null) patch.category = normalizeExamItemCategory(category);
+  if (kind != null) {
+    patch.kind = normalizeExamItemKind(kind);
+    if (patch.kind === "group") patch.parentId = "";
+  }
+  if (parentId != null && patch.kind !== "group") {
+    patch.parentId = String(parentId || "").trim();
+  }
   if (Object.keys(patch).length) {
     await update(ref(db, `examItems/${itemId}`), patch);
   }
@@ -603,7 +788,7 @@ async function ensureExamPlanRoot(karteNumber) {
   }
 }
 
-function buildPlanRecord({ item, dueDate, note, baselineDate }) {
+function buildPlanRecord({ item, dueDate, note, baselineDate, fasting }) {
   const date = dueDate || "";
   return {
     item: item || "",
@@ -612,6 +797,7 @@ function buildPlanRecord({ item, dueDate, note, baselineDate }) {
     dueDateFrom: date,
     dueDateTo: date,
     note: note || "",
+    fasting: normalizeExamFasting(fasting),
   };
 }
 
@@ -623,10 +809,10 @@ function buildPlanRecord({ item, dueDate, note, baselineDate }) {
  */
 export async function saveExamScheduledPlan(
   karteNumber,
-  { planId = null, item, dueDate, note, baselineDate }
+  { planId = null, item, dueDate, note, baselineDate, fasting }
 ) {
   await ensureExamPlanRoot(karteNumber);
-  const record = buildPlanRecord({ item, dueDate, note, baselineDate });
+  const record = buildPlanRecord({ item, dueDate, note, baselineDate, fasting });
   const itemName = (item || "").trim();
 
   // 既存の同名項目を探す（編集対象自身は除く）
@@ -699,7 +885,7 @@ export async function endExamScheduledPlan(karteNumber, planId) {
  * 実施履歴は変更しない。既に同名の予定があればそれを返す。
  * @returns {Promise<string>} planId
  */
-export async function reviveExamPlanByItem(karteNumber, { item, note = "" }) {
+export async function reviveExamPlanByItem(karteNumber, { item, note = "", fasting = "" }) {
   const itemName = (item || "").trim();
   if (!itemName) throw new Error("検査項目名が必要です");
   return saveExamScheduledPlan(karteNumber, {
@@ -707,6 +893,7 @@ export async function reviveExamPlanByItem(karteNumber, { item, note = "" }) {
     dueDate: "",
     note: note || "",
     baselineDate: todayIsoDate(),
+    fasting,
   });
 }
 
@@ -728,6 +915,7 @@ export async function setNextExamPlan(karteNumber, nextPlan) {
     dueDate: nextPlan.dueDate || nextPlan.targetDate || nextPlan.dueDateFrom,
     note: nextPlan.note,
     baselineDate: nextPlan.baselineDate,
+    fasting: nextPlan.fasting,
   });
 }
 
