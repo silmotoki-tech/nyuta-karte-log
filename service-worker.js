@@ -8,7 +8,7 @@
 //
 // ※ CACHE_VERSION を上げるときは js/app-version.js の APP_VERSION / CACHE_LABEL も合わせて更新する。
 
-const CACHE_VERSION = "v56";
+const CACHE_VERSION = "v57";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -45,8 +45,18 @@ const APP_SHELL_FILES = [
 ];
 
 self.addEventListener("install", (event) => {
+  // 個別ファイルの取得失敗で install 全体が落ちないようにする
+  // （install 失敗だと waiting に進まず、更新案内も出ない）
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL_FILES))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(
+        APP_SHELL_FILES.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn("[sw] cache.add failed:", url, err);
+          })
+        )
+      )
+    )
   );
 });
 

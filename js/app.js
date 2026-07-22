@@ -1266,11 +1266,8 @@ initAiSuggestUI({
 
 initServiceWorkerUpdates({
   onUpdateAvailable: (reg) => {
-    // マスタ表示の不整合を避けるため、記入中以外は即時更新する
-    if (state.centerState !== "main" || !state.composing) {
-      applyWaitingUpdate(reg);
-      return;
-    }
+    // 新しい SW があるときは必ず確認バナーを出す（記入中の強制リロードを避ける）
+    document.querySelectorAll(".sw-update-banner").forEach((el) => el.remove());
     const banner = document.createElement("div");
     banner.className = "sw-update-banner";
     banner.setAttribute("role", "status");
@@ -1287,7 +1284,6 @@ initServiceWorkerUpdates({
     banner.querySelector("[data-sw-dismiss]").addEventListener("click", () => {
       banner.remove();
     });
-    document.querySelectorAll(".sw-update-banner").forEach((el) => el.remove());
     document.body.appendChild(banner);
   },
 });

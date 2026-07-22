@@ -2,6 +2,7 @@
 
 let registration = null;
 let updateBanner = null;
+let promptedWaiting = null;
 let deps = {
   onPrompt: null,
 };
@@ -21,8 +22,7 @@ export function initServiceWorkerUpdates({ onUpdateAvailable } = {}) {
       .then((reg) => {
         registration = reg;
         wireRegistration(reg);
-        // 起動のたびに必ず更新チェック
-        reg.update().catch(() => {});
+        checkForUpdates(reg);
       })
       .catch(() => {
         // オフライン非対応でもアプリ自体は動作するため握りつぶす
@@ -35,8 +35,14 @@ export function initServiceWorkerUpdates({ onUpdateAvailable } = {}) {
   // フォアグラウンド復帰時もチェック（PWA運用向け）
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && registration) {
-      registration.update().catch(() => {});
+      checkForUpdates(registration);
     }
+  });
+  window.addEventListener("pageshow", () => {
+    if (registration) checkForUpdates(registration);
+  });
+  window.addEventListener("focus", () => {
+    if (registration) checkForUpdates(registration);
   });
 
   // 新しい SW が制御を握ったら再読み込み（ユーザーが「更新」を選んだ後）
@@ -46,6 +52,19 @@ export function initServiceWorkerUpdates({ onUpdateAvailable } = {}) {
     refreshing = true;
     window.location.reload();
   });
+}
+
+function checkForUpdates(reg) {
+  if (!reg) return;
+  reg
+    .update()
+    .catch(() => {})
+    .finally(() => {
+      // updatefound が再発火しない場合でも waiting を拾う
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        promptUpdate(reg);
+      }
+    });
 }
 
 function wireRegistration(reg) {
@@ -68,6 +87,10 @@ function wireRegistration(reg) {
 }
 
 function promptUpdate(reg) {
+  // 同じ waiting worker に対して何度もバナーを重ねない
+  if (reg?.waiting && promptedWaiting === reg.waiting) return;
+  if (reg?.waiting) promptedWaiting = reg.waiting;
+
   if (typeof deps.onPrompt === "function") {
     deps.onPrompt(reg);
     return;
