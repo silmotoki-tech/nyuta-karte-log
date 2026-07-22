@@ -1588,12 +1588,16 @@ function closeAfterModal() {
 /**
  * AI提案フローなど外部からの予定登録。
  */
-export async function addExamPlanFromExternal(karteNumber, { item, dueDate, note, baselineDate }) {
+export async function addExamPlanFromExternal(
+  karteNumber,
+  { item, dueDate, note, baselineDate, source }
+) {
   if (!dueDate) throw new Error("検査予定の日付が不正です。");
   await saveExamScheduledPlan(karteNumber, {
     item: item || "",
     dueDate,
     note: note || "",
     baselineDate: baselineDate || todayStr(),
+    source: source === "ai" ? "ai" : undefined,
   });
 }

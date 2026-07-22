@@ -198,11 +198,13 @@ function buildSuggestSystemPrompt() {
     "kind別 data:",
     '- exam: { "item": "検査名", "dueDate": "YYYY-MM-DD", "note": "" }',
     "  検査名は本文の表現でよい。最終的な正式名称は確認画面でマスタ候補から人間が選ぶ。",
+    "  note は必ず空文字。説明文・由来メモは絶対に入れない。",
     '- medication: 薬剤名の検出のみ。増量・減量・頻度・用法は絶対に提案しない。',
     '  { "name": "薬剤名" }',
     '  summary は必ず「〇〇について、薬剤情報タブで記録しますか？」の形式。',
     '- procedure: { "date": "YYYY-MM-DD", "content": "処置内容" }',
     '- history: { "title": "病名など", "type": "disease"|"surgery"|"referral", "status": "active"|"resolved", "noteText": "" }',
+    "  noteText は必ず空文字。説明文は絶対に入れない。",
     '- followup_date: ワクチン接種・予防薬処方を検出した場合のみ。',
     '  { "purpose": "exam_next"|"med_expiry", "label": "説明", "suggestedDate": "YYYY-MM-DD", "relatedName": "ワクチン名や薬名" }',
     "日付は記録日を基準に計算してください。不確かな提案は含めないでください。",
@@ -248,6 +250,13 @@ function normalizeSuggestions(parsed) {
               : String(s.summary || "薬剤情報タブで記録しますか？").trim(),
           data: { name },
         };
+      }
+      // AIが生成した説明メモは捨てる（確認画面・登録とも空から開始。ユーザー入力のみ残す）
+      if (s.kind === "exam") {
+        data.note = "";
+      }
+      if (s.kind === "history") {
+        data.noteText = "";
       }
       return {
         kind: s.kind,
@@ -839,7 +848,8 @@ async function applySuggestion(suggestion, data) {
     await addExamPlanFromExternal(karte, {
       item: String(data.item || "").trim(),
       dueDate: data.dueDate,
-      note: data.note || "AI提案から登録",
+      note: String(data.note || "").trim(),
+      source: "ai",
     });
     switchRightTab("exam");
     return;
@@ -888,8 +898,9 @@ async function applyFollowupDate(karte, data, author, recordDate) {
   await addExamPlanFromExternal(karte, {
     item: name,
     dueDate: date,
-    note: data.label || "ワクチン等の次回予定（AI提案）",
+    note: "",
     baselineDate: recordDate || todayStr(),
+    source: "ai",
   });
   switchRightTab("exam");
 }

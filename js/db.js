@@ -26,8 +26,9 @@
 //   examItems/{itemId}/order                            … 並び順
 //     ※初期シードは固定ID（seed-*）。無い場合のみ書き込む
 //   examPlan/{カルテ番号}/plans/{planId}
-//     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note, fasting }
+//     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note, fasting, source? }
 //     ※fasting: "required"|"none"|""（血液の絶食。画像・その他は空）
+//     ※source: "manual"|"ai"（登録経路。画面のメモ欄には出さない）
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
 //     { item, date, note }
 //
@@ -935,9 +936,9 @@ async function ensureExamPlanRoot(karteNumber) {
   }
 }
 
-function buildPlanRecord({ item, dueDate, note, baselineDate, fasting }) {
+function buildPlanRecord({ item, dueDate, note, baselineDate, fasting, source }) {
   const date = dueDate || "";
-  return {
+  const record = {
     item: item || "",
     dueDate: date,
     baselineDate: baselineDate || date || "",
@@ -946,6 +947,9 @@ function buildPlanRecord({ item, dueDate, note, baselineDate, fasting }) {
     note: note || "",
     fasting: normalizeExamFasting(fasting),
   };
+  // source は内部用（メモ欄には出さない）。ai のときだけ保存する。
+  if (source === "ai") record.source = "ai";
+  return record;
 }
 
 /**
@@ -956,10 +960,10 @@ function buildPlanRecord({ item, dueDate, note, baselineDate, fasting }) {
  */
 export async function saveExamScheduledPlan(
   karteNumber,
-  { planId = null, item, dueDate, note, baselineDate, fasting }
+  { planId = null, item, dueDate, note, baselineDate, fasting, source }
 ) {
   await ensureExamPlanRoot(karteNumber);
-  const record = buildPlanRecord({ item, dueDate, note, baselineDate, fasting });
+  const record = buildPlanRecord({ item, dueDate, note, baselineDate, fasting, source });
   const itemName = (item || "").trim();
 
   // 既存の同名項目を探す（編集対象自身は除く）
