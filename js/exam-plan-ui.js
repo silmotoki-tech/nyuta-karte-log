@@ -6,6 +6,8 @@ import {
   subscribeExamItems,
   saveExamScheduledPlan,
   deleteExamScheduledPlan,
+  endExamScheduledPlan,
+  reviveExamEndedPlan,
   addExamHistory,
   deleteExamHistory,
   addExamItem,
@@ -81,6 +83,9 @@ const btnExamNew = document.getElementById("btn-exam-new");
 
 const planList = document.getElementById("exam-plan-list");
 const planEmpty = document.getElementById("exam-plan-empty");
+
+const endedList = document.getElementById("exam-ended-list");
+const endedEmpty = document.getElementById("exam-ended-empty");
 
 const historyList = document.getElementById("exam-history-list");
 const historyEmpty = document.getElementById("exam-history-empty");
@@ -485,6 +490,7 @@ function showRightEmpty(empty) {
 function renderExamPlan() {
   if (!state.plan) return;
   renderUnifiedPlanList();
+  renderEndedList();
   renderHistory();
 }
 
@@ -606,6 +612,78 @@ function closeExamItemSheet() {
   if (itemSheet) itemSheet.hidden = true;
   if (planModal?.hidden !== false) {
     state.editingPlanId = null;
+  }
+}
+
+function renderEndedList() {
+  if (!endedList) return;
+  endedList.innerHTML = "";
+  const items = Object.entries(state.plan.ended || {}).map(([id, e]) => ({ id, ...e }));
+  if (endedEmpty) endedEmpty.hidden = items.length > 0;
+
+  items.sort((a, b) => (b.endedAt || "").localeCompare(a.endedAt || ""));
+
+  items.forEach((e) => {
+    const li = document.createElement("li");
+    li.className = "exam-list-item exam-list-item--ended";
+
+    const info = document.createElement("div");
+    info.className = "exam-list-item__info";
+    const title = document.createElement("div");
+    title.className = "exam-list-item__title";
+    title.textContent = e.item || "（項目未設定）";
+    info.appendChild(title);
+    if (e.note) {
+      const noteEl = document.createElement("div");
+      noteEl.className = "exam-list-item__meta";
+      noteEl.textContent = e.note;
+      info.appendChild(noteEl);
+    }
+    const hint = document.createElement("div");
+    hint.className = "exam-list-item__meta";
+    hint.textContent = "終了済み（復活できます）";
+    info.appendChild(hint);
+
+    const reviveBtn = document.createElement("button");
+    reviveBtn.type = "button";
+    reviveBtn.className = "btn btn--small btn--outline";
+    reviveBtn.textContent = "復活する";
+    reviveBtn.addEventListener("click", () => handleReviveEnded(e.id));
+
+    li.append(info, reviveBtn);
+    endedList.appendChild(li);
+  });
+}
+
+async function handleReviveEnded(endedId) {
+  if (!endedId) return;
+  const ended = state.plan?.ended?.[endedId];
+  const label = ended?.item || "予定";
+  const ok = window.confirm(
+    `「${label}」を検査予定一覧に復活しますか？\n次回予定日は未設定のまま戻ります（実施履歴はそのまま残ります）。`
+  );
+  if (!ok) return;
+  try {
+    const planId = await reviveExamEndedPlan(state.karteNumber, endedId);
+    deps.showToast("予定を復活しました。次回予定日を入力してください。");
+    const tryOpen = (attempt = 0) => {
+      const plan = state.plan?.plans?.[planId];
+      if (plan) {
+        openExamItemSheet({
+          id: planId,
+          item: plan.item,
+          dueDate: "",
+          note: plan.note || "",
+          countdown: null,
+        });
+        return;
+      }
+      if (attempt < 30) setTimeout(() => tryOpen(attempt + 1), 40);
+    };
+    tryOpen();
+  } catch (err) {
+    console.error(err);
+    deps.showToast("復活に失敗しました。", { isError: true });
   }
 }
 
@@ -760,10 +838,10 @@ async function handleEndPlan(planId) {
   if (!planId) return;
   const plan = state.plan?.plans?.[planId];
   const label = plan?.item || "予定";
-  const ok = window.confirm(`「${label}」の予定を終了しますか？（実施履歴は残ります）`);
+  const ok = window.confirm(`「${label}」の予定を終了しますか？（実施履歴は残ります。あとから復活できます）`);
   if (!ok) return;
   try {
-    await deleteExamScheduledPlan(state.karteNumber, planId);
+    await endExamScheduledPlan(state.karteNumber, planId);
     if (state.activePlanId === planId) state.activePlanId = null;
     if (state.editingPlanId === planId) state.editingPlanId = null;
     deps.showToast("予定を終了しました。");

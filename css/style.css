@@ -1196,6 +1196,23 @@ html.is-unlocked .app {
   font-size: 0.82rem;
 }
 
+.exam-list-item--ended {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.exam-list-item--ended .exam-list-item__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.exam-list-item--ended .btn {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .exam-history-group-title {
   font-size: 0.78rem;
   font-weight: 700;

@@ -27,6 +27,8 @@
 //     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note }
 //     ※dueDate が正。dueDateFrom/To は同日で旧互換。baselineDate は色分け用の基準日
 //     ※旧 nextPlan（1件）は読み込み時に plans["legacy-next"] へ移す。旧 recurring は無視
+//   examPlan/{カルテ番号}/ended/{endedId}                … 終了済み（復活可能）
+//     { item, note, endedAt, baselineDate? }
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
 //     { item, date, note }
 //
@@ -457,13 +459,14 @@ function emptyExamPlan() {
   return {
     schemaVersion: EXAM_PLAN_SCHEMA_VERSION,
     plans: {},
+    ended: {},
     history: {},
   };
 }
 
 /**
  * RTDB の生データを UI 向けに正規化する。
- * - v2: plans + history
+ * - v2: plans + ended + history
  * - v1: nextPlan があれば plans に移す。recurring は破棄（表示しない）
  */
 function normalizeExamPlan(raw) {
@@ -479,6 +482,10 @@ function normalizeExamPlan(raw) {
     const legacy = { ...raw.nextPlan };
     delete legacy.recurringId;
     plan.plans["legacy-next"] = legacy;
+  }
+
+  if (raw.ended && typeof raw.ended === "object" && !Array.isArray(raw.ended)) {
+    plan.ended = { ...raw.ended };
   }
 
   if (Array.isArray(raw.history)) {
@@ -550,6 +557,7 @@ function buildPlanRecord({ item, dueDate, note, baselineDate }) {
 /**
  * 次回予定を追加または更新する。
  * 同じ検査項目名の予定が既にあれば上書き（項目ごとに1件）。
+ * 同名が終了済みにあれば、終了リストから外す。
  * @returns {Promise<string>} planId
  */
 export async function saveExamScheduledPlan(
@@ -573,22 +581,44 @@ export async function saveExamScheduledPlan(
 
   if (targetId) {
     await update(ref(db, `examPlan/${karteNumber}/plans/${targetId}`), record);
-    await update(examPlanRef(karteNumber), {
-      schemaVersion: EXAM_PLAN_SCHEMA_VERSION,
-    });
-    return targetId;
+  } else {
+    const newRef = push(ref(db, `examPlan/${karteNumber}/plans`));
+    await set(newRef, record);
+    targetId = newRef.key;
   }
 
-  const newRef = push(ref(db, `examPlan/${karteNumber}/plans`));
-  await set(newRef, record);
+  if (itemName) {
+    await clearEndedPlansByItemName(karteNumber, itemName);
+  }
+
   await update(examPlanRef(karteNumber), {
     schemaVersion: EXAM_PLAN_SCHEMA_VERSION,
   });
-  return newRef.key;
+  return targetId;
 }
 
 /**
- * 次回予定を削除する（完了後のクリア・終了）。
+ * 同名の終了済みエントリを削除する。
+ */
+async function clearEndedPlansByItemName(karteNumber, itemName) {
+  const name = (itemName || "").trim();
+  if (!name) return;
+  const snap = await get(ref(db, `examPlan/${karteNumber}/ended`));
+  if (!snap.exists()) return;
+  const ended = snap.val() || {};
+  const removals = {};
+  Object.entries(ended).forEach(([id, e]) => {
+    if (e && (e.item || "").trim() === name) {
+      removals[`ended/${id}`] = null;
+    }
+  });
+  if (Object.keys(removals).length) {
+    await update(examPlanRef(karteNumber), removals);
+  }
+}
+
+/**
+ * 次回予定を削除する（完了後のクリアなど。終了済みリストには残さない）。
  */
 export async function deleteExamScheduledPlan(karteNumber, planId) {
   await authReady;
@@ -597,11 +627,58 @@ export async function deleteExamScheduledPlan(karteNumber, planId) {
 }
 
 /**
+ * 予定を終了する。plans から外し ended に移す（履歴は触らない）。
+ */
+export async function endExamScheduledPlan(karteNumber, planId) {
+  await authReady;
+  if (!planId) return null;
+  const planSnap = await get(ref(db, `examPlan/${karteNumber}/plans/${planId}`));
+  if (!planSnap.exists()) return null;
+  const plan = planSnap.val() || {};
+  const endedRef = push(ref(db, `examPlan/${karteNumber}/ended`));
+  await set(endedRef, {
+    item: plan.item || "",
+    note: plan.note || "",
+    baselineDate: plan.baselineDate || "",
+    endedAt: new Date().toISOString(),
+  });
+  await remove(ref(db, `examPlan/${karteNumber}/plans/${planId}`));
+  return endedRef.key;
+}
+
+/**
+ * 終了済みを検査予定一覧へ復活させる（次回予定日は未設定）。
+ * 実施履歴は変更しない。
+ * @returns {Promise<string>} 新しい planId
+ */
+export async function reviveExamEndedPlan(karteNumber, endedId) {
+  await ensureExamPlanRoot(karteNumber);
+  if (!endedId) throw new Error("endedId が必要です");
+  const endedSnap = await get(ref(db, `examPlan/${karteNumber}/ended/${endedId}`));
+  if (!endedSnap.exists()) throw new Error("終了済み項目が見つかりません");
+  const ended = endedSnap.val() || {};
+  const planId = await saveExamScheduledPlan(karteNumber, {
+    item: ended.item || "",
+    dueDate: "",
+    note: ended.note || "",
+    baselineDate: todayIsoDate(),
+  });
+  // save 側で同名 ended は消えるが、念のため当該 ID も削除
+  await remove(ref(db, `examPlan/${karteNumber}/ended/${endedId}`));
+  return planId;
+}
+
+function todayIsoDate() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
  * @deprecated 互換: 単一 nextPlan 書き込み → plans へ保存
  */
 export async function setNextExamPlan(karteNumber, nextPlan) {
   if (!nextPlan) {
-    // 全 plans は消さない（旧 clear の意味が曖昧なため no-op）
     return null;
   }
   return saveExamScheduledPlan(karteNumber, {
