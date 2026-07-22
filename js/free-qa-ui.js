@@ -14,7 +14,7 @@ import {
   ApiKeyMissingError,
 } from "./anthropic.js";
 import { openSettings } from "./settings-ui.js";
-import { createIconActions } from "./icon-actions.js";
+import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
 
 let deps = {
   showToast: () => {},
@@ -88,6 +88,13 @@ function renderQaList() {
   );
   if (qaEmpty) qaEmpty.hidden = items.length > 0;
 
+  const panel = qaList.closest(".right-panel") || qaList.parentElement;
+  if (items.length > 0) {
+    ensureRowGestureHint(panel, qaEmpty || qaList, "row-gesture-hint--qa");
+  } else {
+    panel?.querySelectorAll(".row-gesture-hint--qa").forEach((el) => el.remove());
+  }
+
   items.forEach((item) => {
     qaList.appendChild(createQaCard(item));
   });
@@ -120,8 +127,9 @@ function createQaCard(item) {
   aText.className = "qa-card__answer";
   aText.textContent = item.answer || "（回答なし）";
 
-  const actions = createIconActions(
-    [
+  li.append(qLabel, qText, meta, aLabel, aText);
+  enableRowGestures(li, {
+    actions: [
       {
         action: "refresh",
         title: "再検索",
@@ -143,9 +151,7 @@ function createQaCard(item) {
         },
       },
     ],
-    "qa-card__actions icon-actions"
-  );
-  li.append(qLabel, qText, meta, aLabel, aText, actions);
+  });
   return li;
 }
 

@@ -8,7 +8,7 @@
 //
 // ※ CACHE_VERSION を上げるときは js/app-version.js の APP_VERSION / CACHE_LABEL も合わせて更新する。
 
-const CACHE_VERSION = "v28";
+const CACHE_VERSION = "v29";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -34,6 +34,7 @@ const APP_SHELL_FILES = [
   "./js/sw-update.js",
   "./js/passcode-auth.js",
   "./js/icon-actions.js",
+  "./js/row-gestures.js",
   "./js/app.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

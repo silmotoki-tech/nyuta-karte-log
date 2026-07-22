@@ -15,7 +15,7 @@ import {
   updateExamItem,
   deleteExamItem,
 } from "./db.js";
-import { createIconActions } from "./icon-actions.js";
+import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
 
 /**
  * 残り日数の色分け閾値（仮。後で調整可能）。
@@ -89,24 +89,35 @@ const rightPanels = document.querySelectorAll(".right-panel");
 const rightEmpty = document.getElementById("right-empty");
 
 const examRoot = document.getElementById("panel-exam");
-const nextPlanCard = document.getElementById("exam-next-card");
-const nextPlanEmpty = document.getElementById("exam-next-empty");
-const nextPlanBody = document.getElementById("exam-next-body");
-const nextPlanAlert = document.getElementById("exam-next-alert");
-const nextPlanItem = document.getElementById("exam-next-item");
-const nextPlanDate = document.getElementById("exam-next-date");
-const nextPlanNote = document.getElementById("exam-next-note");
-const btnExamComplete = document.getElementById("btn-exam-complete");
-const btnExamEnd = document.getElementById("btn-exam-end");
-const btnExamEdit = document.getElementById("btn-exam-edit");
+const nextPlanCard = null;
+const nextPlanEmpty = null;
+const nextPlanBody = null;
+const nextPlanAlert = null;
+const nextPlanItem = null;
+const nextPlanDate = null;
+const nextPlanNote = null;
+const btnExamComplete = null;
+const btnExamEnd = null;
+const btnExamEdit = null;
 const btnExamNew = document.getElementById("btn-exam-new");
 
-const recurringList = document.getElementById("exam-recurring-list");
-const recurringEmpty = document.getElementById("exam-recurring-empty");
+const planList = document.getElementById("exam-plan-list");
+const planEmpty = document.getElementById("exam-plan-empty");
+const recurringList = null;
+const recurringEmpty = null;
 const btnRecurringAdd = document.getElementById("btn-exam-recurring-add");
 
 const historyList = document.getElementById("exam-history-list");
 const historyEmpty = document.getElementById("exam-history-empty");
+
+const itemSheet = document.getElementById("exam-item-sheet");
+const itemSheetTitle = document.getElementById("exam-item-sheet-title");
+const itemSheetItem = document.getElementById("exam-item-sheet-item");
+const itemSheetDue = document.getElementById("exam-item-sheet-due");
+const itemSheetMeta = document.getElementById("exam-item-sheet-meta");
+const itemSheetNote = document.getElementById("exam-item-sheet-note");
+const itemSheetActions = document.getElementById("exam-item-sheet-actions");
+const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
 
 const btnOpenExamItems = document.getElementById("btn-open-exam-items");
 
@@ -586,76 +597,72 @@ function showRightEmpty(empty) {
 
 function renderExamPlan() {
   if (!state.plan) return;
-  renderNextPlan();
-  renderRecurring();
+  renderUnifiedPlanList();
   renderHistory();
 }
 
-function renderNextPlan() {
+/**
+ * 単発の次回予定 + 定期からの次回目安を1一覧にし、予定日昇順で表示。
+ * nextPlan に紐づく定期は重複させない。
+ */
+function collectUnifiedPlanEntries() {
+  const entries = [];
   const next = state.plan.nextPlan;
-  if (!next) {
-    nextPlanEmpty.hidden = false;
-    nextPlanBody.hidden = true;
-    nextPlanAlert.hidden = true;
-    nextPlanAlert.textContent = "";
-    nextPlanCard.classList.remove(
-      "is-alert",
-      "is-overdue",
-      "is-due-far",
-      "is-due-near",
-      "is-due-close"
-    );
-    return;
+  const linkedRecurringId = next?.recurringId || null;
+
+  if (next) {
+    const dueDate = getPlanDueDate(next);
+    const countdown = getDueCountdown(dueDate, getPlanBaselineDate(next));
+    entries.push({
+      kind: "next",
+      sortKey: dueDate || "9999-99-99",
+      item: next.item || "（項目未設定）",
+      dueDate,
+      countdown,
+      note: next.note || "",
+      recurringId: linkedRecurringId,
+      next,
+    });
   }
 
-  nextPlanEmpty.hidden = true;
-  nextPlanBody.hidden = false;
-  nextPlanItem.textContent = next.item || "（項目未設定）";
+  Object.entries(state.plan.recurring || {}).forEach(([id, r]) => {
+    if (linkedRecurringId && id === linkedRecurringId) return;
+    const dueWin = r.lastDone ? computeDueWindowFromRecurring(r.lastDone, r) : null;
+    const dueDate = dueWin?.targetDate || dueWin?.dueDate || "";
+    const countdown = dueDate ? getDueCountdown(dueDate, r.lastDone || null) : null;
+    entries.push({
+      kind: "recurring",
+      sortKey: dueDate || "9999-99-99",
+      item: r.item || "（項目未設定）",
+      dueDate,
+      countdown,
+      note: "",
+      recurringId: id,
+      recurring: { id, ...r },
+    });
+  });
 
-  const dueDate = getPlanDueDate(next);
-  const info = getDueCountdown(dueDate, getPlanBaselineDate(next));
-  nextPlanDate.textContent = formatDueCountdown(info) || ymdFromStr(dueDate);
-  nextPlanDate.className = `exam-next-date ${dueLevelClass(info?.level || "far")}`;
-
-  if (next.note) {
-    nextPlanNote.hidden = false;
-    nextPlanNote.textContent = next.note;
-  } else {
-    nextPlanNote.hidden = true;
-    nextPlanNote.textContent = "";
-  }
-
-  nextPlanCard.classList.remove("is-alert", "is-overdue", "is-due-far", "is-due-near", "is-due-close");
-  if (info?.level === "overdue") {
-    nextPlanCard.classList.add("is-overdue");
-    nextPlanAlert.hidden = false;
-    nextPlanAlert.textContent = "予定日を過ぎています";
-    nextPlanAlert.className = "exam-alert exam-alert--overdue";
-  } else if (info?.level === "close") {
-    nextPlanCard.classList.add("is-due-close", "is-alert");
-    nextPlanAlert.hidden = false;
-    nextPlanAlert.textContent = "予定日がかなり近いです";
-    nextPlanAlert.className = "exam-alert exam-alert--close";
-  } else if (info?.level === "near") {
-    nextPlanCard.classList.add("is-due-near", "is-alert");
-    nextPlanAlert.hidden = false;
-    nextPlanAlert.textContent = "予定日が近づいています";
-    nextPlanAlert.className = "exam-alert exam-alert--near";
-  } else {
-    nextPlanCard.classList.add("is-due-far");
-    nextPlanAlert.hidden = true;
-    nextPlanAlert.textContent = "";
-  }
+  entries.sort((a, b) => {
+    if (a.sortKey !== b.sortKey) return a.sortKey.localeCompare(b.sortKey);
+    return (a.item || "").localeCompare(b.item || "");
+  });
+  return entries;
 }
 
-function renderRecurring() {
-  recurringList.innerHTML = "";
-  const items = Object.entries(state.plan.recurring || {}).map(([id, r]) => ({ id, ...r }));
-  recurringEmpty.hidden = items.length > 0;
+function renderUnifiedPlanList() {
+  if (!planList) return;
+  planList.innerHTML = "";
+  const entries = collectUnifiedPlanEntries();
+  if (planEmpty) planEmpty.hidden = entries.length > 0;
 
-  items.sort((a, b) => (a.item || "").localeCompare(b.item || ""));
+  const section = planList.closest(".exam-section") || planList.parentElement;
+  if (entries.length > 0) {
+    ensureRowGestureHint(section, planEmpty || planList, "row-gesture-hint--exam");
+  } else {
+    section?.querySelectorAll(".row-gesture-hint--exam").forEach((el) => el.remove());
+  }
 
-  items.forEach((r) => {
+  entries.forEach((entry) => {
     const li = document.createElement("li");
     li.className = "exam-list-item";
 
@@ -663,48 +670,160 @@ function renderRecurring() {
     info.className = "exam-list-item__info";
     const title = document.createElement("div");
     title.className = "exam-list-item__title";
-    title.textContent = r.item || "（項目未設定）";
-    const meta = document.createElement("div");
-    meta.className = "exam-list-item__meta";
-
-    const lines = [`${formatRecurringIntervalLabel(r)}　最終実施: ${
-      r.lastDone ? ymdFromStr(r.lastDone) : "未設定"
-    }`];
-
-    if (r.lastDone) {
-      const due = computeDueWindowFromRecurring(r.lastDone, r);
-      if (due?.targetDate) {
-        const countdown = getDueCountdown(due.targetDate, r.lastDone);
-        const dueEl = document.createElement("div");
-        dueEl.className = `exam-list-item__due ${dueLevelClass(countdown?.level || "far")}`;
-        dueEl.textContent = `次回目安: ${formatDueCountdown(countdown)}`;
-        info.append(title, meta, dueEl);
-        meta.textContent = lines[0];
-      } else {
-        meta.textContent = lines[0];
-        info.append(title, meta);
-      }
+    title.textContent = entry.item;
+    const dueEl = document.createElement("div");
+    dueEl.className = `exam-list-item__due ${dueLevelClass(entry.countdown?.level || "far")}`;
+    if (entry.countdown) {
+      dueEl.textContent = formatDueCountdown(entry.countdown);
     } else {
-      meta.textContent = lines[0];
-      info.append(title, meta);
+      dueEl.textContent = "予定日未設定（最終実施を登録してください）";
+      dueEl.className = "exam-list-item__due";
+    }
+    info.append(title, dueEl);
+    li.appendChild(info);
+
+    const actions = [];
+    if (entry.kind === "next") {
+      actions.push(
+        {
+          action: "complete",
+          title: "完了",
+          onClick: () => openCompleteModal(),
+        },
+        {
+          action: "edit",
+          title: "編集",
+          onClick: () => openPlanModal("edit"),
+        },
+        {
+          action: "delete",
+          title: "終了",
+          onClick: () => handleEndPlan(),
+        }
+      );
+    } else {
+      actions.push(
+        {
+          action: "edit",
+          title: "編集",
+          onClick: () => openRecurringEdit(entry.recurring),
+        },
+        {
+          action: "delete",
+          title: "削除",
+          onClick: () => handleDeleteRecurring(entry.recurring),
+        }
+      );
     }
 
-    const actions = createIconActions([
-      {
-        action: "edit",
-        title: "編集",
-        onClick: () => openRecurringEdit(r),
-      },
-      {
-        action: "delete",
-        title: "削除",
-        onClick: () => handleDeleteRecurring(r),
-      },
-    ], "exam-list-item__actions icon-actions");
-
-    li.append(info, actions);
-    recurringList.appendChild(li);
+    enableRowGestures(li, {
+      actions,
+      onActivate: () => openExamItemSheet(entry),
+    });
+    planList.appendChild(li);
   });
+}
+
+function openExamItemSheet(entry) {
+  if (!itemSheet) return;
+  itemSheetTitle.textContent = "検査予定";
+  itemSheetItem.textContent = entry.item;
+  itemSheetDue.textContent = entry.countdown
+    ? formatDueCountdown(entry.countdown)
+    : "予定日未設定";
+  itemSheetDue.className = `exam-sheet__due ${dueLevelClass(entry.countdown?.level || "far")}`;
+
+  if (entry.kind === "next") {
+    itemSheetMeta.textContent = entry.recurringId
+      ? "単発の次回予定（定期スケジュールに紐づき）"
+      : "単発の次回予定";
+    if (entry.note) {
+      itemSheetNote.hidden = false;
+      itemSheetNote.textContent = entry.note;
+    } else {
+      itemSheetNote.hidden = true;
+      itemSheetNote.textContent = "";
+    }
+    itemSheetActions.innerHTML = "";
+    const completeBtn = document.createElement("button");
+    completeBtn.type = "button";
+    completeBtn.className = "btn btn--small btn--primary";
+    completeBtn.textContent = "完了として記録";
+    completeBtn.addEventListener("click", () => {
+      closeExamItemSheet();
+      openCompleteModal();
+    });
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "btn btn--small btn--outline";
+    editBtn.textContent = "予定を編集";
+    editBtn.addEventListener("click", () => {
+      closeExamItemSheet();
+      openPlanModal("edit");
+    });
+    const endBtn = document.createElement("button");
+    endBtn.type = "button";
+    endBtn.className = "btn btn--small btn--danger-outline";
+    endBtn.textContent = "予定を終了";
+    endBtn.addEventListener("click", () => {
+      closeExamItemSheet();
+      handleEndPlan();
+    });
+    if (entry.recurringId && state.plan.recurring?.[entry.recurringId]) {
+      const recBtn = document.createElement("button");
+      recBtn.type = "button";
+      recBtn.className = "btn btn--small btn--outline";
+      recBtn.textContent = "定期スケジュールを編集";
+      recBtn.addEventListener("click", () => {
+        closeExamItemSheet();
+        openRecurringEdit({
+          id: entry.recurringId,
+          ...state.plan.recurring[entry.recurringId],
+        });
+      });
+      itemSheetActions.append(completeBtn, editBtn, recBtn, endBtn);
+    } else {
+      itemSheetActions.append(completeBtn, editBtn, endBtn);
+    }
+  } else {
+    const r = entry.recurring;
+    itemSheetMeta.textContent = `${formatRecurringIntervalLabel(r)}　最終実施: ${
+      r.lastDone ? ymdFromStr(r.lastDone) : "未設定"
+    }`;
+    itemSheetNote.hidden = true;
+    itemSheetActions.innerHTML = "";
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "btn btn--small btn--outline";
+    editBtn.textContent = "定期スケジュールを編集";
+    editBtn.addEventListener("click", () => {
+      closeExamItemSheet();
+      openRecurringEdit(r);
+    });
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn btn--small btn--danger-outline";
+    delBtn.textContent = "定期スケジュールを削除";
+    delBtn.addEventListener("click", () => {
+      closeExamItemSheet();
+      handleDeleteRecurring(r);
+    });
+    itemSheetActions.append(editBtn, delBtn);
+  }
+
+  itemSheet.hidden = false;
+}
+
+function closeExamItemSheet() {
+  if (itemSheet) itemSheet.hidden = true;
+}
+
+function renderNextPlan() {
+  // 互換のため残置（一覧統合後は未使用）
+}
+
+function renderRecurring() {
+  // 互換のため残置（一覧統合後は未使用）
 }
 
 function renderHistory() {
@@ -713,6 +832,13 @@ function renderHistory() {
   historyEmpty.hidden = items.length > 0;
 
   items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  const histSection = historyList.closest(".exam-section") || historyList.parentElement;
+  if (items.length > 0) {
+    ensureRowGestureHint(histSection, historyEmpty || historyList, "row-gesture-hint--exam-hist");
+  } else {
+    histSection?.querySelectorAll(".row-gesture-hint--exam-hist").forEach((el) => el.remove());
+  }
 
   items.forEach((h) => {
     const li = document.createElement("li");
@@ -728,9 +854,10 @@ function renderHistory() {
     meta.textContent = h.date ? ymdFromStr(h.date) : "";
     if (h.note) meta.textContent += `　${h.note}`;
     info.append(title, meta);
+    li.appendChild(info);
 
-    const actions = createIconActions(
-      [
+    enableRowGestures(li, {
+      actions: [
         {
           action: "delete",
           title: "削除",
@@ -749,9 +876,7 @@ function renderHistory() {
           },
         },
       ],
-      "exam-list-item__actions icon-actions"
-    );
-    li.append(info, actions);
+    });
     historyList.appendChild(li);
   });
 }
@@ -759,12 +884,13 @@ function renderHistory() {
 // --- 次回予定アクション ---------------------------------------------------
 
 function wireNextPlanActions() {
-  btnExamNew.addEventListener("click", () => openPlanModal("create"));
-  btnExamEdit.addEventListener("click", () => openPlanModal("edit"));
-  btnExamComplete.addEventListener("click", openCompleteModal);
-  btnExamEnd.addEventListener("click", handleEndPlan);
-  btnRecurringAdd.addEventListener("click", () => openPlanModal("create", { focusRecurring: true }));
-  btnOpenExamItems.addEventListener("click", openExamItemsModal);
+  btnExamNew?.addEventListener("click", () => openPlanModal("create"));
+  btnRecurringAdd?.addEventListener("click", () =>
+    openPlanModal("create", { focusRecurring: true })
+  );
+  btnOpenExamItems?.addEventListener("click", openExamItemsModal);
+  btnCloseItemSheet?.addEventListener("click", closeExamItemSheet);
+  itemSheet?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemSheet);
 }
 
 async function handleEndPlan() {
@@ -1492,8 +1618,9 @@ function renderExamItemsList() {
     label.textContent = item.label || "(名称未設定)";
     info.appendChild(label);
 
-    const actions = createIconActions(
-      [
+    li.appendChild(info);
+    enableRowGestures(li, {
+      actions: [
         {
           action: "edit",
           title: "編集",
@@ -1524,9 +1651,7 @@ function renderExamItemsList() {
           },
         },
       ],
-      "tpl-list-item__actions icon-actions"
-    );
-    li.append(info, actions);
+    });
     examItemsList.appendChild(li);
   });
 }

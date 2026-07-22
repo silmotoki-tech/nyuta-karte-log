@@ -15,7 +15,7 @@ import {
   deleteMedicationItem,
   fetchMedicationsOnce,
 } from "./db.js";
-import { createIconActions, createIconButton } from "./icon-actions.js";
+import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
 import {
   FREQ_PRESETS_ABSOLUTE,
   FREQ_PRESETS_TRANSITION,
@@ -334,6 +334,13 @@ function renderMedsList() {
   const drugs = sortedDrugs(state.drugs);
   medsEmpty.hidden = drugs.length > 0;
 
+  const panel = medsList.closest(".right-panel") || medsList.parentElement;
+  if (drugs.length > 0) {
+    ensureRowGestureHint(panel, medsEmpty || medsList, "row-gesture-hint--meds");
+  } else {
+    panel?.querySelectorAll(".row-gesture-hint--meds").forEach((el) => el.remove());
+  }
+
   let lastCategory = null;
   drugs.forEach((drug) => {
     if (drug.category !== lastCategory) {
@@ -361,9 +368,10 @@ function createDrugCard(drug) {
   else if (expiryStatus === "approaching") li.classList.add("is-alert");
   if (expanded) li.classList.add("is-expanded");
 
-  const header = document.createElement("button");
-  header.type = "button";
+  const header = document.createElement("div");
   header.className = "med-card__header";
+  header.setAttribute("role", "button");
+  header.tabIndex = 0;
   header.setAttribute("aria-expanded", String(expanded));
 
   const signs = document.createElement("span");
@@ -393,11 +401,6 @@ function createDrugCard(drug) {
   chevron.textContent = expanded ? "▾" : "▸";
 
   header.append(signs, nameEl, statusEl, catEl, chevron);
-  header.addEventListener("click", () => {
-    if (state.expandedIds.has(drug.id)) state.expandedIds.delete(drug.id);
-    else state.expandedIds.add(drug.id);
-    renderMedsList();
-  });
   li.appendChild(header);
 
   // 処方切れは行内の色＋短いラベルで示す（カード背景は使わない）
@@ -415,6 +418,46 @@ function createDrugCard(drug) {
   if (expanded) {
     li.appendChild(createDrugDetail(drug, status));
   }
+
+  const toggleExpand = () => {
+    if (state.expandedIds.has(drug.id)) state.expandedIds.delete(drug.id);
+    else state.expandedIds.add(drug.id);
+    renderMedsList();
+  };
+
+  header.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleExpand();
+    }
+  });
+
+  enableRowGestures(li, {
+    actions: [
+      {
+        action: "delete",
+        title: "削除",
+        onClick: async () => {
+          const ok = window.confirm(
+            `薬剤「${drug.name}」を削除しますか？履歴もまとめて削除されます。`
+          );
+          if (!ok) return;
+          try {
+            await deleteMedication(state.karteNumber, drug.id);
+            state.expandedIds.delete(drug.id);
+            deps.showToast("薬剤を削除しました。");
+          } catch (err) {
+            console.error(err);
+            deps.showToast("削除に失敗しました。", { isError: true });
+          }
+        },
+      },
+    ],
+    onActivate: (e) => {
+      if (e.target.closest(".med-card__detail")) return;
+      toggleExpand();
+    },
+  });
 
   return li;
 }
@@ -587,31 +630,6 @@ function createDrugDetail(drug, status) {
     detail.appendChild(ul);
   }
 
-  // 削除
-  const delRow = document.createElement("div");
-  delRow.className = "med-detail-actions icon-actions";
-  delRow.appendChild(
-    createIconButton({
-      action: "delete",
-      title: "この薬剤を削除",
-      onClick: async () => {
-        const ok = window.confirm(
-          `薬剤「${drug.name}」を削除しますか？履歴もまとめて削除されます。`
-        );
-        if (!ok) return;
-        try {
-          await deleteMedication(state.karteNumber, drug.id);
-          state.expandedIds.delete(drug.id);
-          deps.showToast("薬剤を削除しました。");
-        } catch (err) {
-          console.error(err);
-          deps.showToast("削除に失敗しました。", { isError: true });
-        }
-      },
-    })
-  );
-  detail.appendChild(delRow);
-
   return detail;
 }
 
@@ -639,9 +657,10 @@ function createEventItem(drug, ev) {
   }
   meta.textContent = parts.join("　") || "—";
   info.append(title, meta);
+  li.appendChild(info);
 
-  const actions = createIconActions(
-    [
+  enableRowGestures(li, {
+    actions: [
       {
         action: "edit",
         title: "編集",
@@ -665,9 +684,8 @@ function createEventItem(drug, ev) {
         },
       },
     ],
-    "exam-list-item__actions icon-actions"
-  );
-  li.append(info, actions);
+    onActivate: () => openEventModal(drug.id, ev),
+  });
   return li;
 }
 
@@ -1165,8 +1183,9 @@ function renderMedItemsList() {
     label.textContent = item.label || "(名称未設定)";
     info.appendChild(label);
 
-    const actions = createIconActions(
-      [
+    li.appendChild(info);
+    enableRowGestures(li, {
+      actions: [
         {
           action: "edit",
           title: "編集",
@@ -1197,9 +1216,7 @@ function renderMedItemsList() {
           },
         },
       ],
-      "tpl-list-item__actions icon-actions"
-    );
-    li.append(info, actions);
+    });
     medItemsList.appendChild(li);
   });
 }

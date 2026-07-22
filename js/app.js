@@ -53,7 +53,7 @@ import {
   setPasscodeVerified,
   clearPasscodeVerified,
 } from "./passcode-auth.js";
-import { createIconActions } from "./icon-actions.js";
+import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -926,6 +926,19 @@ function renderTimeline(entries) {
     timelineEmptyEl.textContent = "まだ記録がありません。";
   }
 
+  const centerSection = timelineEl.parentElement;
+  if (entries.length > 0) {
+    ensureRowGestureHint(
+      centerSection,
+      timelineEmptyEl || timelineEl,
+      "row-gesture-hint--timeline"
+    );
+  } else {
+    centerSection
+      ?.querySelectorAll(".row-gesture-hint--timeline")
+      .forEach((el) => el.remove());
+  }
+
   entries.forEach((entry) => {
     timelineEl.appendChild(createTimelineItem(entry));
   });
@@ -942,8 +955,6 @@ function createTimelineItem(entry) {
   const catLabelEl = li.querySelector(".tl-item__cat-label");
   const metaEl = li.querySelector(".tl-item__meta");
   const bodyEl = li.querySelector(".tl-item__body");
-  const editBtn = li.querySelector(".tl-item__edit");
-  const deleteBtn = li.querySelector(".tl-item__delete");
 
   starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
   headlineEl.textContent = entry.headline || "（見出しなし）";
@@ -963,22 +974,31 @@ function createTimelineItem(entry) {
     }
   });
 
-  editBtn?.addEventListener("click", () => openEntryEdit(entry));
-
-  deleteBtn.addEventListener("click", async () => {
-    const ok = window.confirm(
-      "この記録を削除しますか？（入力ミスなど、明らかな誤りのときだけ削除してください）"
-    );
-    if (!ok) return;
-    deleteBtn.disabled = true;
-    try {
-      await deleteEntry(state.karteNumber, entry.id);
-      showToast("削除しました。");
-    } catch (err) {
-      console.error(err);
-      showToast("削除に失敗しました。", { isError: true });
-      deleteBtn.disabled = false;
-    }
+  enableRowGestures(li, {
+    actions: [
+      {
+        action: "edit",
+        title: "編集",
+        onClick: () => openEntryEdit(entry),
+      },
+      {
+        action: "delete",
+        title: "削除",
+        onClick: async () => {
+          const ok = window.confirm(
+            "この記録を削除しますか？（入力ミスなど、明らかな誤りのときだけ削除してください）"
+          );
+          if (!ok) return;
+          try {
+            await deleteEntry(state.karteNumber, entry.id);
+            showToast("削除しました。");
+          } catch (err) {
+            console.error(err);
+            showToast("削除に失敗しました。", { isError: true });
+          }
+        },
+      },
+    ],
   });
 
   return li;
@@ -1088,8 +1108,9 @@ function renderTemplateList() {
     text.textContent = tpl.text || "";
     info.append(label, text);
 
-    const actions = createIconActions(
-      [
+    li.appendChild(info);
+    enableRowGestures(li, {
+      actions: [
         {
           action: "edit",
           title: "編集",
@@ -1101,10 +1122,7 @@ function renderTemplateList() {
           onClick: () => handleTemplateDelete(tpl),
         },
       ],
-      "tpl-list-item__actions icon-actions"
-    );
-
-    li.append(info, actions);
+    });
     tplList.appendChild(li);
   });
 }

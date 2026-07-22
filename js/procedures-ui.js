@@ -8,7 +8,7 @@ import {
   updateProcedure,
   deleteProcedure,
 } from "./db.js";
-import { createIconActions } from "./icon-actions.js";
+import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
 
 const AUTHORS = [
   "院長", "大辻", "川邉", "齋藤", "横井", "德永",
@@ -122,6 +122,13 @@ function renderList() {
   const items = state.items;
   if (procEmpty) procEmpty.hidden = items.length > 0;
 
+  const panel = procList.closest(".right-panel") || procList.parentElement;
+  if (items.length > 0) {
+    ensureRowGestureHint(panel, procEmpty || procList, "row-gesture-hint--proc");
+  } else {
+    panel?.querySelectorAll(".row-gesture-hint--proc").forEach((el) => el.remove());
+  }
+
   items.forEach((item) => {
     procList.appendChild(createCard(item));
   });
@@ -151,8 +158,9 @@ function createCard(item) {
   }
   meta.textContent = parts.join("　／　");
 
-  const actions = createIconActions(
-    [
+  li.append(dateEl, contentEl, meta);
+  enableRowGestures(li, {
+    actions: [
       {
         action: "edit",
         title: "編集",
@@ -174,10 +182,8 @@ function createCard(item) {
         },
       },
     ],
-    "proc-card__actions icon-actions"
-  );
-
-  li.append(dateEl, contentEl, meta, actions);
+    onActivate: () => openModal("edit", item),
+  });
   return li;
 }
 

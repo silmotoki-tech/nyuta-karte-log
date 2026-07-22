@@ -11,7 +11,7 @@ import {
   deletePatientHistoryNote,
   deletePatientHistoryEntry,
 } from "./db.js";
-import { createIconActions, createIconButton } from "./icon-actions.js";
+import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
 
 const HISTORY_TYPES = [
   { id: "disease", label: "疾患" },
@@ -162,6 +162,13 @@ function renderHistoryList() {
   const entries = sortedEntries(state.entries);
   historyEmpty.hidden = entries.length > 0;
 
+  const panel = historyList.closest(".right-panel") || historyList.parentElement;
+  if (entries.length > 0) {
+    ensureRowGestureHint(panel, historyEmpty || historyList, "row-gesture-hint--hist");
+  } else {
+    panel?.querySelectorAll(".row-gesture-hint--hist").forEach((el) => el.remove());
+  }
+
   let lastGroup = null;
   entries.forEach((entry) => {
     const group = entry.status === "active" ? "active" : "resolved";
@@ -186,9 +193,10 @@ function createHistoryCard(entry) {
   const expanded = state.expandedIds.has(entry.id);
   if (expanded) li.classList.add("is-expanded");
 
-  const header = document.createElement("button");
-  header.type = "button";
+  const header = document.createElement("div");
   header.className = "hist-card__header";
+  header.setAttribute("role", "button");
+  header.tabIndex = 0;
   header.setAttribute("aria-expanded", String(expanded));
 
   const statusSign = document.createElement("span");
@@ -209,11 +217,6 @@ function createHistoryCard(entry) {
   chevron.textContent = expanded ? "▾" : "▸";
 
   header.append(statusSign, nameEl, typeEl, chevron);
-  header.addEventListener("click", () => {
-    if (state.expandedIds.has(entry.id)) state.expandedIds.delete(entry.id);
-    else state.expandedIds.add(entry.id);
-    renderHistoryList();
-  });
   li.appendChild(header);
 
   const meta = document.createElement("p");
@@ -226,6 +229,46 @@ function createHistoryCard(entry) {
   if (expanded) {
     li.appendChild(createHistoryDetail(entry));
   }
+
+  const toggleExpand = () => {
+    if (state.expandedIds.has(entry.id)) state.expandedIds.delete(entry.id);
+    else state.expandedIds.add(entry.id);
+    renderHistoryList();
+  };
+
+  header.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleExpand();
+    }
+  });
+
+  enableRowGestures(li, {
+    actions: [
+      {
+        action: "delete",
+        title: "削除",
+        onClick: async () => {
+          const ok = window.confirm(
+            `既往歴「${entry.title}」を削除しますか？メモもまとめて削除されます。`
+          );
+          if (!ok) return;
+          try {
+            await deletePatientHistoryEntry(state.karteNumber, entry.id);
+            state.expandedIds.delete(entry.id);
+            deps.showToast("既往歴を削除しました。");
+          } catch (err) {
+            console.error(err);
+            deps.showToast("削除に失敗しました。", { isError: true });
+          }
+        },
+      },
+    ],
+    onActivate: (e) => {
+      if (e.target.closest(".hist-card__detail")) return;
+      toggleExpand();
+    },
+  });
 
   return li;
 }
@@ -358,31 +401,6 @@ function createHistoryDetail(entry) {
     detail.appendChild(ul);
   }
 
-  // 削除
-  const delRow = document.createElement("div");
-  delRow.className = "med-detail-actions icon-actions";
-  delRow.appendChild(
-    createIconButton({
-      action: "delete",
-      title: "この既往歴を削除",
-      onClick: async () => {
-        const ok = window.confirm(
-          `既往歴「${entry.title}」を削除しますか？メモもまとめて削除されます。`
-        );
-        if (!ok) return;
-        try {
-          await deletePatientHistoryEntry(state.karteNumber, entry.id);
-          state.expandedIds.delete(entry.id);
-          deps.showToast("既往歴を削除しました。");
-        } catch (err) {
-          console.error(err);
-          deps.showToast("削除に失敗しました。", { isError: true });
-        }
-      },
-    })
-  );
-  detail.appendChild(delRow);
-
   return detail;
 }
 
@@ -401,9 +419,10 @@ function createNoteItem(entry, note) {
   const authorPart = note.author ? `\n記入: ${note.author}` : "";
   body.textContent = `${note.text || ""}${authorPart}`;
   info.append(title, body);
+  li.appendChild(info);
 
-  const actions = createIconActions(
-    [
+  enableRowGestures(li, {
+    actions: [
       {
         action: "delete",
         title: "削除",
@@ -420,9 +439,7 @@ function createNoteItem(entry, note) {
         },
       },
     ],
-    "exam-list-item__actions icon-actions"
-  );
-  li.append(info, actions);
+  });
   return li;
 }
 

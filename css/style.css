@@ -1829,11 +1829,12 @@ select.input {
 }
 
 .icon-btn {
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   padding: 0;
+  margin: 0;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -1844,6 +1845,222 @@ select.input {
   justify-content: center;
   font-family: inherit;
   flex-shrink: 0;
+  line-height: 0;
+}
+
+/* スワイプ／長押しで出すアクション */
+.swipeable {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.swipeable__actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--swipe-actions-width, 72px);
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 0;
+  background: var(--color-bg-soft, #f3f3f3);
+  z-index: 0;
+}
+
+.swipeable__action-btn {
+  width: 36px;
+  min-width: 36px;
+  height: auto;
+  min-height: 100%;
+  border-radius: 0;
+  background: transparent;
+}
+
+.swipeable__action-btn.icon-btn--delete {
+  background: rgba(168, 107, 98, 0.12);
+}
+
+.swipeable__action-btn.icon-btn--complete {
+  color: var(--due-far, #2f7d4a);
+}
+
+.swipeable__front {
+  position: relative;
+  z-index: 1;
+  background: inherit;
+  transition: transform 0.15s ease;
+  will-change: transform;
+}
+
+.swipeable.is-actions-open .swipeable__front {
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.06);
+}
+
+.tl-item.swipeable,
+.exam-list-item.swipeable,
+.proc-card.swipeable,
+.qa-card.swipeable,
+.med-card.swipeable,
+.hist-card.swipeable,
+.tpl-list-item.swipeable {
+  background: var(--color-white);
+}
+
+.tl-item.swipeable .swipeable__front {
+  display: flex;
+  width: 100%;
+  background: var(--color-white);
+}
+
+.exam-list-item.swipeable {
+  padding: 0;
+}
+
+.exam-list-item.swipeable .swipeable__front {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 0;
+  background: var(--color-white);
+}
+
+.proc-card.swipeable,
+.qa-card.swipeable {
+  padding: 0;
+}
+
+.proc-card.swipeable .swipeable__front,
+.qa-card.swipeable .swipeable__front {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 2px;
+  background: var(--color-white);
+}
+
+.qa-card.swipeable .swipeable__front {
+  padding: 8px 2px;
+}
+
+.med-card.swipeable .swipeable__front,
+.hist-card.swipeable .swipeable__front {
+  background: var(--color-white);
+}
+
+.tpl-list-item.swipeable .swipeable__front {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  background: var(--color-white);
+}
+
+.row-gesture-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--radius-sm);
+}
+
+.row-gesture-hint__text {
+  flex: 1;
+}
+
+.row-gesture-hint__dismiss {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.row-gesture-hint__dismiss:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.row-longpress-menu {
+  position: fixed;
+  z-index: 5000;
+  min-width: 140px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+}
+
+.row-longpress-menu__item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.row-longpress-menu__item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.row-longpress-menu__item--danger {
+  color: var(--color-danger);
+}
+
+.exam-register-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.exam-sheet__item {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.exam-sheet__due {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.exam-sheet__meta {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.exam-sheet__note {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.exam-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .icon-btn:hover:not(:disabled) {
@@ -1861,8 +2078,8 @@ select.input {
 }
 
 .icon-btn__svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   display: block;
 }
 
