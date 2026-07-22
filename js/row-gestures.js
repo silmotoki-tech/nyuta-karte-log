@@ -121,7 +121,9 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
   rowEl.classList.add("swipeable");
 
   const filtered = actions.filter(Boolean);
-  const editActions = filtered.filter((a) => a.action === "edit");
+  const editActions = filtered.filter(
+    (a) => a.action === "edit" || a.action === "refresh"
+  );
   const deleteActions = filtered.filter((a) => a.action === "delete");
   rowEl.dataset.editActionCount = String(editActions.length);
   rowEl.dataset.deleteActionCount = String(deleteActions.length);

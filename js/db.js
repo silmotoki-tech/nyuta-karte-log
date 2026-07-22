@@ -27,8 +27,7 @@
 //     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note }
 //     ※dueDate が正。dueDateFrom/To は同日で旧互換。baselineDate は色分け用の基準日
 //     ※旧 nextPlan（1件）は読み込み時に plans["legacy-next"] へ移す。旧 recurring は無視
-//   examPlan/{カルテ番号}/ended/{endedId}                … 終了済み（復活可能）
-//     { item, note, endedAt, baselineDate? }
+//     ※旧 ended/ は読み込み時に無視（終了＝plans から削除のみ。復活は実施履歴から）
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
 //     { item, date, note }
 //
@@ -459,14 +458,13 @@ function emptyExamPlan() {
   return {
     schemaVersion: EXAM_PLAN_SCHEMA_VERSION,
     plans: {},
-    ended: {},
     history: {},
   };
 }
 
 /**
  * RTDB の生データを UI 向けに正規化する。
- * - v2: plans + ended + history
+ * - v2: plans + history（旧 ended は無視）
  * - v1: nextPlan があれば plans に移す。recurring は破棄（表示しない）
  */
 function normalizeExamPlan(raw) {
@@ -482,10 +480,6 @@ function normalizeExamPlan(raw) {
     const legacy = { ...raw.nextPlan };
     delete legacy.recurringId;
     plan.plans["legacy-next"] = legacy;
-  }
-
-  if (raw.ended && typeof raw.ended === "object" && !Array.isArray(raw.ended)) {
-    plan.ended = { ...raw.ended };
   }
 
   if (Array.isArray(raw.history)) {
@@ -557,7 +551,7 @@ function buildPlanRecord({ item, dueDate, note, baselineDate }) {
 /**
  * 次回予定を追加または更新する。
  * 同じ検査項目名の予定が既にあれば上書き（項目ごとに1件）。
- * 同名が終了済みにあれば、終了リストから外す。
+ * 実施履歴は変更しない。旧 ended/ に同名があれば掃除する。
  * @returns {Promise<string>} planId
  */
 export async function saveExamScheduledPlan(
@@ -588,7 +582,7 @@ export async function saveExamScheduledPlan(
   }
 
   if (itemName) {
-    await clearEndedPlansByItemName(karteNumber, itemName);
+    await clearLegacyEndedPlansByItemName(karteNumber, itemName);
   }
 
   await update(examPlanRef(karteNumber), {
@@ -598,9 +592,9 @@ export async function saveExamScheduledPlan(
 }
 
 /**
- * 同名の終了済みエントリを削除する。
+ * 旧 ended/ の同名エントリを削除する（互換掃除。新規書き込みはしない）。
  */
-async function clearEndedPlansByItemName(karteNumber, itemName) {
+async function clearLegacyEndedPlansByItemName(karteNumber, itemName) {
   const name = (itemName || "").trim();
   if (!name) return;
   const snap = await get(ref(db, `examPlan/${karteNumber}/ended`));
@@ -618,7 +612,7 @@ async function clearEndedPlansByItemName(karteNumber, itemName) {
 }
 
 /**
- * 次回予定を削除する（完了後のクリアなど。終了済みリストには残さない）。
+ * 次回予定を削除する（終了・完了後のクリア。履歴は触らない）。
  */
 export async function deleteExamScheduledPlan(karteNumber, planId) {
   await authReady;
@@ -627,45 +621,26 @@ export async function deleteExamScheduledPlan(karteNumber, planId) {
 }
 
 /**
- * 予定を終了する。plans から外し ended に移す（履歴は触らない）。
+ * 予定を終了する。plans から削除するだけ（履歴は触らない。旧 ended には移さない）。
  */
 export async function endExamScheduledPlan(karteNumber, planId) {
-  await authReady;
-  if (!planId) return null;
-  const planSnap = await get(ref(db, `examPlan/${karteNumber}/plans/${planId}`));
-  if (!planSnap.exists()) return null;
-  const plan = planSnap.val() || {};
-  const endedRef = push(ref(db, `examPlan/${karteNumber}/ended`));
-  await set(endedRef, {
-    item: plan.item || "",
-    note: plan.note || "",
-    baselineDate: plan.baselineDate || "",
-    endedAt: new Date().toISOString(),
-  });
-  await remove(ref(db, `examPlan/${karteNumber}/plans/${planId}`));
-  return endedRef.key;
+  await deleteExamScheduledPlan(karteNumber, planId);
 }
 
 /**
- * 終了済みを検査予定一覧へ復活させる（次回予定日は未設定）。
- * 実施履歴は変更しない。
- * @returns {Promise<string>} 新しい planId
+ * 実施履歴の検査項目名から、検査予定一覧へ復活させる（次回予定日は未設定）。
+ * 実施履歴は変更しない。既に同名の予定があればそれを返す。
+ * @returns {Promise<string>} planId
  */
-export async function reviveExamEndedPlan(karteNumber, endedId) {
-  await ensureExamPlanRoot(karteNumber);
-  if (!endedId) throw new Error("endedId が必要です");
-  const endedSnap = await get(ref(db, `examPlan/${karteNumber}/ended/${endedId}`));
-  if (!endedSnap.exists()) throw new Error("終了済み項目が見つかりません");
-  const ended = endedSnap.val() || {};
-  const planId = await saveExamScheduledPlan(karteNumber, {
-    item: ended.item || "",
+export async function reviveExamPlanByItem(karteNumber, { item, note = "" }) {
+  const itemName = (item || "").trim();
+  if (!itemName) throw new Error("検査項目名が必要です");
+  return saveExamScheduledPlan(karteNumber, {
+    item: itemName,
     dueDate: "",
-    note: ended.note || "",
+    note: note || "",
     baselineDate: todayIsoDate(),
   });
-  // save 側で同名 ended は消えるが、念のため当該 ID も削除
-  await remove(ref(db, `examPlan/${karteNumber}/ended/${endedId}`));
-  return planId;
 }
 
 function todayIsoDate() {

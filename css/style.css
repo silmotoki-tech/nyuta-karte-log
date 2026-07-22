@@ -1237,34 +1237,47 @@ html.is-unlocked .app {
   font-size: 0.82rem;
 }
 
-.exam-list-item--ended {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.exam-list-item--ended .exam-list-item__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.exam-list-item--ended .btn {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
 .exam-history-group-title {
   font-size: 0.78rem;
   font-weight: 700;
   color: var(--color-text);
   margin: 12px 0 4px;
-  padding: 0 2px;
+  padding: 0;
   list-style: none;
 }
 
 .exam-history-group-title:first-child {
   margin-top: 0;
+}
+
+.exam-history-group-title.swipeable {
+  margin: 12px 0 4px;
+  border-bottom: none;
+  background: var(--color-white);
+}
+
+.right-panel > .exam-section:nth-of-type(n + 2) .exam-history-group-title.swipeable,
+.right-panel > .exam-section:nth-of-type(n + 2) .exam-history-group-title.swipeable .swipeable__front {
+  background: var(--color-surface-subtle);
+}
+
+.exam-history-group-title.swipeable .swipeable__front {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 2px;
+  background: var(--color-white);
+}
+
+.exam-history-group-title__label {
+  font-weight: 800;
+  color: var(--color-brown);
+}
+
+.exam-history-group-title__hint {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .exam-list-item__meta {
