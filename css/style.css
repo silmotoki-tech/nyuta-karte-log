@@ -1196,6 +1196,19 @@ html.is-unlocked .app {
   font-size: 0.82rem;
 }
 
+.exam-history-group-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 12px 0 4px;
+  padding: 0 2px;
+  list-style: none;
+}
+
+.exam-history-group-title:first-child {
+  margin-top: 0;
+}
+
 .exam-list-item__meta {
   font-size: 0.7rem;
   color: var(--color-text-muted);

@@ -4,13 +4,10 @@
 import {
   subscribeExamPlan,
   subscribeExamItems,
-  setNextExamPlan,
-  clearNextExamPlan,
+  saveExamScheduledPlan,
+  deleteExamScheduledPlan,
   addExamHistory,
   deleteExamHistory,
-  addExamRecurring,
-  updateExamRecurring,
-  deleteExamRecurring,
   addExamItem,
   updateExamItem,
   deleteExamItem,
@@ -54,30 +51,21 @@ const state = {
   unsubscribePlan: null,
   unsubscribeItems: null,
   activeTab: "exam",
+  activePlanId: null,
+  editingPlanId: null,
   // 予定編集フォームの下書き
   draft: {
     item: "",
     customItem: "",
     dueDate: "",
     note: "",
-    recurringId: null,
-    enableRecurring: false,
     baselineDate: null,
-    intervalUnit: "month",
-    intervalValue: 3,
-    intervalBuffer: "3",
     dueRelativeUnit: "day",
     dueRelativeValue: 0,
     dueRelativeBuffer: "",
     mode: "create", // create | edit | afterComplete
   },
   editingExamItemId: null,
-  editingRecurringId: null,
-  editInterval: {
-    unit: "month",
-    value: 3,
-    buffer: "3",
-  },
   /** カレンダー↔相対の同期ループ防止 */
   syncingDueFromRelative: false,
 };
@@ -89,23 +77,10 @@ const rightPanels = document.querySelectorAll(".right-panel");
 const rightEmpty = document.getElementById("right-empty");
 
 const examRoot = document.getElementById("panel-exam");
-const nextPlanCard = null;
-const nextPlanEmpty = null;
-const nextPlanBody = null;
-const nextPlanAlert = null;
-const nextPlanItem = null;
-const nextPlanDate = null;
-const nextPlanNote = null;
-const btnExamComplete = null;
-const btnExamEnd = null;
-const btnExamEdit = null;
 const btnExamNew = document.getElementById("btn-exam-new");
 
 const planList = document.getElementById("exam-plan-list");
 const planEmpty = document.getElementById("exam-plan-empty");
-const recurringList = null;
-const recurringEmpty = null;
-const btnRecurringAdd = document.getElementById("btn-exam-recurring-add");
 
 const historyList = document.getElementById("exam-history-list");
 const historyEmpty = document.getElementById("exam-history-empty");
@@ -132,26 +107,10 @@ const planDueDisplay = document.getElementById("exam-plan-due-display");
 const planDueNumpad = document.getElementById("exam-plan-due-numpad");
 const planWindowNote = document.getElementById("exam-plan-window-note");
 const planNote = document.getElementById("exam-plan-note");
-const planRecurringCheck = document.getElementById("exam-plan-enable-recurring");
-const planIntervalUnits = document.getElementById("exam-plan-interval-units");
-const planIntervalDisplay = document.getElementById("exam-plan-interval-display");
-const planIntervalNumpad = document.getElementById("exam-plan-interval-numpad");
-const planRecurringFields = document.getElementById("exam-plan-recurring-fields");
 const planError = document.getElementById("exam-plan-error");
 const btnPlanSave = document.getElementById("btn-exam-plan-save");
 const btnPlanCancel = document.getElementById("btn-exam-plan-cancel");
 const btnClosePlanModal = document.getElementById("btn-close-exam-plan");
-
-const recurringEditModal = document.getElementById("exam-recurring-edit-modal");
-const recurringEditItem = document.getElementById("exam-recurring-edit-item");
-const recurringIntervalUnits = document.getElementById("exam-recurring-interval-units");
-const recurringIntervalDisplay = document.getElementById("exam-recurring-interval-display");
-const recurringIntervalNumpad = document.getElementById("exam-recurring-interval-numpad");
-const recurringLastDone = document.getElementById("exam-recurring-last-done");
-const recurringEditError = document.getElementById("exam-recurring-edit-error");
-const btnRecurringEditSave = document.getElementById("btn-exam-recurring-edit-save");
-const btnRecurringEditCancel = document.getElementById("btn-exam-recurring-edit-cancel");
-const btnCloseRecurringEdit = document.getElementById("btn-close-exam-recurring-edit");
 
 const completeModal = document.getElementById("exam-complete-modal");
 const completeDate = document.getElementById("exam-complete-date");
@@ -207,18 +166,6 @@ function ymdFromStr(dateStr) {
   return `${y}/${Number(m)}/${Number(d)}`;
 }
 
-function addMonths(dateStr, months) {
-  const d = parseDateStr(dateStr);
-  if (!d) return "";
-  const day = d.getDate();
-  d.setMonth(d.getMonth() + months);
-  // 月末ずれ補正（例: 1/31 + 1ヶ月 → 2/28）
-  if (d.getDate() < day) {
-    d.setDate(0);
-  }
-  return formatDateStr(d);
-}
-
 function addDays(dateStr, days) {
   const d = parseDateStr(dateStr);
   if (!d) return "";
@@ -264,49 +211,30 @@ export function formatRelativeOffsetLabel(unit, value) {
 }
 
 /**
- * 定期レコードから表示用の単位・数値を取り出す（旧 intervalMonths 互換）。
+ * カレンダー月＋日の差から「（前回からXヶ月Y日）」を返す。
+ * fromStr = より古い日付、toStr = より新しい日付。
  */
-export function getRecurringIntervalParts(recurring) {
-  if (!recurring) return { unit: "month", value: 3 };
-  if (recurring.intervalUnit && recurring.intervalValue != null && Number(recurring.intervalValue) > 0) {
-    return {
-      unit: recurring.intervalUnit,
-      value: Number(recurring.intervalValue),
-    };
-  }
-  if (recurring.intervalDays != null && Number(recurring.intervalDays) > 0) {
-    const days = Number(recurring.intervalDays);
-    if (days % DAYS_PER_MONTH === 0) {
-      return { unit: "month", value: days / DAYS_PER_MONTH };
-    }
-    if (days % DAYS_PER_WEEK === 0) {
-      return { unit: "week", value: days / DAYS_PER_WEEK };
-    }
-    return { unit: "day", value: days };
-  }
-  // 旧データ: intervalMonths のみ
-  return {
-    unit: "month",
-    value: Number(recurring.intervalMonths) || 3,
-  };
-}
+export function formatHistoryGapLabel(fromStr, toStr) {
+  const from = parseDateStr(fromStr);
+  const to = parseDateStr(toStr);
+  if (!from || !to) return "";
+  if (to < from) return formatHistoryGapLabel(toStr, fromStr);
 
-/**
- * 定期レコードから計算用の日数を得る。
- * 新データは intervalDays。旧データは intervalMonths × 30。
- */
-export function getRecurringIntervalDays(recurring) {
-  if (!recurring) return 0;
-  if (recurring.intervalDays != null && Number(recurring.intervalDays) > 0) {
-    return Number(recurring.intervalDays);
+  let months =
+    (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+  let days = to.getDate() - from.getDate();
+  if (days < 0) {
+    months -= 1;
+    const lastDayPrevMonth = new Date(to.getFullYear(), to.getMonth(), 0).getDate();
+    days = lastDayPrevMonth - from.getDate() + to.getDate();
   }
-  const months = Number(recurring.intervalMonths) || 0;
-  return months * DAYS_PER_MONTH;
-}
+  if (months < 0) return "";
 
-export function formatRecurringIntervalLabel(recurring) {
-  const parts = getRecurringIntervalParts(recurring);
-  return formatIntervalLabel(parts.unit, parts.value);
+  const parts = [];
+  if (months > 0) parts.push(`${months}ヶ月`);
+  if (days > 0) parts.push(`${days}日`);
+  if (parts.length === 0) parts.push("0日");
+  return `（前回から${parts.join("")}）`;
 }
 
 /**
@@ -327,38 +255,6 @@ export function computeDueWindow(baseDateStr, intervalDays, _windowDays = 0) {
 }
 
 /**
- * 定期レコードから次回予定日を計算する。
- * 旧データ（intervalMonths のみ）はカレンダー月加算を維持する。
- */
-export function computeDueWindowFromRecurring(baseDateStr, recurring) {
-  if (recurring?.intervalDays != null && Number(recurring.intervalDays) > 0) {
-    return computeDueWindow(baseDateStr, Number(recurring.intervalDays), 0);
-  }
-  const months = Number(recurring?.intervalMonths) || 0;
-  const target = addMonths(baseDateStr, months);
-  if (!target) return null;
-  return {
-    dueDate: target,
-    dueDateFrom: target,
-    dueDateTo: target,
-    targetDate: target,
-    baselineDate: baseDateStr,
-  };
-}
-
-function buildIntervalPayload(unit, value) {
-  const n = Number(value) || 0;
-  const days = unitToDays(unit, n);
-  const payload = {
-    intervalDays: days,
-    intervalUnit: unit,
-    intervalValue: n,
-    intervalMonths: unit === "month" ? n : null,
-  };
-  return payload;
-}
-
-/**
  * 単一日付を次回予定ペイロード用に整える（幅は持たせない）。
  */
 export function expandSingleDate(dateStr, _windowDays = 0) {
@@ -372,7 +268,7 @@ export function expandSingleDate(dateStr, _windowDays = 0) {
 }
 
 /**
- * 次回予定から予定日（単一）を取り出す。旧 dueDateFrom/To にも対応。
+ * 予定から予定日（単一）を取り出す。旧 dueDateFrom/To にも対応。
  */
 export function getPlanDueDate(nextPlan) {
   if (!nextPlan) return "";
@@ -484,20 +380,6 @@ function dueLevelClass(level) {
   return "exam-due-text--far";
 }
 
-function buildNextPlanPayload({ item, dueDate, note, recurringId, baselineDate }) {
-  const date = dueDate || "";
-  return {
-    item: item || "",
-    dueDate: date,
-    baselineDate: baselineDate || todayStr(),
-    // 旧クライアント互換（幅なし＝同日）
-    dueDateFrom: date,
-    dueDateTo: date,
-    note: note || "",
-    recurringId: recurringId || null,
-  };
-}
-
 // --- 公開API --------------------------------------------------------------
 
 export function initExamPlanUI(helpers = {}) {
@@ -505,18 +387,15 @@ export function initExamPlanUI(helpers = {}) {
   wireTabs();
   wireNextPlanActions();
   wirePlanModal();
-  wireRecurringEditModal();
   wireCompleteModal();
   wireAfterModal();
   wireExamItemsModal();
   buildPlanDueRelativeUI();
-  buildPlanIntervalUI();
-  buildRecurringEditIntervalUI();
 
   state.unsubscribeItems = subscribeExamItems((items) => {
     state.examItems = items;
     renderPlanItemButtons();
-    if (!examItemsModal.hidden) renderExamItemsList();
+    if (!examItemsModal?.hidden) renderExamItemsList();
   });
 
   showRightEmpty(true);
@@ -541,6 +420,8 @@ export function leaveExamPlan() {
   }
   state.karteNumber = null;
   state.plan = null;
+  state.activePlanId = null;
+  state.editingPlanId = null;
   closePlanModal();
   closeCompleteModal();
   closeAfterModal();
@@ -550,7 +431,7 @@ export function leaveExamPlan() {
 // --- タブ切替 ------------------------------------------------------------
 
 function wireTabs() {
-  rightTabs.querySelectorAll(".right-tab").forEach((btn) => {
+  rightTabs?.querySelectorAll(".right-tab").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (btn.disabled) return;
       switchTab(btn.dataset.tab);
@@ -560,7 +441,7 @@ function wireTabs() {
 
 function switchTab(tabId) {
   state.activeTab = tabId;
-  rightTabs.querySelectorAll(".right-tab").forEach((btn) => {
+  rightTabs?.querySelectorAll(".right-tab").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.tab === tabId);
   });
   // カルテ未オープン時は案内メッセージのみ表示
@@ -581,10 +462,9 @@ export function switchRightTab(tabId) {
 }
 
 function showRightEmpty(empty) {
-  rightEmpty.hidden = !empty;
+  if (rightEmpty) rightEmpty.hidden = !empty;
   examRoot?.classList.toggle("is-disabled", empty);
   if (empty) {
-    // カルテ未オープン時は検査予定パネルを隠し、案内を出す
     rightPanels.forEach((p) => {
       p.hidden = true;
     });
@@ -602,43 +482,24 @@ function renderExamPlan() {
 }
 
 /**
- * 単発の次回予定 + 定期からの次回目安を1一覧にし、予定日昇順で表示。
- * nextPlan に紐づく定期は重複させない。
+ * plans/ を1一覧にし、予定日昇順で表示。
  */
 function collectUnifiedPlanEntries() {
   const entries = [];
-  const next = state.plan.nextPlan;
-  const linkedRecurringId = next?.recurringId || null;
 
-  if (next) {
-    const dueDate = getPlanDueDate(next);
-    const countdown = getDueCountdown(dueDate, getPlanBaselineDate(next));
+  Object.entries(state.plan.plans || {}).forEach(([id, p]) => {
+    if (!p) return;
+    const dueDate = getPlanDueDate(p);
+    const countdown = getDueCountdown(dueDate, getPlanBaselineDate(p));
     entries.push({
-      kind: "next",
+      id,
+      kind: "plan",
       sortKey: dueDate || "9999-99-99",
-      item: next.item || "（項目未設定）",
+      item: p.item || "（項目未設定）",
       dueDate,
       countdown,
-      note: next.note || "",
-      recurringId: linkedRecurringId,
-      next,
-    });
-  }
-
-  Object.entries(state.plan.recurring || {}).forEach(([id, r]) => {
-    if (linkedRecurringId && id === linkedRecurringId) return;
-    const dueWin = r.lastDone ? computeDueWindowFromRecurring(r.lastDone, r) : null;
-    const dueDate = dueWin?.targetDate || dueWin?.dueDate || "";
-    const countdown = dueDate ? getDueCountdown(dueDate, r.lastDone || null) : null;
-    entries.push({
-      kind: "recurring",
-      sortKey: dueDate || "9999-99-99",
-      item: r.item || "（項目未設定）",
-      dueDate,
-      countdown,
-      note: "",
-      recurringId: id,
-      recurring: { id, ...r },
+      note: p.note || "",
+      plan: { id, ...p },
     });
   });
 
@@ -669,48 +530,26 @@ function renderUnifiedPlanList() {
     if (entry.countdown) {
       dueEl.textContent = formatDueCountdown(entry.countdown);
     } else {
-      dueEl.textContent = "予定日未設定（最終実施を登録してください）";
+      dueEl.textContent = "予定日未設定";
       dueEl.className = "exam-list-item__due";
     }
     info.append(title, dueEl);
     li.appendChild(info);
 
-    const actions = [];
-    if (entry.kind === "next") {
-      actions.push(
-        {
-          action: "complete",
-          title: "完了",
-          onClick: () => openCompleteModal(),
-        },
+    // スワイプ: 左=編集 / 右=終了（削除）。完了はシートから。
+    enableRowGestures(li, {
+      actions: [
         {
           action: "edit",
           title: "編集",
-          onClick: () => openPlanModal("edit"),
+          onClick: () => openPlanModal("edit", { planId: entry.id }),
         },
         {
           action: "delete",
           title: "終了",
-          onClick: () => handleEndPlan(),
-        }
-      );
-    } else {
-      actions.push(
-        {
-          action: "edit",
-          title: "編集",
-          onClick: () => openRecurringEdit(entry.recurring),
+          onClick: () => handleEndPlan(entry.id),
         },
-        {
-          action: "delete",
-          title: "削除",
-          onClick: () => handleDeleteRecurring(entry.recurring),
-        }
-      );
-    }
-
-    enableRowGestures(li, {
-      actions,
+      ],
       onActivate: () => openExamItemSheet(entry),
     });
     planList.appendChild(li);
@@ -719,90 +558,49 @@ function renderUnifiedPlanList() {
 
 function openExamItemSheet(entry) {
   if (!itemSheet) return;
+  state.activePlanId = entry.id;
   itemSheetTitle.textContent = "検査予定";
   itemSheetItem.textContent = entry.item;
   itemSheetDue.textContent = entry.countdown
     ? formatDueCountdown(entry.countdown)
     : "予定日未設定";
   itemSheetDue.className = `exam-sheet__due ${dueLevelClass(entry.countdown?.level || "far")}`;
+  itemSheetMeta.textContent = "次回予定";
 
-  if (entry.kind === "next") {
-    itemSheetMeta.textContent = entry.recurringId
-      ? "単発の次回予定（定期スケジュールに紐づき）"
-      : "単発の次回予定";
-    if (entry.note) {
-      itemSheetNote.hidden = false;
-      itemSheetNote.textContent = entry.note;
-    } else {
-      itemSheetNote.hidden = true;
-      itemSheetNote.textContent = "";
-    }
-    itemSheetActions.innerHTML = "";
-    const completeBtn = document.createElement("button");
-    completeBtn.type = "button";
-    completeBtn.className = "btn btn--small btn--primary";
-    completeBtn.textContent = "完了として記録";
-    completeBtn.addEventListener("click", () => {
-      closeExamItemSheet();
-      openCompleteModal();
-    });
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "btn btn--small btn--outline";
-    editBtn.textContent = "予定を編集";
-    editBtn.addEventListener("click", () => {
-      closeExamItemSheet();
-      openPlanModal("edit");
-    });
-    const endBtn = document.createElement("button");
-    endBtn.type = "button";
-    endBtn.className = "btn btn--small btn--danger-outline";
-    endBtn.textContent = "予定を終了";
-    endBtn.addEventListener("click", () => {
-      closeExamItemSheet();
-      handleEndPlan();
-    });
-    if (entry.recurringId && state.plan.recurring?.[entry.recurringId]) {
-      const recBtn = document.createElement("button");
-      recBtn.type = "button";
-      recBtn.className = "btn btn--small btn--outline";
-      recBtn.textContent = "定期スケジュールを編集";
-      recBtn.addEventListener("click", () => {
-        closeExamItemSheet();
-        openRecurringEdit({
-          id: entry.recurringId,
-          ...state.plan.recurring[entry.recurringId],
-        });
-      });
-      itemSheetActions.append(completeBtn, editBtn, recBtn, endBtn);
-    } else {
-      itemSheetActions.append(completeBtn, editBtn, endBtn);
-    }
+  if (entry.note) {
+    itemSheetNote.hidden = false;
+    itemSheetNote.textContent = entry.note;
   } else {
-    const r = entry.recurring;
-    itemSheetMeta.textContent = `${formatRecurringIntervalLabel(r)}　最終実施: ${
-      r.lastDone ? ymdFromStr(r.lastDone) : "未設定"
-    }`;
     itemSheetNote.hidden = true;
-    itemSheetActions.innerHTML = "";
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "btn btn--small btn--outline";
-    editBtn.textContent = "定期スケジュールを編集";
-    editBtn.addEventListener("click", () => {
-      closeExamItemSheet();
-      openRecurringEdit(r);
-    });
-    const delBtn = document.createElement("button");
-    delBtn.type = "button";
-    delBtn.className = "btn btn--small btn--danger-outline";
-    delBtn.textContent = "定期スケジュールを削除";
-    delBtn.addEventListener("click", () => {
-      closeExamItemSheet();
-      handleDeleteRecurring(r);
-    });
-    itemSheetActions.append(editBtn, delBtn);
+    itemSheetNote.textContent = "";
   }
+
+  itemSheetActions.innerHTML = "";
+  const completeBtn = document.createElement("button");
+  completeBtn.type = "button";
+  completeBtn.className = "btn btn--small btn--primary";
+  completeBtn.textContent = "完了";
+  completeBtn.addEventListener("click", () => {
+    closeExamItemSheet();
+    openCompleteModal(entry.id);
+  });
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.className = "btn btn--small btn--outline";
+  editBtn.textContent = "編集";
+  editBtn.addEventListener("click", () => {
+    closeExamItemSheet();
+    openPlanModal("edit", { planId: entry.id });
+  });
+  const endBtn = document.createElement("button");
+  endBtn.type = "button";
+  endBtn.className = "btn btn--small btn--danger-outline";
+  endBtn.textContent = "終了";
+  endBtn.addEventListener("click", () => {
+    closeExamItemSheet();
+    handleEndPlan(entry.id);
+  });
+  itemSheetActions.append(completeBtn, editBtn, endBtn);
 
   itemSheet.hidden = false;
 }
@@ -811,174 +609,124 @@ function closeExamItemSheet() {
   if (itemSheet) itemSheet.hidden = true;
 }
 
-function renderNextPlan() {
-  // 互換のため残置（一覧統合後は未使用）
-}
-
-function renderRecurring() {
-  // 互換のため残置（一覧統合後は未使用）
-}
-
 function renderHistory() {
+  if (!historyList) return;
   historyList.innerHTML = "";
   const items = Object.entries(state.plan.history || {}).map(([id, h]) => ({ id, ...h }));
-  historyEmpty.hidden = items.length > 0;
+  if (historyEmpty) historyEmpty.hidden = items.length > 0;
 
-  items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-
+  // 項目名ごとにグループ化
+  const groups = new Map();
   items.forEach((h) => {
-    const li = document.createElement("li");
-    li.className = "exam-list-item";
+    const key = h.item || "（項目未設定）";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(h);
+  });
 
-    const info = document.createElement("div");
-    info.className = "exam-list-item__info";
-    const title = document.createElement("div");
-    title.className = "exam-list-item__title";
-    title.textContent = h.item || "（項目未設定）";
-    const meta = document.createElement("div");
-    meta.className = "exam-list-item__meta";
-    meta.textContent = h.date ? ymdFromStr(h.date) : "";
-    if (h.note) meta.textContent += `　${h.note}`;
-    info.append(title, meta);
-    li.appendChild(info);
+  // グループ見出しは項目名順
+  const groupKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b));
 
-    enableRowGestures(li, {
-      actions: [
-        {
-          action: "delete",
-          title: "削除",
-          onClick: async () => {
-            const ok = window.confirm(
-              `履歴「${h.item}（${ymdFromStr(h.date)}）」を削除しますか？`
-            );
-            if (!ok) return;
-            try {
-              await deleteExamHistory(state.karteNumber, h.id);
-              deps.showToast("履歴を削除しました。");
-            } catch (err) {
-              console.error(err);
-              deps.showToast("削除に失敗しました。", { isError: true });
-            }
+  groupKeys.forEach((itemName) => {
+    const groupItems = groups.get(itemName);
+    // 新しい順
+    groupItems.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+    const heading = document.createElement("li");
+    heading.className = "exam-history-group-title";
+    heading.textContent = `${itemName} - 実施履歴`;
+    historyList.appendChild(heading);
+
+    // 古い順配列（ギャップ計算用）
+    const oldestFirst = [...groupItems].sort((a, b) =>
+      (a.date || "").localeCompare(b.date || "")
+    );
+    const oldestId = oldestFirst[0]?.id;
+
+    groupItems.forEach((h) => {
+      const li = document.createElement("li");
+      li.className = "exam-list-item";
+
+      const info = document.createElement("div");
+      info.className = "exam-list-item__info";
+      const title = document.createElement("div");
+      title.className = "exam-list-item__title";
+      let titleText = h.date ? ymdFromStr(h.date) : "（日付未設定）";
+      if (h.id !== oldestId && h.date) {
+        const idx = oldestFirst.findIndex((x) => x.id === h.id);
+        const prevOlder = idx > 0 ? oldestFirst[idx - 1] : null;
+        if (prevOlder?.date) {
+          titleText += formatHistoryGapLabel(prevOlder.date, h.date);
+        }
+      }
+      title.textContent = titleText;
+      const meta = document.createElement("div");
+      meta.className = "exam-list-item__meta";
+      meta.textContent = h.note || "";
+      info.appendChild(title);
+      if (h.note) info.appendChild(meta);
+      li.appendChild(info);
+
+      enableRowGestures(li, {
+        actions: [
+          {
+            action: "delete",
+            title: "削除",
+            onClick: async () => {
+              const ok = window.confirm(
+                `履歴「${itemName}（${ymdFromStr(h.date)}）」を削除しますか？`
+              );
+              if (!ok) return;
+              try {
+                await deleteExamHistory(state.karteNumber, h.id);
+                deps.showToast("履歴を削除しました。");
+              } catch (err) {
+                console.error(err);
+                deps.showToast("削除に失敗しました。", { isError: true });
+              }
+            },
           },
-        },
-      ],
+        ],
+      });
+      historyList.appendChild(li);
     });
-    historyList.appendChild(li);
   });
 }
 
-// --- 次回予定アクション ---------------------------------------------------
+// --- 予定アクション -------------------------------------------------------
 
 function wireNextPlanActions() {
   btnExamNew?.addEventListener("click", () => openPlanModal("create"));
-  btnRecurringAdd?.addEventListener("click", () =>
-    openPlanModal("create", { focusRecurring: true })
-  );
   btnOpenExamItems?.addEventListener("click", openExamItemsModal);
   btnCloseItemSheet?.addEventListener("click", closeExamItemSheet);
   itemSheet?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemSheet);
 }
 
-async function handleEndPlan() {
-  const ok = window.confirm("次回予定を終了しますか？（履歴・定期スケジュールは残ります）");
+async function handleEndPlan(planId) {
+  if (!planId) return;
+  const plan = state.plan?.plans?.[planId];
+  const label = plan?.item || "予定";
+  const ok = window.confirm(`「${label}」の予定を終了しますか？（実施履歴は残ります）`);
   if (!ok) return;
   try {
-    await clearNextExamPlan(state.karteNumber);
-    deps.showToast("次回予定を終了しました。");
+    await deleteExamScheduledPlan(state.karteNumber, planId);
+    if (state.activePlanId === planId) state.activePlanId = null;
+    if (state.editingPlanId === planId) state.editingPlanId = null;
+    deps.showToast("予定を終了しました。");
   } catch (err) {
     console.error(err);
     deps.showToast("終了に失敗しました。", { isError: true });
   }
 }
 
-function openRecurringEdit(recurring) {
-  state.editingRecurringId = recurring.id;
-  const parts = getRecurringIntervalParts(recurring);
-  state.editInterval = {
-    unit: parts.unit,
-    value: parts.value,
-    buffer: String(parts.value),
-  };
-  recurringEditItem.textContent = `項目: ${recurring.item || "（未設定）"}`;
-  recurringLastDone.value = recurring.lastDone || "";
-  deps.showError(recurringEditError, "");
-  syncRecurringEditIntervalUI();
-  recurringEditModal.hidden = false;
-}
-
-function closeRecurringEditModal() {
-  recurringEditModal.hidden = true;
-  state.editingRecurringId = null;
-}
-
-function wireRecurringEditModal() {
-  btnCloseRecurringEdit?.addEventListener("click", closeRecurringEditModal);
-  btnRecurringEditCancel?.addEventListener("click", closeRecurringEditModal);
-  recurringEditModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeRecurringEditModal);
-  btnRecurringEditSave?.addEventListener("click", handleRecurringEditSave);
-}
-
-async function handleRecurringEditSave() {
-  const id = state.editingRecurringId;
-  if (!id) return;
-
-  const buffered = Number(state.editInterval.buffer);
-  if (buffered >= 1) {
-    state.editInterval.value = buffered;
-    state.editInterval.buffer = String(buffered);
-  }
-  const value = Number(state.editInterval.value) || 0;
-  if (value < 1) {
-    deps.showError(recurringEditError, "間隔は1以上をテンキーで入力し、「確定」してください。");
-    return;
-  }
-
-  const lastDone = recurringLastDone.value || "";
-  if (lastDone && !/^\d{4}-\d{2}-\d{2}$/.test(lastDone)) {
-    deps.showError(recurringEditError, "最終実施日の形式が正しくありません。");
-    return;
-  }
-
-  deps.showError(recurringEditError, "");
-  deps.setBusy(btnRecurringEditSave, true, "保存中...", "保存する");
-
-  try {
-    const interval = buildIntervalPayload(state.editInterval.unit, value);
-    await updateExamRecurring(state.karteNumber, id, {
-      ...interval,
-      lastDone,
-    });
-    closeRecurringEditModal();
-    deps.showToast("定期スケジュールを更新しました。");
-  } catch (err) {
-    console.error(err);
-    deps.showError(recurringEditError, "更新に失敗しました。もう一度お試しください。");
-  } finally {
-    deps.setBusy(btnRecurringEditSave, false, "保存中...", "保存する");
-  }
-}
-
-async function handleDeleteRecurring(recurring) {
-  const ok = window.confirm(`定期スケジュール「${recurring.item}」を削除しますか？`);
-  if (!ok) return;
-  try {
-    await deleteExamRecurring(state.karteNumber, recurring.id);
-    deps.showToast("定期スケジュールを削除しました。");
-  } catch (err) {
-    console.error(err);
-    deps.showToast("削除に失敗しました。", { isError: true });
-  }
-}
-
 // --- 予定編集モーダル -----------------------------------------------------
 
 function wirePlanModal() {
-  btnClosePlanModal.addEventListener("click", closePlanModal);
-  btnPlanCancel.addEventListener("click", closePlanModal);
-  planModal.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
-  btnPlanSave.addEventListener("click", handlePlanSave);
+  btnClosePlanModal?.addEventListener("click", closePlanModal);
+  btnPlanCancel?.addEventListener("click", closePlanModal);
+  planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
+  btnPlanSave?.addEventListener("click", handlePlanSave);
 
-  planOtherCheck.addEventListener("change", () => {
+  planOtherCheck?.addEventListener("change", () => {
     planCustomItem.hidden = !planOtherCheck.checked;
     if (planOtherCheck.checked) {
       state.draft.item = "";
@@ -987,12 +735,7 @@ function wirePlanModal() {
     }
   });
 
-  planRecurringCheck.addEventListener("change", () => {
-    state.draft.enableRecurring = planRecurringCheck.checked;
-    planRecurringFields.hidden = !planRecurringCheck.checked;
-  });
-
-  planDueDate.addEventListener("change", () => {
+  planDueDate?.addEventListener("change", () => {
     if (state.syncingDueFromRelative) return;
     state.draft.dueDate = planDueDate.value;
     syncRelativeFromCalendar(planDueDate.value);
@@ -1039,11 +782,6 @@ function mountUnitButtons(container, selectedUnit, onSelect) {
   });
 }
 
-function displayBufferLabel(unit, buffer, confirmedValue) {
-  const shown = buffer !== "" ? buffer : String(confirmedValue || "");
-  return formatIntervalLabel(unit, shown === "" ? 0 : shown);
-}
-
 function displayRelativeBufferLabel(unit, buffer, confirmedValue) {
   const shown = buffer !== "" ? buffer : String(confirmedValue ?? "");
   return formatRelativeOffsetLabel(unit, shown === "" ? 0 : shown);
@@ -1077,7 +815,6 @@ function syncRelativeFromCalendar(dateStr) {
   const days = daysBetween(todayStr(), dateStr);
   if (days == null) return;
   if (days < 0) {
-    // 過去日は相対0として表示（日付自体はカレンダー側を優先）
     state.draft.dueRelativeUnit = "day";
     state.draft.dueRelativeValue = 0;
     state.draft.dueRelativeBuffer = "0";
@@ -1105,7 +842,7 @@ function applyDueRelativeToCalendar() {
   const days = unitToDays(state.draft.dueRelativeUnit, value);
   const date = addDays(todayStr(), days);
   state.syncingDueFromRelative = true;
-  planDueDate.value = date;
+  if (planDueDate) planDueDate.value = date;
   state.draft.dueDate = date;
   state.syncingDueFromRelative = false;
   updateWindowNote();
@@ -1113,6 +850,7 @@ function applyDueRelativeToCalendar() {
 }
 
 function buildPlanDueRelativeUI() {
+  if (!planDueNumpad) return;
   mountNumpad(planDueNumpad, {
     onDigit: (d) => {
       if (state.draft.dueRelativeBuffer.length >= 4) return;
@@ -1148,7 +886,6 @@ function syncDueRelativeUI() {
       state.draft.dueRelativeBuffer !== ""
         ? Number(state.draft.dueRelativeBuffer) || 0
         : Number(state.draft.dueRelativeValue) || 0;
-    // 単位切替時は、現在の相対日数を保ったまま新しい単位に換算
     const days = unitToDays(prevUnit, prevValue);
     let nextValue = days;
     if (unit === "week") nextValue = Math.max(0, Math.round(days / DAYS_PER_WEEK));
@@ -1156,8 +893,7 @@ function syncDueRelativeUI() {
     state.draft.dueRelativeUnit = unit;
     state.draft.dueRelativeValue = nextValue;
     state.draft.dueRelativeBuffer = nextValue > 0 || days === 0 ? String(nextValue) : "";
-    // カレンダーも新しい単位換算に合わせる
-    if (nextValue > 0 || planDueDate.value) {
+    if (nextValue > 0 || planDueDate?.value) {
       applyDueRelativeToCalendar();
     } else {
       syncDueRelativeUI();
@@ -1178,112 +914,21 @@ function resetDraftDueRelative() {
   state.draft.dueRelativeBuffer = "";
 }
 
-function buildPlanIntervalUI() {
-  mountUnitButtons(planIntervalUnits, state.draft.intervalUnit, (unit) => {
-    state.draft.intervalUnit = unit;
-    state.draft.intervalBuffer = String(state.draft.intervalValue || "");
-    syncPlanIntervalUI();
-  });
-  mountNumpad(planIntervalNumpad, {
-    onDigit: (d) => {
-      if (state.draft.intervalBuffer.length >= 4) return;
-      state.draft.intervalBuffer =
-        state.draft.intervalBuffer === "0" ? d : state.draft.intervalBuffer + d;
-      syncPlanIntervalUI();
-    },
-    onDelete: () => {
-      state.draft.intervalBuffer = state.draft.intervalBuffer.slice(0, -1);
-      syncPlanIntervalUI();
-    },
-    onConfirm: () => {
-      const n = Number(state.draft.intervalBuffer);
-      if (!n || n < 1) {
-        deps.showError(planError, "間隔は1以上の数値を入力し、「確定」してください。");
-        return;
-      }
-      state.draft.intervalValue = n;
-      state.draft.intervalBuffer = String(n);
-      deps.showError(planError, "");
-      syncPlanIntervalUI();
-    },
-  });
-  syncPlanIntervalUI();
-}
-
-function syncPlanIntervalUI() {
-  mountUnitButtons(planIntervalUnits, state.draft.intervalUnit, (unit) => {
-    state.draft.intervalUnit = unit;
-    state.draft.intervalBuffer = String(state.draft.intervalValue || "");
-    syncPlanIntervalUI();
-  });
-  if (planIntervalDisplay) {
-    planIntervalDisplay.textContent = displayBufferLabel(
-      state.draft.intervalUnit,
-      state.draft.intervalBuffer,
-      state.draft.intervalValue
-    );
-  }
-}
-
-function buildRecurringEditIntervalUI() {
-  mountNumpad(recurringIntervalNumpad, {
-    onDigit: (d) => {
-      if (state.editInterval.buffer.length >= 4) return;
-      state.editInterval.buffer =
-        state.editInterval.buffer === "0" ? d : state.editInterval.buffer + d;
-      syncRecurringEditIntervalUI();
-    },
-    onDelete: () => {
-      state.editInterval.buffer = state.editInterval.buffer.slice(0, -1);
-      syncRecurringEditIntervalUI();
-    },
-    onConfirm: () => {
-      const n = Number(state.editInterval.buffer);
-      if (!n || n < 1) {
-        deps.showError(recurringEditError, "間隔は1以上の数値を入力し、「確定」してください。");
-        return;
-      }
-      state.editInterval.value = n;
-      state.editInterval.buffer = String(n);
-      deps.showError(recurringEditError, "");
-      syncRecurringEditIntervalUI();
-    },
-  });
-  syncRecurringEditIntervalUI();
-}
-
-function syncRecurringEditIntervalUI() {
-  mountUnitButtons(recurringIntervalUnits, state.editInterval.unit, (unit) => {
-    state.editInterval.unit = unit;
-    state.editInterval.buffer = String(state.editInterval.value || "");
-    syncRecurringEditIntervalUI();
-  });
-  if (recurringIntervalDisplay) {
-    recurringIntervalDisplay.textContent = displayBufferLabel(
-      state.editInterval.unit,
-      state.editInterval.buffer,
-      state.editInterval.value
-    );
-  }
-}
-
-function resetDraftInterval(unit = "month", value = 3) {
-  state.draft.intervalUnit = unit;
-  state.draft.intervalValue = value;
-  state.draft.intervalBuffer = String(value);
-}
-
 function renderPlanItemButtons() {
+  if (!planItemButtons) return;
   planItemButtons.innerHTML = "";
   state.examItems.forEach((item) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "exam-item-btn";
     btn.textContent = item.label;
-    btn.classList.toggle("is-selected", !planOtherCheck.checked && state.draft.item === item.label);
+    btn.classList.toggle(
+      "is-selected",
+      !planOtherCheck?.checked && state.draft.item === item.label
+    );
     btn.addEventListener("click", () => {
-      planOtherCheck.checked = false;
-      planCustomItem.hidden = true;
+      if (planOtherCheck) planOtherCheck.checked = false;
+      if (planCustomItem) planCustomItem.hidden = true;
       state.draft.item = item.label;
       state.draft.customItem = "";
       renderPlanItemButtons();
@@ -1293,68 +938,55 @@ function renderPlanItemButtons() {
 }
 
 function updateWindowNote() {
-  const date = planDueDate.value;
+  if (!planWindowNote) return;
+  const date = planDueDate?.value;
   if (!date) {
     planWindowNote.textContent = "予定日を選ぶと、残り日数が表示されます。";
     planWindowNote.className = "field__note";
     return;
   }
-  // 登録画面では「いま選んでいる日付」を基準にプレビュー（保存時の baseline は別途保持）
   const baseline = state.draft.baselineDate || todayStr();
   const info = getDueCountdown(date, baseline);
   planWindowNote.textContent = `予定日: ${formatDueCountdown(info)}`;
   planWindowNote.className = `field__note ${dueLevelClass(info?.level || "far")}`;
 }
 
-function openPlanModal(mode, { focusRecurring = false, preset = null } = {}) {
+function openPlanModal(mode, { planId = null, preset = null } = {}) {
   state.draft.mode = mode;
-  const next = state.plan?.nextPlan;
+  state.editingPlanId = mode === "edit" ? planId || state.editingPlanId : null;
 
-  if (mode === "edit" && next) {
-    planModalTitle.textContent = "次回予定を編集";
-    state.draft.item = next.item || "";
+  if (mode === "edit") {
+    const editing = state.plan?.plans?.[state.editingPlanId];
+    if (!editing) return;
+    if (planModalTitle) planModalTitle.textContent = "予定を編集";
+    state.draft.item = editing.item || "";
     state.draft.customItem = "";
-    state.draft.dueDate = getPlanDueDate(next) || "";
-    state.draft.note = next.note || "";
-    state.draft.recurringId = next.recurringId || null;
-    state.draft.enableRecurring = false;
-    state.draft.baselineDate = next.baselineDate || null;
+    state.draft.dueDate = getPlanDueDate(editing) || "";
+    state.draft.note = editing.note || "";
+    state.draft.baselineDate = editing.baselineDate || null;
   } else if (preset) {
-    planModalTitle.textContent = "次の予定を登録";
+    if (planModalTitle) planModalTitle.textContent = "次の予定を登録";
     state.draft.item = preset.item || "";
     state.draft.customItem = "";
     state.draft.dueDate = preset.dueDate || "";
     state.draft.note = preset.note || "";
-    state.draft.recurringId = preset.recurringId || null;
-    state.draft.enableRecurring = Boolean(preset.enableRecurring);
     state.draft.baselineDate = preset.baselineDate || todayStr();
-    if (preset.intervalUnit && preset.intervalValue) {
-      resetDraftInterval(preset.intervalUnit, preset.intervalValue);
-    } else if (preset.intervalMonths) {
-      resetDraftInterval("month", preset.intervalMonths);
-    } else {
-      resetDraftInterval("month", 3);
-    }
   } else {
-    planModalTitle.textContent = "次回予定を登録";
+    if (planModalTitle) planModalTitle.textContent = "予定を登録";
     state.draft.item = "";
     state.draft.customItem = "";
     state.draft.dueDate = "";
     state.draft.note = "";
-    state.draft.recurringId = null;
-    state.draft.enableRecurring = focusRecurring;
     state.draft.baselineDate = todayStr();
-    resetDraftInterval("month", 3);
   }
 
-  planOtherCheck.checked = false;
-  planCustomItem.hidden = true;
-  planCustomItem.value = "";
-  planDueDate.value = state.draft.dueDate;
-  planNote.value = state.draft.note;
-  planRecurringCheck.checked = state.draft.enableRecurring;
-  planRecurringFields.hidden = !state.draft.enableRecurring;
-  syncPlanIntervalUI();
+  if (planOtherCheck) planOtherCheck.checked = false;
+  if (planCustomItem) {
+    planCustomItem.hidden = true;
+    planCustomItem.value = "";
+  }
+  if (planDueDate) planDueDate.value = state.draft.dueDate;
+  if (planNote) planNote.value = state.draft.note;
   if (state.draft.dueDate) {
     syncRelativeFromCalendar(state.draft.dueDate);
   } else {
@@ -1364,33 +996,25 @@ function openPlanModal(mode, { focusRecurring = false, preset = null } = {}) {
   deps.showError(planError, "");
   renderPlanItemButtons();
   updateWindowNote();
-  planModal.hidden = false;
+  if (planModal) planModal.hidden = false;
 }
 
 function closePlanModal() {
-  planModal.hidden = true;
+  if (planModal) planModal.hidden = true;
+  state.editingPlanId = null;
 }
 
 async function handlePlanSave() {
   let item = state.draft.item;
-  if (planOtherCheck.checked) {
-    item = planCustomItem.value.trim();
+  if (planOtherCheck?.checked) {
+    item = planCustomItem?.value.trim() || "";
   }
-  // 相対テンキー入力済みなら、保存前にカレンダーへ反映
   const dueBuffered = Number(state.draft.dueRelativeBuffer);
   if (state.draft.dueRelativeBuffer !== "" && dueBuffered >= 1) {
     applyDueRelativeToCalendar();
   }
-  const dueDate = planDueDate.value;
-  const note = planNote.value.trim();
-  const enableRecurring = planRecurringCheck.checked;
-  const buffered = Number(state.draft.intervalBuffer);
-  if (buffered >= 1) {
-    state.draft.intervalValue = buffered;
-    state.draft.intervalBuffer = String(buffered);
-  }
-  const intervalValue = Number(state.draft.intervalValue) || 0;
-  const intervalUnit = state.draft.intervalUnit || "month";
+  const dueDate = planDueDate?.value || "";
+  const note = planNote?.value.trim() || "";
 
   if (!item) {
     deps.showError(planError, "検査項目を選択するか、「その他」で入力してください。");
@@ -1400,43 +1024,22 @@ async function handlePlanSave() {
     deps.showError(planError, "日付を選択してください。");
     return;
   }
-  if (enableRecurring && intervalValue < 1) {
-    deps.showError(planError, "間隔はテンキーで数値を入力し、「確定」してください。");
-    return;
-  }
 
   deps.showError(planError, "");
   deps.setBusy(btnPlanSave, true, "保存中...", "保存する");
 
   try {
-    let recurringId = state.draft.recurringId || null;
-
-    if (enableRecurring) {
-      const interval = buildIntervalPayload(intervalUnit, intervalValue);
-      recurringId = await addExamRecurring(state.karteNumber, {
-        item,
-        ...interval,
-        lastDone: "",
-        windowDays: 0,
-      });
-    }
-
-    // 編集・完了後の再登録は既存 baseline を維持。新規は登録日を基準にする。
     const keepBaseline = state.draft.baselineDate || todayStr();
-
-    await setNextExamPlan(
-      state.karteNumber,
-      buildNextPlanPayload({
-        item,
-        dueDate,
-        note,
-        recurringId,
-        baselineDate: keepBaseline,
-      })
-    );
+    await saveExamScheduledPlan(state.karteNumber, {
+      planId: state.draft.mode === "edit" ? state.editingPlanId : null,
+      item,
+      dueDate,
+      note,
+      baselineDate: keepBaseline,
+    });
 
     closePlanModal();
-    deps.showToast("次回予定を保存しました。");
+    deps.showToast("予定を保存しました。");
   } catch (err) {
     console.error(err);
     deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
@@ -1448,30 +1051,33 @@ async function handlePlanSave() {
 // --- 完了フロー -----------------------------------------------------------
 
 function wireCompleteModal() {
-  btnCloseCompleteModal.addEventListener("click", closeCompleteModal);
-  btnCompleteCancel.addEventListener("click", closeCompleteModal);
-  completeModal.querySelector("[data-close-modal]")?.addEventListener("click", closeCompleteModal);
-  btnCompleteSave.addEventListener("click", handleCompleteSave);
+  btnCloseCompleteModal?.addEventListener("click", closeCompleteModal);
+  btnCompleteCancel?.addEventListener("click", closeCompleteModal);
+  completeModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeCompleteModal);
+  btnCompleteSave?.addEventListener("click", handleCompleteSave);
 }
 
-function openCompleteModal() {
-  if (!state.plan?.nextPlan) return;
-  completeDate.value = todayStr();
-  completeNote.value = "";
+function openCompleteModal(planId) {
+  const id = planId || state.activePlanId;
+  if (!id || !state.plan?.plans?.[id]) return;
+  state.activePlanId = id;
+  if (completeDate) completeDate.value = todayStr();
+  if (completeNote) completeNote.value = "";
   deps.showError(completeError, "");
-  completeModal.hidden = false;
+  if (completeModal) completeModal.hidden = false;
 }
 
 function closeCompleteModal() {
-  completeModal.hidden = true;
+  if (completeModal) completeModal.hidden = true;
 }
 
 async function handleCompleteSave() {
-  const next = state.plan?.nextPlan;
-  if (!next) return;
+  const planId = state.activePlanId;
+  const plan = planId ? state.plan?.plans?.[planId] : null;
+  if (!plan || !planId) return;
 
-  const date = completeDate.value;
-  const note = completeNote.value.trim();
+  const date = completeDate?.value || "";
+  const note = completeNote?.value.trim() || "";
   if (!date) {
     deps.showError(completeError, "実施日を選択してください。");
     return;
@@ -1482,50 +1088,19 @@ async function handleCompleteSave() {
 
   try {
     await addExamHistory(state.karteNumber, {
-      item: next.item,
+      item: plan.item,
       date,
       note,
     });
-
-    // 紐づく定期があれば lastDone を更新し、次回目安を自動計算
-    let suggested = null;
-    let recurringId = next.recurringId || null;
-    let recurring = recurringId ? state.plan.recurring?.[recurringId] : null;
-
-    // recurringId が無い場合でも、同名項目の定期があればそれを使う
-    if (!recurring) {
-      const match = Object.entries(state.plan.recurring || {}).find(
-        ([, r]) => r.item === next.item
-      );
-      if (match) {
-        recurringId = match[0];
-        recurring = match[1];
-      }
-    }
-
-    if (recurring && recurringId) {
-      await updateExamRecurring(state.karteNumber, recurringId, { lastDone: date });
-      const window = computeDueWindowFromRecurring(date, recurring);
-      if (window) {
-        const parts = getRecurringIntervalParts(recurring);
-        suggested = {
-          item: recurring.item,
-          dueDate: window.targetDate || window.dueDate,
-          note: `${formatRecurringIntervalLabel(recurring)}の定期検査`,
-          recurringId,
-          intervalUnit: parts.unit,
-          intervalValue: parts.value,
-          enableRecurring: false,
-          baselineDate: date,
-        };
-      }
-    }
-
-    // 次回予定はいったんクリアし、続けて登録するか選ばせる
-    await clearNextExamPlan(state.karteNumber);
+    await deleteExamScheduledPlan(state.karteNumber, planId);
+    state.activePlanId = null;
     closeCompleteModal();
     deps.showToast("実施を記録しました。");
-    openAfterModal(suggested);
+    openAfterModal({
+      item: plan.item,
+      dueDate: "",
+      baselineDate: date,
+    });
   } catch (err) {
     console.error(err);
     deps.showError(completeError, "保存に失敗しました。もう一度お試しください。");
@@ -1535,63 +1110,59 @@ async function handleCompleteSave() {
 }
 
 function wireAfterModal() {
-  btnCloseAfterModal.addEventListener("click", () => closeAfterModal(true));
-  btnAfterEnd.addEventListener("click", () => closeAfterModal(true));
-  btnAfterNext.addEventListener("click", () => {
-    const preset = afterModal._suggested || null;
-    closeAfterModal(false);
+  btnCloseAfterModal?.addEventListener("click", () => closeAfterModal());
+  btnAfterEnd?.addEventListener("click", () => closeAfterModal());
+  btnAfterNext?.addEventListener("click", () => {
+    const preset = afterModal?._preset || null;
+    closeAfterModal();
     openPlanModal("afterComplete", { preset: preset || undefined });
   });
-  afterModal.querySelector("[data-close-modal]")?.addEventListener("click", () =>
-    closeAfterModal(true)
+  afterModal?.querySelector("[data-close-modal]")?.addEventListener("click", () =>
+    closeAfterModal()
   );
 }
 
-function openAfterModal(suggested) {
-  afterModal._suggested = suggested || null;
-  if (suggested) {
-    afterSummary.hidden = false;
-    afterSummary.innerHTML = `定期スケジュールに基づく次回予定:<br /><strong>${
-      suggested.item
-    }</strong><br />${formatDueCountdown(
-      getDueCountdown(suggested.dueDate, suggested.baselineDate || null)
-    )}`;
-    btnAfterNext.textContent = "この予定で次を登録";
-  } else {
+function openAfterModal(preset) {
+  if (!afterModal) return;
+  afterModal._preset = preset || null;
+  if (afterSummary) {
     afterSummary.hidden = true;
     afterSummary.textContent = "";
-    btnAfterNext.textContent = "次の予定を入力する";
   }
+  if (btnAfterNext) btnAfterNext.textContent = "次の予定を入力する";
   afterModal.hidden = false;
 }
 
 function closeAfterModal() {
-  afterModal.hidden = true;
-  afterModal._suggested = null;
+  if (afterModal) {
+    afterModal.hidden = true;
+    afterModal._preset = null;
+  }
 }
 
 // --- 検査項目マスタ管理 ---------------------------------------------------
 
 function wireExamItemsModal() {
-  btnCloseExamItems.addEventListener("click", closeExamItemsModal);
-  examItemsModal.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemsModal);
-  btnExamItemSave.addEventListener("click", handleExamItemSave);
-  btnExamItemCancel.addEventListener("click", resetExamItemEditor);
+  btnCloseExamItems?.addEventListener("click", closeExamItemsModal);
+  examItemsModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemsModal);
+  btnExamItemSave?.addEventListener("click", handleExamItemSave);
+  btnExamItemCancel?.addEventListener("click", resetExamItemEditor);
 }
 
 function openExamItemsModal() {
   resetExamItemEditor();
   renderExamItemsList();
-  examItemsModal.hidden = false;
+  if (examItemsModal) examItemsModal.hidden = false;
 }
 
 function closeExamItemsModal() {
-  examItemsModal.hidden = true;
+  if (examItemsModal) examItemsModal.hidden = true;
 }
 
 function renderExamItemsList() {
+  if (!examItemsList) return;
   examItemsList.innerHTML = "";
-  examItemsListEmpty.hidden = state.examItems.length > 0;
+  if (examItemsListEmpty) examItemsListEmpty.hidden = state.examItems.length > 0;
 
   state.examItems.forEach((item) => {
     const li = document.createElement("li");
@@ -1612,12 +1183,12 @@ function renderExamItemsList() {
           title: "編集",
           onClick: () => {
             state.editingExamItemId = item.id;
-            examItemEditorTitle.textContent = "検査項目を編集";
-            examItemLabelInput.value = item.label || "";
-            btnExamItemSave.textContent = "更新する";
-            btnExamItemCancel.hidden = false;
+            if (examItemEditorTitle) examItemEditorTitle.textContent = "検査項目を編集";
+            if (examItemLabelInput) examItemLabelInput.value = item.label || "";
+            if (btnExamItemSave) btnExamItemSave.textContent = "更新する";
+            if (btnExamItemCancel) btnExamItemCancel.hidden = false;
             deps.showError(examItemError, "");
-            examItemLabelInput.focus();
+            examItemLabelInput?.focus();
           },
         },
         {
@@ -1644,15 +1215,15 @@ function renderExamItemsList() {
 
 function resetExamItemEditor() {
   state.editingExamItemId = null;
-  examItemEditorTitle.textContent = "新しい検査項目を追加";
-  examItemLabelInput.value = "";
-  btnExamItemSave.textContent = "追加する";
-  btnExamItemCancel.hidden = true;
+  if (examItemEditorTitle) examItemEditorTitle.textContent = "新しい検査項目を追加";
+  if (examItemLabelInput) examItemLabelInput.value = "";
+  if (btnExamItemSave) btnExamItemSave.textContent = "追加する";
+  if (btnExamItemCancel) btnExamItemCancel.hidden = true;
   deps.showError(examItemError, "");
 }
 
 async function handleExamItemSave() {
-  const label = examItemLabelInput.value.trim();
+  const label = examItemLabelInput?.value.trim() || "";
   if (!label) {
     deps.showError(examItemError, "項目名を入力してください。");
     return;
@@ -1683,18 +1254,14 @@ async function handleExamItemSave() {
 }
 
 /**
- * AI提案フローなど外部からの次回予定登録。
+ * AI提案フローなど外部からの予定登録。
  */
 export async function addExamPlanFromExternal(karteNumber, { item, dueDate, note, baselineDate }) {
   if (!dueDate) throw new Error("検査予定の日付が不正です。");
-  await setNextExamPlan(
-    karteNumber,
-    buildNextPlanPayload({
-      item: item || "",
-      dueDate,
-      note: note || "",
-      recurringId: null,
-      baselineDate: baselineDate || todayStr(),
-    })
-  );
+  await saveExamScheduledPlan(karteNumber, {
+    item: item || "",
+    dueDate,
+    note: note || "",
+    baselineDate: baselineDate || todayStr(),
+  });
 }

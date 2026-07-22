@@ -22,13 +22,11 @@
 //   examItems/{itemId}/label                            … 検査項目マスタの表示名
 //   examItems/{itemId}/order                            … 並び順
 //
-//   examPlan/{カルテ番号}/schemaVersion                  … データ構造バージョン
-//   examPlan/{カルテ番号}/nextPlan                       … 次回予定（1件 or null）
-//     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note, recurringId }
+//   examPlan/{カルテ番号}/schemaVersion                  … データ構造バージョン（v2）
+//   examPlan/{カルテ番号}/plans/{planId}                 … 検査項目ごとの次回予定
+//     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note }
 //     ※dueDate が正。dueDateFrom/To は同日で旧互換。baselineDate は色分け用の基準日
-//   examPlan/{カルテ番号}/recurring/{id}                 … 定期検査スケジュール
-//     { item, intervalDays, intervalUnit, intervalValue, lastDone, windowDays }
-//     ※旧データは intervalMonths のみの場合あり → 読み取り時に日数へ換算
+//     ※旧 nextPlan（1件）は読み込み時に plans["legacy-next"] へ移す。旧 recurring は無視
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
 //     { item, date, note }
 //
@@ -446,8 +444,10 @@ export async function deleteExamItem(itemId) {
 }
 
 // --- 検査予定（examPlan） ------------------------------------------------
+// schema v2: 検査項目ごとの次回予定 plans/ と実施履歴 history/ のみ。
+// 旧 nextPlan（1件）・recurring は読み込み時に正規化で吸収／無視する。
 
-export const EXAM_PLAN_SCHEMA_VERSION = 1;
+export const EXAM_PLAN_SCHEMA_VERSION = 2;
 
 function examPlanRef(karteNumber) {
   return ref(db, `examPlan/${karteNumber}`);
@@ -456,26 +456,29 @@ function examPlanRef(karteNumber) {
 function emptyExamPlan() {
   return {
     schemaVersion: EXAM_PLAN_SCHEMA_VERSION,
-    nextPlan: null,
-    recurring: {},
+    plans: {},
     history: {},
   };
 }
 
+/**
+ * RTDB の生データを UI 向けに正規化する。
+ * - v2: plans + history
+ * - v1: nextPlan があれば plans に移す。recurring は破棄（表示しない）
+ */
 function normalizeExamPlan(raw) {
   const plan = emptyExamPlan();
   if (!raw || typeof raw !== "object") return plan;
 
   plan.schemaVersion = raw.schemaVersion || EXAM_PLAN_SCHEMA_VERSION;
-  plan.nextPlan = raw.nextPlan || null;
 
-  // recurring / history はオブジェクト（pushキー）または配列のどちらでも吸収
-  if (Array.isArray(raw.recurring)) {
-    raw.recurring.forEach((r, i) => {
-      if (r) plan.recurring[`legacy-${i}`] = r;
-    });
-  } else if (raw.recurring && typeof raw.recurring === "object") {
-    plan.recurring = { ...raw.recurring };
+  if (raw.plans && typeof raw.plans === "object" && !Array.isArray(raw.plans)) {
+    plan.plans = { ...raw.plans };
+  } else if (raw.nextPlan && typeof raw.nextPlan === "object") {
+    // 旧単一 nextPlan → 1件の plans
+    const legacy = { ...raw.nextPlan };
+    delete legacy.recurringId;
+    plan.plans["legacy-next"] = legacy;
   }
 
   if (Array.isArray(raw.history)) {
@@ -532,22 +535,88 @@ async function ensureExamPlanRoot(karteNumber) {
   }
 }
 
+function buildPlanRecord({ item, dueDate, note, baselineDate }) {
+  const date = dueDate || "";
+  return {
+    item: item || "",
+    dueDate: date,
+    baselineDate: baselineDate || date || "",
+    dueDateFrom: date,
+    dueDateTo: date,
+    note: note || "",
+  };
+}
+
 /**
- * 次回予定を設定・更新する。null を渡すとクリア。
+ * 次回予定を追加または更新する。
+ * 同じ検査項目名の予定が既にあれば上書き（項目ごとに1件）。
+ * @returns {Promise<string>} planId
  */
-export async function setNextExamPlan(karteNumber, nextPlan) {
+export async function saveExamScheduledPlan(
+  karteNumber,
+  { planId = null, item, dueDate, note, baselineDate }
+) {
   await ensureExamPlanRoot(karteNumber);
+  const record = buildPlanRecord({ item, dueDate, note, baselineDate });
+  const itemName = (item || "").trim();
+
+  // 既存の同名項目を探す（編集対象自身は除く）
+  const snap = await get(ref(db, `examPlan/${karteNumber}/plans`));
+  const existing = snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
+  let targetId = planId || null;
+  if (!targetId && itemName) {
+    const found = Object.entries(existing).find(
+      ([id, p]) => id && p && (p.item || "").trim() === itemName
+    );
+    if (found) targetId = found[0];
+  }
+
+  if (targetId) {
+    await update(ref(db, `examPlan/${karteNumber}/plans/${targetId}`), record);
+    await update(examPlanRef(karteNumber), {
+      schemaVersion: EXAM_PLAN_SCHEMA_VERSION,
+    });
+    return targetId;
+  }
+
+  const newRef = push(ref(db, `examPlan/${karteNumber}/plans`));
+  await set(newRef, record);
   await update(examPlanRef(karteNumber), {
     schemaVersion: EXAM_PLAN_SCHEMA_VERSION,
-    nextPlan: nextPlan || null,
+  });
+  return newRef.key;
+}
+
+/**
+ * 次回予定を削除する（完了後のクリア・終了）。
+ */
+export async function deleteExamScheduledPlan(karteNumber, planId) {
+  await authReady;
+  if (!planId) return;
+  await remove(ref(db, `examPlan/${karteNumber}/plans/${planId}`));
+}
+
+/**
+ * @deprecated 互換: 単一 nextPlan 書き込み → plans へ保存
+ */
+export async function setNextExamPlan(karteNumber, nextPlan) {
+  if (!nextPlan) {
+    // 全 plans は消さない（旧 clear の意味が曖昧なため no-op）
+    return null;
+  }
+  return saveExamScheduledPlan(karteNumber, {
+    item: nextPlan.item,
+    dueDate: nextPlan.dueDate || nextPlan.targetDate || nextPlan.dueDateFrom,
+    note: nextPlan.note,
+    baselineDate: nextPlan.baselineDate,
   });
 }
 
 /**
- * 次回予定をクリアする（終了）。
+ * @deprecated 互換API（単一クリアは非対応のため no-op）
  */
-export async function clearNextExamPlan(karteNumber) {
-  await setNextExamPlan(karteNumber, null);
+export async function clearNextExamPlan(_karteNumber) {
+  // v2 では planId 指定の deleteExamScheduledPlan を使う
 }
 
 /**
@@ -570,63 +639,6 @@ export async function addExamHistory(karteNumber, { item, date, note }) {
 export async function deleteExamHistory(karteNumber, historyId) {
   await authReady;
   await remove(ref(db, `examPlan/${karteNumber}/history/${historyId}`));
-}
-
-/**
- * 定期検査スケジュールを追加する。
- * intervalDays を正とし、表示用に intervalUnit / intervalValue も保存する。
- * 旧クライアント向けに、単位が月のときだけ intervalMonths も併記する。
- */
-export async function addExamRecurring(
-  karteNumber,
-  { item, intervalDays, intervalUnit, intervalValue, intervalMonths, lastDone, windowDays }
-) {
-  await ensureExamPlanRoot(karteNumber);
-  const newRef = push(ref(db, `examPlan/${karteNumber}/recurring`));
-  const days = Number(intervalDays) || 0;
-  const unit = intervalUnit || "day";
-  const value = Number(intervalValue) || 0;
-  const payload = {
-    item: item || "",
-    intervalDays: days,
-    intervalUnit: unit,
-    intervalValue: value,
-    lastDone: lastDone || "",
-    windowDays: typeof windowDays === "number" ? windowDays : 14,
-  };
-  // 互換: 月指定なら旧フィールドも残す
-  if (unit === "month" && value > 0) {
-    payload.intervalMonths = value;
-  } else if (intervalMonths != null) {
-    payload.intervalMonths = Number(intervalMonths) || 0;
-  }
-  await set(newRef, payload);
-  return newRef.key;
-}
-
-/**
- * 定期検査スケジュールを更新する。
- */
-export async function updateExamRecurring(karteNumber, recurringId, fields) {
-  await authReady;
-  const payload = {};
-  if (fields.item != null) payload.item = fields.item;
-  if (fields.intervalDays != null) payload.intervalDays = Number(fields.intervalDays);
-  if (fields.intervalUnit != null) payload.intervalUnit = fields.intervalUnit;
-  if (fields.intervalValue != null) payload.intervalValue = Number(fields.intervalValue);
-  // null を渡すと RTDB から旧 intervalMonths を削除できる
-  if ("intervalMonths" in fields) payload.intervalMonths = fields.intervalMonths;
-  if (fields.lastDone != null) payload.lastDone = fields.lastDone;
-  if (fields.windowDays != null) payload.windowDays = Number(fields.windowDays);
-  await update(ref(db, `examPlan/${karteNumber}/recurring/${recurringId}`), payload);
-}
-
-/**
- * 定期検査スケジュールを削除する。
- */
-export async function deleteExamRecurring(karteNumber, recurringId) {
-  await authReady;
-  await remove(ref(db, `examPlan/${karteNumber}/recurring/${recurringId}`));
 }
 
 // --- 薬剤マスタ -----------------------------------------------------------

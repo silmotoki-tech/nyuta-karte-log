@@ -286,8 +286,7 @@
             <h3 class="exam-section__title">検査予定一覧</h3>
           </div>
           <div class="exam-register-actions">
-            <button id="btn-exam-new" class="btn btn--small btn--primary" type="button">単発の予定を登録</button>
-            <button id="btn-exam-recurring-add" class="btn btn--small btn--outline" type="button">定期スケジュールを登録</button>
+            <button id="btn-exam-new" class="btn btn--small btn--primary" type="button">予定を登録</button>
           </div>
           <p class="field__note" id="exam-plan-empty">登録された検査予定はありません。</p>
           <ul class="exam-list" id="exam-plan-list"></ul>
@@ -518,53 +517,10 @@
         <input id="exam-plan-note" class="input" type="text" placeholder="例）術後フォロー" />
       </div>
 
-      <div class="field">
-        <label class="exam-other-check">
-          <input type="checkbox" id="exam-plan-enable-recurring" />
-          <span>定期検査としても登録する</span>
-        </label>
-        <div id="exam-plan-recurring-fields" hidden>
-          <span class="label">間隔</span>
-          <div class="interval-unit-buttons" id="exam-plan-interval-units" role="group" aria-label="間隔の単位"></div>
-          <p class="interval-value-display" id="exam-plan-interval-display">3ヶ月ごと</p>
-          <div class="numpad" id="exam-plan-interval-numpad" aria-label="間隔の数値入力"></div>
-          <p class="field__note">数字ボタンで間隔を入力し、「確定」を押してください（キーボードは使いません）。</p>
-        </div>
-      </div>
-
       <p id="exam-plan-error" class="error-text" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-exam-plan-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-exam-plan-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 検査予定: 定期スケジュール編集モーダル -->
-<div class="modal" id="exam-recurring-edit-modal" hidden>
-  <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-recurring-edit-title">
-    <div class="modal__header">
-      <h2 class="modal__title" id="exam-recurring-edit-title">定期スケジュールを編集</h2>
-      <button class="modal__close" id="btn-close-exam-recurring-edit" type="button" aria-label="閉じる">&times;</button>
-    </div>
-    <div class="modal__body">
-      <p class="field__note" id="exam-recurring-edit-item"></p>
-      <div class="field">
-        <span class="label">間隔</span>
-        <div class="interval-unit-buttons" id="exam-recurring-interval-units" role="group" aria-label="間隔の単位"></div>
-        <p class="interval-value-display" id="exam-recurring-interval-display">3ヶ月ごと</p>
-        <div class="numpad" id="exam-recurring-interval-numpad" aria-label="間隔の数値入力"></div>
-      </div>
-      <div class="field">
-        <label class="label" for="exam-recurring-last-done">最終実施日（空欄可）</label>
-        <input id="exam-recurring-last-done" class="input input--date" type="date" />
-      </div>
-      <p id="exam-recurring-edit-error" class="error-text" role="alert" hidden></p>
-      <div class="tpl-editor__actions">
-        <button id="btn-exam-recurring-edit-save" class="btn btn--small btn--primary" type="button">保存する</button>
-        <button id="btn-exam-recurring-edit-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
       </div>
     </div>
   </div>
@@ -606,7 +562,7 @@
     </div>
     <div class="modal__body">
       <p class="field__note" id="exam-after-summary" hidden></p>
-      <p class="card__hint">実施を記録しました。次の予定を入力するか、終了を選んでください。</p>
+      <p class="card__hint">実施を記録しました。次の予定日を入力するか、終了してください。</p>
       <div class="tpl-editor__actions">
         <button id="btn-exam-after-next" class="btn btn--small btn--primary" type="button">次の予定を入力する</button>
         <button id="btn-exam-after-end" class="btn btn--small btn--outline" type="button">終了する</button>
