@@ -15,7 +15,7 @@ import {
   updateExamItem,
   deleteExamItem,
 } from "./db.js";
-import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
+import { enableRowGestures } from "./row-gestures.js";
 
 /**
  * 残り日数の色分け閾値（仮。後で調整可能）。
@@ -655,13 +655,6 @@ function renderUnifiedPlanList() {
   const entries = collectUnifiedPlanEntries();
   if (planEmpty) planEmpty.hidden = entries.length > 0;
 
-  const section = planList.closest(".exam-section") || planList.parentElement;
-  if (entries.length > 0) {
-    ensureRowGestureHint(section, planEmpty || planList, "row-gesture-hint--exam");
-  } else {
-    section?.querySelectorAll(".row-gesture-hint--exam").forEach((el) => el.remove());
-  }
-
   entries.forEach((entry) => {
     const li = document.createElement("li");
     li.className = "exam-list-item";
@@ -832,13 +825,6 @@ function renderHistory() {
   historyEmpty.hidden = items.length > 0;
 
   items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-
-  const histSection = historyList.closest(".exam-section") || historyList.parentElement;
-  if (items.length > 0) {
-    ensureRowGestureHint(histSection, historyEmpty || historyList, "row-gesture-hint--exam-hist");
-  } else {
-    histSection?.querySelectorAll(".row-gesture-hint--exam-hist").forEach((el) => el.remove());
-  }
 
   items.forEach((h) => {
     const li = document.createElement("li");

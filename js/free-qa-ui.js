@@ -14,7 +14,7 @@ import {
   ApiKeyMissingError,
 } from "./anthropic.js";
 import { openSettings } from "./settings-ui.js";
-import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
+import { enableRowGestures } from "./row-gestures.js";
 
 let deps = {
   showToast: () => {},
@@ -87,13 +87,6 @@ function renderQaList() {
     (b.askedAt || "").localeCompare(a.askedAt || "")
   );
   if (qaEmpty) qaEmpty.hidden = items.length > 0;
-
-  const panel = qaList.closest(".right-panel") || qaList.parentElement;
-  if (items.length > 0) {
-    ensureRowGestureHint(panel, qaEmpty || qaList, "row-gesture-hint--qa");
-  } else {
-    panel?.querySelectorAll(".row-gesture-hint--qa").forEach((el) => el.remove());
-  }
 
   items.forEach((item) => {
     qaList.appendChild(createQaCard(item));

@@ -8,7 +8,7 @@ import {
   updateProcedure,
   deleteProcedure,
 } from "./db.js";
-import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
+import { enableRowGestures } from "./row-gestures.js";
 
 const AUTHORS = [
   "院長", "大辻", "川邉", "齋藤", "横井", "德永",
@@ -121,13 +121,6 @@ function renderList() {
   procList.innerHTML = "";
   const items = state.items;
   if (procEmpty) procEmpty.hidden = items.length > 0;
-
-  const panel = procList.closest(".right-panel") || procList.parentElement;
-  if (items.length > 0) {
-    ensureRowGestureHint(panel, procEmpty || procList, "row-gesture-hint--proc");
-  } else {
-    panel?.querySelectorAll(".row-gesture-hint--proc").forEach((el) => el.remove());
-  }
 
   items.forEach((item) => {
     procList.appendChild(createCard(item));

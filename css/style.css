@@ -1858,15 +1858,24 @@ select.input {
 .swipeable__actions {
   position: absolute;
   top: 0;
-  right: 0;
   bottom: 0;
-  width: var(--swipe-actions-width, 72px);
   display: flex;
   align-items: stretch;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 0;
-  background: var(--color-bg-soft, #f3f3f3);
   z-index: 0;
+}
+
+.swipeable__actions--edit {
+  right: 0;
+  width: var(--swipe-edit-width, 36px);
+  background: var(--color-bg-soft, #f3f3f3);
+}
+
+.swipeable__actions--delete {
+  left: 0;
+  width: var(--swipe-delete-width, 36px);
+  background: rgba(168, 107, 98, 0.12);
 }
 
 .swipeable__action-btn {
@@ -1879,11 +1888,8 @@ select.input {
 }
 
 .swipeable__action-btn.icon-btn--delete {
-  background: rgba(168, 107, 98, 0.12);
-}
-
-.swipeable__action-btn.icon-btn--complete {
-  color: var(--due-far, #2f7d4a);
+  background: transparent;
+  color: var(--color-danger);
 }
 
 .swipeable__front {
@@ -1894,8 +1900,9 @@ select.input {
   will-change: transform;
 }
 
-.swipeable.is-actions-open .swipeable__front {
-  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.06);
+.swipeable.is-actions-open-edit .swipeable__front,
+.swipeable.is-actions-open-delete .swipeable__front {
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.06);
 }
 
 .tl-item.swipeable,
@@ -1956,41 +1963,6 @@ select.input {
   gap: 8px;
   width: 100%;
   background: var(--color-white);
-}
-
-.row-gesture-hint {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0 0 8px;
-  padding: 6px 8px;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  color: var(--color-text-muted);
-  background: rgba(0, 0, 0, 0.03);
-  border-radius: var(--radius-sm);
-}
-
-.row-gesture-hint__text {
-  flex: 1;
-}
-
-.row-gesture-hint__dismiss {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.row-gesture-hint__dismiss:hover {
-  background: rgba(0, 0, 0, 0.06);
 }
 
 .row-longpress-menu {

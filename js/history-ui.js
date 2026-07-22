@@ -11,7 +11,7 @@ import {
   deletePatientHistoryNote,
   deletePatientHistoryEntry,
 } from "./db.js";
-import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
+import { enableRowGestures } from "./row-gestures.js";
 
 const HISTORY_TYPES = [
   { id: "disease", label: "疾患" },
@@ -161,13 +161,6 @@ function renderHistoryList() {
   historyList.innerHTML = "";
   const entries = sortedEntries(state.entries);
   historyEmpty.hidden = entries.length > 0;
-
-  const panel = historyList.closest(".right-panel") || historyList.parentElement;
-  if (entries.length > 0) {
-    ensureRowGestureHint(panel, historyEmpty || historyList, "row-gesture-hint--hist");
-  } else {
-    panel?.querySelectorAll(".row-gesture-hint--hist").forEach((el) => el.remove());
-  }
 
   let lastGroup = null;
   entries.forEach((entry) => {

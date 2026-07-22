@@ -1,9 +1,8 @@
-// 一覧行のスワイプ（左）・長押しで編集/削除を出す。
-// 普段はアクションを表示しない。
+// 一覧行のスワイプ・長押しで編集/削除を出す。
+// 左スワイプ → 編集、右スワイプ → 削除。普段はアクションを表示しない。
 
 import { createIconButton } from "./icon-actions.js";
 
-const HINT_STORAGE_KEY = "nyuta-row-gesture-hint-dismissed";
 const SWIPE_THRESHOLD = 48;
 const LONG_PRESS_MS = 480;
 const ACTION_BTN_WIDTH = 36;
@@ -11,91 +10,32 @@ const ACTION_BTN_WIDTH = 36;
 let openRow = null;
 let longPressMenu = null;
 
-function readHintDismissed() {
-  try {
-    return localStorage.getItem(HINT_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeHintDismissed() {
-  try {
-    localStorage.setItem(HINT_STORAGE_KEY, "1");
-  } catch {
-    // ignore
-  }
-}
-
-/**
- * ヒント帯を作る。既に閉じ済みなら null。
- */
-export function createRowGestureHint({ className = "" } = {}) {
-  if (readHintDismissed()) return null;
-  const wrap = document.createElement("p");
-  wrap.className = ["row-gesture-hint", className].filter(Boolean).join(" ");
-  wrap.setAttribute("role", "note");
-
-  const text = document.createElement("span");
-  text.className = "row-gesture-hint__text";
-  text.textContent = "左にスワイプまたは長押しで編集・削除ができます";
-
-  const dismiss = document.createElement("button");
-  dismiss.type = "button";
-  dismiss.className = "row-gesture-hint__dismiss";
-  dismiss.setAttribute("aria-label", "ヒントを閉じる");
-  dismiss.textContent = "×";
-  dismiss.addEventListener("click", () => {
-    writeHintDismissed();
-    document.querySelectorAll(".row-gesture-hint").forEach((el) => el.remove());
-  });
-
-  wrap.append(text, dismiss);
-  return wrap;
-}
-
-/**
- * 親要素内にヒントが無ければ先頭付近へ挿入する。
- * @param {HTMLElement|null} parent
- * @param {HTMLElement|null} beforeEl insertBefore の基準（省略時は先頭）
- * @param {string} className
- */
-export function ensureRowGestureHint(parent, beforeEl = null, className = "") {
-  if (!parent) return null;
-  const selector = className
-    ? `.row-gesture-hint.${className.split(/\s+/).join(".")}`
-    : ".row-gesture-hint";
-  const existing = parent.querySelector(selector);
-  if (existing) return existing;
-  const hint = createRowGestureHint({ className });
-  if (!hint) return null;
-  if (beforeEl && beforeEl.parentElement === parent) {
-    parent.insertBefore(hint, beforeEl);
-  } else {
-    parent.prepend(hint);
-  }
-  return hint;
-}
-
 export function closeAllRowGestures() {
   closeLongPressMenu();
   if (openRow) {
-    setRowOpen(openRow, false);
+    setRowOpen(openRow, null);
     openRow = null;
   }
 }
 
-function actionsWidth(row) {
-  const n = Number(row.dataset.actionCount || 2);
-  return Math.max(ACTION_BTN_WIDTH, n * ACTION_BTN_WIDTH);
+function sideWidth(row, side) {
+  const key = side === "edit" ? "editActionCount" : "deleteActionCount";
+  const n = Number(row.dataset[key] || 0);
+  return n > 0 ? n * ACTION_BTN_WIDTH : 0;
 }
 
-function setRowOpen(row, open) {
-  row.classList.toggle("is-actions-open", open);
+function setRowOpen(row, side) {
+  row.classList.toggle("is-actions-open-edit", side === "edit");
+  row.classList.toggle("is-actions-open-delete", side === "delete");
+  row.classList.toggle("is-actions-open", Boolean(side));
   const front = row.querySelector(".swipeable__front");
-  if (front) {
-    const w = actionsWidth(row);
-    front.style.transform = open ? `translateX(-${w}px)` : "";
+  if (!front) return;
+  if (side === "edit") {
+    front.style.transform = `translateX(-${sideWidth(row, "edit")}px)`;
+  } else if (side === "delete") {
+    front.style.transform = `translateX(${sideWidth(row, "delete")}px)`;
+  } else {
+    front.style.transform = "";
   }
 }
 
@@ -106,7 +46,7 @@ function closeLongPressMenu() {
   }
 }
 
-function showLongPressMenu(anchorEl, actions, clientX, clientY) {
+function showLongPressMenu(actions, clientX, clientY) {
   closeLongPressMenu();
   const menu = document.createElement("div");
   menu.className = "row-longpress-menu";
@@ -149,30 +89,10 @@ function showLongPressMenu(anchorEl, actions, clientX, clientY) {
   setTimeout(() => document.addEventListener("pointerdown", onDoc, true), 0);
 }
 
-/**
- * 行要素をスワイプ／長押し対応にする。
- * @param {HTMLElement} rowEl 行ルート（li など）
- * @param {{ actions: Array<{ action: string, title: string, onClick?: Function }>, onActivate?: Function }} opts
- */
-export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {}) {
-  if (!rowEl || rowEl.dataset.gesturesBound === "1") return rowEl;
-  rowEl.dataset.gesturesBound = "1";
-  rowEl.classList.add("swipeable");
-
-  const filtered = actions.filter(Boolean);
-  rowEl.dataset.actionCount = String(filtered.length || 1);
-  const width = actionsWidth(rowEl);
-  rowEl.style.setProperty("--swipe-actions-width", `${width}px`);
-
-  const front = document.createElement("div");
-  front.className = "swipeable__front";
-  while (rowEl.firstChild) {
-    front.appendChild(rowEl.firstChild);
-  }
-
-  const actionsEl = document.createElement("div");
-  actionsEl.className = "swipeable__actions";
-  filtered.forEach((item) => {
+function buildActionsPanel(side, items) {
+  const el = document.createElement("div");
+  el.className = `swipeable__actions swipeable__actions--${side}`;
+  items.forEach((item) => {
     const btn = createIconButton({
       action: item.action,
       title: item.title,
@@ -183,10 +103,47 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
         item.onClick?.(e);
       },
     });
-    actionsEl.appendChild(btn);
+    el.appendChild(btn);
   });
+  return el;
+}
 
-  rowEl.append(actionsEl, front);
+/**
+ * 行要素をスワイプ／長押し対応にする。
+ * 左スワイプで編集、右スワイプで削除。長押しでは渡された全アクションのメニュー。
+ * @param {HTMLElement} rowEl
+ * @param {{ actions: Array<{ action: string, title: string, onClick?: Function }>, onActivate?: Function }} opts
+ */
+export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {}) {
+  if (!rowEl || rowEl.dataset.gesturesBound === "1") return rowEl;
+  rowEl.dataset.gesturesBound = "1";
+  rowEl.classList.add("swipeable");
+
+  const filtered = actions.filter(Boolean);
+  const editActions = filtered.filter((a) => a.action === "edit");
+  const deleteActions = filtered.filter((a) => a.action === "delete");
+  rowEl.dataset.editActionCount = String(editActions.length);
+  rowEl.dataset.deleteActionCount = String(deleteActions.length);
+
+  const editW = sideWidth(rowEl, "edit");
+  const deleteW = sideWidth(rowEl, "delete");
+  rowEl.style.setProperty("--swipe-edit-width", `${editW}px`);
+  rowEl.style.setProperty("--swipe-delete-width", `${deleteW}px`);
+
+  const front = document.createElement("div");
+  front.className = "swipeable__front";
+  while (rowEl.firstChild) {
+    front.appendChild(rowEl.firstChild);
+  }
+
+  const parts = [];
+  if (deleteActions.length) {
+    parts.push(buildActionsPanel("delete", deleteActions));
+  }
+  if (editActions.length) {
+    parts.push(buildActionsPanel("edit", editActions));
+  }
+  rowEl.append(...parts, front);
 
   let startX = 0;
   let startY = 0;
@@ -208,7 +165,6 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
     "pointerdown",
     (e) => {
       if (e.button != null && e.button !== 0) return;
-      // 星ボタン等の操作はジェスチャ対象外
       if (e.target.closest("button, a, input, select, textarea, label")) return;
 
       pointerId = e.pointerId;
@@ -224,10 +180,10 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
         if (!tracking || moved) return;
         longFired = true;
         tracking = false;
-        if (openRow && openRow !== rowEl) setRowOpen(openRow, false);
+        if (openRow && openRow !== rowEl) setRowOpen(openRow, null);
         openRow = null;
-        setRowOpen(rowEl, false);
-        showLongPressMenu(rowEl, filtered, e.clientX, e.clientY);
+        setRowOpen(rowEl, null);
+        showLongPressMenu(filtered, e.clientX, e.clientY);
         try {
           if (navigator.vibrate) navigator.vibrate(12);
         } catch {
@@ -253,7 +209,6 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
       if (!swiping) {
         if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
         if (Math.abs(dy) > Math.abs(dx)) {
-          // 縦スクロール優先
           tracking = false;
           clearLong();
           return;
@@ -262,13 +217,20 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
         moved = true;
         clearLong();
         if (openRow && openRow !== rowEl) {
-          setRowOpen(openRow, false);
+          setRowOpen(openRow, null);
           openRow = null;
         }
       }
-      const max = -width;
-      const x = Math.min(0, Math.max(dx, max));
-      front.style.transform = `translateX(${x}px)`;
+      // 左スワイプ(負)→編集、右スワイプ(正)→削除。無い側は動かさない。
+      let x = dx;
+      if (x < 0) {
+        x = editW > 0 ? Math.max(x, -editW) : 0;
+      } else if (x > 0) {
+        x = deleteW > 0 ? Math.min(x, deleteW) : 0;
+      }
+      front.style.transform = x ? `translateX(${x}px)` : "";
+      rowEl.classList.toggle("is-actions-open-edit", x < 0);
+      rowEl.classList.toggle("is-actions-open-delete", x > 0);
     },
     { passive: true }
   );
@@ -290,17 +252,20 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
 
     if (wasSwiping) {
       const dx = e.clientX - startX;
-      const open = dx <= -SWIPE_THRESHOLD;
-      setRowOpen(rowEl, open);
-      openRow = open ? rowEl : openRow === rowEl ? null : openRow;
-      if (!open) front.style.transform = "";
+      let side = null;
+      if (dx <= -SWIPE_THRESHOLD && editW > 0) side = "edit";
+      else if (dx >= SWIPE_THRESHOLD && deleteW > 0) side = "delete";
+      setRowOpen(rowEl, side);
+      openRow = side ? rowEl : openRow === rowEl ? null : openRow;
+      if (!side) front.style.transform = "";
       return;
     }
 
-    // タップ
     if (rowEl.classList.contains("is-actions-open")) {
-      setRowOpen(rowEl, false);
-      if (openRow === rowEl) openRow = null;
+      setRowOpen(rowEl, null);
+      if (openRow === rowEl) {
+        openRow = null;
+      }
       return;
     }
     if (onActivate && !moved) {
@@ -314,7 +279,6 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
   return rowEl;
 }
 
-// 画面タップで開いている行を閉じる
 if (typeof document !== "undefined") {
   document.addEventListener(
     "pointerdown",

@@ -53,7 +53,7 @@ import {
   setPasscodeVerified,
   clearPasscodeVerified,
 } from "./passcode-auth.js";
-import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
+import { enableRowGestures } from "./row-gestures.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -924,19 +924,6 @@ function renderTimeline(entries) {
     timelineEmptyEl.textContent = "★が付いた記録はありません。";
   } else {
     timelineEmptyEl.textContent = "まだ記録がありません。";
-  }
-
-  const centerSection = timelineEl.parentElement;
-  if (entries.length > 0) {
-    ensureRowGestureHint(
-      centerSection,
-      timelineEmptyEl || timelineEl,
-      "row-gesture-hint--timeline"
-    );
-  } else {
-    centerSection
-      ?.querySelectorAll(".row-gesture-hint--timeline")
-      .forEach((el) => el.remove());
   }
 
   entries.forEach((entry) => {

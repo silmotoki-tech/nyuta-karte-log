@@ -15,7 +15,7 @@ import {
   deleteMedicationItem,
   fetchMedicationsOnce,
 } from "./db.js";
-import { enableRowGestures, ensureRowGestureHint } from "./row-gestures.js";
+import { enableRowGestures } from "./row-gestures.js";
 import {
   FREQ_PRESETS_ABSOLUTE,
   FREQ_PRESETS_TRANSITION,
@@ -333,13 +333,6 @@ function renderMedsList() {
   medsList.innerHTML = "";
   const drugs = sortedDrugs(state.drugs);
   medsEmpty.hidden = drugs.length > 0;
-
-  const panel = medsList.closest(".right-panel") || medsList.parentElement;
-  if (drugs.length > 0) {
-    ensureRowGestureHint(panel, medsEmpty || medsList, "row-gesture-hint--meds");
-  } else {
-    panel?.querySelectorAll(".row-gesture-hint--meds").forEach((el) => el.remove());
-  }
 
   let lastCategory = null;
   drugs.forEach((drug) => {
