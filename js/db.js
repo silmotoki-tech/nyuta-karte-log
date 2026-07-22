@@ -525,12 +525,36 @@ const EXAM_ITEM_SEED = [
     order: 160,
   },
   {
+    id: "seed-imaging-chest-scr",
+    label: "胸部スク",
+    category: "imaging",
+    kind: "leaf",
+    parentId: "",
+    order: 10,
+  },
+  {
+    id: "seed-imaging-abdomen-scr",
+    label: "腹部スク",
+    category: "imaging",
+    kind: "leaf",
+    parentId: "",
+    order: 20,
+  },
+  {
+    id: "seed-imaging-full-scr",
+    label: "全スク",
+    category: "imaging",
+    kind: "leaf",
+    parentId: "",
+    order: 30,
+  },
+  {
     id: "seed-imaging-abdomen-echo",
     label: "腹部エコー",
     category: "imaging",
     kind: "leaf",
     parentId: "",
-    order: 10,
+    order: 40,
   },
   {
     id: "seed-imaging-heart-echo",
@@ -538,25 +562,12 @@ const EXAM_ITEM_SEED = [
     category: "imaging",
     kind: "leaf",
     parentId: "",
-    order: 20,
-  },
-  {
-    id: "seed-other-chest-set",
-    label: "胸部セット",
-    category: "other",
-    kind: "leaf",
-    parentId: "",
-    order: 10,
-  },
-  {
-    id: "seed-other-abdomen-set",
-    label: "腹部セット",
-    category: "other",
-    kind: "leaf",
-    parentId: "",
-    order: 20,
+    order: 50,
   },
 ];
+
+/** 旧シードID（名称変更・分類移動に伴い削除する） */
+const EXAM_ITEM_SEED_RETIRE = ["seed-other-chest-set", "seed-other-abdomen-set"];
 
 function examItemsRef() {
   return ref(db, "examItems");
@@ -596,8 +607,8 @@ function examItemSeedPayload(seed) {
 }
 
 /**
- * 初期検査項目を不足分だけ書き込み、既存シードの並び(order)は定義に合わせて同期する。
- * ユーザーが追加した項目は触らない。
+ * 初期検査項目を不足分だけ書き込み、既存シードの label / category / order を定義に同期する。
+ * ユーザーが追加した項目は触らない。廃止シードは削除する。
  */
 export async function ensureExamItemDefaults() {
   await authReady;
@@ -611,9 +622,25 @@ export async function ensureExamItemDefaults() {
       writes[seed.id] = payload;
       return;
     }
-    // 並び替え反映のため、シード項目の order だけ合わせる
+    if ((row.label || "") !== payload.label) {
+      writes[`${seed.id}/label`] = payload.label;
+    }
+    if (normalizeExamItemCategory(row.category) !== payload.category) {
+      writes[`${seed.id}/category`] = payload.category;
+    }
+    if (normalizeExamItemKind(row.kind) !== payload.kind) {
+      writes[`${seed.id}/kind`] = payload.kind;
+    }
+    if (String(row.parentId || "").trim() !== String(payload.parentId || "").trim()) {
+      writes[`${seed.id}/parentId`] = payload.parentId || "";
+    }
     if (typeof row.order !== "number" || row.order !== payload.order) {
       writes[`${seed.id}/order`] = payload.order;
+    }
+  });
+  EXAM_ITEM_SEED_RETIRE.forEach((id) => {
+    if (existing[id]) {
+      writes[id] = null;
     }
   });
   if (Object.keys(writes).length) {
