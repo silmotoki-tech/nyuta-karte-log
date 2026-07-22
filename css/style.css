@@ -1308,6 +1308,28 @@ html.is-unlocked .app {
   gap: 7px;
 }
 
+.exam-item-add {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exam-item-add__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.exam-item-add__row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.exam-item-add__row .btn {
+  flex-shrink: 0;
+}
+
 .exam-item-btn {
   border: 1.5px solid var(--color-border);
   background-color: var(--color-cream);

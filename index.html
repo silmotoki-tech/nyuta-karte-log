@@ -278,12 +278,6 @@
 
       <!-- A. 検査予定 -->
       <div class="right-panel" id="panel-exam" data-panel="exam" hidden>
-        <div class="exam-toolbar">
-          <button id="btn-open-exam-items" class="btn btn--small btn--outline" type="button">
-            検査項目の管理
-          </button>
-        </div>
-
         <section class="exam-section">
           <div class="exam-section__head">
             <h3 class="exam-section__title">検査予定一覧</h3>
@@ -519,17 +513,23 @@
       <div class="field">
         <span class="label">検査項目</span>
         <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
-        <label class="exam-other-check">
-          <input type="checkbox" id="exam-plan-other" />
-          <span>その他（フリーテキスト）</span>
-        </label>
-        <input
-          id="exam-plan-custom-item"
-          class="input"
-          type="text"
-          placeholder="検査項目名を入力"
-          hidden
-        />
+        <p class="field__note" id="exam-plan-items-empty" hidden>まだ登録された検査項目はありません。下で追加できます。</p>
+        <div class="exam-item-add">
+          <label class="label label--sub" for="exam-plan-new-item">新しい項目を追加</label>
+          <div class="exam-item-add__row">
+            <input
+              id="exam-plan-new-item"
+              class="input"
+              type="text"
+              placeholder="例）血液検査"
+              autocomplete="off"
+            />
+            <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">
+              追加
+            </button>
+          </div>
+          <p id="exam-plan-item-error" class="error-text" role="alert" hidden></p>
+        </div>
       </div>
 
       <div class="field">
@@ -597,32 +597,6 @@
       <div class="tpl-editor__actions">
         <button id="btn-exam-after-next" class="btn btn--small btn--primary" type="button">次の予定を入力する</button>
         <button id="btn-exam-after-end" class="btn btn--small btn--outline" type="button">終了する</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 検査項目マスタ管理モーダル -->
-<div class="modal" id="exam-items-modal" hidden>
-  <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-items-modal-title">
-    <div class="modal__header">
-      <h2 class="modal__title" id="exam-items-modal-title">検査項目の管理</h2>
-      <button class="modal__close" id="btn-close-exam-items" type="button" aria-label="閉じる">&times;</button>
-    </div>
-    <div class="modal__body">
-      <ul class="tpl-list" id="exam-items-list"></ul>
-      <p class="field__note" id="exam-items-list-empty" hidden>登録された検査項目はありません。</p>
-
-      <div class="tpl-editor">
-        <h3 class="tpl-editor__title" id="exam-item-editor-title">新しい検査項目を追加</h3>
-        <label class="label" for="exam-item-label-input">項目名</label>
-        <input id="exam-item-label-input" class="input" type="text" placeholder="例）血液検査" />
-        <p id="exam-item-error" class="error-text" role="alert" hidden></p>
-        <div class="tpl-editor__actions">
-          <button id="btn-exam-item-save" class="btn btn--small btn--primary" type="button">追加する</button>
-          <button id="btn-exam-item-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
-        </div>
       </div>
     </div>
   </div>

@@ -10,8 +10,6 @@ import {
   reviveExamPlanByItem,
   addExamHistory,
   addExamItem,
-  updateExamItem,
-  deleteExamItem,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
 
@@ -66,7 +64,6 @@ const state = {
     dueRelativeBuffer: "",
     mode: "create", // create | edit | afterComplete
   },
-  editingExamItemId: null,
   /** カレンダー↔相対の同期ループ防止 */
   syncingDueFromRelative: false,
 };
@@ -101,13 +98,13 @@ const btnSheetComplete = document.getElementById("btn-exam-sheet-complete");
 const btnSheetEnd = document.getElementById("btn-exam-sheet-end");
 const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
 
-const btnOpenExamItems = document.getElementById("btn-open-exam-items");
-
 const planModal = document.getElementById("exam-plan-modal");
 const planModalTitle = document.getElementById("exam-plan-modal-title");
 const planItemButtons = document.getElementById("exam-plan-item-buttons");
-const planOtherCheck = document.getElementById("exam-plan-other");
-const planCustomItem = document.getElementById("exam-plan-custom-item");
+const planItemsEmpty = document.getElementById("exam-plan-items-empty");
+const planNewItemInput = document.getElementById("exam-plan-new-item");
+const btnPlanAddItem = document.getElementById("btn-exam-plan-add-item");
+const planItemError = document.getElementById("exam-plan-item-error");
 const planDueDate = document.getElementById("exam-plan-due-date");
 const planDueUnits = document.getElementById("exam-plan-due-units");
 const planDueDisplay = document.getElementById("exam-plan-due-display");
@@ -132,16 +129,6 @@ const afterSummary = document.getElementById("exam-after-summary");
 const btnAfterNext = document.getElementById("btn-exam-after-next");
 const btnAfterEnd = document.getElementById("btn-exam-after-end");
 const btnCloseAfterModal = document.getElementById("btn-close-exam-after");
-
-const examItemsModal = document.getElementById("exam-items-modal");
-const examItemsList = document.getElementById("exam-items-list");
-const examItemsListEmpty = document.getElementById("exam-items-list-empty");
-const examItemLabelInput = document.getElementById("exam-item-label-input");
-const examItemError = document.getElementById("exam-item-error");
-const examItemEditorTitle = document.getElementById("exam-item-editor-title");
-const btnExamItemSave = document.getElementById("btn-exam-item-save");
-const btnExamItemCancel = document.getElementById("btn-exam-item-cancel");
-const btnCloseExamItems = document.getElementById("btn-close-exam-items");
 
 // --- 日付ユーティリティ ---------------------------------------------------
 
@@ -396,13 +383,11 @@ export function initExamPlanUI(helpers = {}) {
   wirePlanModal();
   wireCompleteModal();
   wireAfterModal();
-  wireExamItemsModal();
   buildPlanDueRelativeUI();
 
   state.unsubscribeItems = subscribeExamItems((items) => {
     state.examItems = items;
     renderPlanItemButtons();
-    if (!examItemsModal?.hidden) renderExamItemsList();
   });
 
   showRightEmpty(true);
@@ -759,7 +744,6 @@ function renderHistory() {
 
 function wireNextPlanActions() {
   btnExamNew?.addEventListener("click", () => openPlanModal("create"));
-  btnOpenExamItems?.addEventListener("click", openExamItemsModal);
   btnCloseItemSheet?.addEventListener("click", closeExamItemSheet);
   itemSheet?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemSheet);
   btnSheetSave?.addEventListener("click", handleSheetSave);
@@ -845,13 +829,11 @@ function wirePlanModal() {
   btnPlanCancel?.addEventListener("click", closePlanModal);
   planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
   btnPlanSave?.addEventListener("click", handlePlanSave);
-
-  planOtherCheck?.addEventListener("change", () => {
-    planCustomItem.hidden = !planOtherCheck.checked;
-    if (planOtherCheck.checked) {
-      state.draft.item = "";
-      renderPlanItemButtons();
-      planCustomItem.focus();
+  btnPlanAddItem?.addEventListener("click", handleAddExamItemFromPlanModal);
+  planNewItemInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddExamItemFromPlanModal();
     }
   });
 
@@ -1050,24 +1032,59 @@ function resetDraftDueRelative() {
 function renderPlanItemButtons() {
   if (!planItemButtons) return;
   planItemButtons.innerHTML = "";
+  if (planItemsEmpty) planItemsEmpty.hidden = state.examItems.length > 0;
+
   state.examItems.forEach((item) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "exam-item-btn";
     btn.textContent = item.label;
-    btn.classList.toggle(
-      "is-selected",
-      !planOtherCheck?.checked && state.draft.item === item.label
-    );
+    btn.classList.toggle("is-selected", state.draft.item === item.label);
     btn.addEventListener("click", () => {
-      if (planOtherCheck) planOtherCheck.checked = false;
-      if (planCustomItem) planCustomItem.hidden = true;
       state.draft.item = item.label;
       state.draft.customItem = "";
       renderPlanItemButtons();
     });
     planItemButtons.appendChild(btn);
   });
+}
+
+/**
+ * 予定登録モーダル内で検査項目マスタへ新規追加し、その項目を選択する。
+ */
+async function handleAddExamItemFromPlanModal() {
+  const label = planNewItemInput?.value.trim() || "";
+  if (!label) {
+    deps.showError(planItemError, "項目名を入力してください。");
+    return;
+  }
+  const exists = state.examItems.some(
+    (item) => (item.label || "").trim() === label
+  );
+  if (exists) {
+    state.draft.item = label;
+    if (planNewItemInput) planNewItemInput.value = "";
+    deps.showError(planItemError, "");
+    renderPlanItemButtons();
+    deps.showToast("既存の項目を選択しました。");
+    return;
+  }
+
+  deps.showError(planItemError, "");
+  deps.setBusy(btnPlanAddItem, true, "追加中...", "追加");
+  try {
+    await addExamItem({ label });
+    state.draft.item = label;
+    if (planNewItemInput) planNewItemInput.value = "";
+    // subscribe でボタン再描画されるが、反映前でも選択状態を保持
+    renderPlanItemButtons();
+    deps.showToast(`「${label}」を追加しました。`);
+  } catch (err) {
+    console.error(err);
+    deps.showError(planItemError, "追加に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnPlanAddItem, false, "追加中...", "追加");
+  }
 }
 
 function updateWindowNote() {
@@ -1124,11 +1141,8 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     state.draft.baselineDate = todayStr();
   }
 
-  if (planOtherCheck) planOtherCheck.checked = false;
-  if (planCustomItem) {
-    planCustomItem.hidden = true;
-    planCustomItem.value = "";
-  }
+  if (planNewItemInput) planNewItemInput.value = "";
+  deps.showError(planItemError, "");
   if (planDueDate) planDueDate.value = state.draft.dueDate;
   if (planNote) planNote.value = state.draft.note;
   if (state.draft.dueDate) {
@@ -1149,10 +1163,7 @@ function closePlanModal() {
 }
 
 async function handlePlanSave() {
-  let item = state.draft.item;
-  if (planOtherCheck?.checked) {
-    item = planCustomItem?.value.trim() || "";
-  }
+  const item = (state.draft.item || "").trim();
   const dueBuffered = Number(state.draft.dueRelativeBuffer);
   if (state.draft.dueRelativeBuffer !== "" && dueBuffered >= 1) {
     applyDueRelativeToCalendar();
@@ -1161,7 +1172,7 @@ async function handlePlanSave() {
   const note = planNote?.value.trim() || "";
 
   if (!item) {
-    deps.showError(planError, "検査項目を選択するか、「その他」で入力してください。");
+    deps.showError(planError, "検査項目を選ぶか、新しい項目を追加してください。");
     return;
   }
   if (!dueDate) {
@@ -1281,119 +1292,6 @@ function closeAfterModal() {
   if (afterModal) {
     afterModal.hidden = true;
     afterModal._preset = null;
-  }
-}
-
-// --- 検査項目マスタ管理 ---------------------------------------------------
-
-function wireExamItemsModal() {
-  btnCloseExamItems?.addEventListener("click", closeExamItemsModal);
-  examItemsModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemsModal);
-  btnExamItemSave?.addEventListener("click", handleExamItemSave);
-  btnExamItemCancel?.addEventListener("click", resetExamItemEditor);
-}
-
-function openExamItemsModal() {
-  resetExamItemEditor();
-  renderExamItemsList();
-  if (examItemsModal) examItemsModal.hidden = false;
-}
-
-function closeExamItemsModal() {
-  if (examItemsModal) examItemsModal.hidden = true;
-}
-
-function renderExamItemsList() {
-  if (!examItemsList) return;
-  examItemsList.innerHTML = "";
-  if (examItemsListEmpty) examItemsListEmpty.hidden = state.examItems.length > 0;
-
-  state.examItems.forEach((item) => {
-    const li = document.createElement("li");
-    li.className = "tpl-list-item";
-
-    const info = document.createElement("div");
-    info.className = "tpl-list-item__info";
-    const label = document.createElement("div");
-    label.className = "tpl-list-item__label";
-    label.textContent = item.label || "(名称未設定)";
-    info.appendChild(label);
-
-    li.appendChild(info);
-    enableRowGestures(li, {
-      actions: [
-        {
-          action: "edit",
-          title: "編集",
-          onClick: () => {
-            state.editingExamItemId = item.id;
-            if (examItemEditorTitle) examItemEditorTitle.textContent = "検査項目を編集";
-            if (examItemLabelInput) examItemLabelInput.value = item.label || "";
-            if (btnExamItemSave) btnExamItemSave.textContent = "更新する";
-            if (btnExamItemCancel) btnExamItemCancel.hidden = false;
-            deps.showError(examItemError, "");
-            examItemLabelInput?.focus();
-          },
-        },
-        {
-          action: "delete",
-          title: "削除",
-          onClick: async () => {
-            const ok = window.confirm(`検査項目「${item.label}」を削除しますか？`);
-            if (!ok) return;
-            try {
-              await deleteExamItem(item.id);
-              if (state.editingExamItemId === item.id) resetExamItemEditor();
-              deps.showToast("検査項目を削除しました。");
-            } catch (err) {
-              console.error(err);
-              deps.showToast("削除に失敗しました。", { isError: true });
-            }
-          },
-        },
-      ],
-    });
-    examItemsList.appendChild(li);
-  });
-}
-
-function resetExamItemEditor() {
-  state.editingExamItemId = null;
-  if (examItemEditorTitle) examItemEditorTitle.textContent = "新しい検査項目を追加";
-  if (examItemLabelInput) examItemLabelInput.value = "";
-  if (btnExamItemSave) btnExamItemSave.textContent = "追加する";
-  if (btnExamItemCancel) btnExamItemCancel.hidden = true;
-  deps.showError(examItemError, "");
-}
-
-async function handleExamItemSave() {
-  const label = examItemLabelInput?.value.trim() || "";
-  if (!label) {
-    deps.showError(examItemError, "項目名を入力してください。");
-    return;
-  }
-  deps.showError(examItemError, "");
-  const editingId = state.editingExamItemId;
-  deps.setBusy(btnExamItemSave, true, "保存中...", editingId ? "更新する" : "追加する");
-  try {
-    if (editingId) {
-      await updateExamItem(editingId, { label });
-      deps.showToast("検査項目を更新しました。");
-    } else {
-      await addExamItem({ label });
-      deps.showToast("検査項目を追加しました。");
-    }
-    resetExamItemEditor();
-  } catch (err) {
-    console.error(err);
-    deps.showError(examItemError, "保存に失敗しました。もう一度お試しください。");
-  } finally {
-    deps.setBusy(
-      btnExamItemSave,
-      false,
-      "保存中...",
-      state.editingExamItemId ? "更新する" : "追加する"
-    );
   }
 }
 
