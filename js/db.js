@@ -623,6 +623,46 @@ const EXAM_ITEM_SEED = [
     parentId: "",
     order: 70,
   },
+  {
+    id: "seed-other-urine-no-upc",
+    label: "尿検査(UPCなし)",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 10,
+  },
+  {
+    id: "seed-other-urine-upc",
+    label: "尿検査(UPC)",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 20,
+  },
+  {
+    id: "seed-other-upc-outlab",
+    label: "UPC(外注)",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 30,
+  },
+  {
+    id: "seed-other-fecal",
+    label: "便検査",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 40,
+  },
+  {
+    id: "seed-other-diarrhea-panel",
+    label: "下痢パネル",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 50,
+  },
 ];
 
 /** 一時的に作った重複シード（旧IDへ統合したため削除） */
