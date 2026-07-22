@@ -1,5 +1,10 @@
 // 検査項目名の表記ゆれマッチング（AI提案の候補提示用）
-// 血液の大項目／内訳、画像・病理・その他の独立項目をすべて対象にする。
+//
+// 照合対象:
+// - 血液タブの独立項目（CBC 等）
+// - 血液タブの大項目の内訳（肝臓→ALT、ホルモン→ACTH通常 等）※必須
+// - 画像・病理・その他の独立項目
+// 大項目（group / 子を持つ行）自体は候補に出さない。
 
 /**
  * 比較用に正規化する（空白・括弧・中黒を除き、英数字は小文字）。
@@ -24,12 +29,69 @@ export function extractExamTokens(value) {
   return tokens;
 }
 
+function buildParentIdSet(items) {
+  const set = new Set();
+  for (const item of items || []) {
+    const pid = String(item?.parentId || "").trim();
+    if (pid) set.add(pid);
+  }
+  return set;
+}
+
+function findParentLabel(items, parentId) {
+  if (!parentId) return "";
+  const parent = (items || []).find((i) => String(i?.id || "").trim() === parentId);
+  return parent ? String(parent.label || "").trim() : "";
+}
+
 /**
- * 選択可能な検査項目（leaf）かどうか。
- * - kind === "group" は除外
- * - 他項目の parentId になっているID（大項目）も除外（kind 欠落・誤記の保険）
- * - parentId 付きの内訳項目は対象に含める
+ * AI照合・候補提示の対象項目を集める。
+ * parentId を持つ内訳は必ず含める。大項目だけ除外する。
  */
+export function listExamMatchTargets(items) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  const parentIds = buildParentIdSet(list);
+  const targets = [];
+
+  for (const item of list) {
+    const label = String(item.label || "").trim();
+    if (!label) continue;
+
+    const id = String(item.id || "").trim();
+    const kind = String(item.kind || "").trim();
+    const parentId = String(item.parentId || "").trim();
+
+    // 大項目は候補にしない
+    if (kind === "group") continue;
+    // kind 欠落でも「子を持つ行」は大項目扱い
+    if (id && parentIds.has(id)) continue;
+
+    targets.push({
+      item,
+      id,
+      label,
+      parentId,
+      parentLabel: findParentLabel(list, parentId),
+      nested: Boolean(parentId),
+      category: item.category || "",
+    });
+  }
+
+  return targets;
+}
+
+/** @deprecated listExamMatchTargets を使う。互換のため残す。 */
+export function listExamLeafItems(items) {
+  return listExamMatchTargets(items).map((t) => ({
+    ...(t.item || {}),
+    id: t.id,
+    label: t.label,
+    parentId: t.parentId,
+    kind: "leaf",
+    category: t.category,
+  }));
+}
+
 export function isExamLeafItem(item, parentIdSet) {
   if (!item) return false;
   const label = String(item.label || "").trim();
@@ -39,19 +101,6 @@ export function isExamLeafItem(item, parentIdSet) {
   const id = String(item.id || "").trim();
   if (id && parentIdSet && parentIdSet.has(id)) return false;
   return true;
-}
-
-/**
- * マスタ配列から照合対象の leaf だけを取り出す（内訳・独立項目の両方）。
- */
-export function listExamLeafItems(items) {
-  const list = Array.isArray(items) ? items : [];
-  const parentIdSet = new Set(
-    list
-      .map((item) => String(item?.parentId || "").trim())
-      .filter(Boolean)
-  );
-  return list.filter((item) => isExamLeafItem(item, parentIdSet));
 }
 
 function longestCommonSubstring(a, b) {
@@ -73,10 +122,6 @@ function longestCommonSubstring(a, b) {
   return best;
 }
 
-/**
- * よくある表記ゆれ → マスタ側で優先したいラベル断片。
- * （部分一致でブーストする）
- */
 const EXAM_ALIAS_BOOSTS = [
   {
     test: (q) => /acth/.test(q) && /刺激|試験|test|stim/.test(q),
@@ -151,32 +196,37 @@ export function scoreExamLabelMatch(query, candidate) {
   }
 
   score = Math.max(score, aliasBoost(q, c));
-
   return Math.min(100, score);
 }
 
 /**
- * 検査項目マスタから、query に近そうな leaf 項目をスコア順で返す。
- * 大項目の内訳・独立項目・全タブを対象にする。
- * @returns {{ label: string, score: number, item: object }[]}
+ * 検査項目マスタから、query に近そうな選択可能項目をスコア順で返す。
+ * 内訳（parentId 付き）も独立項目も同じ土台で照合する。
+ * @returns {{ label: string, displayLabel: string, score: number, nested: boolean, parentLabel: string, item: object }[]}
  */
 export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 } = {}) {
   const q = String(query || "").trim();
   if (!q) return [];
 
-  const leaves = listExamLeafItems(items);
+  const targets = listExamMatchTargets(items);
 
-  const scored = leaves.map((item) => {
-    const label = String(item.label || "").trim();
+  const scored = targets.map((t) => {
+    const score = scoreExamLabelMatch(q, t.label);
+    const displayLabel = t.parentLabel ? `${t.label}（${t.parentLabel}）` : t.label;
     return {
-      item,
-      label,
-      score: scoreExamLabelMatch(q, label),
+      item: t.item,
+      label: t.label,
+      displayLabel,
+      parentLabel: t.parentLabel,
+      nested: t.nested,
+      score,
     };
   });
 
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    // 内訳を同点なら先に（階層由来でも確実に候補へ）
+    if (a.nested !== b.nested) return a.nested ? -1 : 1;
     return a.label.localeCompare(b.label, "ja");
   });
 

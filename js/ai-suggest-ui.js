@@ -28,7 +28,7 @@ import {
 } from "./db.js";
 import {
   findExamItemCandidates,
-  listExamLeafItems,
+  listExamMatchTargets,
 } from "./exam-item-match.js";
 import { mountNumpad } from "./freq-picker.js";
 
@@ -121,7 +121,7 @@ export async function runAiSuggestAfterSave({
     }
     try {
       state.examMasterItems = await loadExamMasterItems();
-      examMasterLabels = listExamLeafItems(state.examMasterItems)
+      examMasterLabels = listExamMatchTargets(state.examMasterItems)
         .map((i) => i.label)
         .filter(Boolean);
     } catch (_) {
@@ -510,8 +510,8 @@ async function loadExamMasterItems() {
     items = [];
   }
   const snap = getExamItemsSnapshot();
-  const fetchedLeaves = listExamLeafItems(items).length;
-  const snapLeaves = listExamLeafItems(snap).length;
+  const fetchedLeaves = listExamMatchTargets(items).length;
+  const snapLeaves = listExamMatchTargets(snap).length;
   if (snapLeaves > fetchedLeaves) {
     return snap;
   }
@@ -523,7 +523,7 @@ async function loadExamMasterItems() {
 
 function getExamMasterItemsForMatch() {
   const current = state.examMasterItems || [];
-  if (listExamLeafItems(current).length > 0) return current;
+  if (listExamMatchTargets(current).length > 0) return current;
   const snap = getExamItemsSnapshot();
   if (snap.length) {
     state.examMasterItems = snap;
@@ -534,6 +534,7 @@ function getExamMasterItemsForMatch() {
 
 /**
  * 検査項目: マスタに近そうな候補があればボタンで選べるようにする。
+ * 内訳項目（ホルモン→ACTH通常 等）も独立項目と同じく候補にする。
  * 「検出どおりの文言」も必ず選択肢に残す。
  */
 function buildExamItemField(s, d) {
@@ -543,10 +544,8 @@ function buildExamItemField(s, d) {
 
   const masterItems = getExamMasterItemsForMatch();
   const candidates = findExamItemCandidates(detected, masterItems);
-  const leafItems = listExamLeafItems(masterItems);
-  const masterExact = leafItems.some(
-    (item) => String(item.label || "").trim() === detected
-  );
+  const leafItems = listExamMatchTargets(masterItems);
+  const masterExact = leafItems.some((item) => item.label === detected);
   const nearby = candidates.filter((c) => c.label !== detected);
 
   // 完全一致のみ／候補なし → 従来どおり手入力
@@ -568,7 +567,10 @@ function buildExamItemField(s, d) {
 
   const DETECTED_ID = "__detected__";
   const options = [
-    ...nearby.map((c) => ({ id: c.label, label: c.label })),
+    ...nearby.map((c) => ({
+      id: c.label,
+      label: c.displayLabel || c.label,
+    })),
     { id: DETECTED_ID, label: `検出どおり「${detected}」で登録` },
   ];
 
@@ -593,6 +595,7 @@ function buildExamItemField(s, d) {
     btn.type = "button";
     btn.className = "exam-item-btn";
     btn.textContent = opt.label;
+    btn.dataset.examLabel = opt.id === DETECTED_ID ? detected : opt.id;
     btn.classList.toggle("is-selected", selectedId === opt.id);
     btn.addEventListener("click", () => {
       d.item = opt.id === DETECTED_ID ? detected : opt.id;
