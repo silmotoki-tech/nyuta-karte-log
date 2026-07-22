@@ -525,7 +525,8 @@ const EXAM_ITEM_SEED = [
     order: 160,
   },
   {
-    id: "seed-imaging-chest-scr",
+    // 旧「その他」シードIDを流用し、画像へ移す（既存DBを確実に更新）
+    id: "seed-other-chest-set",
     label: "胸部スク",
     category: "imaging",
     kind: "leaf",
@@ -533,7 +534,7 @@ const EXAM_ITEM_SEED = [
     order: 10,
   },
   {
-    id: "seed-imaging-abdomen-scr",
+    id: "seed-other-abdomen-set",
     label: "腹部スク",
     category: "imaging",
     kind: "leaf",
@@ -566,8 +567,17 @@ const EXAM_ITEM_SEED = [
   },
 ];
 
-/** 旧シードID（名称変更・分類移動に伴い削除する） */
-const EXAM_ITEM_SEED_RETIRE = ["seed-other-chest-set", "seed-other-abdomen-set"];
+/** 一時的に作った重複シード（旧IDへ統合したため削除） */
+const EXAM_ITEM_SEED_RETIRE = [
+  "seed-imaging-chest-scr",
+  "seed-imaging-abdomen-scr",
+];
+
+/** 旧名称→新名称の強制移行（IDに依存しない） */
+const EXAM_ITEM_LABEL_MIGRATE = [
+  { from: "胸部セット", to: "胸部スク", category: "imaging", order: 10 },
+  { from: "腹部セット", to: "腹部スク", category: "imaging", order: 20 },
+];
 
 function examItemsRef() {
   return ref(db, "examItems");
@@ -636,6 +646,20 @@ export async function ensureExamItemDefaults() {
     }
     if (typeof row.order !== "number" || row.order !== payload.order) {
       writes[`${seed.id}/order`] = payload.order;
+    }
+  });
+  // 旧「胸部セット」「腹部セット」が別IDで残っていれば強制移行
+  Object.entries(existing).forEach(([id, row]) => {
+    if (!row || typeof row !== "object") return;
+    const label = String(row.label || "").trim();
+    const mig = EXAM_ITEM_LABEL_MIGRATE.find((m) => m.from === label);
+    if (!mig) return;
+    writes[`${id}/label`] = mig.to;
+    writes[`${id}/category`] = mig.category;
+    writes[`${id}/kind`] = "leaf";
+    writes[`${id}/parentId`] = "";
+    if (typeof row.order !== "number" || row.order !== mig.order) {
+      writes[`${id}/order`] = mig.order;
     }
   });
   EXAM_ITEM_SEED_RETIRE.forEach((id) => {
