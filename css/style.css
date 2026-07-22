@@ -1320,8 +1320,8 @@ html.is-unlocked .app {
   background-color: var(--color-cream);
   color: var(--color-text-muted);
   border-radius: var(--radius-sm);
-  padding: 8px 6px;
-  font-size: 0.85rem;
+  padding: 8px 4px;
+  font-size: 0.8rem;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;

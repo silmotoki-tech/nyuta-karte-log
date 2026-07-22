@@ -1226,7 +1226,7 @@ function updateExamItemAddUI() {
   const inBloodRoot = inBlood && !state.examBloodParentId;
   const inBloodGroup = inBlood && Boolean(state.examBloodParentId);
 
-  // 血液ルートでは追加欄なし。内訳・画像・その他のみ追加可
+  // 血液ルートでは追加欄なし。内訳・画像・病理・その他は追加可
   if (planItemAddDefault) planItemAddDefault.hidden = inBloodRoot;
 
   if (planBloodNav) {
@@ -1248,7 +1248,9 @@ function updateExamItemAddUI() {
       ? "例）ALT"
       : category === "imaging"
         ? "例）レントゲン"
-        : "例）全スク";
+        : category === "pathology"
+          ? "例）病理追加項目"
+          : "例）その他の検査";
   }
   if (planItemsEmpty) {
     planItemsEmpty.textContent = inBloodRoot

@@ -20,7 +20,7 @@
 //   templates/{templateId}/order                        … 並び順
 //
 //   examItems/{itemId}/label                            … 検査項目マスタの表示名
-//   examItems/{itemId}/category                         … "blood"|"imaging"|"other"（血液／画像／その他）
+//   examItems/{itemId}/category                         … "blood"|"imaging"|"pathology"|"other"
 //   examItems/{itemId}/kind                             … "group"|"leaf"（大項目／選択可能な項目）
 //   examItems/{itemId}/parentId                         … 内訳の親大項目ID（トップレベルは空）
 //   examItems/{itemId}/order                            … 並び順
@@ -388,12 +388,13 @@ export async function deleteTemplate(templateId) {
 export const EXAM_ITEM_CATEGORIES = [
   { id: "blood", label: "血液" },
   { id: "imaging", label: "画像" },
+  { id: "pathology", label: "病理" },
   { id: "other", label: "その他" },
 ];
 
 const EXAM_ITEM_CATEGORY_IDS = new Set(EXAM_ITEM_CATEGORIES.map((c) => c.id));
 
-/** 絶食フラグ: required=必要 / none=不要 / 空=未設定（画像・その他） */
+/** 絶食フラグ: required=必要 / none=不要 / 空=未設定（血液以外） */
 export const EXAM_FASTING = {
   REQUIRED: "required",
   NONE: "none",
@@ -565,6 +566,62 @@ const EXAM_ITEM_SEED = [
     parentId: "",
     order: 50,
   },
+  {
+    id: "seed-pathology-cyto-inhouse",
+    label: "細胞診(院内)",
+    category: "pathology",
+    kind: "leaf",
+    parentId: "",
+    order: 10,
+  },
+  {
+    id: "seed-pathology-cyto-outlab",
+    label: "細胞診(外注)",
+    category: "pathology",
+    kind: "leaf",
+    parentId: "",
+    order: 20,
+  },
+  {
+    id: "seed-pathology-histo",
+    label: "組織検査",
+    category: "pathology",
+    kind: "leaf",
+    parentId: "",
+    order: 30,
+  },
+  {
+    id: "seed-pathology-bact-culture-inhouse",
+    label: "細菌培養(院内)",
+    category: "pathology",
+    kind: "leaf",
+    parentId: "",
+    order: 40,
+  },
+  {
+    id: "seed-pathology-bact-culture-outlab",
+    label: "細菌培養(外注)",
+    category: "pathology",
+    kind: "leaf",
+    parentId: "",
+    order: 50,
+  },
+  {
+    id: "seed-pathology-fungal-culture-inhouse",
+    label: "真菌培養(院内)",
+    category: "pathology",
+    kind: "leaf",
+    parentId: "",
+    order: 60,
+  },
+  {
+    id: "seed-pathology-fungal-culture-outlab",
+    label: "真菌培養(外注)",
+    category: "pathology",
+    kind: "leaf",
+    parentId: "",
+    order: 70,
+  },
 ];
 
 /** 一時的に作った重複シード（旧IDへ統合したため削除） */
@@ -594,15 +651,34 @@ export function normalizeExamItemKind(kind) {
 
 function normalizeExamItem(id, raw) {
   const row = raw && typeof raw === "object" ? raw : {};
-  const kind = normalizeExamItemKind(row.kind);
-  const parentId = String(row.parentId || "").trim();
+  let kind = normalizeExamItemKind(row.kind);
+  let parentId = String(row.parentId || "").trim();
+  let label = row.label || "";
+  let category = normalizeExamItemCategory(row.category);
+  let order = typeof row.order === "number" ? row.order : 0;
+
+  // 旧「その他」スク項目の強制補正（端末に古い値が残っていても表示・分類を正す）
+  if (id === "seed-other-chest-set" || label.trim() === "胸部セット") {
+    label = "胸部スク";
+    category = "imaging";
+    kind = "leaf";
+    parentId = "";
+    order = 10;
+  } else if (id === "seed-other-abdomen-set" || label.trim() === "腹部セット") {
+    label = "腹部スク";
+    category = "imaging";
+    kind = "leaf";
+    parentId = "";
+    order = 20;
+  }
+
   return {
     id,
-    label: row.label || "",
-    category: normalizeExamItemCategory(row.category),
+    label,
+    category,
     kind,
     parentId: kind === "group" ? "" : parentId,
-    order: typeof row.order === "number" ? row.order : 0,
+    order,
   };
 }
 
@@ -625,10 +701,16 @@ export async function ensureExamItemDefaults() {
   const snap = await get(examItemsRef());
   const existing = snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
   const writes = {};
+  const forceRewriteIds = new Set([
+    "seed-other-chest-set",
+    "seed-other-abdomen-set",
+    "seed-imaging-full-scr",
+  ]);
   EXAM_ITEM_SEED.forEach((seed) => {
     const payload = examItemSeedPayload(seed);
     const row = existing[seed.id];
-    if (!row) {
+    if (!row || forceRewriteIds.has(seed.id)) {
+      // 移動対象は丸ごと上書きして確実に反映
       writes[seed.id] = payload;
       return;
     }
@@ -651,16 +733,17 @@ export async function ensureExamItemDefaults() {
   // 旧「胸部セット」「腹部セット」が別IDで残っていれば強制移行
   Object.entries(existing).forEach(([id, row]) => {
     if (!row || typeof row !== "object") return;
+    if (forceRewriteIds.has(id)) return;
     const label = String(row.label || "").trim();
     const mig = EXAM_ITEM_LABEL_MIGRATE.find((m) => m.from === label);
     if (!mig) return;
-    writes[`${id}/label`] = mig.to;
-    writes[`${id}/category`] = mig.category;
-    writes[`${id}/kind`] = "leaf";
-    writes[`${id}/parentId`] = "";
-    if (typeof row.order !== "number" || row.order !== mig.order) {
-      writes[`${id}/order`] = mig.order;
-    }
+    writes[id] = {
+      label: mig.to,
+      category: mig.category,
+      kind: "leaf",
+      parentId: "",
+      order: mig.order,
+    };
   });
   EXAM_ITEM_SEED_RETIRE.forEach((id) => {
     if (existing[id]) {
@@ -695,12 +778,15 @@ export function subscribeExamItems(callback) {
         callback(items);
       });
       // シードは背面で不足分だけ書く（起動直後の getAnimalName 等と競合させない）
-      setTimeout(() => {
+      const runSeed = () => {
         if (unsubscribed) return;
         ensureExamItemDefaults().catch((err) => {
           console.error("検査項目マスタの初期化に失敗しました", err);
         });
-      }, 0);
+      };
+      setTimeout(runSeed, 0);
+      // 端末キャッシュ等で初回が落ちても拾えるよう再試行
+      setTimeout(runSeed, 2500);
     })
     .catch((err) => {
       console.error("検査項目マスタの監視開始に失敗しました", err);
