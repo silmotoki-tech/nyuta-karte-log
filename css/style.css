@@ -1,15 +1,40 @@
 :root {
+  /* ブランド（要所のアクセント用。広い面塗りには使わない） */
   --color-green: #6fb82b;
   --color-green-dark: #5c9c22;
   --color-green-light: #eaf6db;
   --color-brown: #6b4834;
   --color-brown-light: #f1e6dd;
-  --color-cream: #fbf8f2;
+
+  /* ベース（白〜ごく薄いグレー） */
+  --color-cream: #f5f6f7; /* アプリ地・中央。旧クリームから移行 */
+  --color-surface-subtle: #eef0f2; /* 左カラム・区切り用の薄いグレー */
   --color-white: #ffffff;
-  --color-text: #3a332c;
-  --color-text-muted: #8a8078;
-  --color-border: #e7ddd0;
-  --color-danger: #c85a4a;
+  --color-text: #2c3034;
+  --color-text-muted: #6b7280;
+  --color-border: #e2e5e8;
+
+  /* 危険操作（削除など）…彩度を抑えた赤。超過警告とは別トーン */
+  --color-danger: #a86b62;
+
+  /* 検査予定・期限の残り日数（4段階） */
+  --due-far: #1f7a4d;
+  --due-far-border: #5aa87a;
+  --due-far-bg: #eef8f2;
+  --due-near: #a16207;
+  --due-near-border: #d4a017;
+  --due-near-bg: #fff8e6;
+  --due-close: #c2410c;
+  --due-close-border: #ea580c;
+  --due-close-bg: #fff1e6;
+  --due-overdue: #b91c1c;
+  --due-overdue-border: #dc2626;
+  --due-overdue-bg: #fef2f2;
+
+  /* ★重要フラグ（検査の黄とは役割分離） */
+  --star: #e0a92b;
+  --star-text: #b57e17;
+  --star-bg: #fdf3d9;
 
   /* 見出しカテゴリ色 */
   --cat-ope: #d9534f;         /* オペ / 救急 / 麻酔 */
@@ -19,7 +44,7 @@
   --radius-lg: 18px;
   --radius-md: 12px;
   --radius-sm: 8px;
-  --shadow-card: 0 4px 16px rgba(107, 72, 52, 0.08);
+  --shadow-card: 0 4px 16px rgba(44, 48, 52, 0.06);
 
   --header-height: 56px;
 
@@ -65,9 +90,10 @@ body {
   align-items: center;
   justify-content: center;
   padding: 28px 20px;
+  /* ロック画面のみブランド色のグラデを維持（本編の薄いグレー地とは分離） */
   background:
     radial-gradient(ellipse 80% 60% at 50% 0%, rgba(111, 184, 43, 0.22), transparent 60%),
-    linear-gradient(165deg, #eaf6db 0%, var(--color-cream) 45%, #f1e6dd 100%);
+    linear-gradient(165deg, #eaf6db 0%, #fbf8f2 45%, #f1e6dd 100%);
 }
 
 .lock-screen[hidden] {
@@ -118,7 +144,7 @@ html.is-unlocked .app {
   width: 100%;
 }
 
-/* ===== ヘッダー ===== */
+/* ===== ヘッダー（現行UI未使用。ロック画面は .lock-screen を使用） ===== */
 .app-header {
   display: flex;
   align-items: center;
@@ -187,7 +213,7 @@ html.is-unlocked .app {
 }
 
 .col--left {
-  background-color: var(--color-brown-light);
+  background-color: var(--color-surface-subtle);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -345,7 +371,7 @@ html.is-unlocked .app {
 .hl-item__star {
   grid-area: star;
   font-size: 0.8rem;
-  color: #e0a92b;
+  color: var(--star);
   visibility: hidden;
 }
 
@@ -448,7 +474,7 @@ html.is-unlocked .app {
   max-height: 58%;
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-white);
-  box-shadow: 0 2px 10px rgba(107, 72, 52, 0.06);
+  box-shadow: 0 2px 10px rgba(44, 48, 52, 0.06);
 }
 
 .entry-composer[hidden] {
@@ -662,9 +688,9 @@ html.is-unlocked .app {
 }
 
 .star-toggle[aria-pressed="true"] {
-  border-color: #e0a92b;
-  background-color: #fdf3d9;
-  color: #b57e17;
+  border-color: var(--star);
+  background-color: var(--star-bg);
+  color: var(--star-text);
 }
 
 /* 定型文ボタン */
@@ -768,7 +794,7 @@ html.is-unlocked .app {
 }
 
 .tl-item__star:hover {
-  color: #e0a92b;
+  color: var(--star);
 }
 
 .tl-item__star:active {
@@ -776,7 +802,7 @@ html.is-unlocked .app {
 }
 
 .tl-item__star[aria-pressed="true"] {
-  color: #e0a92b;
+  color: var(--star);
 }
 
 .tl-item__dot {
@@ -979,29 +1005,29 @@ html.is-unlocked .app {
 .exam-next-card {
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);
-  background-color: var(--color-cream);
+  background-color: var(--color-white);
   padding: 12px 14px;
 }
 
 .exam-next-card.is-due-far {
-  border-color: #7eb89a;
-  background-color: #f3faf6;
+  border-color: var(--due-far-border);
+  background-color: var(--due-far-bg);
 }
 
 .exam-next-card.is-due-near,
 .exam-next-card.is-alert {
-  border-color: #e0a92b;
-  background-color: #fdf8e8;
+  border-color: var(--due-near-border);
+  background-color: var(--due-near-bg);
 }
 
 .exam-next-card.is-due-close {
-  border-color: #e07a2b;
-  background-color: #fdf3ea;
+  border-color: var(--due-close-border);
+  background-color: var(--due-close-bg);
 }
 
 .exam-next-card.is-overdue {
-  border-color: var(--color-danger);
-  background-color: #fdf0ee;
+  border-color: var(--due-overdue-border);
+  background-color: var(--due-overdue-bg);
 }
 
 .exam-next-empty {
@@ -1018,17 +1044,17 @@ html.is-unlocked .app {
 }
 
 .exam-alert--overdue {
-  color: var(--color-danger);
+  color: var(--due-overdue);
 }
 
 .exam-alert--near,
 .exam-alert--approaching,
 .exam-alert--window {
-  color: #b57e17;
+  color: var(--due-near);
 }
 
 .exam-alert--close {
-  color: #d4660a;
+  color: var(--due-close);
 }
 
 .exam-next-item {
@@ -1046,19 +1072,19 @@ html.is-unlocked .app {
 }
 
 .exam-due-text--far {
-  color: #2f8f5b;
+  color: var(--due-far);
 }
 
 .exam-due-text--near {
-  color: #b57e17;
+  color: var(--due-near);
 }
 
 .exam-due-text--close {
-  color: #d4660a;
+  color: var(--due-close);
 }
 
 .exam-due-text--overdue {
-  color: var(--color-danger);
+  color: var(--due-overdue);
 }
 
 .exam-next-note {
@@ -1362,13 +1388,13 @@ html.is-unlocked .app {
 }
 
 .med-card.is-alert {
-  border-color: #e0a92b;
-  background-color: #fdf8e8;
+  border-color: var(--due-near-border);
+  background-color: var(--due-near-bg);
 }
 
 .med-card.is-overdue {
-  border-color: var(--color-danger);
-  background-color: #fdf0ee;
+  border-color: var(--due-overdue-border);
+  background-color: var(--due-overdue-bg);
 }
 
 .med-card__header {
@@ -1672,11 +1698,11 @@ select.input {
 .btn--danger-outline {
   background-color: var(--color-white);
   color: var(--color-danger);
-  border: 1.5px solid rgba(200, 90, 74, 0.4);
+  border: 1.5px solid rgba(168, 107, 98, 0.45);
 }
 
 .btn--danger-outline:hover:not(:disabled) {
-  background-color: rgba(200, 90, 74, 0.08);
+  background-color: rgba(168, 107, 98, 0.1);
 }
 
 .btn--small {
