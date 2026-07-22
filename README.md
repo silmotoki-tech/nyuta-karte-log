@@ -162,8 +162,10 @@ examPlan/
     schemaVersion: 1
     nextPlan:                                # 次回予定（1件）。無いときは null
       item: "血液検査"
-      dueDateFrom: "2026-10-03"              # 目安期間の開始
-      dueDateTo: "2026-10-31"                # 目安期間の終了（±14日）
+      dueDate: "2026-10-17"                  # 予定日（単一）
+      baselineDate: "2026-07-22"             # 登録基準日（残り割合の色分け用）
+      dueDateFrom: "2026-10-17"              # 旧互換（dueDate と同日）
+      dueDateTo: "2026-10-17"                # 旧互換（dueDate と同日）
       note: "術後フォロー"
       recurringId: "..."                     # 紐づく定期スケジュール（任意）
     recurring/
@@ -174,7 +176,7 @@ examPlan/
         intervalValue: 3                     # 単位に対する数値（表示用）
         intervalMonths: 3                    # 旧データ互換（月指定時のみ併記）
         lastDone: "2026-07-17"
-        windowDays: 14
+        windowDays: 0                        # 幅付き目安は廃止（互換のため残置）
     history/
       {id}/
         item: "血液検査"

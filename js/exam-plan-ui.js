@@ -16,9 +16,21 @@ import {
   deleteExamItem,
 } from "./db.js";
 
-const DEFAULT_WINDOW_DAYS = 14;
-const APPROACHING_DAYS = 7;
-/** 月→日の換算（新規保存・旧データの日数フォールバック用） */
+/**
+ * 残り日数の色分け閾値（仮。後で調整可能）。
+ * yellow: 残りが「全体の yellowRatio」または yellowCapDays の小さい方以下で黄
+ * orange: 残りが「全体の orangeRatio」または orangeCapDays の小さい方以下で橙
+ * Floor: 短期予定でも色がほとんど変わらないのを防ぐ下限
+ */
+const DUE_COLOR_THRESHOLDS = {
+  yellowRatio: 0.3,
+  yellowCapDays: 30,
+  yellowFloorDays: 2,
+  orangeRatio: 0.15,
+  orangeCapDays: 14,
+  orangeFloorDays: 1,
+};
+
 const DAYS_PER_MONTH = 30;
 const DAYS_PER_WEEK = 7;
 
@@ -49,6 +61,7 @@ const state = {
     note: "",
     recurringId: null,
     enableRecurring: false,
+    baselineDate: null,
     intervalUnit: "month",
     intervalValue: 3,
     intervalBuffer: "3",
@@ -285,36 +298,39 @@ export function formatRecurringIntervalLabel(recurring) {
 }
 
 /**
- * 基準日 + 間隔日数 を中心に、幅を持たせた目安期間を作る。
+ * 基準日 + 間隔日数 → 予定日（単一）。
+ * 旧互換のため dueDateFrom/To も同日で返す。
  */
-export function computeDueWindow(baseDateStr, intervalDays, windowDays = DEFAULT_WINDOW_DAYS) {
+export function computeDueWindow(baseDateStr, intervalDays, _windowDays = 0) {
   const days = Number(intervalDays) || 0;
   const target = addDays(baseDateStr, days);
   if (!target) return null;
   return {
-    dueDateFrom: addDays(target, -windowDays),
-    dueDateTo: addDays(target, windowDays),
+    dueDate: target,
+    dueDateFrom: target,
+    dueDateTo: target,
     targetDate: target,
+    baselineDate: baseDateStr,
   };
 }
 
 /**
- * 定期レコードから次回目安を計算する。
+ * 定期レコードから次回予定日を計算する。
  * 旧データ（intervalMonths のみ）はカレンダー月加算を維持する。
  */
 export function computeDueWindowFromRecurring(baseDateStr, recurring) {
-  const windowDays = recurring?.windowDays ?? DEFAULT_WINDOW_DAYS;
   if (recurring?.intervalDays != null && Number(recurring.intervalDays) > 0) {
-    return computeDueWindow(baseDateStr, Number(recurring.intervalDays), windowDays);
+    return computeDueWindow(baseDateStr, Number(recurring.intervalDays), 0);
   }
-  // 旧データ互換: カレンダー月で加算
   const months = Number(recurring?.intervalMonths) || 0;
   const target = addMonths(baseDateStr, months);
   if (!target) return null;
   return {
-    dueDateFrom: addDays(target, -windowDays),
-    dueDateTo: addDays(target, windowDays),
+    dueDate: target,
+    dueDateFrom: target,
+    dueDateTo: target,
     targetDate: target,
+    baselineDate: baseDateStr,
   };
 }
 
@@ -331,34 +347,143 @@ function buildIntervalPayload(unit, value) {
 }
 
 /**
- * カレンダーで選んだ単一日付を、±windowDays の目安期間に広げる。
+ * 単一日付を次回予定ペイロード用に整える（幅は持たせない）。
  */
-export function expandSingleDate(dateStr, windowDays = DEFAULT_WINDOW_DAYS) {
+export function expandSingleDate(dateStr, _windowDays = 0) {
   if (!dateStr) return null;
   return {
-    dueDateFrom: addDays(dateStr, -windowDays),
-    dueDateTo: addDays(dateStr, windowDays),
+    dueDate: dateStr,
+    dueDateFrom: dateStr,
+    dueDateTo: dateStr,
     targetDate: dateStr,
   };
 }
 
 /**
- * 期限ステータスを返す: "ok" | "approaching" | "in_window" | "overdue"
+ * 次回予定から予定日（単一）を取り出す。旧 dueDateFrom/To にも対応。
+ */
+export function getPlanDueDate(nextPlan) {
+  if (!nextPlan) return "";
+  if (nextPlan.dueDate) return nextPlan.dueDate;
+  if (nextPlan.targetDate) return nextPlan.targetDate;
+  if (nextPlan.dueDateFrom && nextPlan.dueDateTo) {
+    if (nextPlan.dueDateFrom === nextPlan.dueDateTo) return nextPlan.dueDateFrom;
+    const span = daysBetween(nextPlan.dueDateFrom, nextPlan.dueDateTo);
+    if (span != null && span >= 0) {
+      return addDays(nextPlan.dueDateFrom, Math.floor(span / 2));
+    }
+  }
+  return nextPlan.dueDateFrom || nextPlan.dueDateTo || "";
+}
+
+/**
+ * カウントダウン用の基準日。無い場合は null（絶対日数キャップのみで色分け）。
+ */
+export function getPlanBaselineDate(nextPlan) {
+  if (nextPlan?.baselineDate) return nextPlan.baselineDate;
+  return null;
+}
+
+/**
+ * 残り日数と色レベルを計算する。
+ * level: "far" | "near" | "close" | "overdue"
+ */
+export function getDueCountdown(dueDate, baselineDate = null, today = todayStr()) {
+  if (!dueDate) return null;
+  const remaining = daysBetween(today, dueDate);
+  if (remaining == null) return null;
+
+  let totalDays = null;
+  if (baselineDate) {
+    const span = daysBetween(baselineDate, dueDate);
+    if (span != null && span > 0) totalDays = span;
+  }
+  // baseline が無い／不正なときは、キャップが効くよう十分長い全体日数とみなす
+  if (totalDays == null || totalDays <= 0) {
+    totalDays = Math.max(
+      remaining > 0 ? remaining : 1,
+      Math.ceil(DUE_COLOR_THRESHOLDS.yellowCapDays / DUE_COLOR_THRESHOLDS.yellowRatio)
+    );
+  }
+
+  const yellowAt = Math.max(
+    DUE_COLOR_THRESHOLDS.yellowFloorDays,
+    Math.min(
+      totalDays * DUE_COLOR_THRESHOLDS.yellowRatio,
+      DUE_COLOR_THRESHOLDS.yellowCapDays
+    )
+  );
+  const orangeAt = Math.max(
+    DUE_COLOR_THRESHOLDS.orangeFloorDays,
+    Math.min(
+      totalDays * DUE_COLOR_THRESHOLDS.orangeRatio,
+      DUE_COLOR_THRESHOLDS.orangeCapDays
+    )
+  );
+
+  let level = "far";
+  if (remaining < 0) level = "overdue";
+  else if (remaining <= orangeAt) level = "close";
+  else if (remaining <= yellowAt) level = "near";
+
+  return {
+    dueDate,
+    baselineDate: baselineDate || null,
+    remaining,
+    totalDays,
+    yellowAt,
+    orangeAt,
+    level,
+  };
+}
+
+/**
+ * 「あと○日（日付）」／「○日超過（日付）」
+ */
+export function formatDueCountdown(info) {
+  if (!info) return "";
+  const dateLabel = ymdFromStr(info.dueDate);
+  if (info.remaining < 0) {
+    return `${Math.abs(info.remaining)}日超過（${dateLabel}）`;
+  }
+  if (info.remaining === 0) {
+    return `本日期日（${dateLabel}）`;
+  }
+  return `あと${info.remaining}日（${dateLabel}）`;
+}
+
+/**
+ * 旧API互換ステータス。
  */
 export function getDueStatus(nextPlan, today = todayStr()) {
-  if (!nextPlan?.dueDateFrom || !nextPlan?.dueDateTo) return "ok";
-  const { dueDateFrom, dueDateTo } = nextPlan;
-  if (today > dueDateTo) return "overdue";
-  if (today >= dueDateFrom && today <= dueDateTo) return "in_window";
-  const daysUntilFrom = daysBetween(today, dueDateFrom);
-  if (daysUntilFrom != null && daysUntilFrom <= APPROACHING_DAYS) return "approaching";
+  const dueDate = getPlanDueDate(nextPlan);
+  if (!dueDate) return "ok";
+  const info = getDueCountdown(dueDate, getPlanBaselineDate(nextPlan), today);
+  if (!info) return "ok";
+  if (info.level === "overdue") return "overdue";
+  if (info.level === "close" || info.level === "near") return "approaching";
   return "ok";
 }
 
-function formatDueRange(from, to) {
-  if (!from && !to) return "";
-  if (from === to) return ymdFromStr(from);
-  return `${ymdFromStr(from)} 〜 ${ymdFromStr(to)}`;
+function dueLevelClass(level) {
+  if (level === "overdue") return "exam-due-text--overdue";
+  if (level === "close") return "exam-due-text--close";
+  if (level === "near") return "exam-due-text--near";
+  return "exam-due-text--far";
+}
+
+function buildNextPlanPayload({ item, dueDate, note, recurringId, baselineDate }) {
+  const date = dueDate || "";
+  return {
+    item: item || "",
+    dueDate: date,
+    baselineDate: baselineDate || todayStr(),
+    // 旧クライアント互換（幅なし＝同日）
+    dueDateFrom: date,
+    dueDateTo: date,
+    note: note || "",
+    recurringId: recurringId || null,
+  };
 }
 
 // --- 公開API --------------------------------------------------------------
@@ -438,6 +563,11 @@ function switchTab(tabId) {
   });
 }
 
+/** AI提案など外部から右カラムタブを開く */
+export function switchRightTab(tabId) {
+  switchTab(tabId);
+}
+
 function showRightEmpty(empty) {
   rightEmpty.hidden = !empty;
   examRoot?.classList.toggle("is-disabled", empty);
@@ -467,14 +597,25 @@ function renderNextPlan() {
     nextPlanBody.hidden = true;
     nextPlanAlert.hidden = true;
     nextPlanAlert.textContent = "";
-    nextPlanCard.classList.remove("is-alert", "is-overdue");
+    nextPlanCard.classList.remove(
+      "is-alert",
+      "is-overdue",
+      "is-due-far",
+      "is-due-near",
+      "is-due-close"
+    );
     return;
   }
 
   nextPlanEmpty.hidden = true;
   nextPlanBody.hidden = false;
   nextPlanItem.textContent = next.item || "（項目未設定）";
-  nextPlanDate.textContent = formatDueRange(next.dueDateFrom, next.dueDateTo);
+
+  const dueDate = getPlanDueDate(next);
+  const info = getDueCountdown(dueDate, getPlanBaselineDate(next));
+  nextPlanDate.textContent = formatDueCountdown(info) || ymdFromStr(dueDate);
+  nextPlanDate.className = `exam-next-date ${dueLevelClass(info?.level || "far")}`;
+
   if (next.note) {
     nextPlanNote.hidden = false;
     nextPlanNote.textContent = next.note;
@@ -483,23 +624,24 @@ function renderNextPlan() {
     nextPlanNote.textContent = "";
   }
 
-  const status = getDueStatus(next);
-  nextPlanCard.classList.toggle("is-alert", status === "approaching" || status === "in_window");
-  nextPlanCard.classList.toggle("is-overdue", status === "overdue");
-
-  if (status === "overdue") {
+  nextPlanCard.classList.remove("is-alert", "is-overdue", "is-due-far", "is-due-near", "is-due-close");
+  if (info?.level === "overdue") {
+    nextPlanCard.classList.add("is-overdue");
     nextPlanAlert.hidden = false;
-    nextPlanAlert.textContent = "期限超過";
+    nextPlanAlert.textContent = "予定日を過ぎています";
     nextPlanAlert.className = "exam-alert exam-alert--overdue";
-  } else if (status === "in_window") {
+  } else if (info?.level === "close") {
+    nextPlanCard.classList.add("is-due-close", "is-alert");
     nextPlanAlert.hidden = false;
-    nextPlanAlert.textContent = "実施目安期間です";
-    nextPlanAlert.className = "exam-alert exam-alert--window";
-  } else if (status === "approaching") {
+    nextPlanAlert.textContent = "予定日がかなり近いです";
+    nextPlanAlert.className = "exam-alert exam-alert--close";
+  } else if (info?.level === "near") {
+    nextPlanCard.classList.add("is-due-near", "is-alert");
     nextPlanAlert.hidden = false;
-    nextPlanAlert.textContent = "期限が近づいています";
-    nextPlanAlert.className = "exam-alert exam-alert--approaching";
+    nextPlanAlert.textContent = "予定日が近づいています";
+    nextPlanAlert.className = "exam-alert exam-alert--near";
   } else {
+    nextPlanCard.classList.add("is-due-far");
     nextPlanAlert.hidden = true;
     nextPlanAlert.textContent = "";
   }
@@ -523,11 +665,28 @@ function renderRecurring() {
     title.textContent = r.item || "（項目未設定）";
     const meta = document.createElement("div");
     meta.className = "exam-list-item__meta";
-    const window = r.windowDays ?? DEFAULT_WINDOW_DAYS;
-    meta.textContent = `${formatRecurringIntervalLabel(r)}　最終実施: ${
+
+    const lines = [`${formatRecurringIntervalLabel(r)}　最終実施: ${
       r.lastDone ? ymdFromStr(r.lastDone) : "未設定"
-    }　（目安 ±${window}日）`;
-    info.append(title, meta);
+    }`];
+
+    if (r.lastDone) {
+      const due = computeDueWindowFromRecurring(r.lastDone, r);
+      if (due?.targetDate) {
+        const countdown = getDueCountdown(due.targetDate, r.lastDone);
+        const dueEl = document.createElement("div");
+        dueEl.className = `exam-list-item__due ${dueLevelClass(countdown?.level || "far")}`;
+        dueEl.textContent = `次回目安: ${formatDueCountdown(countdown)}`;
+        info.append(title, meta, dueEl);
+        meta.textContent = lines[0];
+      } else {
+        meta.textContent = lines[0];
+        info.append(title, meta);
+      }
+    } else {
+      meta.textContent = lines[0];
+      info.append(title, meta);
+    }
 
     const actions = document.createElement("div");
     actions.className = "exam-list-item__actions";
@@ -639,13 +798,16 @@ async function applyRecurringToNext(recurring) {
   if (!overwrite) return;
 
   try {
-    await setNextExamPlan(state.karteNumber, {
-      item: recurring.item,
-      dueDateFrom: dueWindow.dueDateFrom,
-      dueDateTo: dueWindow.dueDateTo,
-      note: `${formatRecurringIntervalLabel(recurring)}の定期検査（目安）`,
-      recurringId: recurring.id,
-    });
+    await setNextExamPlan(
+      state.karteNumber,
+      buildNextPlanPayload({
+        item: recurring.item,
+        dueDate: dueWindow.targetDate || dueWindow.dueDate,
+        note: `${formatRecurringIntervalLabel(recurring)}の定期検査`,
+        recurringId: recurring.id,
+        baselineDate: recurring.lastDone,
+      })
+    );
     deps.showToast("次回予定に反映しました。");
   } catch (err) {
     console.error(err);
@@ -1057,13 +1219,15 @@ function renderPlanItemButtons() {
 function updateWindowNote() {
   const date = planDueDate.value;
   if (!date) {
-    planWindowNote.textContent = `選択した日付を中心に、前後${DEFAULT_WINDOW_DAYS}日を目安期間として登録します。`;
+    planWindowNote.textContent = "予定日を選ぶと、残り日数が表示されます。";
+    planWindowNote.className = "field__note";
     return;
   }
-  const w = expandSingleDate(date, DEFAULT_WINDOW_DAYS);
-  planWindowNote.textContent = `目安期間: ${ymdFromStr(w.dueDateFrom)} 〜 ${ymdFromStr(
-    w.dueDateTo
-  )}（±${DEFAULT_WINDOW_DAYS}日）`;
+  // 登録画面では「いま選んでいる日付」を基準にプレビュー（保存時の baseline は別途保持）
+  const baseline = state.draft.baselineDate || todayStr();
+  const info = getDueCountdown(date, baseline);
+  planWindowNote.textContent = `予定日: ${formatDueCountdown(info)}`;
+  planWindowNote.className = `field__note ${dueLevelClass(info?.level || "far")}`;
 }
 
 function openPlanModal(mode, { focusRecurring = false, preset = null } = {}) {
@@ -1074,18 +1238,11 @@ function openPlanModal(mode, { focusRecurring = false, preset = null } = {}) {
     planModalTitle.textContent = "次回予定を編集";
     state.draft.item = next.item || "";
     state.draft.customItem = "";
-    state.draft.dueDate = next.dueDateFrom || "";
-    // 編集時は期間の中心（from〜toの中間）ではなく from を初期表示。厳密でなくてよい。
-    if (next.dueDateFrom && next.dueDateTo) {
-      const mid = addDays(
-        next.dueDateFrom,
-        Math.floor((daysBetween(next.dueDateFrom, next.dueDateTo) || 0) / 2)
-      );
-      state.draft.dueDate = mid || next.dueDateFrom;
-    }
+    state.draft.dueDate = getPlanDueDate(next) || "";
     state.draft.note = next.note || "";
     state.draft.recurringId = next.recurringId || null;
     state.draft.enableRecurring = false;
+    state.draft.baselineDate = next.baselineDate || null;
   } else if (preset) {
     planModalTitle.textContent = "次の予定を登録";
     state.draft.item = preset.item || "";
@@ -1094,6 +1251,7 @@ function openPlanModal(mode, { focusRecurring = false, preset = null } = {}) {
     state.draft.note = preset.note || "";
     state.draft.recurringId = preset.recurringId || null;
     state.draft.enableRecurring = Boolean(preset.enableRecurring);
+    state.draft.baselineDate = preset.baselineDate || todayStr();
     if (preset.intervalUnit && preset.intervalValue) {
       resetDraftInterval(preset.intervalUnit, preset.intervalValue);
     } else if (preset.intervalMonths) {
@@ -1109,6 +1267,7 @@ function openPlanModal(mode, { focusRecurring = false, preset = null } = {}) {
     state.draft.note = "";
     state.draft.recurringId = null;
     state.draft.enableRecurring = focusRecurring;
+    state.draft.baselineDate = todayStr();
     resetDraftInterval("month", 3);
   }
 
@@ -1174,7 +1333,6 @@ async function handlePlanSave() {
   deps.setBusy(btnPlanSave, true, "保存中...", "保存する");
 
   try {
-    const window = expandSingleDate(dueDate, DEFAULT_WINDOW_DAYS);
     let recurringId = state.draft.recurringId || null;
 
     if (enableRecurring) {
@@ -1183,17 +1341,23 @@ async function handlePlanSave() {
         item,
         ...interval,
         lastDone: "",
-        windowDays: DEFAULT_WINDOW_DAYS,
+        windowDays: 0,
       });
     }
 
-    await setNextExamPlan(state.karteNumber, {
-      item,
-      dueDateFrom: window.dueDateFrom,
-      dueDateTo: window.dueDateTo,
-      note,
-      recurringId: recurringId || null,
-    });
+    // 編集・完了後の再登録は既存 baseline を維持。新規は登録日を基準にする。
+    const keepBaseline = state.draft.baselineDate || todayStr();
+
+    await setNextExamPlan(
+      state.karteNumber,
+      buildNextPlanPayload({
+        item,
+        dueDate,
+        note,
+        recurringId,
+        baselineDate: keepBaseline,
+      })
+    );
 
     closePlanModal();
     deps.showToast("次回予定を保存しました。");
@@ -1270,14 +1434,13 @@ async function handleCompleteSave() {
         const parts = getRecurringIntervalParts(recurring);
         suggested = {
           item: recurring.item,
-          dueDate: window.targetDate,
-          dueDateFrom: window.dueDateFrom,
-          dueDateTo: window.dueDateTo,
-          note: `${formatRecurringIntervalLabel(recurring)}の定期検査（目安）`,
+          dueDate: window.targetDate || window.dueDate,
+          note: `${formatRecurringIntervalLabel(recurring)}の定期検査`,
           recurringId,
           intervalUnit: parts.unit,
           intervalValue: parts.value,
           enableRecurring: false,
+          baselineDate: date,
         };
       }
     }
@@ -1312,10 +1475,12 @@ function openAfterModal(suggested) {
   afterModal._suggested = suggested || null;
   if (suggested) {
     afterSummary.hidden = false;
-    afterSummary.innerHTML = `定期スケジュールに基づく次回目安:<br /><strong>${
+    afterSummary.innerHTML = `定期スケジュールに基づく次回予定:<br /><strong>${
       suggested.item
-    }</strong><br />${ymdFromStr(suggested.dueDateFrom)} 〜 ${ymdFromStr(suggested.dueDateTo)}`;
-    btnAfterNext.textContent = "この目安で次の予定を登録";
+    }</strong><br />${formatDueCountdown(
+      getDueCountdown(suggested.dueDate, suggested.baselineDate || null)
+    )}`;
+    btnAfterNext.textContent = "この予定で次を登録";
   } else {
     afterSummary.hidden = true;
     afterSummary.textContent = "";
@@ -1443,14 +1608,16 @@ async function handleExamItemSave() {
 /**
  * AI提案フローなど外部からの次回予定登録。
  */
-export async function addExamPlanFromExternal(karteNumber, { item, dueDate, note }) {
-  const window = expandSingleDate(dueDate, DEFAULT_WINDOW_DAYS);
-  if (!window) throw new Error("検査予定の日付が不正です。");
-  await setNextExamPlan(karteNumber, {
-    item: item || "",
-    dueDateFrom: window.dueDateFrom,
-    dueDateTo: window.dueDateTo,
-    note: note || "",
-    recurringId: null,
-  });
+export async function addExamPlanFromExternal(karteNumber, { item, dueDate, note, baselineDate }) {
+  if (!dueDate) throw new Error("検査予定の日付が不正です。");
+  await setNextExamPlan(
+    karteNumber,
+    buildNextPlanPayload({
+      item: item || "",
+      dueDate,
+      note: note || "",
+      recurringId: null,
+      baselineDate: baselineDate || todayStr(),
+    })
+  );
 }

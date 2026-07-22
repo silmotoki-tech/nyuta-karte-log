@@ -24,7 +24,8 @@
 //
 //   examPlan/{カルテ番号}/schemaVersion                  … データ構造バージョン
 //   examPlan/{カルテ番号}/nextPlan                       … 次回予定（1件 or null）
-//     { item, dueDateFrom, dueDateTo, note, recurringId }
+//     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note, recurringId }
+//     ※dueDate が正。dueDateFrom/To は同日で旧互換。baselineDate は色分け用の基準日
 //   examPlan/{カルテ番号}/recurring/{id}                 … 定期検査スケジュール
 //     { item, intervalDays, intervalUnit, intervalValue, lastDone, windowDays }
 //     ※旧データは intervalMonths のみの場合あり → 読み取り時に日数へ換算
@@ -667,6 +668,22 @@ export function subscribeMedicationItems(callback) {
       listener = null;
     }
   };
+}
+
+/**
+ * 薬剤マスタを1回だけ取得する。
+ */
+export async function fetchMedicationItemsOnce() {
+  await authReady;
+  const snapshot = await get(medicationItemsRef());
+  const value = snapshot.val() || {};
+  const items = Object.entries(value).map(([id, t]) => ({ id, ...t }));
+  items.sort((a, b) => {
+    const ord = (a.order ?? 0) - (b.order ?? 0);
+    if (ord !== 0) return ord;
+    return (a.label || "").localeCompare(b.label || "");
+  });
+  return items;
 }
 
 export async function addMedicationItem({ label, order }) {

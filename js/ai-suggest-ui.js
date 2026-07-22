@@ -1,4 +1,5 @@
 // 中央カラム保存直後の AI 提案・確認フロー。
+// 登録は必ず確認ポップアップで「確定する」を押したときだけ行う。
 // 定型文入力は対象外。APIキー未設定時は案内してスキップする。
 
 import {
@@ -9,9 +10,20 @@ import {
 import { hasApiKey } from "./api-key.js";
 import { addHistoryFromExternal } from "./history-ui.js";
 import { addProcedureFromExternal } from "./procedures-ui.js";
-import { addExamPlanFromExternal, expandSingleDate, unitToDays } from "./exam-plan-ui.js";
-import { applyMedicationSuggestionFromExternal } from "./meds-ui.js";
-import { updateMedication, fetchMedicationsOnce, setNextExamPlan } from "./db.js";
+import {
+  addExamPlanFromExternal,
+  unitToDays,
+  switchRightTab,
+} from "./exam-plan-ui.js";
+import {
+  ensureMedicationNameFromExternal,
+  focusMedicationByName,
+} from "./meds-ui.js";
+import {
+  updateMedication,
+  fetchMedicationsOnce,
+  fetchMedicationItemsOnce,
+} from "./db.js";
 import { mountNumpad } from "./freq-picker.js";
 
 const KIND_LABELS = {
@@ -35,10 +47,9 @@ const state = {
   karteNumber: null,
   recordDate: "",
   author: "",
-  suggestions: [], // { localId, kind, summary, data, status: "pending"|"done"|"ignored" }
-  adjustingId: null,
-  adjustDraft: null,
-  dueRelative: { unit: "day", buffer: "", value: 0 },
+  suggestions: [],
+  /** 各提案カード内の相対日付UI用 */
+  dueRelativeById: {},
 };
 
 // --- DOM ------------------------------------------------------------------
@@ -50,21 +61,10 @@ const reviewEmpty = document.getElementById("ai-suggest-empty");
 const reviewProgress = document.getElementById("ai-suggest-progress");
 const reviewError = document.getElementById("ai-suggest-error");
 
-const adjustModal = document.getElementById("ai-suggest-adjust-modal");
-const adjustTitle = document.getElementById("ai-suggest-adjust-title");
-const adjustBody = document.getElementById("ai-suggest-adjust-body");
-const adjustError = document.getElementById("ai-suggest-adjust-error");
-const btnAdjustConfirm = document.getElementById("btn-ai-suggest-adjust-confirm");
-const btnAdjustCancel = document.getElementById("btn-ai-suggest-adjust-cancel");
-const btnCloseAdjust = document.getElementById("btn-close-ai-suggest-adjust");
-
 // --- 公開API --------------------------------------------------------------
 
 export function initAiSuggestUI(helpers = {}) {
   deps = { ...deps, ...helpers };
-  btnAdjustConfirm?.addEventListener("click", handleAdjustConfirm);
-  btnAdjustCancel?.addEventListener("click", closeAdjustModal);
-  btnCloseAdjust?.addEventListener("click", closeAdjustModal);
   // 確認フロー中は閉じられない（見落とし防止）
   reviewModal?.querySelector("[data-close-modal]")?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -72,6 +72,9 @@ export function initAiSuggestUI(helpers = {}) {
       isError: true,
     });
   });
+  // 調整用モーダルは使わない（確認画面内で編集する）
+  const adjustModal = document.getElementById("ai-suggest-adjust-modal");
+  if (adjustModal) adjustModal.hidden = true;
 }
 
 export function isAiReviewBlocking() {
@@ -97,11 +100,20 @@ export async function runAiSuggestAfterSave({
 
   setBlocking(true);
   showLoading(true);
+  deps.showError(reviewError, "");
 
   try {
+    let masterLabels = [];
+    try {
+      const items = await fetchMedicationItemsOnce();
+      masterLabels = items.map((i) => i.label).filter(Boolean);
+    } catch (_) {
+      masterLabels = [];
+    }
+
     const raw = await askClaudeWithPrompt({
       system: buildSuggestSystemPrompt(),
-      user: buildSuggestUserPrompt({ body, headline, recordDate }),
+      user: buildSuggestUserPrompt({ body, headline, recordDate, masterLabels }),
       maxTokens: 2048,
     });
     const parsed = extractJsonObject(raw);
@@ -118,11 +130,15 @@ export async function runAiSuggestAfterSave({
     state.karteNumber = karteNumber;
     state.recordDate = recordDate || todayStr();
     state.author = author || deps.getSelectedAuthor() || "";
+    state.dueRelativeById = {};
     state.suggestions = list.map((s, i) => ({
       ...s,
       localId: `s-${Date.now()}-${i}`,
       status: "pending",
+      applying: false,
     }));
+
+    // ローディングを閉じたあと、必ず確認ポップアップを前面に出す
     openReviewModal();
   } catch (err) {
     console.error(err);
@@ -151,18 +167,27 @@ function buildSuggestSystemPrompt() {
     "",
     "kind別 data:",
     '- exam: { "item": "検査名", "dueDate": "YYYY-MM-DD", "note": "" }',
-    '- medication: { "name": "薬剤名", "action": "add"|"increase"|"decrease"|"stop"|"resume", "frequencyChange": "例:1日2回→1回", "detail": "", "category": "A"|"B"|"C" }',
+    '- medication: 薬剤名の検出のみ。増量・減量・頻度・用法は絶対に提案しない。',
+    '  { "name": "薬剤名" }',
+    '  summary は必ず「〇〇について、薬剤情報タブで記録しますか？」の形式。',
     '- procedure: { "date": "YYYY-MM-DD", "content": "処置内容" }',
     '- history: { "title": "病名など", "type": "disease"|"surgery"|"referral", "status": "active"|"resolved", "noteText": "" }',
-    '- followup_date: ワクチン接種・予防薬処方を検出した場合のみ。{ "purpose": "exam_next"|"med_expiry", "label": "説明", "suggestedDate": "YYYY-MM-DD", "relatedName": "ワクチン名や薬名" }',
+    '- followup_date: ワクチン接種・予防薬処方を検出した場合のみ。',
+    '  { "purpose": "exam_next"|"med_expiry", "label": "説明", "suggestedDate": "YYYY-MM-DD", "relatedName": "ワクチン名や薬名" }',
     "日付は記録日を基準に計算してください。不確かな提案は含めないでください。",
+    "重要: あなたは提案の叩き台だけを返す。登録は人間が確認画面で確定するまで行われない。",
   ].join("\n");
 }
 
-function buildSuggestUserPrompt({ body, headline, recordDate }) {
+function buildSuggestUserPrompt({ body, headline, recordDate, masterLabels }) {
+  const masterLine =
+    masterLabels && masterLabels.length
+      ? `薬剤マスタ（参考）: ${masterLabels.join("、")}`
+      : "薬剤マスタ: （未取得。薬剤らしき固有名があれば name のみ提案してよい）";
   return [
     `記録日: ${recordDate || "（不明）"}`,
     `見出し: ${headline || "（なし）"}`,
+    masterLine,
     "",
     "本文:",
     body,
@@ -174,11 +199,30 @@ function normalizeSuggestions(parsed) {
   const allowed = new Set(["exam", "medication", "procedure", "history", "followup_date"]);
   return parsed.suggestions
     .filter((s) => s && allowed.has(s.kind) && (s.summary || s.data))
-    .map((s) => ({
-      kind: s.kind,
-      summary: String(s.summary || KIND_LABELS[s.kind] || "提案").trim(),
-      data: s.data && typeof s.data === "object" ? s.data : {},
-    }));
+    .map((s) => {
+      const data = s.data && typeof s.data === "object" ? { ...s.data } : {};
+      // 薬剤は名前以外のフィールドを落とす
+      if (s.kind === "medication") {
+        const name = String(data.name || "").trim();
+        return {
+          kind: "medication",
+          summary:
+            name
+              ? `${name}について、薬剤情報タブで記録しますか？`
+              : String(s.summary || "薬剤情報タブで記録しますか？").trim(),
+          data: { name },
+        };
+      }
+      return {
+        kind: s.kind,
+        summary: String(s.summary || KIND_LABELS[s.kind] || "提案").trim(),
+        data,
+      };
+    })
+    .filter((s) => {
+      if (s.kind === "medication") return Boolean(s.data.name);
+      return true;
+    });
 }
 
 // --- レビューUI -----------------------------------------------------------
@@ -194,13 +238,21 @@ function showLoading(on) {
 
 function openReviewModal() {
   renderReviewList();
-  if (reviewModal) reviewModal.hidden = false;
+  if (reviewModal) {
+    reviewModal.hidden = false;
+    reviewModal.classList.add("ai-suggest-modal");
+  }
+  // フォーカスを確認画面へ
+  setTimeout(() => {
+    reviewModal?.querySelector(".ai-suggest-card input, .ai-suggest-card button")?.focus?.();
+  }, 0);
 }
 
 function closeReviewModal() {
   if (reviewModal) reviewModal.hidden = true;
   state.suggestions = [];
   state.karteNumber = null;
+  state.dueRelativeById = {};
 }
 
 function pendingCount() {
@@ -214,194 +266,179 @@ function renderReviewList() {
   if (reviewProgress) {
     reviewProgress.textContent =
       pending > 0
-        ? `未対応の提案が ${pending} 件あります。すべて確定または無視してください。`
+        ? `未対応の提案が ${pending} 件あります。内容を確認・修正してから「確定する」か「無視する」を選んでください。登録は確定後のみ行います。`
         : "すべての提案に対応しました。";
   }
   if (reviewEmpty) reviewEmpty.hidden = state.suggestions.length > 0;
 
   state.suggestions.forEach((s) => {
-    const li = document.createElement("li");
-    li.className = "ai-suggest-card";
-    if (s.status !== "pending") li.classList.add("is-done");
+    reviewList.appendChild(createSuggestionCard(s));
+  });
+}
 
-    const badge = document.createElement("span");
-    badge.className = "ai-suggest-card__kind";
-    badge.textContent = KIND_LABELS[s.kind] || s.kind;
+function createSuggestionCard(s) {
+  const li = document.createElement("li");
+  li.className = "ai-suggest-card";
+  li.dataset.localId = s.localId;
+  if (s.status !== "pending") li.classList.add("is-done");
 
-    const summary = document.createElement("p");
-    summary.className = "ai-suggest-card__summary";
-    summary.textContent = s.summary;
+  const badge = document.createElement("span");
+  badge.className = "ai-suggest-card__kind";
+  badge.textContent = KIND_LABELS[s.kind] || s.kind;
 
-    const detail = document.createElement("p");
-    detail.className = "ai-suggest-card__detail";
-    detail.textContent = formatSuggestionDetail(s);
+  const summary = document.createElement("p");
+  summary.className = "ai-suggest-card__summary";
+  summary.textContent = s.summary;
+
+  li.append(badge, summary);
+
+  if (s.status === "pending") {
+    const form = document.createElement("div");
+    form.className = "ai-suggest-card__form";
+    form.appendChild(buildInlineFields(s));
+    li.appendChild(form);
 
     const actions = document.createElement("div");
     actions.className = "ai-suggest-card__actions";
 
-    if (s.status === "pending") {
-      const confirmBtn = document.createElement("button");
-      confirmBtn.type = "button";
-      confirmBtn.className = "btn btn--small btn--primary";
-      confirmBtn.textContent = "確定する";
-      confirmBtn.addEventListener("click", () => handleConfirmClick(s.localId));
+    const confirmBtn = document.createElement("button");
+    confirmBtn.type = "button";
+    confirmBtn.className = "btn btn--small btn--primary";
+    confirmBtn.textContent = "確定する";
+    confirmBtn.disabled = Boolean(s.applying);
+    confirmBtn.addEventListener("click", () => handleConfirmClick(s.localId, confirmBtn));
 
-      const ignoreBtn = document.createElement("button");
-      ignoreBtn.type = "button";
-      ignoreBtn.className = "btn btn--small btn--outline";
-      ignoreBtn.textContent = "無視する";
-      ignoreBtn.addEventListener("click", () => markIgnored(s.localId));
+    const ignoreBtn = document.createElement("button");
+    ignoreBtn.type = "button";
+    ignoreBtn.className = "btn btn--small btn--outline";
+    ignoreBtn.textContent = "無視する";
+    ignoreBtn.disabled = Boolean(s.applying);
+    ignoreBtn.addEventListener("click", () => markIgnored(s.localId));
 
-      actions.append(confirmBtn, ignoreBtn);
-    } else {
-      const done = document.createElement("span");
-      done.className = "ai-suggest-card__status";
-      done.textContent = s.status === "done" ? "確定済み" : "無視済み";
-      actions.appendChild(done);
-    }
+    actions.append(confirmBtn, ignoreBtn);
+    li.appendChild(actions);
+  } else {
+    const done = document.createElement("span");
+    done.className = "ai-suggest-card__status";
+    done.textContent = s.status === "done" ? "確定済み（登録済）" : "無視済み（未登録）";
+    li.appendChild(done);
+  }
 
-    li.append(badge, summary, detail, actions);
-    reviewList.appendChild(li);
-  });
+  return li;
 }
 
-function formatSuggestionDetail(s) {
-  const d = s.data || {};
+/**
+ * 提案カード内でその場編集できるフィールドを組み立てる。
+ * 入力値は s.data に直接反映する（確定時にこれを登録）。
+ */
+function buildInlineFields(s) {
+  const wrap = document.createElement("div");
+  wrap.className = "ai-suggest-inline";
+  const d = s.data;
+
   if (s.kind === "exam") {
-    return `項目: ${d.item || "—"}　目安日: ${d.dueDate || "—"}`;
+    wrap.appendChild(
+      fieldText("検査項目", d.item || "", (v) => {
+        d.item = v;
+      })
+    );
+    wrap.appendChild(buildInlineDateField(s.localId, "dueDate", "目安日", d));
+    wrap.appendChild(
+      fieldText("メモ（任意）", d.note || "", (v) => {
+        d.note = v;
+      })
+    );
+    return wrap;
   }
+
   if (s.kind === "medication") {
-    return `薬剤: ${d.name || "—"}　操作: ${d.action || "add"}　${d.frequencyChange || ""}`;
+    const hint = document.createElement("p");
+    hint.className = "field__note";
+    hint.textContent =
+      "薬剤名の検出のみです。増量・減量などの記録は、確定後に薬剤情報タブで手動操作してください。";
+    wrap.appendChild(hint);
+    wrap.appendChild(
+      fieldText("薬剤名", d.name || "", (v) => {
+        d.name = v;
+        s.summary = v
+          ? `${v}について、薬剤情報タブで記録しますか？`
+          : "薬剤情報タブで記録しますか？";
+      })
+    );
+    return wrap;
   }
+
   if (s.kind === "procedure") {
-    return `${d.date || "—"}　${d.content || ""}`;
+    wrap.appendChild(
+      fieldDateSimple("実施日", d.date || state.recordDate || todayStr(), (v) => {
+        d.date = v;
+      })
+    );
+    wrap.appendChild(
+      fieldText("処置内容", d.content || "", (v) => {
+        d.content = v;
+      })
+    );
+    return wrap;
   }
+
   if (s.kind === "history") {
-    return `${d.title || "—"}（${d.type || "disease"} / ${d.status || "active"}）`;
+    wrap.appendChild(
+      fieldText("タイトル", d.title || "", (v) => {
+        d.title = v;
+      })
+    );
+    wrap.appendChild(
+      fieldSelect(
+        "区分",
+        [
+          { id: "disease", label: "疾病" },
+          { id: "surgery", label: "手術" },
+          { id: "referral", label: "紹介" },
+        ],
+        d.type || "disease",
+        (v) => {
+          d.type = v;
+        }
+      )
+    );
+    wrap.appendChild(
+      fieldSelect(
+        "状態",
+        [
+          { id: "active", label: "進行中" },
+          { id: "resolved", label: "終了" },
+        ],
+        d.status || "active",
+        (v) => {
+          d.status = v;
+        }
+      )
+    );
+    wrap.appendChild(
+      fieldText("メモ（任意）", d.noteText || "", (v) => {
+        d.noteText = v;
+      })
+    );
+    return wrap;
   }
+
   if (s.kind === "followup_date") {
-    const purpose =
-      d.purpose === "med_expiry" ? "処方切れ目安" : "次回予定（検査）";
-    return `${purpose}: ${d.relatedName || d.label || "—"}　案: ${d.suggestedDate || "—"}`;
-  }
-  return "";
-}
-
-function markIgnored(localId) {
-  const s = state.suggestions.find((x) => x.localId === localId);
-  if (!s || s.status !== "pending") return;
-  s.status = "ignored";
-  renderReviewList();
-  maybeFinishReview();
-}
-
-async function handleConfirmClick(localId) {
-  const s = state.suggestions.find((x) => x.localId === localId);
-  if (!s || s.status !== "pending") return;
-
-  // 検査・薬剤・日付提案は調整画面を挟む
-  if (s.kind === "exam" || s.kind === "medication" || s.kind === "followup_date") {
-    openAdjustModal(s);
-    return;
-  }
-
-  try {
-    await applySuggestion(s, s.data);
-    s.status = "done";
-    deps.showToast(`${KIND_LABELS[s.kind] || "提案"}を登録しました。`);
-    renderReviewList();
-    maybeFinishReview();
-  } catch (err) {
-    console.error(err);
-    deps.showError(reviewError, err.message || "登録に失敗しました。");
-  }
-}
-
-function maybeFinishReview() {
-  if (pendingCount() > 0) return;
-  closeReviewModal();
-  setBlocking(false);
-  deps.showToast("AI提案の確認が完了しました。");
-}
-
-// --- 調整モーダル ---------------------------------------------------------
-
-function openAdjustModal(suggestion) {
-  state.adjustingId = suggestion.localId;
-  state.adjustDraft = JSON.parse(JSON.stringify(suggestion.data || {}));
-  deps.showError(adjustError, "");
-  if (adjustTitle) {
-    adjustTitle.textContent = `${KIND_LABELS[suggestion.kind] || "提案"}の確認`;
-  }
-  renderAdjustBody(suggestion.kind, state.adjustDraft);
-  if (adjustModal) adjustModal.hidden = false;
-}
-
-function closeAdjustModal() {
-  if (adjustModal) adjustModal.hidden = true;
-  state.adjustingId = null;
-  state.adjustDraft = null;
-  if (adjustBody) adjustBody.innerHTML = "";
-}
-
-function renderAdjustBody(kind, data) {
-  if (!adjustBody) return;
-  adjustBody.innerHTML = "";
-
-  if (kind === "exam") {
-    adjustBody.appendChild(
-      fieldText("item", "検査項目", data.item || "", (v) => {
-        state.adjustDraft.item = v;
-      })
-    );
-    adjustBody.appendChild(buildDateField("dueDate", "目安日", data.dueDate || ""));
-    adjustBody.appendChild(
-      fieldText("note", "メモ（任意）", data.note || "", (v) => {
-        state.adjustDraft.note = v;
-      })
-    );
-    return;
-  }
-
-  if (kind === "medication") {
-    adjustBody.appendChild(
-      fieldText("name", "薬剤名", data.name || "", (v) => {
-        state.adjustDraft.name = v;
-      })
-    );
-    adjustBody.appendChild(buildActionButtons(data.action || "decrease"));
-    adjustBody.appendChild(
-      fieldText("frequencyChange", "頻度（任意）", data.frequencyChange || "", (v) => {
-        state.adjustDraft.frequencyChange = v;
-      })
-    );
-    adjustBody.appendChild(
-      fieldText("detail", "メモ（任意）", data.detail || "", (v) => {
-        state.adjustDraft.detail = v;
-      })
-    );
-    return;
-  }
-
-  if (kind === "followup_date") {
     const purposeLabel =
-      data.purpose === "med_expiry" ? "処方切れ目安日" : "次回予定日（検査）";
-    const note = document.createElement("p");
-    note.className = "field__note";
-    note.textContent = `${data.label || data.relatedName || ""}（${purposeLabel}）`;
-    adjustBody.appendChild(note);
-    adjustBody.appendChild(
-      fieldText("relatedName", "名称", data.relatedName || data.label || "", (v) => {
-        state.adjustDraft.relatedName = v;
+      d.purpose === "med_expiry" ? "処方切れ目安日" : "次回予定日（検査）";
+    wrap.appendChild(
+      fieldText("名称", d.relatedName || d.label || "", (v) => {
+        d.relatedName = v;
       })
     );
-    adjustBody.appendChild(
-      buildDateField("suggestedDate", purposeLabel, data.suggestedDate || "")
-    );
+    wrap.appendChild(buildInlineDateField(s.localId, "suggestedDate", purposeLabel, d));
+    return wrap;
   }
+
+  return wrap;
 }
 
-function fieldText(key, label, value, onInput) {
+function fieldText(label, value, onInput) {
   const wrap = document.createElement("div");
   wrap.className = "field";
   const lab = document.createElement("label");
@@ -416,29 +453,37 @@ function fieldText(key, label, value, onInput) {
   return wrap;
 }
 
-function buildActionButtons(selected) {
+function fieldDateSimple(label, value, onInput) {
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+  const lab = document.createElement("label");
+  lab.className = "label";
+  lab.textContent = label;
+  const input = document.createElement("input");
+  input.className = "input input--date";
+  input.type = "date";
+  input.value = value || "";
+  input.addEventListener("change", () => onInput(input.value));
+  wrap.append(lab, input);
+  return wrap;
+}
+
+function fieldSelect(label, options, selected, onSelect) {
   const wrap = document.createElement("div");
   wrap.className = "field";
   const lab = document.createElement("span");
   lab.className = "label";
-  lab.textContent = "操作";
+  lab.textContent = label;
   const row = document.createElement("div");
   row.className = "exam-item-buttons";
-  ["add", "increase", "decrease", "stop", "resume"].forEach((id) => {
-    const labels = {
-      add: "追加/継続",
-      increase: "増量",
-      decrease: "減量",
-      stop: "中止",
-      resume: "再開",
-    };
+  options.forEach((opt) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "exam-item-btn";
-    btn.textContent = labels[id];
-    btn.classList.toggle("is-selected", selected === id);
+    btn.textContent = opt.label;
+    btn.classList.toggle("is-selected", selected === opt.id);
     btn.addEventListener("click", () => {
-      state.adjustDraft.action = id;
+      onSelect(opt.id);
       row.querySelectorAll(".exam-item-btn").forEach((b) => b.classList.remove("is-selected"));
       btn.classList.add("is-selected");
     });
@@ -448,7 +493,7 @@ function buildActionButtons(selected) {
   return wrap;
 }
 
-function buildDateField(key, label, initialDate) {
+function buildInlineDateField(localId, key, label, dataObj) {
   const wrap = document.createElement("div");
   wrap.className = "field";
   const lab = document.createElement("label");
@@ -458,11 +503,12 @@ function buildDateField(key, label, initialDate) {
   const dateInput = document.createElement("input");
   dateInput.className = "input input--date";
   dateInput.type = "date";
-  dateInput.value = initialDate || "";
-  dateInput.addEventListener("change", () => {
-    state.adjustDraft[key] = dateInput.value;
-    syncRelativeFromDate(dateInput.value, display, unitRow);
-  });
+  dateInput.value = dataObj[key] || "";
+
+  if (!state.dueRelativeById[localId]) {
+    state.dueRelativeById[localId] = { unit: "day", buffer: "", value: 0 };
+  }
+  const rel = state.dueRelativeById[localId];
 
   const sub = document.createElement("span");
   sub.className = "label label--sub";
@@ -476,51 +522,51 @@ function buildDateField(key, label, initialDate) {
     btn.className = "interval-unit-btn";
     btn.textContent = u === "day" ? "日" : u === "week" ? "週" : "月";
     btn.dataset.unit = u;
+    btn.classList.toggle("is-selected", rel.unit === u);
     btn.addEventListener("click", () => {
-      state.dueRelative.unit = u;
+      rel.unit = u;
       unitRow.querySelectorAll(".interval-unit-btn").forEach((b) => {
         b.classList.toggle("is-selected", b.dataset.unit === u);
       });
-      applyRelativeToDate(dateInput, key, display);
+      applyRelativeToData(rel, dateInput, dataObj, key, display);
     });
     unitRow.appendChild(btn);
   });
-  state.dueRelative = { unit: "day", buffer: "", value: 0 };
-  unitRow.querySelector('[data-unit="day"]')?.classList.add("is-selected");
 
   const display = document.createElement("p");
   display.className = "interval-value-display";
-  display.textContent = "0日後";
+  display.textContent = relativeLabel(rel.unit, rel.buffer || String(rel.value || 0));
 
   const numpad = document.createElement("div");
   numpad.className = "numpad";
   mountNumpad(numpad, {
     onDigit: (d) => {
-      if (state.dueRelative.buffer.length >= 4) return;
-      state.dueRelative.buffer =
-        state.dueRelative.buffer === "0" ? d : state.dueRelative.buffer + d;
-      display.textContent = relativeLabel(state.dueRelative.unit, state.dueRelative.buffer);
+      if (rel.buffer.length >= 4) return;
+      rel.buffer = rel.buffer === "0" ? d : rel.buffer + d;
+      display.textContent = relativeLabel(rel.unit, rel.buffer);
     },
     onDelete: () => {
-      state.dueRelative.buffer = state.dueRelative.buffer.slice(0, -1);
-      display.textContent = relativeLabel(
-        state.dueRelative.unit,
-        state.dueRelative.buffer || "0"
-      );
+      rel.buffer = rel.buffer.slice(0, -1);
+      display.textContent = relativeLabel(rel.unit, rel.buffer || "0");
     },
     onConfirm: () => {
-      const n = Number(state.dueRelative.buffer);
+      const n = Number(rel.buffer);
       if (!n || n < 1) {
-        deps.showError(adjustError, "1以上の相対日数を入力してください。");
+        deps.showError(reviewError, "1以上の相対日数を入力し、確定してください。");
         return;
       }
-      state.dueRelative.value = n;
-      deps.showError(adjustError, "");
-      applyRelativeToDate(dateInput, key, display);
+      rel.value = n;
+      deps.showError(reviewError, "");
+      applyRelativeToData(rel, dateInput, dataObj, key, display);
     },
   });
 
-  if (initialDate) syncRelativeFromDate(initialDate, display, unitRow);
+  dateInput.addEventListener("change", () => {
+    dataObj[key] = dateInput.value;
+    syncRelativeFromDate(dateInput.value, rel, display, unitRow);
+  });
+
+  if (dataObj[key]) syncRelativeFromDate(dataObj[key], rel, display, unitRow);
 
   wrap.append(lab, dateInput, sub, unitRow, display, numpad);
   return wrap;
@@ -533,17 +579,17 @@ function relativeLabel(unit, value) {
   return `${n}日後`;
 }
 
-function applyRelativeToDate(dateInput, key, display) {
-  const n = Number(state.dueRelative.buffer || state.dueRelative.value) || 0;
+function applyRelativeToData(rel, dateInput, dataObj, key, display) {
+  const n = Number(rel.buffer || rel.value) || 0;
   if (n < 1) return;
-  const days = unitToDays(state.dueRelative.unit, n);
+  const days = unitToDays(rel.unit, n);
   const date = addDays(todayStr(), days);
   dateInput.value = date;
-  state.adjustDraft[key] = date;
-  display.textContent = relativeLabel(state.dueRelative.unit, String(n));
+  dataObj[key] = date;
+  display.textContent = relativeLabel(rel.unit, String(n));
 }
 
-function syncRelativeFromDate(dateStr, display, unitRow) {
+function syncRelativeFromDate(dateStr, rel, display, unitRow) {
   const days = daysBetween(todayStr(), dateStr);
   if (days == null || days < 0) return;
   let unit = "day";
@@ -555,53 +601,90 @@ function syncRelativeFromDate(dateStr, display, unitRow) {
     unit = "week";
     value = days / 7;
   }
-  state.dueRelative = { unit, buffer: String(value), value };
+  rel.unit = unit;
+  rel.value = value;
+  rel.buffer = String(value);
   display.textContent = relativeLabel(unit, String(value));
   unitRow?.querySelectorAll(".interval-unit-btn").forEach((b) => {
     b.classList.toggle("is-selected", b.dataset.unit === unit);
   });
 }
 
-async function handleAdjustConfirm() {
-  const localId = state.adjustingId;
+function markIgnored(localId) {
   const s = state.suggestions.find((x) => x.localId === localId);
-  if (!s) {
-    closeAdjustModal();
+  if (!s || s.status !== "pending" || s.applying) return;
+  s.status = "ignored";
+  renderReviewList();
+  maybeFinishReview();
+}
+
+/**
+ * 「確定する」——ここで初めて DB へ登録する。
+ */
+async function handleConfirmClick(localId, confirmBtn) {
+  const s = state.suggestions.find((x) => x.localId === localId);
+  if (!s || s.status !== "pending" || s.applying) return;
+
+  const data = s.data || {};
+  if (s.kind === "exam" && (!String(data.item || "").trim() || !data.dueDate)) {
+    deps.showError(reviewError, "検査項目と目安日を入力してから確定してください。");
     return;
   }
-  const data = state.adjustDraft || {};
-  if (s.kind === "exam" && (!data.item || !data.dueDate)) {
-    deps.showError(adjustError, "検査項目と目安日を入力してください。");
+  if (s.kind === "medication" && !String(data.name || "").trim()) {
+    deps.showError(reviewError, "薬剤名を入力してから確定してください。");
     return;
   }
-  if (s.kind === "medication" && !data.name) {
-    deps.showError(adjustError, "薬剤名を入力してください。");
+  if (s.kind === "procedure" && !String(data.content || "").trim()) {
+    deps.showError(reviewError, "処置内容を入力してから確定してください。");
+    return;
+  }
+  if (s.kind === "history" && !String(data.title || "").trim()) {
+    deps.showError(reviewError, "タイトルを入力してから確定してください。");
     return;
   }
   if (s.kind === "followup_date" && !data.suggestedDate) {
-    deps.showError(adjustError, "日付を入力してください。");
+    deps.showError(reviewError, "日付を入力してから確定してください。");
     return;
   }
 
-  deps.showError(adjustError, "");
-  deps.setBusy(btnAdjustConfirm, true, "登録中...", "この内容で確定");
+  deps.showError(reviewError, "");
+  s.applying = true;
+  if (confirmBtn) {
+    deps.setBusy(confirmBtn, true, "登録中...", "確定する");
+  }
+
   try {
     await applySuggestion(s, data);
-    s.data = data;
     s.status = "done";
-    closeAdjustModal();
-    deps.showToast(`${KIND_LABELS[s.kind] || "提案"}を登録しました。`);
+    s.applying = false;
+    deps.showToast(confirmToastMessage(s));
     renderReviewList();
     maybeFinishReview();
   } catch (err) {
     console.error(err);
-    deps.showError(adjustError, err.message || "登録に失敗しました。");
-  } finally {
-    deps.setBusy(btnAdjustConfirm, false, "登録中...", "この内容で確定");
+    s.applying = false;
+    deps.showError(reviewError, err.message || "登録に失敗しました。");
+    renderReviewList();
   }
 }
 
-// --- 登録処理 -------------------------------------------------------------
+function confirmToastMessage(s) {
+  if (s.kind === "medication") {
+    return s._medCreated
+      ? `${s.data.name} を薬剤情報に追加しました。`
+      : `${s.data.name} は登録済みです。薬剤情報タブを開きます。`;
+  }
+  return `${KIND_LABELS[s.kind] || "提案"}を登録しました。`;
+}
+
+function maybeFinishReview() {
+  if (pendingCount() > 0) return;
+  closeReviewModal();
+  setBlocking(false);
+  deps.showToast("AI提案の確認が完了しました。");
+}
+
+// --- 登録処理（確定時のみ） -----------------------------------------------
 
 async function applySuggestion(suggestion, data) {
   const karte = state.karteNumber;
@@ -633,25 +716,24 @@ async function applySuggestion(suggestion, data) {
 
   if (suggestion.kind === "exam") {
     await addExamPlanFromExternal(karte, {
-      item: data.item,
+      item: String(data.item || "").trim(),
       dueDate: data.dueDate,
       note: data.note || "AI提案から登録",
     });
+    switchRightTab("exam");
     return;
   }
 
   if (suggestion.kind === "medication") {
-    await applyMedicationSuggestionFromExternal(karte, {
-      name: data.name,
-      action: data.action || "add",
-      category: data.category || "B",
-      frequencyChange: data.frequencyChange || "",
-      frequency: data.frequency || null,
-      detail: data.detail || suggestion.summary,
-      eventDate: data.eventDate || recordDate,
+    const result = await ensureMedicationNameFromExternal(karte, {
+      name: String(data.name || "").trim(),
       changedBy: author,
-      expiryEstimate: data.expiryEstimate || "",
+      eventDate: recordDate,
     });
+    suggestion._medCreated = result.created;
+    switchRightTab("meds");
+    // subscribe 反映後に展開
+    setTimeout(() => focusMedicationByName(result.name), 300);
     return;
   }
 
@@ -667,30 +749,28 @@ async function applyFollowupDate(karte, data, author, recordDate) {
     const drugs = await fetchMedicationsOnce(karte);
     const drug = drugs.find((d) => d.name === name);
     if (!drug) {
-      await applyMedicationSuggestionFromExternal(karte, {
+      await ensureMedicationNameFromExternal(karte, {
         name,
-        action: "add",
-        category: "B",
-        eventDate: recordDate,
         changedBy: author,
-        expiryEstimate: date,
-        detail: "予防薬（AI提案）",
+        eventDate: recordDate,
       });
+      const again = await fetchMedicationsOnce(karte);
+      const created = again.find((d) => d.name === name);
+      if (created) await updateMedication(karte, created.id, { expiryEstimate: date });
     } else {
       await updateMedication(karte, drug.id, { expiryEstimate: date });
     }
+    switchRightTab("meds");
     return;
   }
 
-  // exam_next
-  const window = expandSingleDate(date, 14);
-  await setNextExamPlan(karte, {
+  await addExamPlanFromExternal(karte, {
     item: name,
-    dueDateFrom: window.dueDateFrom,
-    dueDateTo: window.dueDateTo,
+    dueDate: date,
     note: data.label || "ワクチン等の次回予定（AI提案）",
-    recurringId: null,
+    baselineDate: recordDate || todayStr(),
   });
+  switchRightTab("exam");
 }
 
 // --- 日付ユーティリティ ---------------------------------------------------
@@ -729,7 +809,7 @@ function daysBetween(fromStr, toStr) {
   return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
-/** テスト用: JSON正規化を公開 */
+/** テスト用 */
 export function __testNormalizeSuggestions(parsed) {
   return normalizeSuggestions(parsed);
 }

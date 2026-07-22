@@ -983,9 +983,20 @@ html.is-unlocked .app {
   padding: 12px 14px;
 }
 
+.exam-next-card.is-due-far {
+  border-color: #7eb89a;
+  background-color: #f3faf6;
+}
+
+.exam-next-card.is-due-near,
 .exam-next-card.is-alert {
   border-color: #e0a92b;
   background-color: #fdf8e8;
+}
+
+.exam-next-card.is-due-close {
+  border-color: #e07a2b;
+  background-color: #fdf3ea;
 }
 
 .exam-next-card.is-overdue {
@@ -1010,9 +1021,14 @@ html.is-unlocked .app {
   color: var(--color-danger);
 }
 
+.exam-alert--near,
 .exam-alert--approaching,
 .exam-alert--window {
   color: #b57e17;
+}
+
+.exam-alert--close {
+  color: #d4660a;
 }
 
 .exam-next-item {
@@ -1027,6 +1043,22 @@ html.is-unlocked .app {
   font-size: 0.88rem;
   font-weight: 600;
   color: var(--color-brown);
+}
+
+.exam-due-text--far {
+  color: #2f8f5b;
+}
+
+.exam-due-text--near {
+  color: #b57e17;
+}
+
+.exam-due-text--close {
+  color: #d4660a;
+}
+
+.exam-due-text--overdue {
+  color: var(--color-danger);
 }
 
 .exam-next-note {
@@ -1076,6 +1108,12 @@ html.is-unlocked .app {
   color: var(--color-text-muted);
   margin-top: 2px;
   line-height: 1.45;
+}
+
+.exam-list-item__due {
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: 4px;
 }
 
 .exam-list-item__actions {
@@ -2184,4 +2222,22 @@ select.input {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--color-brown);
+}
+
+.ai-suggest-card__form {
+  margin-top: 4px;
+}
+
+.ai-suggest-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+/* 確認フローは他モーダルより前面に */
+.modal.ai-suggest-modal,
+#ai-suggest-loading-modal,
+#ai-suggest-review-modal {
+  z-index: 450;
 }

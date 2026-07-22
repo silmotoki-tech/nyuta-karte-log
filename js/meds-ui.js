@@ -1241,6 +1241,45 @@ async function handleMedItemSave() {
 }
 
 /**
+ * AI提案フロー: 薬剤名だけの登録（増減・頻度は付けない）。
+ * 未登録なら新規追加、既存なら drugId を返す。
+ */
+export async function ensureMedicationNameFromExternal(
+  karteNumber,
+  { name, changedBy, eventDate }
+) {
+  const trimmed = (name || "").trim();
+  if (!trimmed) throw new Error("薬剤名が空です。");
+  const drugs = await fetchMedicationsOnce(karteNumber);
+  const existing = drugs.find((d) => d.name === trimmed);
+  if (existing) {
+    return { drugId: existing.id, created: false, name: trimmed };
+  }
+  const drugId = await addMedication(karteNumber, {
+    name: trimmed,
+    category: "B",
+    changedBy: changedBy || "",
+    eventDate: eventDate || todayStr(),
+    frequencyChange: "",
+    frequency: null,
+  });
+  return { drugId, created: true, name: trimmed };
+}
+
+/**
+ * 薬剤カードを展開して一覧上で目立たせる。
+ */
+export function focusMedicationByName(name) {
+  const trimmed = (name || "").trim();
+  if (!trimmed) return false;
+  const drug = state.drugs.find((d) => d.name === trimmed);
+  if (!drug) return false;
+  state.expandedIds.add(drug.id);
+  renderMedsList();
+  return true;
+}
+
+/**
  * AI提案フローなど外部からの薬剤登録・出来事追加。
  */
 export async function applyMedicationSuggestionFromExternal(karteNumber, payload = {}) {
