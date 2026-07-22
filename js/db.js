@@ -440,8 +440,9 @@ function bloodGroupSeed(group) {
   return rows;
 }
 
-/** 初期シード（固定ID。未作成のときだけ書く） */
+/** 初期シード（固定ID。未作成時は作成、既存シードは order だけ同期） */
 const EXAM_ITEM_SEED = [
+  { id: "seed-blood-cbc", label: "CBC", category: "blood", kind: "leaf", parentId: "", order: 1 },
   ...bloodGroupSeed({
     id: "seed-blood-liver",
     label: "肝臓",
@@ -463,10 +464,10 @@ const EXAM_ITEM_SEED = [
     children: [
       { id: "seed-blood-kidney-bun", label: "BUN" },
       { id: "seed-blood-kidney-cre", label: "Cre" },
-      { id: "seed-blood-kidney-panel-idexx", label: "腎パネル(IDEXX)" },
-      { id: "seed-blood-kidney-electrolyte", label: "電解質" },
       { id: "seed-blood-kidney-ca", label: "Ca" },
       { id: "seed-blood-kidney-ip", label: "IP" },
+      { id: "seed-blood-kidney-electrolyte", label: "電解質" },
+      { id: "seed-blood-kidney-panel-idexx", label: "腎パネル(IDEXX)" },
     ],
   }),
   ...bloodGroupSeed({
@@ -489,7 +490,6 @@ const EXAM_ITEM_SEED = [
       { id: "seed-blood-hormone-ft4", label: "fT4" },
     ],
   }),
-  { id: "seed-blood-cbc", label: "CBC", category: "blood", kind: "leaf", parentId: "", order: 100 },
   {
     id: "seed-blood-glucose-antosense",
     label: "血糖(アントセンス)",
@@ -596,7 +596,8 @@ function examItemSeedPayload(seed) {
 }
 
 /**
- * 初期検査項目を不足分だけ書き込む（既存は上書きしない）。
+ * 初期検査項目を不足分だけ書き込み、既存シードの並び(order)は定義に合わせて同期する。
+ * ユーザーが追加した項目は触らない。
  */
 export async function ensureExamItemDefaults() {
   await authReady;
@@ -604,8 +605,15 @@ export async function ensureExamItemDefaults() {
   const existing = snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
   const writes = {};
   EXAM_ITEM_SEED.forEach((seed) => {
-    if (!existing[seed.id]) {
-      writes[seed.id] = examItemSeedPayload(seed);
+    const payload = examItemSeedPayload(seed);
+    const row = existing[seed.id];
+    if (!row) {
+      writes[seed.id] = payload;
+      return;
+    }
+    // 並び替え反映のため、シード項目の order だけ合わせる
+    if (typeof row.order !== "number" || row.order !== payload.order) {
+      writes[`${seed.id}/order`] = payload.order;
     }
   });
   if (Object.keys(writes).length) {
