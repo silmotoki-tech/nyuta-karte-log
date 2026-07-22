@@ -8,6 +8,7 @@ import {
   updateProcedure,
   deleteProcedure,
 } from "./db.js";
+import { createIconActions } from "./icon-actions.js";
 
 const AUTHORS = [
   "院長", "大辻", "川邉", "齋藤", "横井", "德永",
@@ -150,32 +151,32 @@ function createCard(item) {
   }
   meta.textContent = parts.join("　／　");
 
-  const actions = document.createElement("div");
-  actions.className = "proc-card__actions";
+  const actions = createIconActions(
+    [
+      {
+        action: "edit",
+        title: "編集",
+        onClick: () => openModal("edit", item),
+      },
+      {
+        action: "delete",
+        title: "削除",
+        onClick: async () => {
+          const ok = window.confirm("この処置ログを削除しますか？");
+          if (!ok) return;
+          try {
+            await deleteProcedure(state.karteNumber, item.id);
+            deps.showToast("削除しました。");
+          } catch (err) {
+            console.error(err);
+            deps.showToast("削除に失敗しました。", { isError: true });
+          }
+        },
+      },
+    ],
+    "proc-card__actions icon-actions"
+  );
 
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.className = "btn btn--small btn--outline";
-  editBtn.textContent = "編集";
-  editBtn.addEventListener("click", () => openModal("edit", item));
-
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn btn--small btn--danger-outline";
-  delBtn.textContent = "削除";
-  delBtn.addEventListener("click", async () => {
-    const ok = window.confirm("この処置ログを削除しますか？");
-    if (!ok) return;
-    try {
-      await deleteProcedure(state.karteNumber, item.id);
-      deps.showToast("削除しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("削除に失敗しました。", { isError: true });
-    }
-  });
-
-  actions.append(editBtn, delBtn);
   li.append(dateEl, contentEl, meta, actions);
   return li;
 }

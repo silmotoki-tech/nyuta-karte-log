@@ -53,6 +53,7 @@ import {
   setPasscodeVerified,
   clearPasscodeVerified,
 } from "./passcode-auth.js";
+import { createIconActions } from "./icon-actions.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -969,14 +970,14 @@ function createTimelineItem(entry) {
       "この記録を削除しますか？（入力ミスなど、明らかな誤りのときだけ削除してください）"
     );
     if (!ok) return;
-    setBusy(deleteBtn, true, "削除中...", "削除");
+    deleteBtn.disabled = true;
     try {
       await deleteEntry(state.karteNumber, entry.id);
       showToast("削除しました。");
     } catch (err) {
       console.error(err);
       showToast("削除に失敗しました。", { isError: true });
-      setBusy(deleteBtn, false, "削除中...", "削除");
+      deleteBtn.disabled = false;
     }
   });
 
@@ -1087,19 +1088,21 @@ function renderTemplateList() {
     text.textContent = tpl.text || "";
     info.append(label, text);
 
-    const actions = document.createElement("div");
-    actions.className = "tpl-list-item__actions";
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "btn btn--small btn--outline";
-    editBtn.textContent = "編集";
-    editBtn.addEventListener("click", () => startEditTemplate(tpl));
-    const delBtn = document.createElement("button");
-    delBtn.type = "button";
-    delBtn.className = "btn btn--small btn--danger-outline";
-    delBtn.textContent = "削除";
-    delBtn.addEventListener("click", () => handleTemplateDelete(tpl));
-    actions.append(editBtn, delBtn);
+    const actions = createIconActions(
+      [
+        {
+          action: "edit",
+          title: "編集",
+          onClick: () => startEditTemplate(tpl),
+        },
+        {
+          action: "delete",
+          title: "削除",
+          onClick: () => handleTemplateDelete(tpl),
+        },
+      ],
+      "tpl-list-item__actions icon-actions"
+    );
 
     li.append(info, actions);
     tplList.appendChild(li);

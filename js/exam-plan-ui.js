@@ -15,6 +15,7 @@ import {
   updateExamItem,
   deleteExamItem,
 } from "./db.js";
+import { createIconActions } from "./icon-actions.js";
 
 /**
  * 残り日数の色分け閾値（仮。後で調整可能）。
@@ -688,29 +689,19 @@ function renderRecurring() {
       info.append(title, meta);
     }
 
-    const actions = document.createElement("div");
-    actions.className = "exam-list-item__actions";
+    const actions = createIconActions([
+      {
+        action: "edit",
+        title: "編集",
+        onClick: () => openRecurringEdit(r),
+      },
+      {
+        action: "delete",
+        title: "削除",
+        onClick: () => handleDeleteRecurring(r),
+      },
+    ], "exam-list-item__actions icon-actions");
 
-    const applyBtn = document.createElement("button");
-    applyBtn.type = "button";
-    applyBtn.className = "btn btn--small btn--outline";
-    applyBtn.textContent = "次回に反映";
-    applyBtn.title = "最終実施日＋間隔から次回予定を計算して反映";
-    applyBtn.addEventListener("click", () => applyRecurringToNext(r));
-
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "btn btn--small btn--outline";
-    editBtn.textContent = "編集";
-    editBtn.addEventListener("click", () => openRecurringEdit(r));
-
-    const delBtn = document.createElement("button");
-    delBtn.type = "button";
-    delBtn.className = "btn btn--small btn--danger-outline";
-    delBtn.textContent = "削除";
-    delBtn.addEventListener("click", () => handleDeleteRecurring(r));
-
-    actions.append(applyBtn, editBtn, delBtn);
     li.append(info, actions);
     recurringList.appendChild(li);
   });
@@ -738,24 +729,28 @@ function renderHistory() {
     if (h.note) meta.textContent += `　${h.note}`;
     info.append(title, meta);
 
-    const actions = document.createElement("div");
-    actions.className = "exam-list-item__actions";
-    const delBtn = document.createElement("button");
-    delBtn.type = "button";
-    delBtn.className = "btn btn--small btn--danger-outline";
-    delBtn.textContent = "削除";
-    delBtn.addEventListener("click", async () => {
-      const ok = window.confirm(`履歴「${h.item}（${ymdFromStr(h.date)}）」を削除しますか？`);
-      if (!ok) return;
-      try {
-        await deleteExamHistory(state.karteNumber, h.id);
-        deps.showToast("履歴を削除しました。");
-      } catch (err) {
-        console.error(err);
-        deps.showToast("削除に失敗しました。", { isError: true });
-      }
-    });
-    actions.appendChild(delBtn);
+    const actions = createIconActions(
+      [
+        {
+          action: "delete",
+          title: "削除",
+          onClick: async () => {
+            const ok = window.confirm(
+              `履歴「${h.item}（${ymdFromStr(h.date)}）」を削除しますか？`
+            );
+            if (!ok) return;
+            try {
+              await deleteExamHistory(state.karteNumber, h.id);
+              deps.showToast("履歴を削除しました。");
+            } catch (err) {
+              console.error(err);
+              deps.showToast("削除に失敗しました。", { isError: true });
+            }
+          },
+        },
+      ],
+      "exam-list-item__actions icon-actions"
+    );
     li.append(info, actions);
     historyList.appendChild(li);
   });
@@ -781,37 +776,6 @@ async function handleEndPlan() {
   } catch (err) {
     console.error(err);
     deps.showToast("終了に失敗しました。", { isError: true });
-  }
-}
-
-async function applyRecurringToNext(recurring) {
-  if (!recurring.lastDone) {
-    deps.showToast("最終実施日が未設定です。編集から設定してください。", { isError: true });
-    return;
-  }
-  const dueWindow = computeDueWindowFromRecurring(recurring.lastDone, recurring);
-  if (!dueWindow) return;
-
-  const overwrite = state.plan.nextPlan
-    ? window.confirm("現在の次回予定を上書きして反映しますか？")
-    : true;
-  if (!overwrite) return;
-
-  try {
-    await setNextExamPlan(
-      state.karteNumber,
-      buildNextPlanPayload({
-        item: recurring.item,
-        dueDate: dueWindow.targetDate || dueWindow.dueDate,
-        note: `${formatRecurringIntervalLabel(recurring)}の定期検査`,
-        recurringId: recurring.id,
-        baselineDate: recurring.lastDone,
-      })
-    );
-    deps.showToast("次回予定に反映しました。");
-  } catch (err) {
-    console.error(err);
-    deps.showToast("反映に失敗しました。", { isError: true });
   }
 }
 
@@ -1528,38 +1492,40 @@ function renderExamItemsList() {
     label.textContent = item.label || "(名称未設定)";
     info.appendChild(label);
 
-    const actions = document.createElement("div");
-    actions.className = "tpl-list-item__actions";
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "btn btn--small btn--outline";
-    editBtn.textContent = "編集";
-    editBtn.addEventListener("click", () => {
-      state.editingExamItemId = item.id;
-      examItemEditorTitle.textContent = "検査項目を編集";
-      examItemLabelInput.value = item.label || "";
-      btnExamItemSave.textContent = "更新する";
-      btnExamItemCancel.hidden = false;
-      deps.showError(examItemError, "");
-      examItemLabelInput.focus();
-    });
-    const delBtn = document.createElement("button");
-    delBtn.type = "button";
-    delBtn.className = "btn btn--small btn--danger-outline";
-    delBtn.textContent = "削除";
-    delBtn.addEventListener("click", async () => {
-      const ok = window.confirm(`検査項目「${item.label}」を削除しますか？`);
-      if (!ok) return;
-      try {
-        await deleteExamItem(item.id);
-        if (state.editingExamItemId === item.id) resetExamItemEditor();
-        deps.showToast("検査項目を削除しました。");
-      } catch (err) {
-        console.error(err);
-        deps.showToast("削除に失敗しました。", { isError: true });
-      }
-    });
-    actions.append(editBtn, delBtn);
+    const actions = createIconActions(
+      [
+        {
+          action: "edit",
+          title: "編集",
+          onClick: () => {
+            state.editingExamItemId = item.id;
+            examItemEditorTitle.textContent = "検査項目を編集";
+            examItemLabelInput.value = item.label || "";
+            btnExamItemSave.textContent = "更新する";
+            btnExamItemCancel.hidden = false;
+            deps.showError(examItemError, "");
+            examItemLabelInput.focus();
+          },
+        },
+        {
+          action: "delete",
+          title: "削除",
+          onClick: async () => {
+            const ok = window.confirm(`検査項目「${item.label}」を削除しますか？`);
+            if (!ok) return;
+            try {
+              await deleteExamItem(item.id);
+              if (state.editingExamItemId === item.id) resetExamItemEditor();
+              deps.showToast("検査項目を削除しました。");
+            } catch (err) {
+              console.error(err);
+              deps.showToast("削除に失敗しました。", { isError: true });
+            }
+          },
+        },
+      ],
+      "tpl-list-item__actions icon-actions"
+    );
     li.append(info, actions);
     examItemsList.appendChild(li);
   });

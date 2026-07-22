@@ -14,6 +14,7 @@ import {
   ApiKeyMissingError,
 } from "./anthropic.js";
 import { openSettings } from "./settings-ui.js";
+import { createIconActions } from "./icon-actions.js";
 
 let deps = {
   showToast: () => {},
@@ -119,32 +120,31 @@ function createQaCard(item) {
   aText.className = "qa-card__answer";
   aText.textContent = item.answer || "（回答なし）";
 
-  const actions = document.createElement("div");
-  actions.className = "qa-card__actions";
-
-  const refreshBtn = document.createElement("button");
-  refreshBtn.type = "button";
-  refreshBtn.className = "btn btn--small btn--outline";
-  refreshBtn.textContent = "再検索";
-  refreshBtn.addEventListener("click", () => handleRefresh(item, refreshBtn));
-
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn btn--small btn--danger-outline";
-  delBtn.textContent = "削除";
-  delBtn.addEventListener("click", async () => {
-    const ok = window.confirm("この質問と回答を削除しますか？");
-    if (!ok) return;
-    try {
-      await deleteFreeQA(state.karteNumber, item.id);
-      deps.showToast("削除しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("削除に失敗しました。", { isError: true });
-    }
-  });
-
-  actions.append(refreshBtn, delBtn);
+  const actions = createIconActions(
+    [
+      {
+        action: "refresh",
+        title: "再検索",
+        onClick: (e) => handleRefresh(item, e.currentTarget),
+      },
+      {
+        action: "delete",
+        title: "削除",
+        onClick: async () => {
+          const ok = window.confirm("この質問と回答を削除しますか？");
+          if (!ok) return;
+          try {
+            await deleteFreeQA(state.karteNumber, item.id);
+            deps.showToast("削除しました。");
+          } catch (err) {
+            console.error(err);
+            deps.showToast("削除に失敗しました。", { isError: true });
+          }
+        },
+      },
+    ],
+    "qa-card__actions icon-actions"
+  );
   li.append(qLabel, qText, meta, aLabel, aText, actions);
   return li;
 }
@@ -226,7 +226,7 @@ async function handleRefresh(item, buttonEl) {
   if (state.asking) return;
 
   state.asking = true;
-  deps.setBusy(buttonEl, true, "再検索中...", "再検索");
+  if (buttonEl) buttonEl.disabled = true;
   deps.showError(qaError, "");
 
   try {
@@ -253,7 +253,7 @@ async function handleRefresh(item, buttonEl) {
     }
   } finally {
     state.asking = false;
-    deps.setBusy(buttonEl, false, "再検索中...", "再検索");
+    if (buttonEl) buttonEl.disabled = false;
   }
 }
 

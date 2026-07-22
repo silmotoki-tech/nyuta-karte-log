@@ -11,6 +11,7 @@ import {
   deletePatientHistoryNote,
   deletePatientHistoryEntry,
 } from "./db.js";
+import { createIconActions, createIconButton } from "./icon-actions.js";
 
 const HISTORY_TYPES = [
   { id: "disease", label: "疾患" },
@@ -359,26 +360,27 @@ function createHistoryDetail(entry) {
 
   // 削除
   const delRow = document.createElement("div");
-  delRow.className = "med-detail-actions";
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn btn--small btn--danger-outline";
-  delBtn.textContent = "この既往歴を削除";
-  delBtn.addEventListener("click", async () => {
-    const ok = window.confirm(
-      `既往歴「${entry.title}」を削除しますか？メモもまとめて削除されます。`
-    );
-    if (!ok) return;
-    try {
-      await deletePatientHistoryEntry(state.karteNumber, entry.id);
-      state.expandedIds.delete(entry.id);
-      deps.showToast("既往歴を削除しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("削除に失敗しました。", { isError: true });
-    }
-  });
-  delRow.appendChild(delBtn);
+  delRow.className = "med-detail-actions icon-actions";
+  delRow.appendChild(
+    createIconButton({
+      action: "delete",
+      title: "この既往歴を削除",
+      onClick: async () => {
+        const ok = window.confirm(
+          `既往歴「${entry.title}」を削除しますか？メモもまとめて削除されます。`
+        );
+        if (!ok) return;
+        try {
+          await deletePatientHistoryEntry(state.karteNumber, entry.id);
+          state.expandedIds.delete(entry.id);
+          deps.showToast("既往歴を削除しました。");
+        } catch (err) {
+          console.error(err);
+          deps.showToast("削除に失敗しました。", { isError: true });
+        }
+      },
+    })
+  );
   detail.appendChild(delRow);
 
   return detail;
@@ -400,24 +402,26 @@ function createNoteItem(entry, note) {
   body.textContent = `${note.text || ""}${authorPart}`;
   info.append(title, body);
 
-  const actions = document.createElement("div");
-  actions.className = "exam-list-item__actions";
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn btn--small btn--danger-outline";
-  delBtn.textContent = "削除";
-  delBtn.addEventListener("click", async () => {
-    const ok = window.confirm("このメモを削除しますか？");
-    if (!ok) return;
-    try {
-      await deletePatientHistoryNote(state.karteNumber, entry.id, note.id);
-      deps.showToast("メモを削除しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("削除に失敗しました。", { isError: true });
-    }
-  });
-  actions.appendChild(delBtn);
+  const actions = createIconActions(
+    [
+      {
+        action: "delete",
+        title: "削除",
+        onClick: async () => {
+          const ok = window.confirm("このメモを削除しますか？");
+          if (!ok) return;
+          try {
+            await deletePatientHistoryNote(state.karteNumber, entry.id, note.id);
+            deps.showToast("メモを削除しました。");
+          } catch (err) {
+            console.error(err);
+            deps.showToast("削除に失敗しました。", { isError: true });
+          }
+        },
+      },
+    ],
+    "exam-list-item__actions icon-actions"
+  );
   li.append(info, actions);
   return li;
 }

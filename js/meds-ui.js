@@ -15,6 +15,7 @@ import {
   deleteMedicationItem,
   fetchMedicationsOnce,
 } from "./db.js";
+import { createIconActions, createIconButton } from "./icon-actions.js";
 import {
   FREQ_PRESETS_ABSOLUTE,
   FREQ_PRESETS_TRANSITION,
@@ -588,26 +589,27 @@ function createDrugDetail(drug, status) {
 
   // 削除
   const delRow = document.createElement("div");
-  delRow.className = "med-detail-actions";
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn btn--small btn--danger-outline";
-  delBtn.textContent = "この薬剤を削除";
-  delBtn.addEventListener("click", async () => {
-    const ok = window.confirm(
-      `薬剤「${drug.name}」を削除しますか？履歴もまとめて削除されます。`
-    );
-    if (!ok) return;
-    try {
-      await deleteMedication(state.karteNumber, drug.id);
-      state.expandedIds.delete(drug.id);
-      deps.showToast("薬剤を削除しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("削除に失敗しました。", { isError: true });
-    }
-  });
-  delRow.appendChild(delBtn);
+  delRow.className = "med-detail-actions icon-actions";
+  delRow.appendChild(
+    createIconButton({
+      action: "delete",
+      title: "この薬剤を削除",
+      onClick: async () => {
+        const ok = window.confirm(
+          `薬剤「${drug.name}」を削除しますか？履歴もまとめて削除されます。`
+        );
+        if (!ok) return;
+        try {
+          await deleteMedication(state.karteNumber, drug.id);
+          state.expandedIds.delete(drug.id);
+          deps.showToast("薬剤を削除しました。");
+        } catch (err) {
+          console.error(err);
+          deps.showToast("削除に失敗しました。", { isError: true });
+        }
+      },
+    })
+  );
   detail.appendChild(delRow);
 
   return detail;
@@ -638,31 +640,33 @@ function createEventItem(drug, ev) {
   meta.textContent = parts.join("　") || "—";
   info.append(title, meta);
 
-  const actions = document.createElement("div");
-  actions.className = "exam-list-item__actions";
-
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.className = "btn btn--small btn--outline";
-  editBtn.textContent = "編集";
-  editBtn.addEventListener("click", () => openEventModal(drug.id, ev));
-
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn btn--small btn--danger-outline";
-  delBtn.textContent = "削除";
-  delBtn.addEventListener("click", async () => {
-    const ok = window.confirm("この出来事を削除しますか？（入力ミスの訂正向けです）");
-    if (!ok) return;
-    try {
-      await deleteMedicationEvent(state.karteNumber, drug.id, ev.id);
-      deps.showToast("出来事を削除しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("削除に失敗しました。", { isError: true });
-    }
-  });
-  actions.append(editBtn, delBtn);
+  const actions = createIconActions(
+    [
+      {
+        action: "edit",
+        title: "編集",
+        onClick: () => openEventModal(drug.id, ev),
+      },
+      {
+        action: "delete",
+        title: "削除",
+        onClick: async () => {
+          const ok = window.confirm(
+            "この出来事を削除しますか？（入力ミスの訂正向けです）"
+          );
+          if (!ok) return;
+          try {
+            await deleteMedicationEvent(state.karteNumber, drug.id, ev.id);
+            deps.showToast("出来事を削除しました。");
+          } catch (err) {
+            console.error(err);
+            deps.showToast("削除に失敗しました。", { isError: true });
+          }
+        },
+      },
+    ],
+    "exam-list-item__actions icon-actions"
+  );
   li.append(info, actions);
   return li;
 }
@@ -1161,38 +1165,40 @@ function renderMedItemsList() {
     label.textContent = item.label || "(名称未設定)";
     info.appendChild(label);
 
-    const actions = document.createElement("div");
-    actions.className = "tpl-list-item__actions";
-    const editBtn = document.createElement("button");
-    editBtn.type = "button";
-    editBtn.className = "btn btn--small btn--outline";
-    editBtn.textContent = "編集";
-    editBtn.addEventListener("click", () => {
-      state.editingMasterId = item.id;
-      medItemEditorTitle.textContent = "薬剤を編集";
-      medItemLabelInput.value = item.label || "";
-      btnMedItemSave.textContent = "更新する";
-      btnMedItemCancel.hidden = false;
-      deps.showError(medItemError, "");
-      medItemLabelInput.focus();
-    });
-    const delBtn = document.createElement("button");
-    delBtn.type = "button";
-    delBtn.className = "btn btn--small btn--danger-outline";
-    delBtn.textContent = "削除";
-    delBtn.addEventListener("click", async () => {
-      const ok = window.confirm(`薬剤マスタ「${item.label}」を削除しますか？`);
-      if (!ok) return;
-      try {
-        await deleteMedicationItem(item.id);
-        if (state.editingMasterId === item.id) resetMedItemEditor();
-        deps.showToast("マスタから削除しました。");
-      } catch (err) {
-        console.error(err);
-        deps.showToast("削除に失敗しました。", { isError: true });
-      }
-    });
-    actions.append(editBtn, delBtn);
+    const actions = createIconActions(
+      [
+        {
+          action: "edit",
+          title: "編集",
+          onClick: () => {
+            state.editingMasterId = item.id;
+            medItemEditorTitle.textContent = "薬剤を編集";
+            medItemLabelInput.value = item.label || "";
+            btnMedItemSave.textContent = "更新する";
+            btnMedItemCancel.hidden = false;
+            deps.showError(medItemError, "");
+            medItemLabelInput.focus();
+          },
+        },
+        {
+          action: "delete",
+          title: "削除",
+          onClick: async () => {
+            const ok = window.confirm(`薬剤マスタ「${item.label}」を削除しますか？`);
+            if (!ok) return;
+            try {
+              await deleteMedicationItem(item.id);
+              if (state.editingMasterId === item.id) resetMedItemEditor();
+              deps.showToast("マスタから削除しました。");
+            } catch (err) {
+              console.error(err);
+              deps.showToast("削除に失敗しました。", { isError: true });
+            }
+          },
+        },
+      ],
+      "tpl-list-item__actions icon-actions"
+    );
     li.append(info, actions);
     medItemsList.appendChild(li);
   });
