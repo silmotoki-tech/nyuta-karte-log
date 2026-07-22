@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>中央・左カラム表示プレビュー</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    html, body { height: 100%; margin: 0; }
+    .app { display: flex !important; height: 100vh; }
+    .center-main { display: flex !important; }
+    .lock-screen { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="app-shell" class="app">
+    <div class="layout">
+      <aside class="col col--left" id="col-left">
+        <div class="col-left__inner" id="col-left-inner">
+          <div class="left-patient">
+            <div class="left-patient__top">
+              <p class="left-patient__label">サンプル花子（犬）</p>
+            </div>
+          </div>
+          <div class="left-head"><h2 class="col__title">見出し</h2></div>
+          <ul class="headline-list" id="headline-list"></ul>
+        </div>
+      </aside>
+      <section class="col col--center" id="col-center">
+        <div class="center-main">
+          <div class="timeline-wrap">
+            <h2 class="col__title timeline-title">これまでの記録（新しい順）</h2>
+            <ul class="timeline" id="timeline"></ul>
+          </div>
+        </div>
+      </section>
+      <aside class="col col--right">
+        <div class="right-tabs"><button type="button" class="right-tab is-active">検査</button></div>
+        <div class="right-panel" style="display:flex"><p class="field__note">（プレビュー用）</p></div>
+      </aside>
+    </div>
+  </div>
+
+  <template id="timeline-item-template">
+    <li class="tl-item" data-category="none">
+      <span class="tl-item__bar"></span>
+      <div class="tl-item__content">
+        <div class="tl-item__head">
+          <button class="tl-item__star" type="button" aria-pressed="false" title="重要（★）">★</button>
+          <span class="tl-item__dot"></span>
+          <div class="tl-item__title-row">
+            <span class="tl-item__title">
+              <span class="tl-item__date"></span>
+              <span class="tl-item__headline"></span>
+            </span>
+            <span class="tl-item__cat-label"></span>
+            <span class="tl-item__meta"></span>
+          </div>
+        </div>
+        <p class="tl-item__body"></p>
+      </div>
+    </li>
+  </template>
+
+  <template id="headline-item-template">
+    <li class="hl-item">
+      <button class="hl-item__btn" type="button">
+        <span class="hl-item__dot"></span>
+        <span class="hl-item__star" aria-hidden="true">★</span>
+        <span class="hl-item__date"></span>
+        <span class="hl-item__text"></span>
+      </button>
+    </li>
+  </template>
+
+  <script>
+    const entries = [
+      {
+        id: "1",
+        recordDate: "2026-07-22",
+        headline: "耳を痒がる",
+        body: "前から耳をかゆがる仕草が見られていた。両側の外耳道にやや湿潤あり。",
+        author: "院長",
+        enteredMs: Date.parse("2026-07-22T13:36:00"),
+        category: "none",
+        important: true,
+      },
+      {
+        id: "2",
+        recordDate: "2026-07-21",
+        headline: "膀胱炎の続き",
+        body: "尿検査再検。沈渣で細菌は減少。抗生物質継続。",
+        author: "看護師A",
+        enteredMs: Date.parse("2026-07-21T10:05:00"),
+        category: "none",
+        important: false,
+      },
+      {
+        id: "3",
+        recordDate: "2026-07-18",
+        headline: "術後チェック",
+        body: "傷口は綺麗。抜糸予定を来週に設定。",
+        author: "院長",
+        enteredMs: Date.parse("2026-07-18T16:20:00"),
+        category: "ope",
+        important: false,
+      },
+      {
+        id: "4",
+        recordDate: "2025-12-03",
+        headline: "年末健診",
+        body: "血液・尿問題なし。体重微増。",
+        author: "院長",
+        enteredMs: Date.parse("2025-12-03T11:12:00"),
+        category: "none",
+        important: false,
+      },
+    ];
+
+    function pad2(n) { return String(n).padStart(2, "0"); }
+    function mdFromStr(dateStr) {
+      if (!dateStr) return "";
+      const [, m, d] = dateStr.split("-");
+      return `${Number(m)}/${Number(d)}`;
+    }
+    function yearFromStr(dateStr) {
+      return (dateStr || "").split("-")[0] || "";
+    }
+    function hmFromMs(ms) {
+      const d = new Date(ms);
+      return `${d.getHours()}:${pad2(d.getMinutes())}`;
+    }
+    function categoryShort(id) {
+      return { ope: "手術", admission: "入院", referral: "紹介" }[id] || "";
+    }
+    function buildEntrySideMeta(entry) {
+      const timePart = entry.enteredMs ? `${hmFromMs(entry.enteredMs)}入力` : "";
+      const author = entry.author || "";
+      if (timePart && author) return `${timePart}・記入者：${author}`;
+      return timePart || (author ? `記入者：${author}` : "");
+    }
+
+    const timelineEl = document.getElementById("timeline");
+    const headlineList = document.getElementById("headline-list");
+    const timelineItemTemplate = document.getElementById("timeline-item-template");
+    const headlineItemTemplate = document.getElementById("headline-item-template");
+
+    entries.forEach((entry) => {
+      const fragment = timelineItemTemplate.content.cloneNode(true);
+      const li = fragment.querySelector(".tl-item");
+      li.dataset.category = entry.category || "none";
+      li.querySelector(".tl-item__star").setAttribute("aria-pressed", String(Boolean(entry.important)));
+      li.querySelector(".tl-item__date").textContent = mdFromStr(entry.recordDate);
+      li.querySelector(".tl-item__headline").textContent = entry.headline;
+      li.querySelector(".tl-item__cat-label").textContent = categoryShort(entry.category);
+      li.querySelector(".tl-item__meta").textContent = buildEntrySideMeta(entry);
+      li.querySelector(".tl-item__body").textContent = entry.body;
+      timelineEl.appendChild(li);
+    });
+
+    let lastYear = null;
+    entries.forEach((entry) => {
+      const year = yearFromStr(entry.recordDate);
+      if (year && year !== lastYear) {
+        lastYear = year;
+        const yearLi = document.createElement("li");
+        yearLi.className = "hl-year";
+        yearLi.textContent = `${year}年`;
+        headlineList.appendChild(yearLi);
+      }
+      const fragment = headlineItemTemplate.content.cloneNode(true);
+      const li = fragment.querySelector(".hl-item");
+      li.classList.toggle("is-important", Boolean(entry.important));
+      li.querySelector(".hl-item__dot").dataset.category = entry.category || "none";
+      li.querySelector(".hl-item__date").textContent = mdFromStr(entry.recordDate);
+      li.querySelector(".hl-item__text").textContent = entry.headline;
+      headlineList.appendChild(li);
+    });
+  </script>
+</body>
+</html>

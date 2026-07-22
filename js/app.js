@@ -344,6 +344,12 @@ function mdFromStr(dateStr) {
   return `${Number(m)}/${Number(d)}`;
 }
 
+function yearFromStr(dateStr) {
+  if (!dateStr) return "";
+  const [y] = dateStr.split("-");
+  return y || "";
+}
+
 function hmFromMs(ms) {
   const d = new Date(ms);
   if (Number.isNaN(d.getTime())) return "";
@@ -362,10 +368,10 @@ function categoryShort(id) {
 }
 
 /**
- * 時系列エントリのメタ情報テキストを生成する。
- * 遡って入力された（記録日と入力日が異なる）場合は両方の日付を併記する。
+ * 時系列エントリの補足メタ（時間・記入者など）。
+ * 日付は見出し行に出すため、ここには含めない。
  */
-function buildEntryMeta(entry) {
+function buildEntrySideMeta(entry) {
   const rec = entry.recordDate;
   const ms = entry.enteredMs || Date.parse(entry.enteredAtIso || "") || 0;
   const enteredDateStr = ms ? dateStrFromMs(ms) : "";
@@ -373,19 +379,27 @@ function buildEntryMeta(entry) {
 
   let base = "";
   if (rec && enteredDateStr && enteredDateStr !== rec) {
-    base = `${mdFromStr(rec)}の記録　（${mdhmFromMs(ms)} 入力・記入者：${author}）`;
+    // 遡って入力: 入力日時を明示
+    const when = ms ? `${mdhmFromMs(ms)}入力` : "入力日不明";
+    base = author ? `${when}・記入者：${author}` : when;
   } else {
-    const timePart = ms ? `${hmFromMs(ms)} 入力・` : "";
-    base = `${mdFromStr(rec)}　（${timePart}記入者：${author}）`;
+    const timePart = ms ? `${hmFromMs(ms)}入力` : "";
+    if (timePart && author) base = `${timePart}・記入者：${author}`;
+    else if (timePart) base = timePart;
+    else if (author) base = `記入者：${author}`;
   }
 
   const editMs =
     entry.lastEditedMs || Date.parse(entry.lastEditedAtIso || "") || 0;
   if (editMs && entry.lastEditedBy) {
-    return `${base}　／　最終編集 ${mdhmFromMs(editMs)}・${entry.lastEditedBy}`;
+    return base
+      ? `${base}　／　最終編集 ${mdhmFromMs(editMs)}・${entry.lastEditedBy}`
+      : `最終編集 ${mdhmFromMs(editMs)}・${entry.lastEditedBy}`;
   }
   if (editMs) {
-    return `${base}　／　最終編集 ${mdhmFromMs(editMs)}`;
+    return base
+      ? `${base}　／　最終編集 ${mdhmFromMs(editMs)}`
+      : `最終編集 ${mdhmFromMs(editMs)}`;
   }
   return base;
 }
@@ -938,15 +952,17 @@ function createTimelineItem(entry) {
   li.dataset.category = entry.category || "none";
 
   const starBtn = li.querySelector(".tl-item__star");
+  const dateEl = li.querySelector(".tl-item__date");
   const headlineEl = li.querySelector(".tl-item__headline");
   const catLabelEl = li.querySelector(".tl-item__cat-label");
   const metaEl = li.querySelector(".tl-item__meta");
   const bodyEl = li.querySelector(".tl-item__body");
 
   starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
+  dateEl.textContent = mdFromStr(entry.recordDate) || "";
   headlineEl.textContent = entry.headline || "（見出しなし）";
   catLabelEl.textContent = categoryShort(entry.category);
-  metaEl.textContent = buildEntryMeta(entry);
+  metaEl.textContent = buildEntrySideMeta(entry);
   bodyEl.textContent = entry.body || "";
 
   starBtn.addEventListener("click", async () => {
@@ -993,7 +1009,19 @@ function createTimelineItem(entry) {
 
 function renderHeadlines(entries) {
   headlineList.innerHTML = "";
+  let lastYear = null;
+
   entries.forEach((entry) => {
+    const year = yearFromStr(entry.recordDate);
+    if (year && year !== lastYear) {
+      lastYear = year;
+      const yearLi = document.createElement("li");
+      yearLi.className = "hl-year";
+      yearLi.setAttribute("aria-hidden", "true");
+      yearLi.textContent = `${year}年`;
+      headlineList.appendChild(yearLi);
+    }
+
     const fragment = headlineItemTemplate.content.cloneNode(true);
     const li = fragment.querySelector(".hl-item");
     const btn = li.querySelector(".hl-item__btn");
@@ -1003,8 +1031,8 @@ function renderHeadlines(entries) {
 
     li.classList.toggle("is-important", Boolean(entry.important));
     dot.dataset.category = entry.category || "none";
+    dateEl.textContent = mdFromStr(entry.recordDate) || "（日付なし）";
     textEl.textContent = entry.headline || "（見出しなし）";
-    dateEl.textContent = mdFromStr(entry.recordDate);
 
     btn.addEventListener("click", () => jumpToEntry(entry.id, li));
     headlineList.appendChild(li);

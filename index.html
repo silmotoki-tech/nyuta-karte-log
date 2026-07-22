@@ -423,10 +423,15 @@
       <div class="tl-item__head">
         <button class="tl-item__star" type="button" aria-pressed="false" title="重要（★）">★</button>
         <span class="tl-item__dot"></span>
-        <span class="tl-item__headline"></span>
-        <span class="tl-item__cat-label"></span>
+        <div class="tl-item__title-row">
+          <span class="tl-item__title">
+            <span class="tl-item__date"></span>
+            <span class="tl-item__headline"></span>
+          </span>
+          <span class="tl-item__cat-label"></span>
+          <span class="tl-item__meta"></span>
+        </div>
       </div>
-      <div class="tl-item__meta"></div>
       <p class="tl-item__body"></p>
     </div>
   </li>
@@ -438,8 +443,8 @@
     <button class="hl-item__btn" type="button">
       <span class="hl-item__dot"></span>
       <span class="hl-item__star" aria-hidden="true">★</span>
-      <span class="hl-item__text"></span>
       <span class="hl-item__date"></span>
+      <span class="hl-item__text"></span>
     </button>
   </li>
 </template>

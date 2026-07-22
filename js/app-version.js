@@ -1,3 +1,3 @@
 // アプリの表示用バージョン。Service Worker の CACHE_VERSION と合わせて更新する。
-export const APP_VERSION = "1.9.11";
-export const CACHE_LABEL = "v54";
+export const APP_VERSION = "1.9.12";
+export const CACHE_LABEL = "v55";
