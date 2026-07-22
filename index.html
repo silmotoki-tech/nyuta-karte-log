@@ -278,12 +278,13 @@
 
       <!-- A. 検査予定 -->
       <div class="right-panel" id="panel-exam" data-panel="exam" hidden>
+        <div class="exam-toolbar">
+          <button id="btn-exam-new" class="btn btn--small btn--primary" type="button">予定を登録</button>
+        </div>
+
         <section class="exam-section">
           <div class="exam-section__head">
             <h3 class="exam-section__title">検査予定一覧</h3>
-          </div>
-          <div class="exam-register-actions">
-            <button id="btn-exam-new" class="btn btn--small btn--primary" type="button">予定を登録</button>
           </div>
           <p class="field__note" id="exam-plan-empty">登録された検査予定はありません。</p>
           <ul class="exam-list" id="exam-plan-list"></ul>

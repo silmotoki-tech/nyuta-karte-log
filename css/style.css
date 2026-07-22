@@ -1101,7 +1101,6 @@ html.is-unlocked .app {
   border-bottom: none;
 }
 
-.exam-section > .exam-register-actions,
 .exam-section > .field__note,
 .exam-section > .exam-list,
 .exam-section > .qa-list,
@@ -1113,7 +1112,7 @@ html.is-unlocked .app {
 }
 
 .exam-section > .exam-section__title + .field__note,
-.exam-section > .exam-section__head + .exam-register-actions {
+.exam-section > .exam-section__head + .field__note {
   margin-top: 2px;
 }
 
@@ -2121,13 +2120,6 @@ select.input {
 
 .row-longpress-menu__item--danger {
   color: var(--color-danger);
-}
-
-.exam-register-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 8px;
 }
 
 .exam-sheet__item {
