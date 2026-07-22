@@ -527,7 +527,7 @@ html.is-unlocked .app {
 }
 
 .center-main[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .center-toolbar {
