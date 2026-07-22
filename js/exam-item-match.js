@@ -1,10 +1,13 @@
 // 検査項目名の表記ゆれマッチング（AI提案の候補提示用）
 //
+// 方針:
+// - レーベンシュタイン距離（編集距離）による類似度を主軸にする
+// - 英数字トークン同士の編集距離で「ACDH」↔「ACTH」のような1文字違いを拾う
+// - 臨床表現の類義語ブーストは補助
+//
 // 照合対象:
-// - 血液タブの独立項目（CBC 等）
-// - 血液タブの大項目の内訳（肝臓→ALT、ホルモン→ACTH通常 等）※必須
-// - 画像・病理・その他の独立項目
-// 大項目（group / 子を持つ行）自体は候補に出さない。
+// - 血液の独立項目・大項目の内訳、画像・病理・その他の独立項目
+// - 大項目（group）自体は候補に出さない
 
 /**
  * 比較用に正規化する（空白・括弧・中黒を除き、英数字は小文字）。
@@ -18,15 +21,60 @@ export function normalizeExamLabel(value) {
 }
 
 /**
- * 英数字トークンを抽出する（例: ACTH刺激試験 → ["acth"]）。
+ * 英数字トークンを抽出する（例: ACTH刺激試験 → ["acth"]、ACDH → ["acdh"]）。
  */
 export function extractExamTokens(value) {
   const raw = String(value || "");
   const tokens = [];
-  for (const m of raw.matchAll(/[A-Za-z][A-Za-z0-9]{1,}|[0-9]+/g)) {
+  for (const m of raw.matchAll(/[A-Za-z][A-Za-z0-9]*|[0-9]+/g)) {
     tokens.push(m[0].toLowerCase());
   }
   return tokens;
+}
+
+/**
+ * レーベンシュタイン距離（編集距離）。
+ */
+export function levenshteinDistance(a, b) {
+  const s = String(a || "");
+  const t = String(b || "");
+  if (s === t) return 0;
+  if (!s.length) return t.length;
+  if (!t.length) return s.length;
+
+  const rows = s.length + 1;
+  const cols = t.length + 1;
+  const prev = new Array(cols);
+  const curr = new Array(cols);
+  for (let j = 0; j < cols; j += 1) prev[j] = j;
+
+  for (let i = 1; i < rows; i += 1) {
+    curr[0] = i;
+    const sChar = s.charCodeAt(i - 1);
+    for (let j = 1; j < cols; j += 1) {
+      const cost = sChar === t.charCodeAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(
+        prev[j] + 1, // deletion
+        curr[j - 1] + 1, // insertion
+        prev[j - 1] + cost // substitution
+      );
+    }
+    for (let j = 0; j < cols; j += 1) prev[j] = curr[j];
+  }
+  return prev[cols - 1];
+}
+
+/**
+ * 編集距離ベースの類似度（0〜1）。1が完全一致。
+ */
+export function levenshteinSimilarity(a, b) {
+  const s = String(a || "");
+  const t = String(b || "");
+  if (!s && !t) return 1;
+  if (!s || !t) return 0;
+  const dist = levenshteinDistance(s, t);
+  const maxLen = Math.max(s.length, t.length);
+  return maxLen === 0 ? 1 : 1 - dist / maxLen;
 }
 
 function buildParentIdSet(items) {
@@ -61,9 +109,7 @@ export function listExamMatchTargets(items) {
     const kind = String(item.kind || "").trim();
     const parentId = String(item.parentId || "").trim();
 
-    // 大項目は候補にしない
     if (kind === "group") continue;
-    // kind 欠落でも「子を持つ行」は大項目扱い
     if (id && parentIds.has(id)) continue;
 
     targets.push({
@@ -103,106 +149,166 @@ export function isExamLeafItem(item, parentIdSet) {
   return true;
 }
 
-function longestCommonSubstring(a, b) {
-  if (!a || !b) return "";
-  const m = a.length;
-  const n = b.length;
-  let best = "";
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 1; i <= m; i += 1) {
-    for (let j = 1; j <= n; j += 1) {
-      if (a[i - 1] === b[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-        if (dp[i][j] > best.length) {
-          best = a.slice(i - dp[i][j], i);
-        }
-      }
-    }
-  }
-  return best;
-}
-
-const EXAM_ALIAS_BOOSTS = [
+/**
+ * 臨床表現 → マスタ正式名の補助ブースト（意味的な近さ）。
+ */
+const EXAM_QUERY_SYNONYMS = [
+  { test: /acth|acdh|athc|atch/i, labels: ["ACTH通常", "ACTH松木式"] },
+  { test: /コレステロール|総コレ|t-?cho/i, labels: ["T-Cho"] },
+  { test: /中性脂肪|トリグリセリド|(^|[^a-z])tg([^a-z]|$)/i, labels: ["TG"] },
+  { test: /ビリルビン|t-?bil/i, labels: ["総ビリルビン"] },
+  { test: /電解質|ナトリウム|カリウム|クロール/i, labels: ["電解質"] },
+  { test: /腎パネル/i, labels: ["腎パネル(IDEXX)"] },
+  { test: /血糖|グルコース/i, labels: ["血糖(アントセンス)", "血糖(ドライケム)"] },
+  { test: /アントセンス/i, labels: ["血糖(アントセンス)"] },
+  { test: /ドライケム/i, labels: ["血糖(ドライケム)"] },
+  { test: /甲状腺|サイロイド/i, labels: ["T4", "fT4"] },
+  { test: /(^|[^a-z0-9])t4([^a-z0-9]|$)/i, labels: ["T4"] },
+  { test: /ft4|フリーt4|遊離t4/i, labels: ["fT4"] },
+  { test: /(^|[^a-z])alt([^a-z]|$)|gpt/i, labels: ["ALT"] },
+  { test: /(^|[^a-z])ast([^a-z]|$)|got/i, labels: ["AST"] },
+  { test: /(^|[^a-z])alp([^a-z]|$)/i, labels: ["ALP"] },
+  { test: /(^|[^a-z])ggt([^a-z]|$)|γ-?gt|ガンマgt/i, labels: ["GGT"] },
+  { test: /(^|[^a-z])bun([^a-z]|$)/i, labels: ["BUN"] },
+  { test: /(^|[^a-z])cre(a)?([^a-z]|$)|クレアチニン/i, labels: ["Cre"] },
+  { test: /cbc|血算|全血球/i, labels: ["CBC"] },
+  { test: /(^|[^a-z])crp([^a-z]|$)/i, labels: ["CRP"] },
+  { test: /(^|[^a-z])saa([^a-z]|$)/i, labels: ["SAA"] },
+  { test: /tba/i, labels: ["TBA(pre・post)", "TBA(post)"] },
+  { test: /upc/i, labels: ["尿検査(UPC)", "尿検査(UPCなし)", "UPC(外注)"] },
+  { test: /尿検査|尿沈渣|検尿/i, labels: ["尿検査(UPCなし)", "尿検査(UPC)", "UPC(外注)"] },
+  { test: /便検査|糞便|検便/i, labels: ["便検査"] },
+  { test: /下痢パネル|下痢/i, labels: ["下痢パネル", "便検査"] },
+  { test: /健診セット|健康診断|ドック/i, labels: ["健診セット(FUJIFILM)", "健診セット(IDEXX)"] },
+  { test: /肝機能|肝臓|肝酵素|肝数値/i, parentLabels: ["肝臓"] },
+  { test: /腎機能|腎臓|腎数値/i, parentLabels: ["腎臓"] },
+  { test: /脂質|脂血/i, parentLabels: ["脂質"] },
+  { test: /ホルモン|内分泌/i, parentLabels: ["ホルモン"] },
   {
-    test: (q) => /acth/.test(q) && /刺激|試験|test|stim/.test(q),
-    prefer: [/acth通常/, /acth松木/, /acth/],
+    test: /血液検査|血検|採血して|採血を|血液を検査/,
+    labels: ["CBC", "血糖(アントセンス)", "血糖(ドライケム)", "健診セット(FUJIFILM)", "健診セット(IDEXX)", "CRP", "SAA"],
   },
   {
-    test: (q) => /upc/.test(q) && /外注|尿蛋白|尿/.test(q),
-    prefer: [/upc外注/, /尿検査upc/, /upc/],
+    test: /レントゲン|x線|エックス線|\bxp\b|放射線撮影|単純撮影/,
+    labels: ["胸部スク", "腹部スク", "全スク"],
   },
+  { test: /胸部スク|胸部セット|胸スク|胸写/, labels: ["胸部スク"] },
+  { test: /腹部スク|腹部セット|腹スク|腹写/, labels: ["腹部スク"] },
+  { test: /全スク|全身スク/, labels: ["全スク"] },
+  { test: /エコー|超音波/, labels: ["腹部エコー", "心エコー"] },
+  { test: /心エコー|心臓エコー|心臓超音波/, labels: ["心エコー"] },
+  { test: /腹部エコー|お腹のエコー|腹エコー/, labels: ["腹部エコー"] },
   {
-    test: (q) => /尿検査|尿沈渣|尿/.test(q) && !/upc外注/.test(q),
-    prefer: [/尿検査/, /upc/],
+    test: /病理検査|病理に|病理へ|病理提出|組織診|生検|バイオプシー/,
+    labels: ["組織検査", "細胞診(院内)", "細胞診(外注)"],
   },
-  {
-    test: (q) => /便|糞|下痢パネル|下痢/.test(q),
-    prefer: [/下痢パネル/, /便検査/],
-  },
-  {
-    test: (q) => /胸部.*スク|胸部セット|胸スク/.test(q),
-    prefer: [/胸部スク/],
-  },
-  {
-    test: (q) => /腹部.*スク|腹部セット|腹スク/.test(q),
-    prefer: [/腹部スク/],
-  },
+  { test: /細胞診/, labels: ["細胞診(院内)", "細胞診(外注)"] },
+  { test: /組織検査|組織病理/, labels: ["組織検査"] },
+  { test: /細菌培養|細菌の培養/, labels: ["細菌培養(院内)", "細菌培養(外注)"] },
+  { test: /真菌培養|皮膚糸状菌|カビ培養/, labels: ["真菌培養(院内)", "真菌培養(外注)"] },
 ];
 
-function aliasBoost(queryNorm, candidateNorm) {
+function synonymBoost(query, target) {
+  const q = String(query || "");
+  const label = String(target.label || "");
+  const parentLabel = String(target.parentLabel || "");
   let boost = 0;
-  for (const rule of EXAM_ALIAS_BOOSTS) {
-    if (!rule.test(queryNorm)) continue;
-    for (let i = 0; i < rule.prefer.length; i += 1) {
-      if (rule.prefer[i].test(candidateNorm)) {
-        boost = Math.max(boost, 70 - i * 5);
-        break;
-      }
-    }
+  for (const rule of EXAM_QUERY_SYNONYMS) {
+    if (!rule.test.test(q)) continue;
+    if (rule.labels?.includes(label)) boost = Math.max(boost, 78);
+    if (rule.parentLabels?.includes(parentLabel)) boost = Math.max(boost, 62);
   }
   return boost;
 }
 
 /**
- * query と候補ラベルの類似スコア（0〜100）。
+ * 英数字トークン同士の最大類似度（編集距離）。
+ * 例: ACDH ↔ ACTH → 0.75
  */
-export function scoreExamLabelMatch(query, candidate) {
+function bestTokenSimilarity(query, candidate) {
+  const qTokens = extractExamTokens(query).filter((t) => t.length >= 3);
+  const cTokens = extractExamTokens(candidate).filter((t) => t.length >= 2);
+  if (!qTokens.length || !cTokens.length) return 0;
+
+  let best = 0;
+  for (const qt of qTokens) {
+    for (const ct of cTokens) {
+      // 長さが大きく違うと誤爆しやすいので制限
+      if (Math.abs(qt.length - ct.length) > 2) continue;
+      const sim = levenshteinSimilarity(qt, ct);
+      if (sim > best) best = sim;
+    }
+  }
+  return best;
+}
+
+/**
+ * 候補ラベル先頭の英数字塊（ACTH通常 → acth）との類似度。
+ */
+function leadingCodeSimilarity(query, candidate) {
+  const qTokens = extractExamTokens(query).filter((t) => t.length >= 3);
+  const lead = normalizeExamLabel(candidate).match(/^[a-z0-9]+/);
+  if (!qTokens.length || !lead) return 0;
+  const code = lead[0];
+  let best = 0;
+  for (const qt of qTokens) {
+    if (Math.abs(qt.length - code.length) > 2) continue;
+    best = Math.max(best, levenshteinSimilarity(qt, code));
+  }
+  return best;
+}
+
+/**
+ * query と候補ラベルの類似スコア（0〜100）。
+ * 編集距離を主軸に、部分一致・類義語を補助する。
+ */
+export function scoreExamLabelMatch(query, candidate, targetMeta = null) {
   const q = normalizeExamLabel(query);
   const c = normalizeExamLabel(candidate);
   if (!q || !c) return 0;
   if (q === c) return 100;
 
   let score = 0;
+
+  // 部分一致
   if (q.includes(c) || c.includes(q)) {
     const ratio = Math.min(q.length, c.length) / Math.max(q.length, c.length);
     score = Math.max(score, Math.round(70 + 25 * ratio));
   }
 
-  const qTokens = extractExamTokens(query);
-  const cTokens = extractExamTokens(candidate);
-  for (const qt of qTokens) {
-    for (const ct of cTokens) {
-      if (qt.length < 3 || ct.length < 3) continue;
-      if (qt === ct || qt.includes(ct) || ct.includes(qt)) {
-        score = Math.max(score, 55 + Math.min(qt.length, ct.length) * 3);
-      }
+  // 全体の編集距離類似度
+  const fullSim = levenshteinSimilarity(q, c);
+  if (fullSim >= 0.55) {
+    score = Math.max(score, Math.round(35 + 65 * fullSim));
+  }
+
+  // トークン編集距離（ACDH↔ACTH の本命）
+  const tokenSim = bestTokenSimilarity(query, candidate);
+  if (tokenSim >= 0.6) {
+    // 0.75 → 約 88、0.67 → 約 80、1.0 → 100
+    score = Math.max(score, Math.round(40 + 60 * tokenSim));
+  }
+
+  // 先頭コードとの編集距離
+  const leadSim = leadingCodeSimilarity(query, candidate);
+  if (leadSim >= 0.6) {
+    score = Math.max(score, Math.round(42 + 56 * leadSim));
+  }
+
+  // 親大項目名が本文にあれば底上げ
+  if (targetMeta?.parentLabel) {
+    const parentNorm = normalizeExamLabel(targetMeta.parentLabel);
+    if (parentNorm.length >= 2 && q.includes(parentNorm)) {
+      score = Math.max(score, 58);
     }
   }
 
-  const lcs = longestCommonSubstring(q, c);
-  if (lcs.length >= 3) {
-    const ratio = lcs.length / Math.max(q.length, c.length);
-    score = Math.max(score, Math.round(40 + 50 * ratio));
-  }
-
-  score = Math.max(score, aliasBoost(q, c));
+  score = Math.max(score, synonymBoost(query, targetMeta || { label: candidate }));
   return Math.min(100, score);
 }
 
 /**
  * 検査項目マスタから、query に近そうな選択可能項目をスコア順で返す。
- * 内訳（parentId 付き）も独立項目も同じ土台で照合する。
- * @returns {{ label: string, displayLabel: string, score: number, nested: boolean, parentLabel: string, item: object }[]}
  */
 export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 } = {}) {
   const q = String(query || "").trim();
@@ -211,7 +317,7 @@ export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 
   const targets = listExamMatchTargets(items);
 
   const scored = targets.map((t) => {
-    const score = scoreExamLabelMatch(q, t.label);
+    const score = scoreExamLabelMatch(q, t.label, t);
     const displayLabel = t.parentLabel ? `${t.label}（${t.parentLabel}）` : t.label;
     return {
       item: t.item,
@@ -225,7 +331,6 @@ export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 
 
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    // 内訳を同点なら先に（階層由来でも確実に候補へ）
     if (a.nested !== b.nested) return a.nested ? -1 : 1;
     return a.label.localeCompare(b.label, "ja");
   });
