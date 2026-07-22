@@ -1601,3 +1601,11 @@ export async function addExamPlanFromExternal(
     source: source === "ai" ? "ai" : undefined,
   });
 }
+
+/**
+ * 検査項目マスタの現在スナップショット（subscribe 反映済み）。
+ * AI提案の照合フォールバック用。
+ */
+export function getExamItemsSnapshot() {
+  return Array.isArray(state.examItems) ? state.examItems.slice() : [];
+}

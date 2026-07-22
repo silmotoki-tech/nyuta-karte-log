@@ -14,6 +14,7 @@ import {
   addExamPlanFromExternal,
   unitToDays,
   switchRightTab,
+  getExamItemsSnapshot,
 } from "./exam-plan-ui.js";
 import {
   ensureMedicationNameFromExternal,
@@ -25,7 +26,10 @@ import {
   fetchMedicationItemsOnce,
   fetchExamItemsOnce,
 } from "./db.js";
-import { findExamItemCandidates } from "./exam-item-match.js";
+import {
+  findExamItemCandidates,
+  listExamLeafItems,
+} from "./exam-item-match.js";
 import { mountNumpad } from "./freq-picker.js";
 
 const KIND_LABELS = {
@@ -116,9 +120,8 @@ export async function runAiSuggestAfterSave({
       masterLabels = [];
     }
     try {
-      state.examMasterItems = await fetchExamItemsOnce();
-      examMasterLabels = state.examMasterItems
-        .filter((i) => i && i.kind !== "group")
+      state.examMasterItems = await loadExamMasterItems();
+      examMasterLabels = listExamLeafItems(state.examMasterItems)
         .map((i) => i.label)
         .filter(Boolean);
     } catch (_) {
@@ -495,6 +498,41 @@ function fieldText(label, value, onInput) {
 }
 
 /**
+ * 検査マスタを AI 照合用に読み込む。
+ * 1) シード補完付き fetch  2) 空なら subscribe 済みスナップショット
+ */
+async function loadExamMasterItems() {
+  let items = [];
+  try {
+    items = await fetchExamItemsOnce({ ensureDefaults: true });
+  } catch (err) {
+    console.warn("検査項目マスタの取得に失敗しました", err);
+    items = [];
+  }
+  const snap = getExamItemsSnapshot();
+  const fetchedLeaves = listExamLeafItems(items).length;
+  const snapLeaves = listExamLeafItems(snap).length;
+  if (snapLeaves > fetchedLeaves) {
+    return snap;
+  }
+  if (fetchedLeaves === 0 && snap.length) {
+    return snap;
+  }
+  return items;
+}
+
+function getExamMasterItemsForMatch() {
+  const current = state.examMasterItems || [];
+  if (listExamLeafItems(current).length > 0) return current;
+  const snap = getExamItemsSnapshot();
+  if (snap.length) {
+    state.examMasterItems = snap;
+    return snap;
+  }
+  return current;
+}
+
+/**
  * 検査項目: マスタに近そうな候補があればボタンで選べるようにする。
  * 「検出どおりの文言」も必ず選択肢に残す。
  */
@@ -503,10 +541,11 @@ function buildExamItemField(s, d) {
   d.detectedItem = detected;
   if (!d.item) d.item = detected;
 
-  const masterItems = state.examMasterItems || [];
+  const masterItems = getExamMasterItemsForMatch();
   const candidates = findExamItemCandidates(detected, masterItems);
-  const masterExact = masterItems.some(
-    (item) => item && item.kind !== "group" && String(item.label || "").trim() === detected
+  const leafItems = listExamLeafItems(masterItems);
+  const masterExact = leafItems.some(
+    (item) => String(item.label || "").trim() === detected
   );
   const nearby = candidates.filter((c) => c.label !== detected);
 

@@ -1198,9 +1198,17 @@ export async function fetchMedicationItemsOnce() {
 
 /**
  * 検査項目マスタを1回だけ取得する（全分類・内訳含む）。
+ * シード不足がある場合は先に補完してから読み直す。
  */
-export async function fetchExamItemsOnce() {
+export async function fetchExamItemsOnce({ ensureDefaults = false } = {}) {
   await authReady;
+  if (ensureDefaults) {
+    try {
+      await ensureExamItemDefaults();
+    } catch (err) {
+      console.warn("検査項目マスタのシード補完に失敗しました", err);
+    }
+  }
   const snapshot = await get(examItemsRef());
   const value = snapshot.val() || {};
   const items = Object.entries(value).map(([id, t]) => normalizeExamItem(id, t));

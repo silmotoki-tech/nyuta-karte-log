@@ -1,4 +1,5 @@
 // 検査項目名の表記ゆれマッチング（AI提案の候補提示用）
+// 血液の大項目／内訳、画像・病理・その他の独立項目をすべて対象にする。
 
 /**
  * 比較用に正規化する（空白・括弧・中黒を除き、英数字は小文字）。
@@ -8,7 +9,7 @@ export function normalizeExamLabel(value) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "")
-    .replace(/[（）()【】\[\]「」『』・･\-＿_]/g, "");
+    .replace(/[（）()【】\[\]「」『』・･\-＿_／/]/g, "");
 }
 
 /**
@@ -21,6 +22,36 @@ export function extractExamTokens(value) {
     tokens.push(m[0].toLowerCase());
   }
   return tokens;
+}
+
+/**
+ * 選択可能な検査項目（leaf）かどうか。
+ * - kind === "group" は除外
+ * - 他項目の parentId になっているID（大項目）も除外（kind 欠落・誤記の保険）
+ * - parentId 付きの内訳項目は対象に含める
+ */
+export function isExamLeafItem(item, parentIdSet) {
+  if (!item) return false;
+  const label = String(item.label || "").trim();
+  if (!label) return false;
+  const kind = String(item.kind || "").trim();
+  if (kind === "group") return false;
+  const id = String(item.id || "").trim();
+  if (id && parentIdSet && parentIdSet.has(id)) return false;
+  return true;
+}
+
+/**
+ * マスタ配列から照合対象の leaf だけを取り出す（内訳・独立項目の両方）。
+ */
+export function listExamLeafItems(items) {
+  const list = Array.isArray(items) ? items : [];
+  const parentIdSet = new Set(
+    list
+      .map((item) => String(item?.parentId || "").trim())
+      .filter(Boolean)
+  );
+  return list.filter((item) => isExamLeafItem(item, parentIdSet));
 }
 
 function longestCommonSubstring(a, b) {
@@ -40,6 +71,51 @@ function longestCommonSubstring(a, b) {
     }
   }
   return best;
+}
+
+/**
+ * よくある表記ゆれ → マスタ側で優先したいラベル断片。
+ * （部分一致でブーストする）
+ */
+const EXAM_ALIAS_BOOSTS = [
+  {
+    test: (q) => /acth/.test(q) && /刺激|試験|test|stim/.test(q),
+    prefer: [/acth通常/, /acth松木/, /acth/],
+  },
+  {
+    test: (q) => /upc/.test(q) && /外注|尿蛋白|尿/.test(q),
+    prefer: [/upc外注/, /尿検査upc/, /upc/],
+  },
+  {
+    test: (q) => /尿検査|尿沈渣|尿/.test(q) && !/upc外注/.test(q),
+    prefer: [/尿検査/, /upc/],
+  },
+  {
+    test: (q) => /便|糞|下痢パネル|下痢/.test(q),
+    prefer: [/下痢パネル/, /便検査/],
+  },
+  {
+    test: (q) => /胸部.*スク|胸部セット|胸スク/.test(q),
+    prefer: [/胸部スク/],
+  },
+  {
+    test: (q) => /腹部.*スク|腹部セット|腹スク/.test(q),
+    prefer: [/腹部スク/],
+  },
+];
+
+function aliasBoost(queryNorm, candidateNorm) {
+  let boost = 0;
+  for (const rule of EXAM_ALIAS_BOOSTS) {
+    if (!rule.test(queryNorm)) continue;
+    for (let i = 0; i < rule.prefer.length; i += 1) {
+      if (rule.prefer[i].test(candidateNorm)) {
+        boost = Math.max(boost, 70 - i * 5);
+        break;
+      }
+    }
+  }
+  return boost;
 }
 
 /**
@@ -74,20 +150,21 @@ export function scoreExamLabelMatch(query, candidate) {
     score = Math.max(score, Math.round(40 + 50 * ratio));
   }
 
+  score = Math.max(score, aliasBoost(q, c));
+
   return Math.min(100, score);
 }
 
 /**
  * 検査項目マスタから、query に近そうな leaf 項目をスコア順で返す。
+ * 大項目の内訳・独立項目・全タブを対象にする。
  * @returns {{ label: string, score: number, item: object }[]}
  */
-export function findExamItemCandidates(query, items, { minScore = 50, limit = 8 } = {}) {
+export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 } = {}) {
   const q = String(query || "").trim();
   if (!q) return [];
 
-  const leaves = (items || []).filter(
-    (item) => item && item.kind !== "group" && String(item.label || "").trim()
-  );
+  const leaves = listExamLeafItems(items);
 
   const scored = leaves.map((item) => {
     const label = String(item.label || "").trim();
