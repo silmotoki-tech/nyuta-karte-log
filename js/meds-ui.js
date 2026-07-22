@@ -371,7 +371,7 @@ function createDrugCard(drug) {
     const recentSign = document.createElement("span");
     recentSign.className = "med-sign med-sign--recent";
     recentSign.title = "直近30日以内に出来事あり";
-    recentSign.textContent = "🔵";
+    recentSign.textContent = "●";
     signs.appendChild(recentSign);
   }
 
@@ -399,18 +399,16 @@ function createDrugCard(drug) {
   });
   li.appendChild(header);
 
-  // 処方切れアラート（一覧時点でも見える）
+  // 処方切れは行内の色＋短いラベルで示す（カード背景は使わない）
   if (expiryStatus === "overdue" || expiryStatus === "approaching") {
-    const alert = document.createElement("p");
-    alert.className =
+    const inline = document.createElement("span");
+    inline.className =
       expiryStatus === "overdue"
-        ? "exam-alert exam-alert--overdue"
-        : "exam-alert exam-alert--approaching";
-    alert.textContent =
-      expiryStatus === "overdue"
-        ? "処方切れ（期限超過）"
-        : "🟡 そろそろ処方切れ";
-    li.appendChild(alert);
+        ? "med-inline-status med-inline-status--overdue"
+        : "med-inline-status med-inline-status--near";
+    inline.textContent = expiryStatus === "overdue" ? "期限超過" : "期限間近";
+    // 名前の直後（status の前）に差し込む
+    nameEl.after(inline);
   }
 
   if (expanded) {

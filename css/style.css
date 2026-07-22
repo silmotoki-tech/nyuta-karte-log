@@ -724,11 +724,11 @@ html.is-unlocked .app {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 18px 28px;
+  padding: 10px 14px 20px;
 }
 
 .timeline-title {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .timeline {
@@ -737,20 +737,20 @@ html.is-unlocked .app {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .tl-item {
   display: flex;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background-color: var(--color-white);
   overflow: hidden;
   scroll-margin-top: 8px;
 }
 
 .tl-item__bar {
-  width: 6px;
+  width: 4px;
   flex-shrink: 0;
   background-color: transparent;
 }
@@ -772,24 +772,24 @@ html.is-unlocked .app {
 .tl-item__content {
   flex: 1;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 7px 10px;
 }
 
 .tl-item__head {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-bottom: 5px;
+  gap: 6px;
+  margin-bottom: 2px;
 }
 
 .tl-item__star {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.88rem;
   line-height: 1;
   color: var(--color-border);
-  padding: 2px;
+  padding: 1px;
   transition: color 0.12s ease, transform 0.05s ease;
 }
 
@@ -806,8 +806,8 @@ html.is-unlocked .app {
 }
 
 .tl-item__dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
   background-color: transparent;
@@ -828,15 +828,15 @@ html.is-unlocked .app {
 }
 
 .tl-item__headline {
-  font-size: 0.98rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--color-text);
 }
 
 .tl-item__cat-label {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 999px;
   color: var(--color-white);
 }
@@ -855,24 +855,24 @@ html.is-unlocked .app {
 }
 
 .tl-item__meta {
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   color: var(--color-text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-weight: 600;
 }
 
 .tl-item__body {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.65;
-  font-size: 0.92rem;
+  line-height: 1.45;
+  font-size: 0.84rem;
 }
 
 .tl-item__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* ===== 右カラム ===== */
@@ -880,7 +880,7 @@ html.is-unlocked .app {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
-  padding: 10px 10px 0;
+  padding: 6px 8px 0;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
   background-color: var(--color-white);
@@ -889,8 +889,8 @@ html.is-unlocked .app {
 .right-tab {
   border: none;
   background: none;
-  padding: 8px 9px;
-  font-size: 0.78rem;
+  padding: 6px 7px;
+  font-size: 0.74rem;
   font-weight: 700;
   color: var(--color-text-muted);
   border-bottom: 2px solid transparent;
@@ -934,10 +934,10 @@ html.is-unlocked .app {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 12px 14px 24px;
+  padding: 8px 10px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .right-panel[hidden] {
@@ -985,60 +985,51 @@ html.is-unlocked .app {
 .exam-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
 .exam-section__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .exam-section__title {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--color-brown);
   margin: 0;
 }
 
+/* 右カラム：次回予定は枠付きカードをやめ、色付きテキストで状態を示す */
 .exam-next-card {
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-white);
-  padding: 12px 14px;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.exam-next-card.is-due-far {
-  border-color: var(--due-far-border);
-  background-color: var(--due-far-bg);
-}
-
+.exam-next-card.is-due-far,
 .exam-next-card.is-due-near,
-.exam-next-card.is-alert {
-  border-color: var(--due-near-border);
-  background-color: var(--due-near-bg);
-}
-
-.exam-next-card.is-due-close {
-  border-color: var(--due-close-border);
-  background-color: var(--due-close-bg);
-}
-
+.exam-next-card.is-alert,
+.exam-next-card.is-due-close,
 .exam-next-card.is-overdue {
-  border-color: var(--due-overdue-border);
-  background-color: var(--due-overdue-bg);
+  border-color: transparent;
+  background-color: transparent;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .exam-next-empty {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .exam-alert {
-  margin: 0 0 8px;
-  font-size: 0.85rem;
+  margin: 0 0 2px;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.02em;
 }
@@ -1058,16 +1049,16 @@ html.is-unlocked .app {
 }
 
 .exam-next-item {
-  margin: 0 0 4px;
-  font-size: 1.05rem;
+  margin: 0 0 2px;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--color-text);
 }
 
 .exam-next-date {
-  margin: 0 0 6px;
-  font-size: 0.88rem;
-  font-weight: 600;
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--color-brown);
 }
 
@@ -1088,16 +1079,16 @@ html.is-unlocked .app {
 }
 
 .exam-next-note {
-  margin: 0 0 10px;
-  font-size: 0.82rem;
+  margin: 0 0 6px;
+  font-size: 0.75rem;
   color: var(--color-text-muted);
 }
 
 .exam-next-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .exam-list {
@@ -1106,17 +1097,18 @@ html.is-unlocked .app {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 
 .exam-list-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-cream);
+  gap: 6px;
+  padding: 6px 0;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background-color: transparent;
 }
 
 .exam-list-item__info {
@@ -1126,20 +1118,20 @@ html.is-unlocked .app {
 
 .exam-list-item__title {
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
 }
 
 .exam-list-item__meta {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--color-text-muted);
-  margin-top: 2px;
-  line-height: 1.45;
+  margin-top: 1px;
+  line-height: 1.4;
 }
 
 .exam-list-item__due {
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .exam-list-item__actions {
@@ -1367,63 +1359,71 @@ html.is-unlocked .app {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 
 .meds-category-heading {
   list-style: none;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 800;
   color: var(--color-brown);
-  margin: 8px 0 0;
-  padding: 0 2px;
+  margin: 10px 0 2px;
+  padding: 4px 0 2px;
   letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .med-card {
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-cream);
-  overflow: hidden;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background-color: transparent;
+  overflow: visible;
 }
 
-.med-card.is-alert {
-  border-color: var(--due-near-border);
-  background-color: var(--due-near-bg);
-}
-
+.med-card.is-alert,
 .med-card.is-overdue {
-  border-color: var(--due-overdue-border);
-  background-color: var(--due-overdue-bg);
+  border-color: transparent;
+  border-bottom-color: var(--color-border);
+  background-color: transparent;
+}
+
+.med-card.is-alert .med-card__name {
+  color: var(--due-near);
+}
+
+.med-card.is-overdue .med-card__name {
+  color: var(--due-overdue);
 }
 
 .med-card__header {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 5px 2px;
   border: none;
   background: none;
   cursor: pointer;
   font-family: inherit;
   text-align: left;
+  min-height: 28px;
 }
 
 .med-card__header:hover {
-  background-color: rgba(255, 255, 255, 0.55);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .med-card__signs {
   display: inline-flex;
-  width: 14px;
+  width: 12px;
   flex-shrink: 0;
   justify-content: center;
 }
 
 .med-sign--recent {
   color: #3b82f6;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   line-height: 1;
 }
 
@@ -1431,7 +1431,7 @@ html.is-unlocked .app {
   flex: 1;
   min-width: 0;
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1440,43 +1440,59 @@ html.is-unlocked .app {
 
 .med-card__chevron {
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   flex-shrink: 0;
 }
 
 .med-status {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.72rem;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.68rem;
   font-weight: 700;
   flex-shrink: 0;
+  background: none;
 }
 
 .med-status--active {
-  background-color: var(--color-green-light);
+  background-color: transparent;
   color: var(--color-green-dark);
 }
 
 .med-status--stopped {
-  background-color: #f0e6e4;
+  background-color: transparent;
   color: var(--color-danger);
 }
 
 .med-status--unknown {
-  background-color: var(--color-brown-light);
+  background-color: transparent;
   color: var(--color-text-muted);
+}
+
+.med-inline-status {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.med-inline-status--near {
+  color: var(--due-near);
+}
+
+.med-inline-status--overdue {
+  color: var(--due-overdue);
 }
 
 .med-cat {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  font-size: 0.75rem;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  font-size: 0.65rem;
   font-weight: 800;
   flex-shrink: 0;
 }
@@ -1497,37 +1513,39 @@ html.is-unlocked .app {
 }
 
 .med-card__detail {
-  padding: 0 12px 14px;
+  padding: 4px 2px 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-top: 1px solid var(--color-border);
-  background-color: var(--color-white);
+  gap: 8px;
+  border-top: none;
+  background-color: transparent;
 }
 
 .med-card .exam-alert {
-  margin: 0 12px 8px;
+  margin: 0;
+  padding: 0 2px 4px;
+  font-size: 0.7rem;
 }
 
 .med-detail-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .med-category-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .med-cat-btn {
-  border: 1.5px solid var(--color-border);
-  background-color: var(--color-cream);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-white);
   border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  font-size: 0.8rem;
+  padding: 3px 8px;
+  font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
@@ -1541,7 +1559,7 @@ html.is-unlocked .app {
 .med-expiry-row {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .med-detail-actions {
@@ -1553,22 +1571,23 @@ html.is-unlocked .app {
 
 /* ===== 既往歴タブ ===== */
 .hist-card {
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-cream);
-  overflow: hidden;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background-color: transparent;
+  overflow: visible;
 }
 
 .hist-card.is-resolved {
-  opacity: 0.88;
+  opacity: 0.72;
 }
 
 .hist-card__header {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px 4px;
+  gap: 6px;
+  padding: 5px 2px 2px;
   border: none;
   background: none;
   cursor: pointer;
@@ -1577,12 +1596,12 @@ html.is-unlocked .app {
 }
 
 .hist-card__header:hover {
-  background-color: rgba(255, 255, 255, 0.55);
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
 .hist-card__sign {
   flex-shrink: 0;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   line-height: 1;
 }
 
@@ -1590,7 +1609,7 @@ html.is-unlocked .app {
   flex: 1;
   min-width: 0;
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
   color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1599,43 +1618,44 @@ html.is-unlocked .app {
 
 .hist-card__meta {
   margin: 0;
-  padding: 0 12px 10px;
-  font-size: 0.75rem;
+  padding: 0 2px 6px;
+  font-size: 0.7rem;
   color: var(--color-text-muted);
   font-weight: 600;
 }
 
 .hist-card__detail {
-  padding: 0 12px 14px;
+  padding: 4px 2px 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-top: 1px solid var(--color-border);
-  background-color: var(--color-white);
+  gap: 8px;
+  border-top: none;
+  background-color: transparent;
 }
 
 .hist-type {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.7rem;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.68rem;
   font-weight: 700;
   flex-shrink: 0;
+  background: none;
 }
 
 .hist-type--disease {
-  background-color: #fde8e8;
+  background-color: transparent;
   color: #b45353;
 }
 
 .hist-type--surgery {
-  background-color: #e8eefc;
+  background-color: transparent;
   color: #3b5bdb;
 }
 
 .hist-type--referral {
-  background-color: #fdf3d9;
+  background-color: transparent;
   color: #b57e17;
 }
 
@@ -2047,22 +2067,23 @@ select.input {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 
 .qa-card {
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-white);
-  padding: 12px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background-color: transparent;
+  padding: 8px 2px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .qa-card__label {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   font-weight: 700;
   color: var(--color-text-muted);
   letter-spacing: 0.04em;
@@ -2070,7 +2091,7 @@ select.input {
 
 .qa-card__question {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
   font-weight: 700;
   color: var(--color-text);
   white-space: pre-wrap;
@@ -2112,30 +2133,31 @@ select.input {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
 }
 
 .proc-card {
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-white);
-  padding: 12px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background-color: transparent;
+  padding: 7px 2px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .proc-card__date {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--color-brown);
 }
 
 .proc-card__content {
   margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.55;
+  font-size: 0.84rem;
+  line-height: 1.45;
   color: var(--color-text);
   white-space: pre-wrap;
   word-break: break-word;
@@ -2143,7 +2165,7 @@ select.input {
 
 .proc-card__meta {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--color-text-muted);
   font-weight: 600;
 }
@@ -2151,8 +2173,8 @@ select.input {
 .proc-card__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  padding-top: 6px;
+  gap: 6px;
+  padding-top: 4px;
   border-top: 1px dashed var(--color-border);
   margin-top: 2px;
 }
