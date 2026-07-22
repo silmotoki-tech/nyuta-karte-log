@@ -1356,7 +1356,6 @@ html.is-unlocked .app {
 .exam-item-blood-nav[hidden],
 .field[hidden],
 .exam-sheet__fasting[hidden],
-#exam-plan-item-add-blood-root[hidden],
 #exam-plan-item-add-default[hidden] {
   display: none !important;
 }

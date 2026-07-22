@@ -115,15 +115,10 @@ const planBloodNavLabel = document.getElementById("exam-plan-blood-nav-label");
 const btnPlanBloodBack = document.getElementById("btn-exam-plan-blood-back");
 const planItemButtons = document.getElementById("exam-plan-item-buttons");
 const planItemsEmpty = document.getElementById("exam-plan-items-empty");
-const planItemAddBloodRoot = document.getElementById("exam-plan-item-add-blood-root");
 const planItemAddDefault = document.getElementById("exam-plan-item-add-default");
 const planNewItemLabel = document.getElementById("exam-plan-new-item-label");
 const planNewItemInput = document.getElementById("exam-plan-new-item");
 const btnPlanAddItem = document.getElementById("btn-exam-plan-add-item");
-const planNewGroupInput = document.getElementById("exam-plan-new-group");
-const btnPlanAddGroup = document.getElementById("btn-exam-plan-add-group");
-const planNewStandaloneInput = document.getElementById("exam-plan-new-standalone");
-const btnPlanAddStandalone = document.getElementById("btn-exam-plan-add-standalone");
 const planItemError = document.getElementById("exam-plan-item-error");
 const planFastingField = document.getElementById("exam-plan-fasting-field");
 const planFastingButtons = document.getElementById("exam-plan-fasting-buttons");
@@ -881,11 +876,7 @@ function wirePlanModal() {
   btnPlanCancel?.addEventListener("click", closePlanModal);
   planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
   btnPlanSave?.addEventListener("click", handlePlanSave);
-  btnPlanAddItem?.addEventListener("click", () => handleAddExamItemFromPlanModal("leaf"));
-  btnPlanAddGroup?.addEventListener("click", () => handleAddExamItemFromPlanModal("group"));
-  btnPlanAddStandalone?.addEventListener("click", () =>
-    handleAddExamItemFromPlanModal("standalone")
-  );
+  btnPlanAddItem?.addEventListener("click", () => handleAddExamItemFromPlanModal());
   btnPlanBloodBack?.addEventListener("click", () => {
     state.examBloodParentId = null;
     renderPlanItemButtons();
@@ -894,19 +885,7 @@ function wirePlanModal() {
   planNewItemInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleAddExamItemFromPlanModal("leaf");
-    }
-  });
-  planNewGroupInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddExamItemFromPlanModal("group");
-    }
-  });
-  planNewStandaloneInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddExamItemFromPlanModal("standalone");
+      handleAddExamItemFromPlanModal();
     }
   });
   wireFastingButtons(planFastingButtons, () => {
@@ -1247,7 +1226,7 @@ function updateExamItemAddUI() {
   const inBloodRoot = inBlood && !state.examBloodParentId;
   const inBloodGroup = inBlood && Boolean(state.examBloodParentId);
 
-  if (planItemAddBloodRoot) planItemAddBloodRoot.hidden = !inBloodRoot;
+  // 血液ルートでは追加欄なし。内訳・画像・その他のみ追加可
   if (planItemAddDefault) planItemAddDefault.hidden = inBloodRoot;
 
   if (planBloodNav) {
@@ -1270,6 +1249,11 @@ function updateExamItemAddUI() {
       : category === "imaging"
         ? "例）レントゲン"
         : "例）全スク";
+  }
+  if (planItemsEmpty) {
+    planItemsEmpty.textContent = inBloodRoot
+      ? "この分類にはまだ項目がありません。"
+      : "この分類にはまだ項目がありません。下で追加できます。";
   }
 }
 
@@ -1303,37 +1287,20 @@ function renderPlanItemButtons() {
 
 function clearExamItemAddInputs() {
   if (planNewItemInput) planNewItemInput.value = "";
-  if (planNewGroupInput) planNewGroupInput.value = "";
-  if (planNewStandaloneInput) planNewStandaloneInput.value = "";
 }
 
 /**
- * 予定登録モーダル内で検査項目マスタへ新規追加する。
- * @param {"leaf"|"group"|"standalone"} mode
+ * 予定登録モーダル内で検査項目マスタへ新規追加する（内訳・画像・その他）。
  */
-async function handleAddExamItemFromPlanModal(mode = "leaf") {
+async function handleAddExamItemFromPlanModal() {
   const category = normalizeExamItemCategory(state.examItemCategory);
-  let label = "";
-  let kind = "leaf";
-  let parentId = "";
-  let busyBtn = btnPlanAddItem;
+  // 血液ルートでは追加UIを出さない
+  if (category === "blood" && !state.examBloodParentId) return;
 
-  if (mode === "group") {
-    label = planNewGroupInput?.value.trim() || "";
-    kind = "group";
-    busyBtn = btnPlanAddGroup;
-  } else if (mode === "standalone") {
-    label = planNewStandaloneInput?.value.trim() || "";
-    kind = "leaf";
-    parentId = "";
-    busyBtn = btnPlanAddStandalone;
-  } else {
-    label = planNewItemInput?.value.trim() || "";
-    kind = "leaf";
-    parentId =
-      category === "blood" && state.examBloodParentId ? state.examBloodParentId : "";
-    busyBtn = btnPlanAddItem;
-  }
+  const label = planNewItemInput?.value.trim() || "";
+  const kind = "leaf";
+  const parentId =
+    category === "blood" && state.examBloodParentId ? state.examBloodParentId : "";
 
   if (!label) {
     deps.showError(planItemError, "項目名を入力してください。");
@@ -1366,47 +1333,19 @@ async function handleAddExamItemFromPlanModal(mode = "leaf") {
   }
 
   deps.showError(planItemError, "");
-  deps.setBusy(busyBtn, true, "追加中...", "追加");
+  deps.setBusy(btnPlanAddItem, true, "追加中...", "追加");
   try {
     await addExamItem({ label, category, kind, parentId });
-    if (kind === "group") {
-      // 購読更新後に親へ入れるようラベルで探す（次の render で反映）
-      state.draft.item = "";
-      state.draft.fasting = "";
-      clearExamItemAddInputs();
-      // parentId は subscribe 後に id が分かるため、一時的にラベル一致で開く
-      const openAddedGroup = () => {
-        const created = state.examItems.find(
-          (item) => isExamGroup(item) && (item.label || "").trim() === label
-        );
-        if (created) {
-          state.examBloodParentId = created.id;
-          renderPlanItemButtons();
-          updateExamItemAddUI();
-          return true;
-        }
-        return false;
-      };
-      if (!openAddedGroup()) {
-        let tries = 0;
-        const timer = setInterval(() => {
-          tries += 1;
-          if (openAddedGroup() || tries > 20) clearInterval(timer);
-        }, 40);
-      }
-      deps.showToast(`大項目「${label}」を追加しました。`);
-    } else {
-      state.draft.item = label;
-      if (category !== "blood") state.draft.fasting = "";
-      clearExamItemAddInputs();
-      renderPlanItemButtons();
-      deps.showToast(`「${label}」を${examItemCategoryLabel(category)}に追加しました。`);
-    }
+    state.draft.item = label;
+    if (category !== "blood") state.draft.fasting = "";
+    clearExamItemAddInputs();
+    renderPlanItemButtons();
+    deps.showToast(`「${label}」を${examItemCategoryLabel(category)}に追加しました。`);
   } catch (err) {
     console.error(err);
     deps.showError(planItemError, "追加に失敗しました。もう一度お試しください。");
   } finally {
-    deps.setBusy(busyBtn, false, "追加中...", "追加");
+    deps.setBusy(btnPlanAddItem, false, "追加中...", "追加");
   }
 }
 
