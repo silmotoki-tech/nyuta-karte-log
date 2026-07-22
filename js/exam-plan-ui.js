@@ -88,10 +88,16 @@ const historyEmpty = document.getElementById("exam-history-empty");
 const itemSheet = document.getElementById("exam-item-sheet");
 const itemSheetTitle = document.getElementById("exam-item-sheet-title");
 const itemSheetItem = document.getElementById("exam-item-sheet-item");
-const itemSheetDue = document.getElementById("exam-item-sheet-due");
-const itemSheetMeta = document.getElementById("exam-item-sheet-meta");
-const itemSheetNote = document.getElementById("exam-item-sheet-note");
-const itemSheetActions = document.getElementById("exam-item-sheet-actions");
+const sheetDueDate = document.getElementById("exam-sheet-due-date");
+const sheetDueUnits = document.getElementById("exam-sheet-due-units");
+const sheetDueDisplay = document.getElementById("exam-sheet-due-display");
+const sheetDueNumpad = document.getElementById("exam-sheet-due-numpad");
+const sheetWindowNote = document.getElementById("exam-sheet-window-note");
+const sheetNote = document.getElementById("exam-sheet-note");
+const sheetError = document.getElementById("exam-sheet-error");
+const btnSheetSave = document.getElementById("btn-exam-sheet-save");
+const btnSheetComplete = document.getElementById("btn-exam-sheet-complete");
+const btnSheetEnd = document.getElementById("btn-exam-sheet-end");
 const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
 
 const btnOpenExamItems = document.getElementById("btn-open-exam-items");
@@ -422,6 +428,7 @@ export function leaveExamPlan() {
   state.plan = null;
   state.activePlanId = null;
   state.editingPlanId = null;
+  closeExamItemSheet();
   closePlanModal();
   closeCompleteModal();
   closeAfterModal();
@@ -534,15 +541,21 @@ function renderUnifiedPlanList() {
       dueEl.className = "exam-list-item__due";
     }
     info.append(title, dueEl);
+    if (entry.note) {
+      const noteEl = document.createElement("div");
+      noteEl.className = "exam-list-item__meta";
+      noteEl.textContent = entry.note;
+      info.appendChild(noteEl);
+    }
     li.appendChild(info);
 
-    // スワイプ: 左=編集 / 右=終了（削除）。完了はシートから。
+    // スワイプ: 左=詳細（編集） / 右=終了。完了は詳細シートから。
     enableRowGestures(li, {
       actions: [
         {
           action: "edit",
           title: "編集",
-          onClick: () => openPlanModal("edit", { planId: entry.id }),
+          onClick: () => openExamItemSheet(entry),
         },
         {
           action: "delete",
@@ -556,57 +569,44 @@ function renderUnifiedPlanList() {
   });
 }
 
+function isSheetOpen() {
+  return Boolean(itemSheet && !itemSheet.hidden);
+}
+
 function openExamItemSheet(entry) {
-  if (!itemSheet) return;
+  if (!itemSheet || !entry?.id) return;
+  const plan = state.plan?.plans?.[entry.id];
+  if (!plan) return;
+
   state.activePlanId = entry.id;
-  itemSheetTitle.textContent = "検査予定";
-  itemSheetItem.textContent = entry.item;
-  itemSheetDue.textContent = entry.countdown
-    ? formatDueCountdown(entry.countdown)
-    : "予定日未設定";
-  itemSheetDue.className = `exam-sheet__due ${dueLevelClass(entry.countdown?.level || "far")}`;
-  itemSheetMeta.textContent = "次回予定";
+  state.editingPlanId = entry.id;
+  state.draft.mode = "edit";
+  state.draft.item = plan.item || entry.item || "";
+  state.draft.dueDate = getPlanDueDate(plan) || entry.dueDate || "";
+  state.draft.note = plan.note || entry.note || "";
+  state.draft.baselineDate = plan.baselineDate || getPlanBaselineDate(plan) || null;
 
-  if (entry.note) {
-    itemSheetNote.hidden = false;
-    itemSheetNote.textContent = entry.note;
+  if (itemSheetTitle) itemSheetTitle.textContent = "検査予定";
+  if (itemSheetItem) itemSheetItem.textContent = state.draft.item || "（項目未設定）";
+  if (sheetDueDate) sheetDueDate.value = state.draft.dueDate || "";
+  if (sheetNote) sheetNote.value = state.draft.note || "";
+  deps.showError(sheetError, "");
+
+  if (state.draft.dueDate) {
+    syncRelativeFromCalendar(state.draft.dueDate);
   } else {
-    itemSheetNote.hidden = true;
-    itemSheetNote.textContent = "";
+    resetDraftDueRelative();
+    syncDueRelativeUI();
   }
-
-  itemSheetActions.innerHTML = "";
-  const completeBtn = document.createElement("button");
-  completeBtn.type = "button";
-  completeBtn.className = "btn btn--small btn--primary";
-  completeBtn.textContent = "完了";
-  completeBtn.addEventListener("click", () => {
-    closeExamItemSheet();
-    openCompleteModal(entry.id);
-  });
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.className = "btn btn--small btn--outline";
-  editBtn.textContent = "編集";
-  editBtn.addEventListener("click", () => {
-    closeExamItemSheet();
-    openPlanModal("edit", { planId: entry.id });
-  });
-  const endBtn = document.createElement("button");
-  endBtn.type = "button";
-  endBtn.className = "btn btn--small btn--danger-outline";
-  endBtn.textContent = "終了";
-  endBtn.addEventListener("click", () => {
-    closeExamItemSheet();
-    handleEndPlan(entry.id);
-  });
-  itemSheetActions.append(completeBtn, editBtn, endBtn);
-
+  updateWindowNote();
   itemSheet.hidden = false;
 }
 
 function closeExamItemSheet() {
   if (itemSheet) itemSheet.hidden = true;
+  if (planModal?.hidden !== false) {
+    state.editingPlanId = null;
+  }
 }
 
 function renderHistory() {
@@ -699,6 +699,61 @@ function wireNextPlanActions() {
   btnOpenExamItems?.addEventListener("click", openExamItemsModal);
   btnCloseItemSheet?.addEventListener("click", closeExamItemSheet);
   itemSheet?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemSheet);
+  btnSheetSave?.addEventListener("click", handleSheetSave);
+  btnSheetComplete?.addEventListener("click", () => {
+    const id = state.activePlanId || state.editingPlanId;
+    closeExamItemSheet();
+    openCompleteModal(id);
+  });
+  btnSheetEnd?.addEventListener("click", () => {
+    const id = state.activePlanId || state.editingPlanId;
+    closeExamItemSheet();
+    handleEndPlan(id);
+  });
+  sheetDueDate?.addEventListener("change", () => {
+    if (state.syncingDueFromRelative) return;
+    state.draft.dueDate = sheetDueDate.value;
+    syncRelativeFromCalendar(sheetDueDate.value);
+    updateWindowNote();
+  });
+}
+
+async function handleSheetSave() {
+  const planId = state.editingPlanId || state.activePlanId;
+  const plan = planId ? state.plan?.plans?.[planId] : null;
+  if (!planId || !plan) return;
+
+  const dueBuffered = Number(state.draft.dueRelativeBuffer);
+  if (state.draft.dueRelativeBuffer !== "" && dueBuffered >= 1) {
+    applyDueRelativeToCalendar();
+  }
+  const dueDate = sheetDueDate?.value || state.draft.dueDate || "";
+  const note = sheetNote?.value.trim() || "";
+  const item = plan.item || state.draft.item || "";
+
+  if (!dueDate) {
+    deps.showError(sheetError, "日付を選択してください。");
+    return;
+  }
+
+  deps.showError(sheetError, "");
+  deps.setBusy(btnSheetSave, true, "保存中...", "保存する");
+  try {
+    await saveExamScheduledPlan(state.karteNumber, {
+      planId,
+      item,
+      dueDate,
+      note,
+      baselineDate: state.draft.baselineDate || plan.baselineDate || todayStr(),
+    });
+    closeExamItemSheet();
+    deps.showToast("予定を保存しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(sheetError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnSheetSave, false, "保存中...", "保存する");
+  }
 }
 
 async function handleEndPlan(planId) {
@@ -842,6 +897,7 @@ function applyDueRelativeToCalendar() {
   const days = unitToDays(state.draft.dueRelativeUnit, value);
   const date = addDays(todayStr(), days);
   state.syncingDueFromRelative = true;
+  if (sheetDueDate) sheetDueDate.value = date;
   if (planDueDate) planDueDate.value = date;
   state.draft.dueDate = date;
   state.syncingDueFromRelative = false;
@@ -850,37 +906,44 @@ function applyDueRelativeToCalendar() {
 }
 
 function buildPlanDueRelativeUI() {
-  if (!planDueNumpad) return;
-  mountNumpad(planDueNumpad, {
-    onDigit: (d) => {
-      if (state.draft.dueRelativeBuffer.length >= 4) return;
-      state.draft.dueRelativeBuffer =
-        state.draft.dueRelativeBuffer === "0" ? d : state.draft.dueRelativeBuffer + d;
-      syncDueRelativeUI();
-    },
-    onDelete: () => {
-      state.draft.dueRelativeBuffer = state.draft.dueRelativeBuffer.slice(0, -1);
-      syncDueRelativeUI();
-    },
-    onConfirm: () => {
-      const n = Number(state.draft.dueRelativeBuffer);
-      if (state.draft.dueRelativeBuffer === "" || Number.isNaN(n) || n < 0) {
-        deps.showError(planError, "相対日数は0以上の数値を入力し、「確定」してください。");
-        return;
-      }
-      if (n < 1) {
-        deps.showError(planError, "1以上の相対日数を入力するか、カレンダーで日付を選んでください。");
-        return;
-      }
-      deps.showError(planError, "");
-      applyDueRelativeToCalendar();
-    },
-  });
+  const bindNumpad = (container, errorEl) => {
+    if (!container) return;
+    mountNumpad(container, {
+      onDigit: (d) => {
+        if (state.draft.dueRelativeBuffer.length >= 4) return;
+        state.draft.dueRelativeBuffer =
+          state.draft.dueRelativeBuffer === "0" ? d : state.draft.dueRelativeBuffer + d;
+        syncDueRelativeUI();
+      },
+      onDelete: () => {
+        state.draft.dueRelativeBuffer = state.draft.dueRelativeBuffer.slice(0, -1);
+        syncDueRelativeUI();
+      },
+      onConfirm: () => {
+        const n = Number(state.draft.dueRelativeBuffer);
+        if (state.draft.dueRelativeBuffer === "" || Number.isNaN(n) || n < 0) {
+          deps.showError(errorEl, "相対日数は0以上の数値を入力し、「確定」してください。");
+          return;
+        }
+        if (n < 1) {
+          deps.showError(
+            errorEl,
+            "1以上の相対日数を入力するか、カレンダーで日付を選んでください。"
+          );
+          return;
+        }
+        deps.showError(errorEl, "");
+        applyDueRelativeToCalendar();
+      },
+    });
+  };
+  bindNumpad(planDueNumpad, planError);
+  bindNumpad(sheetDueNumpad, sheetError);
   syncDueRelativeUI();
 }
 
 function syncDueRelativeUI() {
-  mountUnitButtons(planDueUnits, state.draft.dueRelativeUnit, (unit) => {
+  const onUnitSelect = (unit) => {
     const prevUnit = state.draft.dueRelativeUnit;
     const prevValue =
       state.draft.dueRelativeBuffer !== ""
@@ -893,19 +956,24 @@ function syncDueRelativeUI() {
     state.draft.dueRelativeUnit = unit;
     state.draft.dueRelativeValue = nextValue;
     state.draft.dueRelativeBuffer = nextValue > 0 || days === 0 ? String(nextValue) : "";
-    if (nextValue > 0 || planDueDate?.value) {
+    const hasDate = Boolean(sheetDueDate?.value || planDueDate?.value);
+    if (nextValue > 0 || hasDate) {
       applyDueRelativeToCalendar();
     } else {
       syncDueRelativeUI();
     }
-  });
-  if (planDueDisplay) {
-    planDueDisplay.textContent = displayRelativeBufferLabel(
-      state.draft.dueRelativeUnit,
-      state.draft.dueRelativeBuffer,
-      state.draft.dueRelativeValue
-    );
-  }
+  };
+
+  mountUnitButtons(planDueUnits, state.draft.dueRelativeUnit, onUnitSelect);
+  mountUnitButtons(sheetDueUnits, state.draft.dueRelativeUnit, onUnitSelect);
+
+  const label = displayRelativeBufferLabel(
+    state.draft.dueRelativeUnit,
+    state.draft.dueRelativeBuffer,
+    state.draft.dueRelativeValue
+  );
+  if (planDueDisplay) planDueDisplay.textContent = label;
+  if (sheetDueDisplay) sheetDueDisplay.textContent = label;
 }
 
 function resetDraftDueRelative() {
@@ -938,33 +1006,44 @@ function renderPlanItemButtons() {
 }
 
 function updateWindowNote() {
-  if (!planWindowNote) return;
-  const date = planDueDate?.value;
-  if (!date) {
-    planWindowNote.textContent = "予定日を選ぶと、残り日数が表示されます。";
-    planWindowNote.className = "field__note";
-    return;
-  }
-  const baseline = state.draft.baselineDate || todayStr();
-  const info = getDueCountdown(date, baseline);
-  planWindowNote.textContent = `予定日: ${formatDueCountdown(info)}`;
-  planWindowNote.className = `field__note ${dueLevelClass(info?.level || "far")}`;
+  const date = isSheetOpen()
+    ? sheetDueDate?.value || state.draft.dueDate
+    : planDueDate?.value || state.draft.dueDate || sheetDueDate?.value;
+  const noteEls = [planWindowNote, sheetWindowNote].filter(Boolean);
+  noteEls.forEach((el) => {
+    if (!date) {
+      el.textContent = "予定日を選ぶと、残り日数が表示されます。";
+      el.className = "field__note";
+      return;
+    }
+    const baseline = state.draft.baselineDate || todayStr();
+    const info = getDueCountdown(date, baseline);
+    el.textContent = `予定日: ${formatDueCountdown(info)}`;
+    el.className = `field__note ${dueLevelClass(info?.level || "far")}`;
+  });
 }
 
 function openPlanModal(mode, { planId = null, preset = null } = {}) {
-  state.draft.mode = mode;
-  state.editingPlanId = mode === "edit" ? planId || state.editingPlanId : null;
-
+  // 編集は詳細シートへ統合済み
   if (mode === "edit") {
-    const editing = state.plan?.plans?.[state.editingPlanId];
-    if (!editing) return;
-    if (planModalTitle) planModalTitle.textContent = "予定を編集";
-    state.draft.item = editing.item || "";
-    state.draft.customItem = "";
-    state.draft.dueDate = getPlanDueDate(editing) || "";
-    state.draft.note = editing.note || "";
-    state.draft.baselineDate = editing.baselineDate || null;
-  } else if (preset) {
+    const id = planId || state.editingPlanId;
+    const plan = id ? state.plan?.plans?.[id] : null;
+    if (plan) {
+      openExamItemSheet({
+        id,
+        item: plan.item,
+        dueDate: getPlanDueDate(plan),
+        note: plan.note || "",
+        countdown: getDueCountdown(getPlanDueDate(plan), getPlanBaselineDate(plan)),
+      });
+    }
+    return;
+  }
+
+  state.draft.mode = mode;
+  state.editingPlanId = null;
+
+  if (preset) {
     if (planModalTitle) planModalTitle.textContent = "次の予定を登録";
     state.draft.item = preset.item || "";
     state.draft.customItem = "";

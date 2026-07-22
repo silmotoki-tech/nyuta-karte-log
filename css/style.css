@@ -2059,6 +2059,7 @@ select.input {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 8px;
 }
 
 .icon-btn:hover:not(:disabled) {

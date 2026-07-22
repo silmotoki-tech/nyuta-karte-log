@@ -361,20 +361,39 @@
 </div>
 <!-- /#app-shell -->
 
-<!-- 検査予定一覧: 単発予定の詳細操作 -->
+<!-- 検査予定一覧: 詳細（次回予定をその場で入力・保存） -->
 <div class="modal" id="exam-item-sheet" hidden>
   <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="exam-item-sheet-title">
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-item-sheet-title">
     <div class="modal__header">
       <h2 class="modal__title" id="exam-item-sheet-title">検査予定</h2>
       <button class="modal__close" id="btn-close-exam-item-sheet" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">
       <p class="exam-sheet__item" id="exam-item-sheet-item"></p>
-      <p class="exam-sheet__due" id="exam-item-sheet-due"></p>
-      <p class="exam-sheet__meta" id="exam-item-sheet-meta"></p>
-      <p class="exam-sheet__note" id="exam-item-sheet-note" hidden></p>
-      <div class="exam-sheet__actions" id="exam-item-sheet-actions"></div>
+
+      <div class="field">
+        <label class="label" for="exam-sheet-due-date">次回予定日</label>
+        <input id="exam-sheet-due-date" class="input input--date" type="date" />
+        <span class="label label--sub">今日からの相対指定</span>
+        <div class="interval-unit-buttons" id="exam-sheet-due-units" role="group" aria-label="相対指定の単位"></div>
+        <p class="interval-value-display" id="exam-sheet-due-display">0日後</p>
+        <div class="numpad" id="exam-sheet-due-numpad" aria-label="相対日数の数値入力"></div>
+        <p class="field__note">カレンダーで選ぶか、テンキーで相対日数を指定してください（どちらも連動します）。</p>
+        <p class="field__note" id="exam-sheet-window-note"></p>
+      </div>
+
+      <div class="field">
+        <label class="label" for="exam-sheet-note">メモ（任意）</label>
+        <input id="exam-sheet-note" class="input" type="text" placeholder="例）よければ6ヶ月後" />
+      </div>
+
+      <p id="exam-sheet-error" class="error-text" role="alert" hidden></p>
+      <div class="exam-sheet__actions" id="exam-item-sheet-actions">
+        <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-exam-sheet-complete" class="btn btn--small btn--outline" type="button">完了</button>
+        <button id="btn-exam-sheet-end" class="btn btn--small btn--danger-outline" type="button">終了</button>
+      </div>
     </div>
   </div>
 </div>
