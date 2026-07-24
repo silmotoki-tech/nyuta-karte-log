@@ -218,7 +218,7 @@ html.is-unlocked .app {
   min-height: 0;
   display: grid;
   --left-col-width: 210px;
-  --right-col-width: 280px;
+  --right-col-width: 308px; /* 280px から約10%拡大 */
   grid-template-columns: var(--left-col-width) minmax(0, 1fr) var(--right-col-width);
   transition: grid-template-columns 0.2s ease;
 }
@@ -2950,7 +2950,7 @@ select.input {
 @media (max-width: 820px) {
   .layout {
     --left-col-width: 170px;
-    --right-col-width: 240px;
+    --right-col-width: 264px; /* 240px から約10%拡大 */
   }
 
   .layout.is-left-collapsed {
