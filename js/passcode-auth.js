@@ -1,5 +1,10 @@
 // パスコード認証状態の永続化（localStorage）。
 // 同じ日のうちはアプリ再起動後も再入力不要。日付が変わると自動で無効化する。
+//
+// 有効条件は厳密に次のみ:
+//   localStorage[PASSCODE_STORAGE_KEY] === "1"
+//   かつ localStorage[PASSCODE_DATE_KEY] === 今日(YYYY-MM-DD)
+// sessionStorage の残骸だけでは認証済みとみなさない（誤スキップ防止）。
 
 export const PASSCODE_STORAGE_KEY = "nyutaKartePasscodeVerified";
 export const PASSCODE_DATE_KEY = "nyutaKartePasscodeVerifiedDate";
@@ -14,51 +19,43 @@ export function todayDateStrLocal(now = new Date()) {
   return `${y}-${m}-${d}`;
 }
 
-function readFlag(storage) {
+function safeGet(storage, key) {
   try {
-    return storage.getItem(PASSCODE_STORAGE_KEY) === "1";
+    return storage.getItem(key);
   } catch (_) {
-    return false;
+    return null;
+  }
+}
+
+function safeRemove(storage, key) {
+  try {
+    storage.removeItem(key);
+  } catch (_) {
+    /* ignore */
   }
 }
 
 /**
  * 認証済みかつ「認証日付が今日」なら true。
- * 日付が違う・日付未保存の場合は認証情報をクリアして false。
+ * 日付が違う・日付未保存・フラグのみ等はクリアして false。
  */
 export function isPasscodeVerified(now = new Date()) {
   try {
     const today = todayDateStrLocal(now);
-    const flagInLocal = readFlag(localStorage);
-    const flagInSession = readFlag(sessionStorage);
+    const flag = safeGet(localStorage, PASSCODE_STORAGE_KEY);
+    const savedDate = safeGet(localStorage, PASSCODE_DATE_KEY) || "";
 
-    if (!flagInLocal && !flagInSession) return false;
+    // 旧 sessionStorage フラグは信頼しない（日付なしで「今日認証済み」扱いしていたバグの温床）
+    safeRemove(sessionStorage, PASSCODE_STORAGE_KEY);
 
-    // 旧 sessionStorage のみ → local へ移行（日付は今日として扱う）
-    if (!flagInLocal && flagInSession) {
-      localStorage.setItem(PASSCODE_STORAGE_KEY, "1");
-      localStorage.setItem(PASSCODE_DATE_KEY, today);
-      try {
-        sessionStorage.removeItem(PASSCODE_STORAGE_KEY);
-      } catch (_) {
-        /* ignore */
-      }
+    if (flag === "1" && savedDate === today) {
       return true;
     }
 
-    const savedDate = localStorage.getItem(PASSCODE_DATE_KEY) || "";
-    if (savedDate === today) {
-      // 日付付きで有効。旧 session 残骸があれば掃除
-      try {
-        sessionStorage.removeItem(PASSCODE_STORAGE_KEY);
-      } catch (_) {
-        /* ignore */
-      }
-      return true;
+    // 不完全・期限切れ・不正な組み合わせは破棄
+    if (flag != null || savedDate) {
+      clearPasscodeVerified();
     }
-
-    // 日をまたいだ／日付未保存（旧データ）→ 無効化
-    clearPasscodeVerified();
     return false;
   } catch (err) {
     console.error("パスコード認証状態の読み取りに失敗しました", err);
@@ -70,11 +67,7 @@ export function setPasscodeVerified(now = new Date()) {
   const today = todayDateStrLocal(now);
   localStorage.setItem(PASSCODE_STORAGE_KEY, "1");
   localStorage.setItem(PASSCODE_DATE_KEY, today);
-  try {
-    sessionStorage.removeItem(PASSCODE_STORAGE_KEY);
-  } catch (_) {
-    /* ignore */
-  }
+  safeRemove(sessionStorage, PASSCODE_STORAGE_KEY);
 }
 
 /**
@@ -88,9 +81,5 @@ export function clearPasscodeVerified() {
     console.error("パスコード認証状態の削除に失敗しました", err);
     throw err;
   }
-  try {
-    sessionStorage.removeItem(PASSCODE_STORAGE_KEY);
-  } catch (_) {
-    /* ignore */
-  }
+  safeRemove(sessionStorage, PASSCODE_STORAGE_KEY);
 }

@@ -16,7 +16,8 @@
 
 <link rel="stylesheet" href="./css/style.css" />
 <script>
-  // 当日認証済みならロック画面の一瞬表示を抑える（挙動自体は app.js が正）
+  // 当日認証済みならロック画面の一瞬表示を抑える（判定は app.js / passcode-auth.js と同じ条件）
+  // 有効: localStorage に flag=1 かつ 日付が今日。sessionStorage だけではスキップしない。
   try {
     var k = "nyutaKartePasscodeVerified";
     var dk = "nyutaKartePasscodeVerifiedDate";
@@ -27,10 +28,8 @@
       String(now.getMonth() + 1).padStart(2, "0") +
       "-" +
       String(now.getDate()).padStart(2, "0");
-    var flagged =
-      localStorage.getItem(k) === "1" || sessionStorage.getItem(k) === "1";
+    var flagged = localStorage.getItem(k) === "1";
     var savedDate = localStorage.getItem(dk) || "";
-    // 日付キーが無い旧データや前日の認証はロック画面を出す
     if (flagged && savedDate === today) {
       document.documentElement.classList.add("is-unlocked");
     }
@@ -51,12 +50,27 @@
         id="passcode-input"
         class="input input--large input--center"
         type="password"
-        inputmode="numeric"
+        inputmode="none"
+        readonly
         autocomplete="off"
         maxlength="4"
         placeholder="••••"
         aria-label="パスコード（4桁）"
       />
+      <div class="numpad numpad--gate" id="passcode-numpad" aria-label="パスコードのテンキー">
+        <button type="button" class="numpad__btn" data-pass-digit="1">1</button>
+        <button type="button" class="numpad__btn" data-pass-digit="2">2</button>
+        <button type="button" class="numpad__btn" data-pass-digit="3">3</button>
+        <button type="button" class="numpad__btn" data-pass-digit="4">4</button>
+        <button type="button" class="numpad__btn" data-pass-digit="5">5</button>
+        <button type="button" class="numpad__btn" data-pass-digit="6">6</button>
+        <button type="button" class="numpad__btn" data-pass-digit="7">7</button>
+        <button type="button" class="numpad__btn" data-pass-digit="8">8</button>
+        <button type="button" class="numpad__btn" data-pass-digit="9">9</button>
+        <button type="button" class="numpad__btn numpad__btn--action" data-pass-action="delete">削除</button>
+        <button type="button" class="numpad__btn" data-pass-digit="0">0</button>
+        <button type="button" class="numpad__btn numpad__btn--action numpad__btn--confirm" data-pass-action="confirm">確定</button>
+      </div>
       <p id="passcode-error" class="error-text" role="alert" hidden></p>
       <div class="lock-api-key-row">
         <button

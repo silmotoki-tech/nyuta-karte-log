@@ -116,6 +116,7 @@ const centerMain = document.getElementById("center-main");
 const passcodeInput = document.getElementById("passcode-input");
 const passcodeError = document.getElementById("passcode-error");
 const btnPasscodeNext = document.getElementById("btn-passcode-next");
+let passcodeNumpadBound = false;
 
 const karteNumberInput = document.getElementById("karte-number-input");
 const karteError = document.getElementById("karte-error");
@@ -235,6 +236,8 @@ function showLockScreen() {
   document.documentElement.classList.remove("is-unlocked");
   if (screenLock) screenLock.hidden = false;
   if (appShell) appShell.hidden = true;
+  setupPasscodeNumpad();
+  setTimeout(() => passcodeInput?.focus(), 0);
 }
 
 function unlockAppShell() {
@@ -408,26 +411,126 @@ function buildEntrySideMeta(entry) {
 
 // --- 状態0: パスコード入力 -----------------------------------------------
 
-passcodeInput.addEventListener("input", () => {
-  passcodeInput.value = passcodeInput.value.replace(/[^0-9]/g, "").slice(0, 4);
+function setPasscodeDigits(next) {
+  if (!passcodeInput) return;
+  passcodeInput.value = String(next || "").replace(/[^0-9]/g, "").slice(0, 4);
   showError(passcodeError, "");
-});
+}
 
-passcodeInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !isImeKey(event)) {
-    event.preventDefault();
-    handlePasscodeNext();
+function ensurePasscodeNumpadEl() {
+  if (!passcodeInput) {
+    console.error("[passcode-numpad] #passcode-input が見つかりません");
+    return null;
   }
-});
+  passcodeInput.readOnly = true;
+  passcodeInput.setAttribute("inputmode", "none");
+  passcodeInput.setAttribute("autocomplete", "off");
+  passcodeInput.setAttribute("maxlength", "4");
 
-btnPasscodeNext.addEventListener("click", handlePasscodeNext);
+  let pad = document.getElementById("passcode-numpad");
+  if (!pad) {
+    pad = document.createElement("div");
+    pad.id = "passcode-numpad";
+    pad.className = "numpad numpad--gate";
+    pad.setAttribute("aria-label", "パスコードのテンキー");
+    passcodeInput.insertAdjacentElement("afterend", pad);
+  }
+  return pad;
+}
+
+function ensureGateNumpadButtons(pad, digitAttr, actionAttr) {
+  if (pad.querySelector(".numpad__btn")) return;
+  const keys = [
+    ["1", "digit"],
+    ["2", "digit"],
+    ["3", "digit"],
+    ["4", "digit"],
+    ["5", "digit"],
+    ["6", "digit"],
+    ["7", "digit"],
+    ["8", "digit"],
+    ["9", "digit"],
+    ["削除", "delete"],
+    ["0", "digit"],
+    ["確定", "confirm"],
+  ];
+  keys.forEach(([label, kind]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "numpad__btn";
+    btn.textContent = label;
+    if (kind === "digit") {
+      btn.setAttribute(digitAttr, label);
+    } else if (kind === "delete") {
+      btn.classList.add("numpad__btn--action");
+      btn.setAttribute(actionAttr, "delete");
+    } else {
+      btn.classList.add("numpad__btn--action", "numpad__btn--confirm");
+      btn.setAttribute(actionAttr, "confirm");
+    }
+    pad.appendChild(btn);
+  });
+}
+
+function setupPasscodeNumpad() {
+  const pad = ensurePasscodeNumpadEl();
+  if (!pad) return;
+  ensureGateNumpadButtons(pad, "data-pass-digit", "data-pass-action");
+
+  if (passcodeNumpadBound) return;
+  passcodeNumpadBound = true;
+  pad.addEventListener("click", (event) => {
+    const btn = event.target.closest("button");
+    if (!btn || !pad.contains(btn)) return;
+    const digit = btn.getAttribute("data-pass-digit");
+    const action = btn.getAttribute("data-pass-action");
+    if (digit != null) {
+      if ((passcodeInput.value || "").length >= 4) return;
+      setPasscodeDigits(`${passcodeInput.value || ""}${digit}`);
+      return;
+    }
+    if (action === "delete") {
+      setPasscodeDigits((passcodeInput.value || "").slice(0, -1));
+      return;
+    }
+    if (action === "confirm") {
+      handlePasscodeNext();
+    }
+  });
+}
+
+if (passcodeInput) {
+  passcodeInput.addEventListener("input", () => {
+    setPasscodeDigits(passcodeInput.value);
+  });
+
+  passcodeInput.addEventListener("keydown", (event) => {
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if ((passcodeInput.value || "").length >= 4) return;
+      setPasscodeDigits(`${passcodeInput.value || ""}${event.key}`);
+      return;
+    }
+    if (event.key === "Backspace") {
+      event.preventDefault();
+      setPasscodeDigits((passcodeInput.value || "").slice(0, -1));
+      return;
+    }
+    if (event.key === "Enter" && !isImeKey(event)) {
+      event.preventDefault();
+      handlePasscodeNext();
+    }
+  });
+}
+
+btnPasscodeNext?.addEventListener("click", handlePasscodeNext);
 
 function handlePasscodeNext() {
-  const value = passcodeInput.value.trim();
+  const value = (passcodeInput?.value || "").trim();
   if (value !== PASSCODE) {
     showError(passcodeError, "パスコードが正しくありません。");
-    passcodeInput.value = "";
-    passcodeInput.focus();
+    setPasscodeDigits("");
+    passcodeInput?.focus();
     return;
   }
   showError(passcodeError, "");
@@ -436,8 +539,7 @@ function handlePasscodeNext() {
   } catch (err) {
     console.error("パスコード認証状態の保存に失敗しました", err);
   }
-  passcodeInput.value = "";
-  unlockAppShell();
+  setPasscodeDigits("");
   goToKarte();
 }
 
@@ -454,11 +556,10 @@ function logoutToPasscode() {
     return;
   }
   leaveMain();
-  showLockScreen();
   showCenterState("karte");
   if (karteNumberInput) karteNumberInput.value = "";
+  showLockScreen();
   showToast("ログアウトしました。");
-  setTimeout(() => passcodeInput?.focus(), 0);
 }
 
 // --- 状態1: カルテ番号入力 -----------------------------------------------
@@ -503,52 +604,18 @@ function ensureKarteNumpadEl() {
   return pad;
 }
 
-function ensureKarteNumpadButtons(pad) {
-  if (pad.querySelector(".numpad__btn")) return;
-  const keys = [
-    ["1", "digit"],
-    ["2", "digit"],
-    ["3", "digit"],
-    ["4", "digit"],
-    ["5", "digit"],
-    ["6", "digit"],
-    ["7", "digit"],
-    ["8", "digit"],
-    ["9", "digit"],
-    ["削除", "delete"],
-    ["0", "digit"],
-    ["確定", "confirm"],
-  ];
-  keys.forEach(([label, kind]) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "numpad__btn";
-    btn.textContent = label;
-    if (kind === "digit") {
-      btn.dataset.karteDigit = label;
-    } else if (kind === "delete") {
-      btn.classList.add("numpad__btn--action");
-      btn.dataset.karteAction = "delete";
-    } else {
-      btn.classList.add("numpad__btn--action", "numpad__btn--confirm");
-      btn.dataset.karteAction = "confirm";
-    }
-    pad.appendChild(btn);
-  });
-}
-
 function setupKarteNumpad() {
   const pad = ensureKarteNumpadEl();
   if (!pad) return;
-  ensureKarteNumpadButtons(pad);
+  ensureGateNumpadButtons(pad, "data-karte-digit", "data-karte-action");
 
   if (karteNumpadBound) return;
   karteNumpadBound = true;
   pad.addEventListener("click", (event) => {
     const btn = event.target.closest("button");
     if (!btn || !pad.contains(btn)) return;
-    const digit = btn.dataset.karteDigit;
-    const action = btn.dataset.karteAction;
+    const digit = btn.getAttribute("data-karte-digit");
+    const action = btn.getAttribute("data-karte-action");
     if (digit != null) {
       if ((karteNumberInput.value || "").length >= 5) return;
       setKarteNumberDigits(`${karteNumberInput.value || ""}${digit}`);
@@ -563,8 +630,6 @@ function setupKarteNumpad() {
     }
   });
 }
-
-setupKarteNumpad();
 
 if (karteNumberInput) {
   karteNumberInput.addEventListener("input", () => {
@@ -1408,5 +1473,4 @@ if (isPasscodeVerified()) {
   goToKarte();
 } else {
   showLockScreen();
-  setTimeout(() => passcodeInput.focus(), 0);
 }
