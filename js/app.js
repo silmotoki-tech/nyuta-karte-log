@@ -55,6 +55,7 @@ import {
 } from "./passcode-auth.js";
 import { enableRowGestures } from "./row-gestures.js";
 import { isImeKey } from "./ime-keys.js";
+import { mountNumpad } from "./freq-picker.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -118,6 +119,7 @@ const passcodeError = document.getElementById("passcode-error");
 const btnPasscodeNext = document.getElementById("btn-passcode-next");
 
 const karteNumberInput = document.getElementById("karte-number-input");
+const karteNumpad = document.getElementById("karte-numpad");
 const karteError = document.getElementById("karte-error");
 const btnKarteNext = document.getElementById("btn-karte-next");
 
@@ -468,12 +470,40 @@ function goToKarte() {
   setTimeout(() => karteNumberInput.focus(), 0);
 }
 
-karteNumberInput.addEventListener("input", () => {
-  karteNumberInput.value = karteNumberInput.value.replace(/[^0-9]/g, "").slice(0, 5);
+function setKarteNumberDigits(next) {
+  karteNumberInput.value = String(next || "").replace(/[^0-9]/g, "").slice(0, 5);
   showError(karteError, "");
+}
+
+mountNumpad(karteNumpad, {
+  onDigit: (digit) => {
+    if ((karteNumberInput.value || "").length >= 5) return;
+    setKarteNumberDigits(`${karteNumberInput.value || ""}${digit}`);
+  },
+  onDelete: () => {
+    setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
+  },
+  onConfirm: () => handleKarteNext(),
+});
+
+karteNumberInput.addEventListener("input", () => {
+  // readonly でも外部入力や貼り付けに備えて正規化する
+  setKarteNumberDigits(karteNumberInput.value);
 });
 
 karteNumberInput.addEventListener("keydown", (event) => {
+  // ハードウェアキーボードは許可（テンキー／数字キー）
+  if (/^[0-9]$/.test(event.key)) {
+    event.preventDefault();
+    if ((karteNumberInput.value || "").length >= 5) return;
+    setKarteNumberDigits(`${karteNumberInput.value || ""}${event.key}`);
+    return;
+  }
+  if (event.key === "Backspace") {
+    event.preventDefault();
+    setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
+    return;
+  }
   if (event.key === "Enter" && !isImeKey(event)) {
     event.preventDefault();
     handleKarteNext();

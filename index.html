@@ -131,12 +131,14 @@
             id="karte-number-input"
             class="input input--large input--center"
             type="text"
-            inputmode="numeric"
+            inputmode="none"
+            readonly
             autocomplete="off"
             maxlength="5"
             placeholder="00000"
             aria-label="カルテ番号（5桁）"
           />
+          <div class="numpad numpad--gate" id="karte-numpad" aria-label="カルテ番号のテンキー"></div>
           <p id="karte-error" class="error-text" role="alert" hidden></p>
           <button id="btn-karte-next" class="btn btn--primary btn--block" type="button">
             次へ
