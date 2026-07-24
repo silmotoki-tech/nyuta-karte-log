@@ -127,9 +127,9 @@ const animalError = document.getElementById("animal-error");
 const btnAnimalNext = document.getElementById("btn-animal-next");
 const btnAnimalBack = document.getElementById("btn-animal-back");
 
-const leftPatient = document.getElementById("left-patient");
-const leftPatientLabel = document.getElementById("left-patient-label");
 const btnChangeKarte = document.getElementById("btn-change-karte");
+const leftPatientKarte = document.getElementById("left-patient-karte");
+const leftPatientName = document.getElementById("left-patient-name");
 const layoutEl = document.querySelector("#app-shell .layout");
 const btnLeftCollapse = document.getElementById("btn-left-collapse");
 const leftCollapseIcon = btnLeftCollapse?.querySelector(".left-collapse-btn__icon");
@@ -254,23 +254,22 @@ function showCenterState(s) {
   leftEmpty.hidden = inMain;
   headlineList.hidden = !inMain;
   starFilterWrap.hidden = !inMain;
-  if (leftPatient) leftPatient.hidden = !inMain;
   if (btnChangeKarte) btnChangeKarte.hidden = !inMain;
   if (!inMain) closeCompose({ reset: true });
 }
 
-function formatPatientLabel(animalName, karteNumber) {
+function formatAnimalDisplayName(animalName) {
   const name = (animalName || "").trim() || "（名前未設定）";
-  const withChan = /ちゃん$/.test(name) ? name : `${name}ちゃん`;
-  return `${withChan}（No.${karteNumber || "-----"}）`;
+  return /ちゃん$/.test(name) ? name : `${name}ちゃん`;
 }
 
 function updateLeftPatient() {
-  if (!leftPatientLabel) return;
-  leftPatientLabel.textContent = formatPatientLabel(
-    state.animalName,
-    state.karteNumber
-  );
+  if (leftPatientKarte) {
+    leftPatientKarte.textContent = state.karteNumber || "-----";
+  }
+  if (leftPatientName) {
+    leftPatientName.textContent = formatAnimalDisplayName(state.animalName);
+  }
 }
 
 function setAuthorFieldVisible(visible) {
@@ -842,7 +841,8 @@ function leaveMain() {
   if (starFilterInput) starFilterInput.checked = false;
   if (timelineEl) timelineEl.innerHTML = "";
   if (headlineList) headlineList.innerHTML = "";
-  if (leftPatientLabel) leftPatientLabel.textContent = "";
+  if (leftPatientKarte) leftPatientKarte.textContent = "";
+  if (leftPatientName) leftPatientName.textContent = "";
 }
 
 async function handleEntrySave() {

@@ -94,15 +94,18 @@
       <div class="col-left__inner" id="col-left-inner">
       <button
         id="btn-change-karte"
-        class="btn btn--small btn--outline left-change-karte"
+        class="left-patient"
         type="button"
         hidden
+        title="カルテを変更"
+        aria-label="カルテを変更"
       >
-        カルテを変更
+        <span class="left-patient__back" aria-hidden="true">⬅</span>
+        <span class="left-patient__meta">
+          <span class="left-patient__karte" id="left-patient-karte"></span>
+          <span class="left-patient__name" id="left-patient-name"></span>
+        </span>
       </button>
-      <div class="left-patient" id="left-patient" hidden>
-        <p class="left-patient__label" id="left-patient-label"></p>
-      </div>
 
       <div class="left-head">
         <h2 class="col__title">見出し</h2>

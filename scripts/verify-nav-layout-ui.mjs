@@ -91,10 +91,13 @@ const harness = `<!DOCTYPE html>
   <div class="layout" style="display:flex;min-height:100vh">
     <aside class="col col--left" id="col-left" style="width:240px;padding:10px;background:var(--color-cream)">
       <div class="col-left__inner" id="col-left-inner">
-        <button id="btn-change-karte" class="btn btn--small btn--outline left-change-karte" type="button">カルテを変更</button>
-        <div class="left-patient" id="left-patient">
-          <p class="left-patient__label" id="left-patient-label">タロウちゃん（No.12345）</p>
-        </div>
+        <button id="btn-change-karte" class="left-patient" type="button" title="カルテを変更" aria-label="カルテを変更">
+          <span class="left-patient__back" aria-hidden="true">⬅</span>
+          <span class="left-patient__meta">
+            <span class="left-patient__karte" id="left-patient-karte">00001</span>
+            <span class="left-patient__name" id="left-patient-name">イチロウちゃん</span>
+          </span>
+        </button>
         <div class="left-head"><h2 class="col__title">見出し</h2></div>
         <ul class="headline-list" id="headline-list"></ul>
       </div>
@@ -253,15 +256,26 @@ await page.locator('[data-app-menu-action="logout"]').click();
 await page.waitForFunction(() => window.__loggedOut() === true);
 if (!(await page.isVisible("#screen-lock"))) throw new Error("should return to lock screen");
 
-// 3) 左カラム最上部のカルテ変更ボタン
+// 3) 左カラム最上部: ⬅ + カルテ番号 / 動物名
 await page.evaluate(() => window.__showApp());
 const changeBtn = page.locator("#btn-change-karte");
-const box = await changeBtn.boundingBox();
-const labelBox = await page.locator("#left-patient-label").boundingBox();
-if (!box || !labelBox) throw new Error("left buttons missing");
-if (box.y >= labelBox.y) throw new Error("change karte should be above patient label");
-const changeClass = await changeBtn.getAttribute("class");
-if (!changeClass.includes("btn")) throw new Error("change karte should look like a button");
+const backText = await page.locator(".left-patient__back").innerText();
+const karteText = await page.locator("#left-patient-karte").innerText();
+const nameText = await page.locator("#left-patient-name").innerText();
+if (!backText.includes("⬅")) throw new Error("back arrow missing");
+if (karteText !== "00001") throw new Error(`karte number wrong: ${karteText}`);
+if (nameText !== "イチロウちゃん") throw new Error(`name wrong: ${nameText}`);
+if (/No\./.test(await changeBtn.innerText())) throw new Error("No. should not appear");
+const backBox = await page.locator(".left-patient__back").boundingBox();
+const karteBox = await page.locator("#left-patient-karte").boundingBox();
+const nameBox = await page.locator("#left-patient-name").boundingBox();
+if (!backBox || !karteBox || !nameBox) throw new Error("patient layout boxes missing");
+if (backBox.x >= karteBox.x) throw new Error("arrow should be left of karte number");
+if (karteBox.y >= nameBox.y) throw new Error("karte number should be above animal name");
+await page.screenshot({
+  path: path.join(root, "tools/nav-left-patient.png"),
+  clip: { x: 0, y: 0, width: 260, height: 220 },
+});
 await page.screenshot({ path: path.join(root, "tools/nav-left-change-karte.png") });
 
 if (errors.length) {
