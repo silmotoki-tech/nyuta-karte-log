@@ -977,6 +977,8 @@ html.is-unlocked .app {
   min-width: 0;
   /* 上だけ明確に広げて枠線との詰まりを解消（左右・下は密度維持） */
   padding: 18px 10px 7px;
+  /* ★ + gap + ドット + gap ＝ 日付・見出しの左端。本文も同じ位置に揃える */
+  --tl-lead: calc(1.1rem + 6px + 8px + 6px);
 }
 
 .tl-item__head {
@@ -993,7 +995,12 @@ html.is-unlocked .app {
   font-size: 0.88rem;
   line-height: 1;
   color: var(--color-border);
-  padding: 1px;
+  width: 1.1rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   margin-top: 2px;
   transition: color 0.12s ease, transform 0.05s ease;
 }
@@ -1097,6 +1104,7 @@ html.is-unlocked .app {
 
 .tl-item__body {
   margin: 0 0 4px;
+  margin-left: var(--tl-lead);
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.45;
@@ -1108,6 +1116,7 @@ html.is-unlocked .app {
   justify-content: flex-start;
   gap: 2px;
   margin-top: 2px;
+  margin-left: var(--tl-lead);
 }
 
 /* ===== 右カラム ===== */
