@@ -242,7 +242,9 @@ function showLockScreen() {
   if (screenLock) screenLock.hidden = false;
   if (appShell) appShell.hidden = true;
   setupPasscodeNumpad();
-  setTimeout(() => passcodeInput?.focus(), 0);
+  // 読取専用テンキー欄へ focus しない（iPad で後続の通常入力の
+  // システムキーボードが抑制されるため）。ハードキーは document 側で受ける。
+  blurDigitGateInputs();
 }
 
 function unlockAppShell() {
@@ -250,6 +252,8 @@ function unlockAppShell() {
   document.documentElement.classList.add("is-unlocked");
   if (screenLock) screenLock.hidden = true;
   if (appShell) appShell.hidden = false;
+  // ロック画面の読取専用入力が activeElement のまま残らないようにする
+  passcodeInput?.blur();
 }
 
 function showCenterState(s) {
@@ -259,6 +263,9 @@ function showCenterState(s) {
   gateKarte.hidden = s !== "karte";
   gateAnimal.hidden = s !== "animal";
   centerMain.hidden = s !== "main";
+
+  // カルテ番号ゲートを離れたら読取専用欄のフォーカスを必ず外す
+  if (s !== "karte") karteNumberInput?.blur();
 
   const inMain = s === "main";
   leftEmpty.hidden = inMain;
@@ -416,6 +423,64 @@ function buildEntrySideMeta(entry) {
 
 // --- 状態0: パスコード入力 -----------------------------------------------
 
+/**
+ * 数字専用ゲート欄（パスコード／カルテ番号）を「表示専用」にする。
+ * iPad では inputmode="none" + readonly のフィールドに focus すると、
+ * その後の通常テキスト欄でもシステムキーボードが出なくなることがあるため、
+ * タップではフォーカスさせず、値の更新はテンキー／ハードキー経由のみにする。
+ */
+function hardenDigitGateInput(el) {
+  if (!el || el.dataset.digitGateHardened === "1") return;
+  el.dataset.digitGateHardened = "1";
+  el.readOnly = true;
+  el.setAttribute("inputmode", "none");
+  el.setAttribute("autocomplete", "off");
+  el.tabIndex = -1;
+  const blockPointerFocus = (event) => {
+    event.preventDefault();
+  };
+  el.addEventListener("touchstart", blockPointerFocus, { passive: false });
+  el.addEventListener("mousedown", blockPointerFocus);
+  el.addEventListener("focus", () => {
+    // プログラム focus やアクセシビリティ経路でも残さない
+    el.blur();
+  });
+}
+
+function blurDigitGateInputs() {
+  passcodeInput?.blur();
+  karteNumberInput?.blur();
+}
+
+function isEditableTextTarget(target) {
+  if (!target || target === document.body || target === document.documentElement) {
+    return false;
+  }
+  const tag = target.tagName;
+  if (tag === "TEXTAREA") return !target.readOnly && !target.disabled;
+  if (tag === "INPUT") {
+    if (target.readOnly || target.disabled) return false;
+    const type = String(target.type || "text").toLowerCase();
+    if (
+      [
+        "button",
+        "submit",
+        "checkbox",
+        "radio",
+        "file",
+        "reset",
+        "hidden",
+        "range",
+        "color",
+      ].includes(type)
+    ) {
+      return false;
+    }
+    return true;
+  }
+  return !!target.isContentEditable;
+}
+
 function setPasscodeDigits(next) {
   if (!passcodeInput) return;
   passcodeInput.value = String(next || "").replace(/[^0-9]/g, "").slice(0, 4);
@@ -427,9 +492,7 @@ function ensurePasscodeNumpadEl() {
     console.error("[passcode-numpad] #passcode-input が見つかりません");
     return null;
   }
-  passcodeInput.readOnly = true;
-  passcodeInput.setAttribute("inputmode", "none");
-  passcodeInput.setAttribute("autocomplete", "off");
+  hardenDigitGateInput(passcodeInput);
   passcodeInput.setAttribute("maxlength", "4");
 
   let pad = document.getElementById("passcode-numpad");
@@ -508,24 +571,6 @@ if (passcodeInput) {
   passcodeInput.addEventListener("input", () => {
     setPasscodeDigits(passcodeInput.value);
   });
-
-  passcodeInput.addEventListener("keydown", (event) => {
-    if (/^[0-9]$/.test(event.key)) {
-      event.preventDefault();
-      if ((passcodeInput.value || "").length >= 4) return;
-      setPasscodeDigits(`${passcodeInput.value || ""}${event.key}`);
-      return;
-    }
-    if (event.key === "Backspace") {
-      event.preventDefault();
-      setPasscodeDigits((passcodeInput.value || "").slice(0, -1));
-      return;
-    }
-    if (event.key === "Enter" && !isImeKey(event)) {
-      event.preventDefault();
-      handlePasscodeNext();
-    }
-  });
 }
 
 btnPasscodeNext?.addEventListener("click", handlePasscodeNext);
@@ -535,7 +580,6 @@ function handlePasscodeNext() {
   if (value !== PASSCODE) {
     showError(passcodeError, "パスコードが正しくありません。");
     setPasscodeDigits("");
-    passcodeInput?.focus();
     return;
   }
   showError(passcodeError, "");
@@ -573,7 +617,8 @@ function goToKarte() {
   unlockAppShell();
   showCenterState("karte");
   setupKarteNumpad();
-  setTimeout(() => karteNumberInput?.focus(), 0);
+  // 読取専用欄へは focus しない（通常テキスト欄のキーボード阻害を防ぐ）
+  blurDigitGateInputs();
 }
 
 function setKarteNumberDigits(next) {
@@ -593,9 +638,7 @@ function ensureKarteNumpadEl() {
     return null;
   }
   // 標準キーボードを出さない（古い HTML でも属性を揃える）
-  karteNumberInput.readOnly = true;
-  karteNumberInput.setAttribute("inputmode", "none");
-  karteNumberInput.setAttribute("autocomplete", "off");
+  hardenDigitGateInput(karteNumberInput);
   karteNumberInput.setAttribute("maxlength", "5");
 
   let pad = document.getElementById("karte-numpad");
@@ -641,26 +684,46 @@ if (karteNumberInput) {
     // readonly でも外部入力や貼り付けに備えて正規化する
     setKarteNumberDigits(karteNumberInput.value);
   });
-
-  karteNumberInput.addEventListener("keydown", (event) => {
-    // ハードウェアキーボードは許可（テンキー／数字キー）
-    if (/^[0-9]$/.test(event.key)) {
-      event.preventDefault();
-      if ((karteNumberInput.value || "").length >= 5) return;
-      setKarteNumberDigits(`${karteNumberInput.value || ""}${event.key}`);
-      return;
-    }
-    if (event.key === "Backspace") {
-      event.preventDefault();
-      setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
-      return;
-    }
-    if (event.key === "Enter" && !isImeKey(event)) {
-      event.preventDefault();
-      handleKarteNext();
-    }
-  });
 }
+
+// ゲート画面ではフィールドに focus しないため、ハードキーは document で受ける。
+// 通常のテキスト入力中は isEditableTextTarget でスキップする。
+document.addEventListener("keydown", (event) => {
+  if (isEditableTextTarget(event.target)) return;
+  if (isImeKey(event)) return;
+
+  const onPasscode = !!(screenLock && !screenLock.hidden && passcodeInput);
+  const onKarte =
+    !!(state.unlocked && state.centerState === "karte" && karteNumberInput);
+
+  if (!onPasscode && !onKarte) return;
+
+  if (/^[0-9]$/.test(event.key)) {
+    event.preventDefault();
+    if (onPasscode) {
+      if ((passcodeInput.value || "").length >= 4) return;
+      setPasscodeDigits(`${passcodeInput.value || ""}${event.key}`);
+      return;
+    }
+    if ((karteNumberInput.value || "").length >= 5) return;
+    setKarteNumberDigits(`${karteNumberInput.value || ""}${event.key}`);
+    return;
+  }
+  if (event.key === "Backspace") {
+    event.preventDefault();
+    if (onPasscode) {
+      setPasscodeDigits((passcodeInput.value || "").slice(0, -1));
+      return;
+    }
+    setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    if (onPasscode) handlePasscodeNext();
+    else handleKarteNext();
+  }
+});
 
 btnKarteNext?.addEventListener("click", handleKarteNext);
 

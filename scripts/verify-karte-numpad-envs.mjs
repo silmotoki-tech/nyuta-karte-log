@@ -110,8 +110,11 @@ async function runCase(label, { url, standalone = false } = {}) {
   }
 
   await page.goto(url, { waitUntil: "networkidle" });
-  await page.fill("#passcode-input", "2211");
-  await page.click("#btn-passcode-next");
+  await page.waitForSelector("#passcode-numpad .numpad__btn");
+  for (const d of ["2", "2", "1", "1"]) {
+    await page.click(`#passcode-numpad [data-pass-digit="${d}"]`);
+  }
+  await page.click('#passcode-numpad [data-pass-action="confirm"]');
   await page.waitForSelector("#gate-karte:not([hidden])", { timeout: 10000 });
   await page.waitForTimeout(300);
 
