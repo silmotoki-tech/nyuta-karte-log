@@ -219,6 +219,8 @@ html.is-unlocked .app {
   display: grid;
   --left-col-width: 210px;
   --right-col-width: 308px; /* 280px から約10%拡大 */
+  /* 左・中央・右のコンテンツ上端を揃える共通余白 */
+  --col-pad-top: 10px;
   grid-template-columns: var(--left-col-width) minmax(0, 1fr) var(--right-col-width);
   transition: grid-template-columns 0.2s ease;
 }
@@ -239,7 +241,7 @@ html.is-unlocked .app {
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  padding: 14px 12px;
+  padding: var(--col-pad-top) 12px 14px;
   gap: 10px;
   overflow-x: hidden;
 }
@@ -313,6 +315,7 @@ html.is-unlocked .app {
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 内側の time-line を独立スクロールさせる */
+  padding-top: var(--col-pad-top);
 }
 
 .col--right {
@@ -321,6 +324,7 @@ html.is-unlocked .app {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-top: var(--col-pad-top);
 }
 
 .col__title {
@@ -345,7 +349,8 @@ html.is-unlocked .app {
   gap: 8px;
   width: 100%;
   margin: 0 0 2px;
-  padding: 6px 4px 10px;
+  /* 上端はカラムの --col-pad-top に合わせ、内側上余白は付けない */
+  padding: 0 4px 10px;
   border: none;
   border-bottom: 1px solid var(--color-border);
   border-radius: 0;
@@ -588,7 +593,8 @@ html.is-unlocked .app {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  /* 上端は .col--center の --col-pad-top に合わせ、内側上余白は付けない */
+  padding: 0 16px 10px;
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-white);
 }
@@ -1107,8 +1113,10 @@ html.is-unlocked .app {
 .right-tabs {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: 2px;
-  padding: 6px 8px 0;
+  /* 上端は .col--right の --col-pad-top に合わせ、内側上余白は付けない */
+  padding: 0 8px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
   background-color: var(--color-white);
