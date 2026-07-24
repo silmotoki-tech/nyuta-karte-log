@@ -185,6 +185,14 @@ function ymdFromStr(dateStr) {
   return `${y}/${Number(m)}/${Number(d)}`;
 }
 
+/** 実施履歴用: 年と月日を分けて返す（表示は2段組み） */
+function historyDateParts(dateStr) {
+  if (!dateStr) return { year: "", md: "日付未設定" };
+  const [y, m, d] = dateStr.split("-");
+  if (!y || !m || !d) return { year: "", md: dateStr };
+  return { year: y, md: `${Number(m)}/${Number(d)}` };
+}
+
 function addDays(dateStr, days) {
   const d = parseDateStr(dateStr);
   if (!d) return "";
@@ -708,7 +716,7 @@ function renderHistory() {
   const items = Object.entries(state.plan.history || {}).map(([id, h]) => ({ id, ...h }));
   if (historyEmpty) historyEmpty.hidden = items.length > 0;
 
-  // 項目名ごとにグループ化
+  // 項目名ごとにグループ化（表示順・ギャップ計算用。見出し行は出さない）
   const groups = new Map();
   items.forEach((h) => {
     const key = h.item || "（項目未設定）";
@@ -716,37 +724,12 @@ function renderHistory() {
     groups.get(key).push(h);
   });
 
-  // グループ見出しは項目名順
   const groupKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b));
 
   groupKeys.forEach((itemName) => {
     const groupItems = groups.get(itemName);
-    // 新しい順
     groupItems.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
-    const heading = document.createElement("li");
-    heading.className = "exam-history-group-title";
-    const headingLabel = document.createElement("div");
-    headingLabel.className = "exam-history-group-title__label";
-    headingLabel.textContent = `${itemName} - 実施履歴`;
-    const headingHint = document.createElement("div");
-    headingHint.className = "exam-history-group-title__hint";
-    headingHint.textContent = findActivePlanByItemName(itemName)
-      ? "予定一覧に表示中"
-      : "左スワイプで予定に戻す";
-    heading.append(headingLabel, headingHint);
-    enableRowGestures(heading, {
-      actions: [
-        {
-          action: "refresh",
-          title: "予定に戻す",
-          onClick: () => handleReviveFromHistory(itemName),
-        },
-      ],
-    });
-    historyList.appendChild(heading);
-
-    // 古い順配列（ギャップ計算用）
     const oldestFirst = [...groupItems].sort((a, b) =>
       (a.date || "").localeCompare(b.date || "")
     );
@@ -754,26 +737,51 @@ function renderHistory() {
 
     groupItems.forEach((h) => {
       const li = document.createElement("li");
-      li.className = "exam-list-item";
+      li.className = "exam-list-item exam-list-item--history";
 
       const info = document.createElement("div");
       info.className = "exam-list-item__info";
+
+      const head = document.createElement("div");
+      head.className = "exam-list-item__head";
+
       const title = document.createElement("div");
       title.className = "exam-list-item__title";
-      let titleText = h.date ? ymdFromStr(h.date) : "（日付未設定）";
+      title.textContent = itemName;
+
+      const dateEl = document.createElement("div");
+      dateEl.className = "exam-history-date";
+      const parts = historyDateParts(h.date);
+      if (parts.year) {
+        const yearEl = document.createElement("span");
+        yearEl.className = "exam-history-date__year";
+        yearEl.textContent = parts.year;
+        dateEl.appendChild(yearEl);
+      }
+      const mdEl = document.createElement("span");
+      mdEl.className = "exam-history-date__md";
+      mdEl.textContent = parts.md;
+      dateEl.appendChild(mdEl);
+
+      head.append(title, dateEl);
+      info.appendChild(head);
+
       if (h.id !== oldestId && h.date) {
         const idx = oldestFirst.findIndex((x) => x.id === h.id);
         const prevOlder = idx > 0 ? oldestFirst[idx - 1] : null;
         if (prevOlder?.date) {
-          titleText += formatHistoryGapLabel(prevOlder.date, h.date);
+          const gapEl = document.createElement("div");
+          gapEl.className = "exam-list-item__meta";
+          gapEl.textContent = formatHistoryGapLabel(prevOlder.date, h.date);
+          info.appendChild(gapEl);
         }
       }
-      title.textContent = titleText;
-      const meta = document.createElement("div");
-      meta.className = "exam-list-item__meta";
-      meta.textContent = h.note || "";
-      info.appendChild(title);
-      if (h.note) info.appendChild(meta);
+      if (h.note) {
+        const meta = document.createElement("div");
+        meta.className = "exam-list-item__note";
+        meta.textContent = h.note;
+        info.appendChild(meta);
+      }
       li.appendChild(info);
 
       enableRowGestures(li, {
