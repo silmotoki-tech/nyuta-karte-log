@@ -329,6 +329,7 @@
         <button class="right-tab is-active" type="button" data-tab="exam">検査</button>
         <button class="right-tab" type="button" data-tab="meds">薬剤</button>
         <button class="right-tab" type="button" data-tab="proc">処置</button>
+        <button class="right-tab" type="button" data-tab="notes">特記</button>
         <button class="right-tab" type="button" data-tab="qa">検索</button>
       </div>
 
@@ -397,6 +398,20 @@
           <h3 class="exam-section__title">処置ログ一覧</h3>
           <p class="field__note" id="procedures-empty">登録された処置ログはありません。</p>
           <ul class="proc-list" id="procedures-list"></ul>
+        </section>
+      </div>
+
+      <!-- C2. 特記事項 -->
+      <div class="right-panel" id="panel-notes" data-panel="notes" hidden>
+        <div class="exam-toolbar">
+          <button id="btn-special-note-add" class="btn btn--small btn--primary" type="button">
+            特記を追加
+          </button>
+        </div>
+        <section class="exam-section">
+          <h3 class="exam-section__title">特記事項</h3>
+          <p class="field__note" id="special-notes-empty">登録された特記事項はありません。</p>
+          <ul class="note-list" id="special-notes-list"></ul>
         </section>
       </div>
 
@@ -967,6 +982,42 @@
       <div class="tpl-editor__actions">
         <button id="btn-procedure-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-procedure-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 特記事項: 追加・編集モーダル -->
+<div class="modal" id="special-note-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="special-note-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="special-note-modal-title">特記事項を追加</h2>
+      <button class="modal__close" id="btn-close-special-note-modal" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <label class="label" for="special-note-content">特記内容</label>
+        <textarea
+          id="special-note-content"
+          class="textarea"
+          rows="4"
+          placeholder="例）金銭面の制限あり。高額検査の前に必ず確認。"
+        ></textarea>
+      </div>
+      <div class="field">
+        <span class="label">重要度</span>
+        <div class="note-importance-row" id="special-note-importance-row" role="group" aria-label="重要度"></div>
+      </div>
+      <div class="field">
+        <span class="label">記入者 / 編集者</span>
+        <p class="field__note" id="special-note-author-hint"></p>
+        <div class="author-row" id="special-note-author-row"></div>
+      </div>
+      <p id="special-note-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-special-note-save" class="btn btn--small btn--primary" type="button">追加する</button>
+        <button id="btn-special-note-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
       </div>
     </div>
   </div>

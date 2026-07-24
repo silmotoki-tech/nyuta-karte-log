@@ -71,6 +71,14 @@
 //   procedures/{カルテ番号}/{entryId}/lastEditedAt       … 最終編集ISO（任意）
 //   procedures/{カルテ番号}/{entryId}/lastEditedBy       … 最終編集者（任意）
 //
+//   specialNotes/{カルテ番号}/{entryId}/schemaVersion    … 特記事項（恒常的な注意）
+//   specialNotes/{カルテ番号}/{entryId}/content          … 本文
+//   specialNotes/{カルテ番号}/{entryId}/importance       … "high"|"medium"|"low"
+//   specialNotes/{カルテ番号}/{entryId}/createdAt        … 追加日時ISO
+//   specialNotes/{カルテ番号}/{entryId}/createdBy        … 作成者
+//   specialNotes/{カルテ番号}/{entryId}/lastEditedAt     … 更新日時ISO（任意）
+//   specialNotes/{カルテ番号}/{entryId}/lastEditedBy     … 更新者（任意）
+//
 // 方針: 参照用メモとしてエントリの直接編集（上書き）を許可する。
 //       最終編集日時・編集者のみ記録し、詳細な差分履歴は持たない。
 //       誤入力エントリの削除も許可する。
@@ -1873,4 +1881,137 @@ export async function updateProcedure(
 export async function deleteProcedure(karteNumber, entryId) {
   await authReady;
   await remove(procedureEntryRef(karteNumber, entryId));
+}
+
+// --- 特記事項（specialNotes） ----------------------------------------------
+
+export const SPECIAL_NOTE_SCHEMA_VERSION = 1;
+export const SPECIAL_NOTE_IMPORTANCE = ["high", "medium", "low"];
+
+function specialNotesRootRef(karteNumber) {
+  return ref(db, `specialNotes/${karteNumber}`);
+}
+
+function specialNoteEntryRef(karteNumber, entryId) {
+  return ref(db, `specialNotes/${karteNumber}/${entryId}`);
+}
+
+function normalizeSpecialNoteImportance(value) {
+  return SPECIAL_NOTE_IMPORTANCE.includes(value) ? value : "medium";
+}
+
+function normalizeSpecialNoteEntry(id, raw) {
+  const entry = {
+    id,
+    schemaVersion: SPECIAL_NOTE_SCHEMA_VERSION,
+    content: "",
+    importance: "medium",
+    createdAt: "",
+    createdBy: "",
+    lastEditedAt: "",
+    lastEditedBy: "",
+  };
+  if (!raw || typeof raw !== "object") return entry;
+  entry.schemaVersion = raw.schemaVersion || SPECIAL_NOTE_SCHEMA_VERSION;
+  entry.content = raw.content || "";
+  entry.importance = normalizeSpecialNoteImportance(raw.importance);
+  entry.createdAt = raw.createdAt || "";
+  entry.createdBy = raw.createdBy || "";
+  entry.lastEditedAt = raw.lastEditedAt || "";
+  entry.lastEditedBy = raw.lastEditedBy || "";
+  return entry;
+}
+
+function importanceRank(importance) {
+  const order = { high: 0, medium: 1, low: 2 };
+  return order[normalizeSpecialNoteImportance(importance)] ?? 1;
+}
+
+function sortSpecialNotes(entries) {
+  return [...entries].sort((a, b) => {
+    const ir = importanceRank(a.importance) - importanceRank(b.importance);
+    if (ir !== 0) return ir;
+    const cd = (b.createdAt || "").localeCompare(a.createdAt || "");
+    if (cd !== 0) return cd;
+    return (b.id || "").localeCompare(a.id || "");
+  });
+}
+
+/**
+ * 特記事項一覧をリアルタイム監視する（重要度の高い順）。
+ */
+export function subscribeSpecialNotes(karteNumber, callback) {
+  const r = specialNotesRootRef(karteNumber);
+  let unsubscribed = false;
+  let listener = null;
+
+  authReady
+    .then(() => {
+      if (unsubscribed) return;
+      listener = onValue(r, (snapshot) => {
+        const value = snapshot.val() || {};
+        const items = Object.entries(value).map(([id, raw]) =>
+          normalizeSpecialNoteEntry(id, raw)
+        );
+        callback(sortSpecialNotes(items));
+      });
+    })
+    .catch((err) => {
+      console.error("特記事項の監視開始に失敗しました", err);
+    });
+
+  return () => {
+    unsubscribed = true;
+    if (listener) {
+      off(r, "value", listener);
+      listener = null;
+    }
+  };
+}
+
+/**
+ * 特記事項を新規追加する。
+ */
+export async function addSpecialNote(
+  karteNumber,
+  { content, importance = "medium", createdBy }
+) {
+  await authReady;
+  const newRef = push(specialNotesRootRef(karteNumber));
+  await set(newRef, {
+    schemaVersion: SPECIAL_NOTE_SCHEMA_VERSION,
+    content: content || "",
+    importance: normalizeSpecialNoteImportance(importance),
+    createdAt: new Date().toISOString(),
+    createdBy: createdBy || "",
+    lastEditedAt: "",
+    lastEditedBy: "",
+  });
+  return newRef.key;
+}
+
+/**
+ * 特記事項を上書き更新する（更新日時・更新者を記録）。
+ */
+export async function updateSpecialNote(
+  karteNumber,
+  entryId,
+  { content, importance, editedBy }
+) {
+  await authReady;
+  await update(specialNoteEntryRef(karteNumber, entryId), {
+    schemaVersion: SPECIAL_NOTE_SCHEMA_VERSION,
+    content: content || "",
+    importance: normalizeSpecialNoteImportance(importance),
+    lastEditedAt: new Date().toISOString(),
+    lastEditedBy: editedBy || "",
+  });
+}
+
+/**
+ * 特記事項を削除する。
+ */
+export async function deleteSpecialNote(karteNumber, entryId) {
+  await authReady;
+  await remove(specialNoteEntryRef(karteNumber, entryId));
 }

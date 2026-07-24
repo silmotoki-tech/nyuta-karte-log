@@ -32,6 +32,11 @@ import {
   enterProcedures,
   leaveProcedures,
 } from "./procedures-ui.js";
+import {
+  initSpecialNotesUI,
+  enterSpecialNotes,
+  leaveSpecialNotes,
+} from "./special-notes-ui.js";
 import { initSettingsUI } from "./settings-ui.js";
 import {
   initFreeQaUI,
@@ -995,6 +1000,7 @@ function enterMain() {
   enterMeds(state.karteNumber);
   enterHistory(state.karteNumber);
   enterProcedures(state.karteNumber);
+  enterSpecialNotes(state.karteNumber);
   enterFreeQa(state.karteNumber);
 }
 
@@ -1007,6 +1013,7 @@ function leaveMain() {
   leaveMeds();
   leaveHistory();
   leaveProcedures();
+  leaveSpecialNotes();
   leaveFreeQa();
   closeCompose({ reset: true });
   closeEntryEdit();
@@ -1093,12 +1100,19 @@ async function handleEntrySave() {
 
 // --- 時系列・見出しの描画 -------------------------------------------------
 
+function entryMatchesStarFilter(entry) {
+  if (entry?.important) return true;
+  const cat = entry?.category || "none";
+  return cat === "ope" || cat === "admission" || cat === "referral";
+}
+
 function visibleEntries() {
   // 記録日の降順（新しい→古い）。同一記録日は入力時刻の降順。
   // db 側でも降順だが、描画直前にもう一度並べ替えて順序を保証する。
   // 時系列（中央）と見出し（左）は同じ配列を forEach するため常に一致する。
+  // ★フィルターは手動★に加え、カテゴリ付き（オペ／入院／紹介）も重要扱いで含める。
   const filtered = state.starFilter
-    ? state.entries.filter((e) => e.important)
+    ? state.entries.filter(entryMatchesStarFilter)
     : state.entries;
   return sortEntriesDescending(filtered);
 }
@@ -1114,7 +1128,7 @@ function renderTimeline(entries) {
   timelineEmptyEl.hidden = entries.length > 0;
   if (state.starFilter && entries.length === 0) {
     timelineEmptyEl.hidden = false;
-    timelineEmptyEl.textContent = "★が付いた記録はありません。";
+    timelineEmptyEl.textContent = "★またはカテゴリ付きの記録はありません。";
   } else {
     timelineEmptyEl.textContent = "まだ記録がありません。";
   }
@@ -1414,6 +1428,13 @@ initHistoryUI({
 });
 
 initProceduresUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+});
+
+initSpecialNotesUI({
   showToast,
   showError,
   setBusy,

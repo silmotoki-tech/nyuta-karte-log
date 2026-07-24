@@ -1286,6 +1286,7 @@ html.is-unlocked .app {
 .exam-section > .qa-list,
 .exam-section > .meds-list,
 .exam-section > .proc-list,
+.exam-section > .note-list,
 .exam-section > .qa-compose {
   margin-left: 10px;
   margin-right: 10px;
@@ -2406,6 +2407,7 @@ select.input {
 
 .exam-list-item.swipeable,
 .proc-card.swipeable,
+.note-card.swipeable,
 .qa-card.swipeable,
 .med-card.swipeable,
 .hist-card.swipeable,
@@ -2459,11 +2461,13 @@ select.input {
 }
 
 .proc-card.swipeable,
+.note-card.swipeable,
 .qa-card.swipeable {
   padding: 0;
 }
 
 .proc-card.swipeable .swipeable__front,
+.note-card.swipeable .swipeable__front,
 .qa-card.swipeable .swipeable__front {
   display: flex;
   flex-direction: column;
@@ -3044,6 +3048,95 @@ select.input {
   padding-top: 2px;
   border-top: none;
   margin-top: 1px;
+}
+
+/* ===== 特記事項タブ ===== */
+.note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.note-card {
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background-color: transparent;
+  padding: 8px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-card__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-card__importance {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.note-card__importance--high {
+  background: #fde8e8;
+  color: #b42318;
+}
+
+.note-card__importance--medium {
+  background: #fff4d6;
+  color: #a16207;
+}
+
+.note-card__importance--low {
+  background: #eef0f2;
+  color: #6b7280;
+}
+
+.note-card__content {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-card__meta {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.note-importance-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.note-importance-btn {
+  border: 1.5px solid var(--color-border);
+  background-color: var(--color-cream);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.note-importance-btn.is-selected {
+  border-color: var(--color-brown);
+  background-color: var(--color-brown-light);
+  color: var(--color-brown);
 }
 
 /* 画面が狭い場合（保険）: 右カラムを畳む */
