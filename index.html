@@ -138,7 +138,20 @@
             placeholder="00000"
             aria-label="カルテ番号（5桁）"
           />
-          <div class="numpad numpad--gate" id="karte-numpad" aria-label="カルテ番号のテンキー"></div>
+          <div class="numpad numpad--gate" id="karte-numpad" aria-label="カルテ番号のテンキー">
+            <button type="button" class="numpad__btn" data-karte-digit="1">1</button>
+            <button type="button" class="numpad__btn" data-karte-digit="2">2</button>
+            <button type="button" class="numpad__btn" data-karte-digit="3">3</button>
+            <button type="button" class="numpad__btn" data-karte-digit="4">4</button>
+            <button type="button" class="numpad__btn" data-karte-digit="5">5</button>
+            <button type="button" class="numpad__btn" data-karte-digit="6">6</button>
+            <button type="button" class="numpad__btn" data-karte-digit="7">7</button>
+            <button type="button" class="numpad__btn" data-karte-digit="8">8</button>
+            <button type="button" class="numpad__btn" data-karte-digit="9">9</button>
+            <button type="button" class="numpad__btn numpad__btn--action" data-karte-action="delete">削除</button>
+            <button type="button" class="numpad__btn" data-karte-digit="0">0</button>
+            <button type="button" class="numpad__btn numpad__btn--action numpad__btn--confirm" data-karte-action="confirm">確定</button>
+          </div>
           <p id="karte-error" class="error-text" role="alert" hidden></p>
           <button id="btn-karte-next" class="btn btn--primary btn--block" type="button">
             次へ

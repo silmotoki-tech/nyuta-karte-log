@@ -8,7 +8,7 @@
 //
 // ※ CACHE_VERSION を上げるときは js/app-version.js の APP_VERSION / CACHE_LABEL も合わせて更新する。
 
-const CACHE_VERSION = "v77";
+const CACHE_VERSION = "v78";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -109,8 +109,11 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isAppShellRequest(request, url)) {
+    // GitHub Pages は HTML/JS/CSS に max-age=600 を付けるため、
+    // デフォルトの fetch だと Chrome / PWA が古いシェルを HTTP キャッシュから
+    // 返してテンキー欠落などが残ることがある。アプリシェルは常に再取得する。
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: "no-store" })
         .then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();

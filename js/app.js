@@ -55,7 +55,6 @@ import {
 } from "./passcode-auth.js";
 import { enableRowGestures } from "./row-gestures.js";
 import { isImeKey } from "./ime-keys.js";
-import { mountNumpad } from "./freq-picker.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -119,9 +118,9 @@ const passcodeError = document.getElementById("passcode-error");
 const btnPasscodeNext = document.getElementById("btn-passcode-next");
 
 const karteNumberInput = document.getElementById("karte-number-input");
-const karteNumpad = document.getElementById("karte-numpad");
 const karteError = document.getElementById("karte-error");
 const btnKarteNext = document.getElementById("btn-karte-next");
+let karteNumpadBound = false;
 
 const animalKarteNumberEl = document.getElementById("animal-karte-number");
 const animalNameInput = document.getElementById("animal-name-input");
@@ -467,50 +466,133 @@ function logoutToPasscode() {
 function goToKarte() {
   unlockAppShell();
   showCenterState("karte");
-  setTimeout(() => karteNumberInput.focus(), 0);
+  setupKarteNumpad();
+  setTimeout(() => karteNumberInput?.focus(), 0);
 }
 
 function setKarteNumberDigits(next) {
+  if (!karteNumberInput) return;
   karteNumberInput.value = String(next || "").replace(/[^0-9]/g, "").slice(0, 5);
   showError(karteError, "");
 }
 
-mountNumpad(karteNumpad, {
-  onDigit: (digit) => {
-    if ((karteNumberInput.value || "").length >= 5) return;
-    setKarteNumberDigits(`${karteNumberInput.value || ""}${digit}`);
-  },
-  onDelete: () => {
-    setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
-  },
-  onConfirm: () => handleKarteNext(),
-});
-
-karteNumberInput.addEventListener("input", () => {
-  // readonly でも外部入力や貼り付けに備えて正規化する
-  setKarteNumberDigits(karteNumberInput.value);
-});
-
-karteNumberInput.addEventListener("keydown", (event) => {
-  // ハードウェアキーボードは許可（テンキー／数字キー）
-  if (/^[0-9]$/.test(event.key)) {
-    event.preventDefault();
-    if ((karteNumberInput.value || "").length >= 5) return;
-    setKarteNumberDigits(`${karteNumberInput.value || ""}${event.key}`);
-    return;
+/**
+ * カルテ番号テンキーを確実に用意する。
+ * 古いキャッシュ HTML（#karte-numpad 無し）でも JS 側で生成する。
+ * standalone / Chrome 固有の分岐は持たない（全環境同一）。
+ */
+function ensureKarteNumpadEl() {
+  if (!karteNumberInput) {
+    console.error("[karte-numpad] #karte-number-input が見つかりません");
+    return null;
   }
-  if (event.key === "Backspace") {
-    event.preventDefault();
-    setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
-    return;
-  }
-  if (event.key === "Enter" && !isImeKey(event)) {
-    event.preventDefault();
-    handleKarteNext();
-  }
-});
+  // 標準キーボードを出さない（古い HTML でも属性を揃える）
+  karteNumberInput.readOnly = true;
+  karteNumberInput.setAttribute("inputmode", "none");
+  karteNumberInput.setAttribute("autocomplete", "off");
+  karteNumberInput.setAttribute("maxlength", "5");
 
-btnKarteNext.addEventListener("click", handleKarteNext);
+  let pad = document.getElementById("karte-numpad");
+  if (!pad) {
+    pad = document.createElement("div");
+    pad.id = "karte-numpad";
+    pad.className = "numpad numpad--gate";
+    pad.setAttribute("aria-label", "カルテ番号のテンキー");
+    karteNumberInput.insertAdjacentElement("afterend", pad);
+  }
+  return pad;
+}
+
+function ensureKarteNumpadButtons(pad) {
+  if (pad.querySelector(".numpad__btn")) return;
+  const keys = [
+    ["1", "digit"],
+    ["2", "digit"],
+    ["3", "digit"],
+    ["4", "digit"],
+    ["5", "digit"],
+    ["6", "digit"],
+    ["7", "digit"],
+    ["8", "digit"],
+    ["9", "digit"],
+    ["削除", "delete"],
+    ["0", "digit"],
+    ["確定", "confirm"],
+  ];
+  keys.forEach(([label, kind]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "numpad__btn";
+    btn.textContent = label;
+    if (kind === "digit") {
+      btn.dataset.karteDigit = label;
+    } else if (kind === "delete") {
+      btn.classList.add("numpad__btn--action");
+      btn.dataset.karteAction = "delete";
+    } else {
+      btn.classList.add("numpad__btn--action", "numpad__btn--confirm");
+      btn.dataset.karteAction = "confirm";
+    }
+    pad.appendChild(btn);
+  });
+}
+
+function setupKarteNumpad() {
+  const pad = ensureKarteNumpadEl();
+  if (!pad) return;
+  ensureKarteNumpadButtons(pad);
+
+  if (karteNumpadBound) return;
+  karteNumpadBound = true;
+  pad.addEventListener("click", (event) => {
+    const btn = event.target.closest("button");
+    if (!btn || !pad.contains(btn)) return;
+    const digit = btn.dataset.karteDigit;
+    const action = btn.dataset.karteAction;
+    if (digit != null) {
+      if ((karteNumberInput.value || "").length >= 5) return;
+      setKarteNumberDigits(`${karteNumberInput.value || ""}${digit}`);
+      return;
+    }
+    if (action === "delete") {
+      setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
+      return;
+    }
+    if (action === "confirm") {
+      handleKarteNext();
+    }
+  });
+}
+
+setupKarteNumpad();
+
+if (karteNumberInput) {
+  karteNumberInput.addEventListener("input", () => {
+    // readonly でも外部入力や貼り付けに備えて正規化する
+    setKarteNumberDigits(karteNumberInput.value);
+  });
+
+  karteNumberInput.addEventListener("keydown", (event) => {
+    // ハードウェアキーボードは許可（テンキー／数字キー）
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      if ((karteNumberInput.value || "").length >= 5) return;
+      setKarteNumberDigits(`${karteNumberInput.value || ""}${event.key}`);
+      return;
+    }
+    if (event.key === "Backspace") {
+      event.preventDefault();
+      setKarteNumberDigits((karteNumberInput.value || "").slice(0, -1));
+      return;
+    }
+    if (event.key === "Enter" && !isImeKey(event)) {
+      event.preventDefault();
+      handleKarteNext();
+    }
+  });
+}
+
+btnKarteNext?.addEventListener("click", handleKarteNext);
 
 async function handleKarteNext() {
   const value = karteNumberInput.value.trim();
