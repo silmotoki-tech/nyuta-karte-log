@@ -975,7 +975,8 @@ html.is-unlocked .app {
 .tl-item__content {
   flex: 1;
   min-width: 0;
-  padding: 7px 10px;
+  /* 上だけ少し広げて枠線との詰まりを緩和（左右・下は密度維持） */
+  padding: 11px 10px 7px;
 }
 
 .tl-item__head {
