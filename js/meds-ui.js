@@ -42,13 +42,6 @@ const AMOUNT_PRESETS = [
   "1.5倍に増やす",
 ];
 
-const EXPIRY_QUICK = [
-  { label: "1ヶ月後", months: 1 },
-  { label: "2ヶ月後", months: 2 },
-  { label: "3ヶ月後", months: 3 },
-  { label: "6ヶ月後", months: 6 },
-];
-
 let deps = {
   showToast: () => {},
   showError: () => {},
@@ -172,20 +165,6 @@ function parseDateStr(str) {
   const [y, m, d] = str.split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
-}
-
-function formatDateStr(date) {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-}
-
-function addMonths(dateStr, months) {
-  const d = parseDateStr(dateStr);
-  if (!d) return "";
-  const day = d.getDate();
-  d.setMonth(d.getMonth() + months);
-  if (d.getDate() < day) d.setDate(0);
-  return formatDateStr(d);
 }
 
 function ymdFromStr(dateStr) {
@@ -387,7 +366,13 @@ function createDrugCard(drug) {
       expiryStatus === "overdue"
         ? "med-inline-status med-inline-status--overdue"
         : "med-inline-status med-inline-status--near";
-    inline.textContent = expiryStatus === "overdue" ? "期限超過" : "期限間近";
+    if (expiryStatus === "overdue") {
+      inline.textContent = "期限超過";
+    } else {
+      const daysLeft = daysBetween(todayStr(), drug.expiryEstimate);
+      inline.textContent =
+        daysLeft === 0 ? "本日まで" : `あと${daysLeft}日`;
+    }
     // 名前の直後（status の前）に差し込む
     nameEl.after(inline);
   }
@@ -512,7 +497,7 @@ function createDrugDetail(drug, status) {
   seBlock.append(seLabel, seInput, seSave);
   detail.appendChild(seBlock);
 
-  // 処方切れ目安
+  // 処方切れ目安（カレンダー確定＝即保存。クイック／保存ボタンなし）
   const expBlock = document.createElement("div");
   expBlock.className = "field";
   const expLabel = document.createElement("label");
@@ -524,56 +509,56 @@ function createDrugDetail(drug, status) {
   expInput.type = "date";
   expInput.className = "input input--date";
   expInput.value = drug.expiryEstimate || "";
-  const expQuick = document.createElement("div");
-  expQuick.className = "quick-date-buttons";
-  EXPIRY_QUICK.forEach((q) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "quick-date-btn";
-    btn.textContent = q.label;
-    btn.addEventListener("click", () => {
-      expInput.value = addMonths(todayStr(), q.months);
-    });
-    expQuick.appendChild(btn);
-  });
-  const expActions = document.createElement("div");
-  expActions.className = "tpl-editor__actions";
-  const expSave = document.createElement("button");
-  expSave.type = "button";
-  expSave.className = "btn btn--small btn--outline";
-  expSave.textContent = "期限を保存";
-  expSave.addEventListener("click", async () => {
+  let savingExpiry = false;
+  const saveExpiryEstimate = async (value, { cleared = false } = {}) => {
+    if (savingExpiry) return;
+    const next = value || "";
+    if (next === (drug.expiryEstimate || "")) return;
+    savingExpiry = true;
     try {
       await updateMedication(state.karteNumber, drug.id, {
-        expiryEstimate: expInput.value || "",
+        expiryEstimate: next,
       });
-      deps.showToast("処方切れ目安を保存しました。");
+      deps.showToast(
+        cleared ? "処方切れ目安をクリアしました。" : "処方切れ目安を保存しました。"
+      );
     } catch (err) {
       console.error(err);
-      deps.showToast("保存に失敗しました。", { isError: true });
+      deps.showToast(
+        cleared ? "クリアに失敗しました。" : "保存に失敗しました。",
+        { isError: true }
+      );
+      expInput.value = drug.expiryEstimate || "";
+    } finally {
+      savingExpiry = false;
     }
+  };
+  // ネイティブ日付ピッカーで日付を選び ✅ 確定したとき（change）に保存
+  expInput.addEventListener("change", () => {
+    void saveExpiryEstimate(expInput.value);
   });
   const expClear = document.createElement("button");
   expClear.type = "button";
-  expClear.className = "btn btn--small btn--outline";
+  expClear.className = "btn btn--small btn--outline med-expiry-clear";
   expClear.textContent = "クリア";
   expClear.addEventListener("click", async () => {
     expInput.value = "";
-    try {
-      await updateMedication(state.karteNumber, drug.id, { expiryEstimate: "" });
-      deps.showToast("処方切れ目安をクリアしました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("クリアに失敗しました。", { isError: true });
-    }
+    await saveExpiryEstimate("", { cleared: true });
   });
-  expActions.append(expSave, expClear);
-  expRow.append(expInput, expQuick);
-  expBlock.append(expLabel, expRow, expActions);
+  expRow.append(expInput, expClear);
+  expBlock.append(expLabel, expRow);
   if (drug.expiryEstimate) {
     const note = document.createElement("p");
     note.className = "field__note";
-    note.textContent = `現在の目安: ${ymdFromStr(drug.expiryEstimate)}`;
+    const status = getExpiryStatus(drug.expiryEstimate);
+    const daysLeft = daysBetween(todayStr(), drug.expiryEstimate);
+    let extra = "";
+    if (status === "overdue") extra = "（期限超過）";
+    else if (daysLeft === 0) extra = "（本日まで）";
+    else if (daysLeft != null) extra = `（あと${daysLeft}日）`;
+    note.textContent = `現在の目安: ${ymdFromStr(drug.expiryEstimate)}${extra}`;
+    if (status === "overdue") note.classList.add("med-expiry-note--overdue");
+    else if (status === "approaching") note.classList.add("med-expiry-note--near");
     expBlock.appendChild(note);
   }
   detail.appendChild(expBlock);

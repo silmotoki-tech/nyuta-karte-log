@@ -63,6 +63,8 @@ const state = {
   // 予定編集フォームの下書き
   draft: {
     item: "",
+    /** 予定登録時の複数選択（{ id, label, category, parentId, order }[]） */
+    selectedItems: [],
     customItem: "",
     dueDate: "",
     note: "",
@@ -115,6 +117,7 @@ const planBloodNavLabel = document.getElementById("exam-plan-blood-nav-label");
 const btnPlanBloodBack = document.getElementById("btn-exam-plan-blood-back");
 const planItemButtons = document.getElementById("exam-plan-item-buttons");
 const planItemsEmpty = document.getElementById("exam-plan-items-empty");
+const planSelectionSummary = document.getElementById("exam-plan-selection-summary");
 const planItemAddDefault = document.getElementById("exam-plan-item-add-default");
 const planNewItemLabel = document.getElementById("exam-plan-new-item-label");
 const planNewItemInput = document.getElementById("exam-plan-new-item");
@@ -1108,17 +1111,135 @@ function findExamItemByLabel(label) {
   );
 }
 
+function toSelectedExamRef(item) {
+  return {
+    id: item.id || "",
+    label: (item.label || "").trim(),
+    category: normalizeExamItemCategory(item.category),
+    parentId: item.parentId || "",
+    order: typeof item.order === "number" ? item.order : 0,
+  };
+}
+
+function isExamLeafSelected(item) {
+  if (!item) return false;
+  return state.draft.selectedItems.some((sel) => {
+    if (item.id && sel.id) return sel.id === item.id;
+    return (sel.label || "") === (item.label || "").trim();
+  });
+}
+
+const EXAM_CATEGORY_SORT = { blood: 0, imaging: 1, pathology: 2, other: 3 };
+
+/**
+ * 複数選択を「肝臓（ALT・AST・ALP）・胸部スク」形式の表示名にまとめる。
+ */
+function formatSelectedExamLabels(selected, examItems = state.examItems) {
+  const list = Array.isArray(selected) ? selected.filter((s) => (s.label || "").trim()) : [];
+  if (!list.length) return "";
+
+  const byId = new Map((examItems || []).map((item) => [item.id, item]));
+  const sorted = [...list].sort((a, b) => {
+    const ca = EXAM_CATEGORY_SORT[normalizeExamItemCategory(a.category)] ?? 9;
+    const cb = EXAM_CATEGORY_SORT[normalizeExamItemCategory(b.category)] ?? 9;
+    if (ca !== cb) return ca - cb;
+    const pa = a.parentId ? byId.get(a.parentId) : null;
+    const pb = b.parentId ? byId.get(b.parentId) : null;
+    const poa = pa ? (pa.order ?? 0) : (a.order ?? 0);
+    const pob = pb ? (pb.order ?? 0) : (b.order ?? 0);
+    if (poa !== pob) return poa - pob;
+    if ((a.parentId || "") !== (b.parentId || "")) {
+      return String(a.parentId || "").localeCompare(String(b.parentId || ""));
+    }
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+
+  const parentBuckets = new Map();
+  sorted.forEach((sel) => {
+    if (!sel.parentId) return;
+    if (!parentBuckets.has(sel.parentId)) parentBuckets.set(sel.parentId, []);
+    parentBuckets.get(sel.parentId).push(sel);
+  });
+
+  const segments = [];
+  const seenParents = new Set();
+  sorted.forEach((sel) => {
+    if (sel.parentId) {
+      if (seenParents.has(sel.parentId)) return;
+      seenParents.add(sel.parentId);
+      const parent = byId.get(sel.parentId);
+      const children = parentBuckets.get(sel.parentId) || [];
+      const childLabels = children.map((c) => c.label).join("・");
+      segments.push(`${parent?.label || "検査"}（${childLabels}）`);
+      return;
+    }
+    segments.push(sel.label);
+  });
+  return segments.join("・");
+}
+
+function syncDraftItemFromSelection() {
+  if (!state.draft.selectedItems.length) return;
+  state.draft.item = formatSelectedExamLabels(state.draft.selectedItems);
+}
+
+function selectionNeedsFasting(selected = state.draft.selectedItems) {
+  return (selected || []).some(
+    (sel) => normalizeExamItemCategory(sel.category) === "blood"
+  );
+}
+
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** 複合名（例: 肝臓（ALT・AST））に血液項目が含まれるか */
+function compositeLabelNeedsFasting(itemLabel) {
+  const text = (itemLabel || "").trim();
+  if (!text) return false;
+  const bloodLeaves = state.examItems.filter(
+    (item) =>
+      normalizeExamItemCategory(item.category) === "blood" && !isExamGroup(item)
+  );
+  return bloodLeaves.some((leaf) => {
+    const name = (leaf.label || "").trim();
+    if (!name) return false;
+    if (text === name) return true;
+    const re = new RegExp(`(?:^|[（・])${escapeRegExp(name)}(?:[）・]|$)`);
+    return re.test(text);
+  });
+}
+
 function planNeedsFasting(itemLabel) {
+  if (state.draft.selectedItems.length) {
+    return selectionNeedsFasting();
+  }
   const item = findExamItemByLabel(itemLabel);
   if (item) {
     return normalizeExamItemCategory(item.category) === "blood" && !isExamGroup(item);
   }
+  if (compositeLabelNeedsFasting(itemLabel)) return true;
   if (!(itemLabel || "").trim()) return false;
   // 追加直後でマスタ未反映のときだけ、血液タブの登録モーダルをフォールバック
   return (
     normalizeExamItemCategory(state.examItemCategory) === "blood" &&
     Boolean(planModal && !planModal.hidden)
   );
+}
+
+function renderPlanSelectionSummary() {
+  if (!planSelectionSummary) return;
+  syncDraftItemFromSelection();
+  const label = (state.draft.item || "").trim();
+  const count = state.draft.selectedItems.length;
+  if (!count || !label) {
+    planSelectionSummary.hidden = true;
+    planSelectionSummary.textContent = "";
+    return;
+  }
+  planSelectionSummary.hidden = false;
+  planSelectionSummary.textContent =
+    count === 1 ? `選択中: ${label}` : `選択中（${count}件）: ${label}`;
 }
 
 function itemsInActiveCategory() {
@@ -1157,7 +1278,9 @@ function paintFastingButtons(container, selected) {
 }
 
 function renderPlanFastingButtons() {
-  const needs = Boolean(state.draft.item) && planNeedsFasting(state.draft.item);
+  const hasSelection =
+    state.draft.selectedItems.length > 0 || Boolean((state.draft.item || "").trim());
+  const needs = hasSelection && planNeedsFasting(state.draft.item);
   if (planFastingField) planFastingField.hidden = !needs;
   paintFastingButtons(planFastingButtons, state.draft.fasting);
 }
@@ -1174,18 +1297,34 @@ function syncSheetFastingUI() {
   paintFastingButtons(sheetFastingButtons, state.draft.fasting);
 }
 
-function selectExamLeaf(item) {
-  state.draft.item = item.label || "";
+function toggleExamLeaf(item) {
+  if (!item || isExamGroup(item)) return;
+  const ref = toSelectedExamRef(item);
+  if (!ref.label) return;
+
+  const idx = state.draft.selectedItems.findIndex((sel) => {
+    if (ref.id && sel.id) return sel.id === ref.id;
+    return sel.label === ref.label;
+  });
+  if (idx >= 0) {
+    state.draft.selectedItems.splice(idx, 1);
+  } else {
+    state.draft.selectedItems.push(ref);
+  }
+
   state.draft.customItem = "";
-  if (normalizeExamItemCategory(item.category) === "blood") {
-    // 血液項目切替時は絶食を選び直させる
-    if (!normalizeExamFasting(state.draft.fasting)) {
+  if (!state.draft.selectedItems.length) {
+    state.draft.item = "";
+    state.draft.fasting = "";
+  } else {
+    syncDraftItemFromSelection();
+    if (!selectionNeedsFasting()) {
       state.draft.fasting = "";
     }
-  } else {
-    state.draft.fasting = "";
   }
+
   renderPlanItemButtons();
+  renderPlanSelectionSummary();
   renderPlanFastingButtons();
 }
 
@@ -1204,16 +1343,11 @@ function renderExamItemCategoryTabs() {
     btn.addEventListener("click", () => {
       state.examItemCategory = cat.id;
       state.examBloodParentId = null;
-      if (state.draft.item) {
-        const matched = findExamItemByLabel(state.draft.item);
-        if (!matched || normalizeExamItemCategory(matched.category) !== cat.id) {
-          state.draft.item = "";
-          state.draft.fasting = "";
-        }
-      }
+      // 複数選択はタブをまたいで保持する
       renderExamItemCategoryTabs();
       renderPlanItemButtons();
       updateExamItemAddUI();
+      renderPlanSelectionSummary();
       renderPlanFastingButtons();
     });
     planItemCategories.appendChild(btn);
@@ -1279,11 +1413,12 @@ function renderPlanItemButtons() {
         updateExamItemAddUI();
       });
     } else {
-      btn.classList.toggle("is-selected", state.draft.item === item.label);
-      btn.addEventListener("click", () => selectExamLeaf(item));
+      btn.classList.toggle("is-selected", isExamLeafSelected(item));
+      btn.addEventListener("click", () => toggleExamLeaf(item));
     }
     planItemButtons.appendChild(btn);
   });
+  renderPlanSelectionSummary();
   renderPlanFastingButtons();
 }
 
@@ -1314,13 +1449,16 @@ async function handleAddExamItemFromPlanModal() {
     state.examItemCategory = normalizeExamItemCategory(exists.category);
     if (isExamGroup(exists)) {
       state.examBloodParentId = exists.id;
-      state.draft.item = "";
-      state.draft.fasting = "";
     } else {
       state.examBloodParentId = exists.parentId || null;
-      state.draft.item = label;
-      if (normalizeExamItemCategory(exists.category) !== "blood") {
-        state.draft.fasting = "";
+      if (!isExamLeafSelected(exists)) {
+        toggleExamLeaf(exists);
+        clearExamItemAddInputs();
+        deps.showError(planItemError, "");
+        renderExamItemCategoryTabs();
+        updateExamItemAddUI();
+        deps.showToast("既存の項目を選択しました。");
+        return;
       }
     }
     clearExamItemAddInputs();
@@ -1329,7 +1467,7 @@ async function handleAddExamItemFromPlanModal() {
     renderPlanItemButtons();
     updateExamItemAddUI();
     deps.showToast(
-      isExamGroup(exists) ? "既存の大項目を開きました。" : "既存の項目を選択しました。"
+      isExamGroup(exists) ? "既存の大項目を開きました。" : "既存の項目は選択済みです。"
     );
     return;
   }
@@ -1337,9 +1475,19 @@ async function handleAddExamItemFromPlanModal() {
   deps.showError(planItemError, "");
   deps.setBusy(btnPlanAddItem, true, "追加中...", "追加");
   try {
-    await addExamItem({ label, category, kind, parentId });
-    state.draft.item = label;
-    if (category !== "blood") state.draft.fasting = "";
+    const createdId = await addExamItem({ label, category, kind, parentId });
+    const createdRef = toSelectedExamRef({
+      id: createdId || "",
+      label,
+      category,
+      parentId,
+      order: Date.now(),
+    });
+    if (!isExamLeafSelected(createdRef)) {
+      state.draft.selectedItems.push(createdRef);
+      syncDraftItemFromSelection();
+      if (!selectionNeedsFasting()) state.draft.fasting = "";
+    }
     clearExamItemAddInputs();
     renderPlanItemButtons();
     deps.showToast(`「${label}」を${examItemCategoryLabel(category)}に追加しました。`);
@@ -1390,6 +1538,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   state.draft.mode = mode;
   state.editingPlanId = null;
   state.examBloodParentId = null;
+  state.draft.selectedItems = [];
 
   if (preset) {
     if (planModalTitle) planModalTitle.textContent = "次の予定を登録";
@@ -1399,6 +1548,11 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     state.draft.note = preset.note || "";
     state.draft.fasting = normalizeExamFasting(preset.fasting);
     state.draft.baselineDate = preset.baselineDate || todayStr();
+    const matched = findExamItemByLabel(state.draft.item);
+    if (matched && !isExamGroup(matched)) {
+      state.draft.selectedItems = [toSelectedExamRef(matched)];
+      syncDraftItemFromSelection();
+    }
   } else {
     if (planModalTitle) planModalTitle.textContent = "予定を登録";
     state.draft.item = "";
@@ -1421,11 +1575,17 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   }
   deps.showError(planError, "");
   // 選択済み項目があればその分類／親グループを開く
-  if (state.draft.item) {
+  if (state.draft.selectedItems.length === 1) {
+    const sel = state.draft.selectedItems[0];
+    state.examItemCategory = normalizeExamItemCategory(sel.category);
+    state.examBloodParentId = sel.parentId || null;
+  } else if (state.draft.item) {
     const matched = findExamItemByLabel(state.draft.item);
     if (matched) {
       state.examItemCategory = normalizeExamItemCategory(matched.category);
       state.examBloodParentId = matched.parentId || null;
+    } else {
+      state.examItemCategory = EXAM_ITEM_CATEGORIES[0]?.id || "blood";
     }
   } else {
     state.examItemCategory = EXAM_ITEM_CATEGORIES[0]?.id || "blood";
@@ -1433,6 +1593,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   renderExamItemCategoryTabs();
   updateExamItemAddUI();
   renderPlanItemButtons();
+  renderPlanSelectionSummary();
   renderPlanFastingButtons();
   updateWindowNote();
   if (planModal) planModal.hidden = false;
@@ -1442,9 +1603,11 @@ function closePlanModal() {
   if (planModal) planModal.hidden = true;
   state.editingPlanId = null;
   state.examBloodParentId = null;
+  state.draft.selectedItems = [];
 }
 
 async function handlePlanSave() {
+  syncDraftItemFromSelection();
   const item = (state.draft.item || "").trim();
   const dueBuffered = Number(state.draft.dueRelativeBuffer);
   if (state.draft.dueRelativeBuffer !== "" && dueBuffered >= 1) {

@@ -1518,6 +1518,12 @@ html.is-unlocked .app {
   color: var(--color-white);
 }
 
+.exam-plan-selection-summary {
+  margin-top: 8px;
+  font-weight: 700;
+  color: var(--color-brown);
+}
+
 .exam-other-check {
   display: inline-flex;
   align-items: center;
@@ -1911,8 +1917,29 @@ html.is-unlocked .app {
 
 .med-expiry-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.med-expiry-row .input--date {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.med-expiry-clear {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.med-expiry-note--near {
+  color: var(--due-near);
+  font-weight: 700;
+}
+
+.med-expiry-note--overdue {
+  color: var(--due-overdue);
+  font-weight: 700;
 }
 
 .med-detail-actions {

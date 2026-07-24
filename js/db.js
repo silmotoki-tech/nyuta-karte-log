@@ -450,6 +450,7 @@ const EXAM_ITEM_SEED = [
     label: "肝臓",
     order: 10,
     children: [
+      { id: "seed-blood-liver-scr", label: "肝スク" },
       { id: "seed-blood-liver-alt", label: "ALT" },
       { id: "seed-blood-liver-ast", label: "AST" },
       { id: "seed-blood-liver-alp", label: "ALP" },
@@ -464,6 +465,7 @@ const EXAM_ITEM_SEED = [
     label: "腎臓",
     order: 20,
     children: [
+      { id: "seed-blood-kidney-scr", label: "腎スク" },
       { id: "seed-blood-kidney-bun", label: "BUN" },
       { id: "seed-blood-kidney-cre", label: "Cre" },
       { id: "seed-blood-kidney-ca", label: "Ca" },
