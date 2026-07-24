@@ -2002,6 +2002,11 @@ html.is-unlocked .app {
   color: var(--color-green-dark);
 }
 
+.med-status--hold {
+  background-color: transparent;
+  color: var(--due-near);
+}
+
 .med-status--stopped {
   background-color: transparent;
   color: var(--color-danger);

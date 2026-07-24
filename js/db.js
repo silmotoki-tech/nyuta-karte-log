@@ -46,7 +46,7 @@
 //     frequencyChange: 表示用ラベル（互換のため残す）
 //     frequency: { kind, label, periodDays?, times?, weekdays? } … 構造化（任意）
 //     lastEditedAt / lastEditedBy: 編集時のみ
-//     type: "add"(継続)|"increase"|"decrease"|"stop"|"resume"
+//     type: "add"(継続)|"increase"|"decrease"|"hold"(休薬中)|"stop"|"resume"
 //
 //   history/{カルテ番号}/{entryId}/schemaVersion         … 既往歴
 //   history/{カルテ番号}/{entryId}/title
@@ -1487,7 +1487,7 @@ export async function addMedication(
 
 /**
  * 薬剤の基本情報を更新する（名前・カテゴリ・副作用メモ・処方切れ目安）。
- * 使用状況（使用中/中止）は events の最新から導出するためここでは扱わない。
+ * 使用状況（使用中/休薬中/中止）は events の最新から導出するためここでは扱わない。
  */
 export async function updateMedication(karteNumber, drugId, fields) {
   await authReady;

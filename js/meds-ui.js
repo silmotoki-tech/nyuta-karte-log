@@ -32,6 +32,7 @@ const EVENT_TYPES = [
   { id: "add", label: "継続" },
   { id: "increase", label: "増量" },
   { id: "decrease", label: "減量" },
+  { id: "hold", label: "休薬中" },
   { id: "stop", label: "中止" },
   { id: "resume", label: "再開" },
 ];
@@ -208,12 +209,15 @@ export function sortEvents(eventsObj) {
 
 /**
  * 最新イベントから使用状況を導出する。
+ * 使用中 / 休薬中 / 中止（イベントなしは未設定）
  */
 export function deriveStatus(drug) {
   const events = sortEvents(drug.events);
   const latest = events[0];
   if (!latest) return { id: "unknown", label: "未設定" };
   if (latest.type === "stop") return { id: "stopped", label: "中止" };
+  if (latest.type === "hold") return { id: "hold", label: "休薬中" };
+  // 継続・増量・減量・再開 など → 使用中
   return { id: "active", label: "使用中" };
 }
 
@@ -379,7 +383,7 @@ function createDrugCard(drug) {
   }
 
   if (expanded) {
-    li.appendChild(createDrugDetail(drug, status));
+    li.appendChild(createDrugDetail(drug));
   }
 
   const toggleExpand = () => {
@@ -426,7 +430,7 @@ function createDrugCard(drug) {
   return li;
 }
 
-function createDrugDetail(drug, status) {
+function createDrugDetail(drug) {
   const detail = document.createElement("div");
   detail.className = "med-card__detail";
 
@@ -463,12 +467,6 @@ function createDrugDetail(drug, status) {
   });
   catRow.append(catLabel, catBtns);
   detail.appendChild(catRow);
-
-  // 使用状況（導出・読み取り専用）
-  const statusRow = document.createElement("div");
-  statusRow.className = "med-detail-row";
-  statusRow.innerHTML = `<span class="label">使用状況</span><span class="med-status med-status--${status.id}">${status.label}（履歴から自動）</span>`;
-  detail.appendChild(statusRow);
 
   // 副作用メモ
   const seBlock = document.createElement("div");
@@ -1221,7 +1219,9 @@ export async function applyMedicationSuggestionFromExternal(karteNumber, payload
     });
   }
 
-  const type = ["increase", "decrease", "stop", "resume", "add"].includes(action)
+  const type = ["increase", "decrease", "hold", "stop", "resume", "add"].includes(
+    action
+  )
     ? action
     : "add";
   await addMedicationEvent(karteNumber, existing.id, {
