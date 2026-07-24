@@ -1111,9 +1111,11 @@ html.is-unlocked .app {
 .right-tabs {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2px;
-  /* 上端は .col--right の --col-pad-top に合わせ、内側上余白は付けない */
+  /* 上端は .col--right の --col-pad-top に合わせ、内側上余白は付けない。
+     タブ文字は字体アセント分だけ下に見えるため、3px 上げて左・中央の上端インクと揃える */
+  margin-top: -3px;
   padding: 0 8px;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
@@ -1123,13 +1125,16 @@ html.is-unlocked .app {
 .right-tab {
   border: none;
   background: none;
-  padding: 6px 7px;
+  /* 上パディングを付けない（左の患者名・中央のボタン上端と文字開始位置を揃える） */
+  padding: 0 7px 8px;
+  min-height: 28px;
   font-size: 0.74rem;
   font-weight: 700;
   color: var(--color-text-muted);
   border-bottom: 2px solid transparent;
   cursor: pointer;
   font-family: inherit;
+  line-height: 1.25;
 }
 
 .right-tab:hover:not(:disabled) {
