@@ -423,15 +423,16 @@ export function examFastingLabel(value) {
 }
 
 /**
- * 血液シードの親子を展開するヘルパー。
+ * 検査項目シードの親子（大項目→内訳）を展開するヘルパー。
+ * @param {string} category
  * @param {{ id: string, label: string, order: number, children: { id: string, label: string }[] }} group
  */
-function bloodGroupSeed(group) {
+function categoryGroupSeed(category, group) {
   const rows = [
     {
       id: group.id,
       label: group.label,
-      category: "blood",
+      category,
       kind: "group",
       parentId: "",
       order: group.order,
@@ -441,13 +442,18 @@ function bloodGroupSeed(group) {
     rows.push({
       id: child.id,
       label: child.label,
-      category: "blood",
+      category,
       kind: "leaf",
       parentId: group.id,
       order: (index + 1) * 10,
     });
   });
   return rows;
+}
+
+/** @param {{ id: string, label: string, order: number, children: { id: string, label: string }[] }} group */
+function bloodGroupSeed(group) {
+  return categoryGroupSeed("blood", group);
 }
 
 /** 初期シード（固定ID。未作成時は作成、既存シードは order だけ同期） */
@@ -536,47 +542,43 @@ const EXAM_ITEM_SEED = [
     parentId: "",
     order: 160,
   },
-  {
-    // 旧「その他」シードIDを流用し、画像へ移す（既存DBを確実に更新）
-    id: "seed-other-chest-set",
-    label: "胸部スク",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
+  // 画像: 血液と同じ大項目→内訳の2階層。
+  // 「エコー」1大項目にまとめると3階層になるため、心エコー／腹部エコーを各大項目にする。
+  ...categoryGroupSeed("imaging", {
+    id: "seed-imaging-set",
+    label: "セット",
     order: 10,
-  },
-  {
-    id: "seed-other-abdomen-set",
-    label: "腹部スク",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 20,
-  },
-  {
-    id: "seed-imaging-full-scr",
-    label: "全スク",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 30,
-  },
-  {
-    id: "seed-imaging-abdomen-echo",
-    label: "腹部エコー",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 40,
-  },
-  {
+    children: [
+      { id: "seed-imaging-full-scr", label: "全set" },
+      // 旧「その他」シードIDを流用（既存DBを確実に更新）
+      { id: "seed-other-chest-set", label: "胸部set" },
+      { id: "seed-other-abdomen-set", label: "腹部set" },
+    ],
+  }),
+  ...categoryGroupSeed("imaging", {
     id: "seed-imaging-heart-echo",
     label: "心エコー",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 50,
-  },
+    order: 20,
+    children: [
+      { id: "seed-imaging-heart-echo-scr", label: "心エコー(スクリーニング)" },
+      { id: "seed-imaging-heart-echo-flow", label: "心エコー(流速あり)" },
+      { id: "seed-imaging-heart-echo-enlarge", label: "心エコー(拡大チェック)" },
+    ],
+  }),
+  ...categoryGroupSeed("imaging", {
+    id: "seed-imaging-abdomen-echo",
+    label: "腹部エコー",
+    order: 30,
+    children: [
+      { id: "seed-imaging-abdomen-echo-scr", label: "腹部エコー(スクリーニング)" },
+      { id: "seed-imaging-abdomen-echo-spleen", label: "腹部エコー(脾臓)" },
+      { id: "seed-imaging-abdomen-echo-liver", label: "腹部エコー(肝臓)" },
+      { id: "seed-imaging-abdomen-echo-kidney", label: "腹部エコー(腎臓)" },
+      { id: "seed-imaging-abdomen-echo-ureter", label: "腹部エコー(尿管)" },
+      { id: "seed-imaging-abdomen-echo-bladder", label: "腹部エコー(膀胱)" },
+      { id: "seed-imaging-abdomen-echo-prostate", label: "腹部エコー(前立腺)" },
+    ],
+  }),
   {
     id: "seed-pathology-cyto-inhouse",
     label: "細胞診(院内)",
@@ -683,8 +685,41 @@ const EXAM_ITEM_SEED_RETIRE = [
 
 /** 旧名称→新名称の強制移行（IDに依存しない） */
 const EXAM_ITEM_LABEL_MIGRATE = [
-  { from: "胸部セット", to: "胸部スク", category: "imaging", order: 10 },
-  { from: "腹部セット", to: "腹部スク", category: "imaging", order: 20 },
+  {
+    from: "胸部セット",
+    to: "胸部set",
+    category: "imaging",
+    parentId: "seed-imaging-set",
+    order: 20,
+  },
+  {
+    from: "胸部スク",
+    to: "胸部set",
+    category: "imaging",
+    parentId: "seed-imaging-set",
+    order: 20,
+  },
+  {
+    from: "腹部セット",
+    to: "腹部set",
+    category: "imaging",
+    parentId: "seed-imaging-set",
+    order: 30,
+  },
+  {
+    from: "腹部スク",
+    to: "腹部set",
+    category: "imaging",
+    parentId: "seed-imaging-set",
+    order: 30,
+  },
+  {
+    from: "全スク",
+    to: "全set",
+    category: "imaging",
+    parentId: "seed-imaging-set",
+    order: 10,
+  },
 ];
 
 function examItemsRef() {
@@ -708,19 +743,52 @@ function normalizeExamItem(id, raw) {
   let category = normalizeExamItemCategory(row.category);
   let order = typeof row.order === "number" ? row.order : 0;
 
-  // 旧「その他」スク項目の強制補正（端末に古い値が残っていても表示・分類を正す）
-  if (id === "seed-other-chest-set" || label.trim() === "胸部セット") {
-    label = "胸部スク";
+  // 旧スク／セット名称の強制補正（端末に古い値が残っていても表示・分類を正す）
+  const trimmed = label.trim();
+  if (
+    id === "seed-other-chest-set" ||
+    trimmed === "胸部セット" ||
+    trimmed === "胸部スク"
+  ) {
+    label = "胸部set";
     category = "imaging";
     kind = "leaf";
+    parentId = "seed-imaging-set";
+    order = 20;
+  } else if (
+    id === "seed-other-abdomen-set" ||
+    trimmed === "腹部セット" ||
+    trimmed === "腹部スク"
+  ) {
+    label = "腹部set";
+    category = "imaging";
+    kind = "leaf";
+    parentId = "seed-imaging-set";
+    order = 30;
+  } else if (id === "seed-imaging-full-scr" || trimmed === "全スク") {
+    label = "全set";
+    category = "imaging";
+    kind = "leaf";
+    parentId = "seed-imaging-set";
+    order = 10;
+  } else if (id === "seed-imaging-set") {
+    label = "セット";
+    category = "imaging";
+    kind = "group";
     parentId = "";
     order = 10;
-  } else if (id === "seed-other-abdomen-set" || label.trim() === "腹部セット") {
-    label = "腹部スク";
+  } else if (id === "seed-imaging-heart-echo") {
+    label = "心エコー";
     category = "imaging";
-    kind = "leaf";
+    kind = "group";
     parentId = "";
     order = 20;
+  } else if (id === "seed-imaging-abdomen-echo") {
+    label = "腹部エコー";
+    category = "imaging";
+    kind = "group";
+    parentId = "";
+    order = 30;
   }
 
   return {
@@ -753,9 +821,12 @@ export async function ensureExamItemDefaults() {
   const existing = snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
   const writes = {};
   const forceRewriteIds = new Set([
+    "seed-imaging-set",
     "seed-other-chest-set",
     "seed-other-abdomen-set",
     "seed-imaging-full-scr",
+    "seed-imaging-heart-echo",
+    "seed-imaging-abdomen-echo",
   ]);
   EXAM_ITEM_SEED.forEach((seed) => {
     const payload = examItemSeedPayload(seed);
@@ -781,10 +852,11 @@ export async function ensureExamItemDefaults() {
       writes[`${seed.id}/order`] = payload.order;
     }
   });
-  // 旧「胸部セット」「腹部セット」が別IDで残っていれば強制移行
+  // 旧スク／セット名称が別IDで残っていれば強制移行
   Object.entries(existing).forEach(([id, row]) => {
     if (!row || typeof row !== "object") return;
     if (forceRewriteIds.has(id)) return;
+    if (EXAM_ITEM_SEED.some((seed) => seed.id === id)) return;
     const label = String(row.label || "").trim();
     const mig = EXAM_ITEM_LABEL_MIGRATE.find((m) => m.from === label);
     if (!mig) return;
@@ -792,7 +864,7 @@ export async function ensureExamItemDefaults() {
       label: mig.to,
       category: mig.category,
       kind: "leaf",
-      parentId: "",
+      parentId: mig.parentId || "",
       order: mig.order,
     };
   });

@@ -37,11 +37,15 @@ export function examFastingLabel(value) {
 }
 
 function bloodGroupSeed(group) {
+  return categoryGroupSeed("blood", group);
+}
+
+function categoryGroupSeed(category, group) {
   const rows = [
     {
       id: group.id,
       label: group.label,
-      category: "blood",
+      category,
       kind: "group",
       parentId: "",
       order: group.order,
@@ -51,7 +55,7 @@ function bloodGroupSeed(group) {
     rows.push({
       id: child.id,
       label: child.label,
-      category: "blood",
+      category,
       kind: "leaf",
       parentId: group.id,
       order: (index + 1) * 10,
@@ -145,46 +149,40 @@ const SEED = [
     parentId: "",
     order: 160,
   },
-  {
-    id: "seed-other-chest-set",
-    label: "胸部スク",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
+  ...categoryGroupSeed("imaging", {
+    id: "seed-imaging-set",
+    label: "セット",
     order: 10,
-  },
-  {
-    id: "seed-other-abdomen-set",
-    label: "腹部スク",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 20,
-  },
-  {
-    id: "seed-imaging-full-scr",
-    label: "全スク",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 30,
-  },
-  {
-    id: "seed-imaging-abdomen-echo",
-    label: "腹部エコー",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 40,
-  },
-  {
+    children: [
+      { id: "seed-imaging-full-scr", label: "全set" },
+      { id: "seed-other-chest-set", label: "胸部set" },
+      { id: "seed-other-abdomen-set", label: "腹部set" },
+    ],
+  }),
+  ...categoryGroupSeed("imaging", {
     id: "seed-imaging-heart-echo",
     label: "心エコー",
-    category: "imaging",
-    kind: "leaf",
-    parentId: "",
-    order: 50,
-  },
+    order: 20,
+    children: [
+      { id: "seed-imaging-heart-echo-scr", label: "心エコー(スクリーニング)" },
+      { id: "seed-imaging-heart-echo-flow", label: "心エコー(流速あり)" },
+      { id: "seed-imaging-heart-echo-enlarge", label: "心エコー(拡大チェック)" },
+    ],
+  }),
+  ...categoryGroupSeed("imaging", {
+    id: "seed-imaging-abdomen-echo",
+    label: "腹部エコー",
+    order: 30,
+    children: [
+      { id: "seed-imaging-abdomen-echo-scr", label: "腹部エコー(スクリーニング)" },
+      { id: "seed-imaging-abdomen-echo-spleen", label: "腹部エコー(脾臓)" },
+      { id: "seed-imaging-abdomen-echo-liver", label: "腹部エコー(肝臓)" },
+      { id: "seed-imaging-abdomen-echo-kidney", label: "腹部エコー(腎臓)" },
+      { id: "seed-imaging-abdomen-echo-ureter", label: "腹部エコー(尿管)" },
+      { id: "seed-imaging-abdomen-echo-bladder", label: "腹部エコー(膀胱)" },
+      { id: "seed-imaging-abdomen-echo-prostate", label: "腹部エコー(前立腺)" },
+    ],
+  }),
   {
     id: "seed-pathology-cyto-inhouse",
     label: "細胞診(院内)",

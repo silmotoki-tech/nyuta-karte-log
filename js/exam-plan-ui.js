@@ -1265,9 +1265,16 @@ function itemsInActiveCategory() {
   );
 }
 
+function categorySupportsExamDrilldown(category) {
+  const cat = normalizeExamItemCategory(category);
+  return cat === "blood" || cat === "imaging";
+}
+
 function visibleExamItemsForPicker() {
   const items = itemsInActiveCategory();
-  if (normalizeExamItemCategory(state.examItemCategory) !== "blood") {
+  const cat = normalizeExamItemCategory(state.examItemCategory);
+  // 病理・その他はフラット。血液・画像は大項目→内訳のドリルダウン
+  if (!categorySupportsExamDrilldown(cat)) {
     return items.filter((item) => !isExamGroup(item));
   }
   const parentId = state.examBloodParentId || "";
@@ -1372,30 +1379,33 @@ function renderExamItemCategoryTabs() {
 
 function updateExamItemAddUI() {
   const category = normalizeExamItemCategory(state.examItemCategory);
-  const inBlood = category === "blood";
-  const inBloodRoot = inBlood && !state.examBloodParentId;
-  const inBloodGroup = inBlood && Boolean(state.examBloodParentId);
+  const supportsDrill = categorySupportsExamDrilldown(category);
+  const inDrillRoot = supportsDrill && !state.examBloodParentId;
+  const inDrillGroup = supportsDrill && Boolean(state.examBloodParentId);
+  const inBloodRoot = category === "blood" && !state.examBloodParentId;
 
-  // 血液ルートでは追加欄なし。内訳・画像・病理・その他は追加可
+  // 血液ルートでは追加欄なし。画像ルート・内訳・病理・その他は追加可
   if (planItemAddDefault) planItemAddDefault.hidden = inBloodRoot;
 
   if (planBloodNav) {
-    planBloodNav.hidden = !inBloodGroup;
+    planBloodNav.hidden = !inDrillGroup;
   }
-  if (inBloodGroup && planBloodNavLabel) {
+  if (inDrillGroup && planBloodNavLabel) {
     const parent = state.examItems.find((item) => item.id === state.examBloodParentId);
     planBloodNavLabel.textContent = parent?.label || "内訳";
   }
 
   const label = examItemCategoryLabel(category);
   if (planNewItemLabel) {
-    planNewItemLabel.textContent = inBloodGroup
+    planNewItemLabel.textContent = inDrillGroup
       ? `新しい内訳を追加（${planBloodNavLabel?.textContent || label}）`
       : `新しい項目を追加（${label}）`;
   }
   if (planNewItemInput) {
-    planNewItemInput.placeholder = inBloodGroup
-      ? "例）ALT"
+    planNewItemInput.placeholder = inDrillGroup
+      ? category === "imaging"
+        ? "例）心エコー(追加)"
+        : "例）ALT"
       : category === "imaging"
         ? "例）レントゲン"
         : category === "pathology"
@@ -1403,7 +1413,7 @@ function updateExamItemAddUI() {
           : "例）その他の検査";
   }
   if (planItemsEmpty) {
-    planItemsEmpty.textContent = inBloodRoot
+    planItemsEmpty.textContent = inDrillRoot
       ? "この分類にはまだ項目がありません。"
       : "この分類にはまだ項目がありません。下で追加できます。";
   }
@@ -1452,8 +1462,11 @@ async function handleAddExamItemFromPlanModal() {
 
   const label = planNewItemInput?.value.trim() || "";
   const kind = "leaf";
+  // ドリルダウン中は親大項目の内訳として追加（血液・画像）
   const parentId =
-    category === "blood" && state.examBloodParentId ? state.examBloodParentId : "";
+    categorySupportsExamDrilldown(category) && state.examBloodParentId
+      ? state.examBloodParentId
+      : "";
 
   if (!label) {
     deps.showError(planItemError, "項目名を入力してください。");

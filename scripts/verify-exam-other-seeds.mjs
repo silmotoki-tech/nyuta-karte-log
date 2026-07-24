@@ -25,14 +25,23 @@ for (const row of expected) {
   assert.ok(re.test(src), `seed missing or wrong shape: ${row.label}`);
 }
 
-// 胸部スク／腹部スクは other ではなく imaging のまま
+// 胸部set／腹部set は other ではなく imaging のまま
 assert.ok(
-  /id:\s*"seed-other-chest-set"[\s\S]*?category:\s*"imaging"/.test(src),
-  "胸部スク should stay imaging"
+  /id:\s*"seed-other-chest-set"[\s\S]*?label:\s*"胸部set"[\s\S]*?category:\s*"imaging"/.test(src),
+  "胸部set should stay imaging"
 );
 assert.ok(
-  /id:\s*"seed-other-abdomen-set"[\s\S]*?category:\s*"imaging"/.test(src),
-  "腹部スク should stay imaging"
+  /id:\s*"seed-other-abdomen-set"[\s\S]*?label:\s*"腹部set"[\s\S]*?category:\s*"imaging"/.test(src),
+  "腹部set should stay imaging"
+);
+assert.ok(
+  /id:\s*"seed-imaging-set"[\s\S]*?label:\s*"セット"/.test(src),
+  "imaging set group should exist"
+);
+assert.ok(
+  /label:\s*"セット"[\s\S]{0,80}?category:\s*"imaging"/.test(src) ||
+    /categoryGroupSeed\("imaging"[\s\S]*?label:\s*"セット"/.test(src),
+  "imaging set is imaging category"
 );
 
 console.log(
