@@ -58,6 +58,16 @@
         aria-label="パスコード（4桁）"
       />
       <p id="passcode-error" class="error-text" role="alert" hidden></p>
+      <div class="lock-api-key-row">
+        <button
+          id="btn-lock-api-key-settings"
+          class="btn btn--small btn--outline lock-api-key-row__btn"
+          type="button"
+        >
+          APIキー設定
+        </button>
+        <span id="lock-api-key-status" class="settings-status is-empty">未設定</span>
+      </div>
       <button id="btn-passcode-next" class="btn btn--primary btn--block" type="button">
         確認する
       </button>
@@ -82,16 +92,16 @@
         <span class="left-collapse-btn__icon" aria-hidden="true">‹</span>
       </button>
       <div class="col-left__inner" id="col-left-inner">
+      <button
+        id="btn-change-karte"
+        class="btn btn--small btn--outline left-change-karte"
+        type="button"
+        hidden
+      >
+        カルテを変更
+      </button>
       <div class="left-patient" id="left-patient" hidden>
-        <div class="left-patient__top">
-          <p class="left-patient__label" id="left-patient-label"></p>
-          <button id="btn-open-settings" class="btn btn--small btn--outline" type="button" title="設定">
-            設定
-          </button>
-        </div>
-        <button id="btn-change-karte" class="link-back left-patient__change" type="button">
-          &larr; カルテを変更
-        </button>
+        <p class="left-patient__label" id="left-patient-label"></p>
       </div>
 
       <div class="left-head">
@@ -167,6 +177,38 @@
           <button id="btn-open-templates" class="btn btn--small btn--outline" type="button">
             定型文の管理
           </button>
+          <div class="center-toolbar__end">
+            <div class="app-menu" id="app-menu">
+              <button
+                id="btn-app-menu"
+                class="btn btn--small btn--outline app-menu__trigger"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="app-menu-panel"
+                title="設定"
+              >
+                <span class="app-menu__icon" aria-hidden="true">⚙</span>
+                <span class="visually-hidden">設定</span>
+              </button>
+              <div
+                id="app-menu-panel"
+                class="app-menu__panel"
+                role="menu"
+                aria-labelledby="btn-app-menu"
+                hidden
+              >
+                <button
+                  type="button"
+                  class="app-menu__item"
+                  role="menuitem"
+                  data-app-menu-action="logout"
+                >
+                  ログアウト
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 入力フォーム（「新しく記録を追加」時のみ開く） -->
@@ -931,15 +973,6 @@
           </button>
         </div>
         <p id="settings-error" class="error-text" role="alert" hidden></p>
-      </section>
-      <section class="settings-section">
-        <h3 class="settings-section__title">ログイン</h3>
-        <p class="field__note">
-          パスコード認証は同じ日のうち有効です（日付が変わると再入力が必要になります）。別のスタッフが使う前などにはログアウトしてください。
-        </p>
-        <button id="btn-settings-logout" class="btn btn--small btn--danger-outline" type="button">
-          ログアウト（パスコード認証を解除）
-        </button>
       </section>
       <section class="settings-section settings-section--version">
         <h3 class="settings-section__title">アプリ情報</h3>

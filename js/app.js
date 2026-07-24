@@ -255,6 +255,7 @@ function showCenterState(s) {
   headlineList.hidden = !inMain;
   starFilterWrap.hidden = !inMain;
   if (leftPatient) leftPatient.hidden = !inMain;
+  if (btnChangeKarte) btnChangeKarte.hidden = !inMain;
   if (!inMain) closeCompose({ reset: true });
 }
 

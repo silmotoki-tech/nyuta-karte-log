@@ -1,4 +1,5 @@
-// 設定画面（Anthropic APIキーのQR読取・状態表示・削除・バージョン表示）。
+// 設定画面（Anthropic APIキーのQR読取・状態表示・削除・バージョン表示）と
+// 中央カラムの設定メニュー（ログアウト等。項目追加しやすいメニュー形式）。
 
 import { hasApiKey, setApiKey, clearApiKey } from "./api-key.js";
 import { APP_VERSION, CACHE_LABEL } from "./app-version.js";
@@ -12,11 +13,13 @@ let deps = {
 
 let html5Qrcode = null;
 let scanning = false;
+let menuOpen = false;
 
 const settingsModal = document.getElementById("settings-modal");
-const btnOpenSettings = document.getElementById("btn-open-settings");
 const btnCloseSettings = document.getElementById("btn-close-settings");
 const apiKeyStatusEl = document.getElementById("settings-api-key-status");
+const lockApiKeyStatusEl = document.getElementById("lock-api-key-status");
+const btnLockApiKeySettings = document.getElementById("btn-lock-api-key-settings");
 const btnScanQr = document.getElementById("btn-settings-scan-qr");
 const btnDeleteKey = document.getElementById("btn-settings-delete-key");
 const btnStopScan = document.getElementById("btn-settings-stop-scan");
@@ -24,11 +27,20 @@ const qrReaderEl = document.getElementById("settings-qr-reader");
 const qrSection = document.getElementById("settings-qr-section");
 const settingsError = document.getElementById("settings-error");
 const settingsVersionEl = document.getElementById("settings-app-version");
-const btnLogout = document.getElementById("btn-settings-logout");
+
+const appMenu = document.getElementById("app-menu");
+const btnAppMenu = document.getElementById("btn-app-menu");
+const appMenuPanel = document.getElementById("app-menu-panel");
+
+/** 設定メニューのアクション定義（今後の項目追加はここに足す） */
+const APP_MENU_ACTIONS = {
+  logout: () => {
+    handleLogout();
+  },
+};
 
 export function initSettingsUI(helpers = {}) {
   deps = { ...deps, ...helpers };
-  btnOpenSettings?.addEventListener("click", openSettings);
   btnCloseSettings?.addEventListener("click", closeSettings);
   settingsModal
     ?.querySelector("[data-close-modal]")
@@ -36,12 +48,34 @@ export function initSettingsUI(helpers = {}) {
   btnScanQr?.addEventListener("click", startQrScan);
   btnStopScan?.addEventListener("click", stopQrScan);
   btnDeleteKey?.addEventListener("click", handleDeleteKey);
-  btnLogout?.addEventListener("click", handleLogout);
+  btnLockApiKeySettings?.addEventListener("click", () => openSettings());
+
+  btnAppMenu?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleAppMenu();
+  });
+  appMenuPanel?.querySelectorAll("[data-app-menu-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.getAttribute("data-app-menu-action");
+      closeAppMenu();
+      const handler = APP_MENU_ACTIONS[action];
+      if (typeof handler === "function") handler();
+    });
+  });
+  document.addEventListener("click", (event) => {
+    if (!menuOpen) return;
+    if (appMenu && !appMenu.contains(event.target)) closeAppMenu();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && menuOpen) closeAppMenu();
+  });
+
   refreshApiKeyStatus();
   refreshVersionLabel();
 }
 
 export function openSettings() {
+  closeAppMenu();
   deps.showError(settingsError, "");
   refreshApiKeyStatus();
   refreshVersionLabel();
@@ -56,16 +90,40 @@ function refreshVersionLabel() {
 export async function closeSettings() {
   await stopQrScan();
   if (settingsModal) settingsModal.hidden = true;
+  refreshApiKeyStatus();
 }
 
-function refreshApiKeyStatus() {
+function paintApiKeyStatus(el, ready) {
+  if (!el) return;
+  el.textContent = ready ? "設定済み" : "未設定";
+  el.classList.toggle("is-ready", ready);
+  el.classList.toggle("is-empty", !ready);
+}
+
+export function refreshApiKeyStatus() {
   const ready = hasApiKey();
-  if (apiKeyStatusEl) {
-    apiKeyStatusEl.textContent = ready ? "設定済み" : "未設定";
-    apiKeyStatusEl.classList.toggle("is-ready", ready);
-    apiKeyStatusEl.classList.toggle("is-empty", !ready);
-  }
+  paintApiKeyStatus(apiKeyStatusEl, ready);
+  paintApiKeyStatus(lockApiKeyStatusEl, ready);
   if (btnDeleteKey) btnDeleteKey.disabled = !ready;
+}
+
+function toggleAppMenu() {
+  if (menuOpen) closeAppMenu();
+  else openAppMenu();
+}
+
+function openAppMenu() {
+  if (!appMenuPanel || !btnAppMenu) return;
+  menuOpen = true;
+  appMenuPanel.hidden = false;
+  btnAppMenu.setAttribute("aria-expanded", "true");
+}
+
+function closeAppMenu() {
+  if (!appMenuPanel || !btnAppMenu) return;
+  menuOpen = false;
+  appMenuPanel.hidden = true;
+  btnAppMenu.setAttribute("aria-expanded", "false");
 }
 
 async function ensureHtml5Qrcode() {
