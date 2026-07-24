@@ -944,10 +944,11 @@ html.is-unlocked .app {
 }
 
 .tl-item {
+  --tl-bg: var(--color-white);
   display: flex;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background-color: var(--color-white);
+  background-color: var(--tl-bg);
   overflow: hidden;
   scroll-margin-top: 8px;
 }
@@ -956,6 +957,16 @@ html.is-unlocked .app {
   width: 4px;
   flex-shrink: 0;
   background-color: transparent;
+}
+
+.tl-item[data-category="ope"] {
+  --tl-bg: color-mix(in srgb, var(--cat-ope) 9%, var(--color-white));
+}
+.tl-item[data-category="admission"] {
+  --tl-bg: color-mix(in srgb, var(--cat-admission) 9%, var(--color-white));
+}
+.tl-item[data-category="referral"] {
+  --tl-bg: color-mix(in srgb, var(--cat-referral) 9%, var(--color-white));
 }
 
 .tl-item[data-category="ope"] .tl-item__bar {
@@ -977,8 +988,8 @@ html.is-unlocked .app {
   min-width: 0;
   /* 上だけ明確に広げて枠線との詰まりを解消（左右・下は密度維持） */
   padding: 18px 10px 7px;
-  /* ★ + gap + ドット + gap ＝ 日付・見出しの左端。本文も同じ位置に揃える */
-  --tl-lead: calc(1.1rem + 6px + 8px + 6px);
+  /* ★ + gap ＝ 日付・見出しの左端。本文も同じ位置に揃える */
+  --tl-lead: calc(1.1rem + 6px);
 }
 
 .tl-item__head {
@@ -1015,29 +1026,6 @@ html.is-unlocked .app {
 
 .tl-item__star[aria-pressed="true"] {
   color: var(--star);
-}
-
-.tl-item__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background-color: transparent;
-  border: 1.5px solid var(--color-border);
-  margin-top: 5px;
-}
-
-.tl-item[data-category="ope"] .tl-item__dot {
-  background-color: var(--cat-ope);
-  border-color: var(--cat-ope);
-}
-.tl-item[data-category="admission"] .tl-item__dot {
-  background-color: var(--cat-admission);
-  border-color: var(--cat-admission);
-}
-.tl-item[data-category="referral"] .tl-item__dot {
-  background-color: var(--cat-referral);
-  border-color: var(--cat-referral);
 }
 
 .tl-item__title-row {
@@ -2368,7 +2356,6 @@ select.input {
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.06);
 }
 
-.tl-item.swipeable,
 .exam-list-item.swipeable,
 .proc-card.swipeable,
 .qa-card.swipeable,
@@ -2378,10 +2365,14 @@ select.input {
   background: var(--color-white);
 }
 
+.tl-item.swipeable {
+  background: var(--tl-bg);
+}
+
 .tl-item.swipeable .swipeable__front {
   display: flex;
   width: 100%;
-  background: var(--color-white);
+  background: var(--tl-bg);
 }
 
 .exam-list-item.swipeable {
