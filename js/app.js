@@ -896,7 +896,7 @@ async function handleEntrySave() {
     closeCompose({ reset: true });
     showToast("保存しました。");
 
-    // 定型文入力は対象外。手動入力のみ AI 提案フローへ
+    // 定型文入力は対象外。手動入力のみ AI 提案フローへ（フラグで無効化可）
     if (source === "manual") {
       await runAiSuggestAfterSave({
         karteNumber,

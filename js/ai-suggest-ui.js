@@ -30,6 +30,7 @@ import {
   findExamItemCandidates,
   listExamMatchTargets,
 } from "./exam-item-match.js";
+import { ENABLE_AI_SUGGEST_AFTER_SAVE } from "./feature-flags.js";
 import { mountNumpad } from "./freq-picker.js";
 
 const KIND_LABELS = {
@@ -101,6 +102,9 @@ export async function runAiSuggestAfterSave({
   recordDate,
   author,
 }) {
+  // フラグオフ時は解析も確認UIも出さない（コードは残し、再有効化は feature-flags を true にするだけ）
+  if (!ENABLE_AI_SUGGEST_AFTER_SAVE) return;
+
   if (!body || !karteNumber) return;
 
   if (!hasApiKey()) {
