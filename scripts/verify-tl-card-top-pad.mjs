@@ -145,8 +145,8 @@ const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 560, height: 420 } });
 await page.goto(`${base}/tools/tl-card-top-pad-harness.html`, { waitUntil: "networkidle" });
 
-// BEFORE: old 7px top
-await page.evaluate(() => window.__setPadTop(7));
+// BEFORE: previous 11px top
+await page.evaluate(() => window.__setPadTop(11));
 const before = JSON.parse(await page.title());
 console.log("BEFORE", before);
 await page.screenshot({ path: path.join(root, "tools/tl-card-top-pad-before.png") });
@@ -165,8 +165,8 @@ await page.screenshot({ path: path.join(root, "tools/tl-card-top-pad-after.png")
 if (after.padTop <= before.padTop) {
   throw new Error(`top pad did not increase: before=${before.padTop} after=${after.padTop}`);
 }
-if (Math.abs(after.padTop - 11) > 0.5) {
-  throw new Error(`expected padTop≈11, got ${after.padTop}`);
+if (Math.abs(after.padTop - 18) > 0.5) {
+  throw new Error(`expected padTop≈18, got ${after.padTop}`);
 }
 
 console.log("OK: tl card top padding increased");
