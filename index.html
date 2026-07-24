@@ -492,20 +492,22 @@
 
 <template id="timeline-item-template">
   <li class="tl-item" data-category="none">
-    <span class="tl-item__bar"></span>
-    <div class="tl-item__content">
-      <div class="tl-item__head">
-        <button class="tl-item__star" type="button" aria-pressed="false" title="重要（★）">★</button>
-        <div class="tl-item__title-row">
-          <span class="tl-item__title">
-            <span class="tl-item__date"></span>
-            <span class="tl-item__headline"></span>
-          </span>
-          <span class="tl-item__cat-label"></span>
-          <span class="tl-item__meta"></span>
-        </div>
+    <div class="tl-item__meta-row">
+      <button class="tl-item__star" type="button" aria-pressed="false" title="重要（★）">★</button>
+      <div class="tl-item__title-row">
+        <span class="tl-item__title">
+          <span class="tl-item__date"></span>
+          <span class="tl-item__headline"></span>
+        </span>
+        <span class="tl-item__cat-label"></span>
+        <span class="tl-item__meta"></span>
       </div>
-      <p class="tl-item__body"></p>
+    </div>
+    <div class="tl-item__card">
+      <span class="tl-item__bar"></span>
+      <div class="tl-item__content">
+        <p class="tl-item__body"></p>
+      </div>
     </div>
   </li>
 </template>

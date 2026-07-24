@@ -946,17 +946,34 @@ html.is-unlocked .app {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
 
 .tl-item {
   --tl-bg: var(--color-white);
   display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+  overflow: visible;
+  scroll-margin-top: 8px;
+}
+
+.tl-item__meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.tl-item__card {
+  display: flex;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background-color: var(--tl-bg);
   overflow: hidden;
-  scroll-margin-top: 8px;
 }
 
 .tl-item__bar {
@@ -985,24 +1002,14 @@ html.is-unlocked .app {
   background-color: var(--cat-referral);
 }
 
-.tl-item.is-flash {
+.tl-item.is-flash .tl-item__card {
   box-shadow: 0 0 0 2px var(--color-green);
 }
 
 .tl-item__content {
   flex: 1;
   min-width: 0;
-  /* 上だけ明確に広げて枠線との詰まりを解消（左右・下は密度維持） */
-  padding: 18px 10px 7px;
-  /* ★ + gap ＝ 日付・見出しの左端。本文も同じ位置に揃える */
-  --tl-lead: calc(1.1rem + 6px);
-}
-
-.tl-item__head {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  margin-bottom: 4px;
+  padding: 10px 12px;
 }
 
 .tl-item__star {
@@ -1097,8 +1104,7 @@ html.is-unlocked .app {
 }
 
 .tl-item__body {
-  margin: 0 0 4px;
-  margin-left: var(--tl-lead);
+  margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.45;
@@ -2405,13 +2411,15 @@ select.input {
 }
 
 .tl-item.swipeable {
-  background: var(--tl-bg);
+  background: transparent;
 }
 
 .tl-item.swipeable .swipeable__front {
   display: flex;
+  flex-direction: column;
+  gap: 5px;
   width: 100%;
-  background: var(--tl-bg);
+  background: transparent;
 }
 
 /* 検査リストはカード枠を作らず、薄い区切り線のみ（予定一覧・実施履歴で統一） */
