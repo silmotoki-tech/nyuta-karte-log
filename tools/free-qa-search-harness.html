@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>検索タブ（自由質問）検証</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body { margin: 0; background: #dfe3e7; }
+    .harness {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      min-height: 100vh;
+    }
+    .harness__main {
+      padding: 16px;
+      background: var(--color-cream);
+    }
+    .harness__right {
+      background: var(--color-white);
+      border-left: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="harness">
+    <main class="harness__main">
+      <h1>検索タブ検証</h1>
+      <p>右の「検索」から質問し、Anthropic 呼び出しと回答表示を確認する。</p>
+      <pre id="harness-log"></pre>
+    </main>
+    <aside class="col col--right harness__right" id="col-right">
+      <div class="right-tabs" id="right-tabs" role="tablist" aria-label="患者情報">
+        <button class="right-tab is-active" type="button" data-tab="exam">検査</button>
+        <button class="right-tab" type="button" data-tab="qa">検索</button>
+      </div>
+      <p class="right-empty" id="right-empty" hidden>
+        カルテを開くと、ここに患者情報が表示されます。
+      </p>
+      <div class="right-panel" id="panel-exam" data-panel="exam">
+        <section class="exam-section">
+          <h3 class="exam-section__title">検査（ダミー）</h3>
+          <p class="field__note">検査パネル</p>
+        </section>
+      </div>
+      <div class="right-panel" id="panel-qa" data-panel="qa" hidden>
+        <section class="exam-section">
+          <h3 class="exam-section__title">新規質問</h3>
+          <div class="qa-compose">
+            <label class="label" for="free-qa-input">この患者について質問</label>
+            <textarea
+              id="free-qa-input"
+              class="textarea"
+              rows="3"
+              inputmode="text"
+              placeholder="例）腎臓の経過で注意すべき記載は？"
+            ></textarea>
+            <div class="qa-compose__actions">
+              <button id="btn-free-qa-ask" class="btn btn--small btn--primary" type="button">
+                質問する
+              </button>
+            </div>
+            <p id="free-qa-key-hint" class="qa-key-hint" hidden>
+              APIキーが未設定です。
+              <button id="btn-free-qa-open-settings" class="link-inline" type="button">設定画面</button>
+              でAPIキーを設定してください。
+            </p>
+            <p id="free-qa-error" class="error-text" role="alert" hidden></p>
+            <p class="field__note">中央カラムの時系列全文をコンテキストにAIが回答し、結果を保存します。</p>
+          </div>
+        </section>
+        <section class="exam-section">
+          <h3 class="exam-section__title">質問履歴</h3>
+          <p class="field__note" id="free-qa-empty">まだ質問はありません。</p>
+          <ul class="qa-list" id="free-qa-list"></ul>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script type="module">
+    import {
+      initFreeQaUI,
+      enterFreeQa,
+      notifyApiKeyChanged,
+    } from "/js/free-qa-ui.js";
+    import { ENABLE_AI_SUGGEST_AFTER_SAVE } from "/js/feature-flags.js";
+
+    const logEl = document.getElementById("harness-log");
+    const rightTabs = document.getElementById("right-tabs");
+    const rightPanels = () => document.querySelectorAll(".right-panel");
+    let activeTab = "exam";
+    const karteNumber = "12345";
+
+    function log(msg) {
+      logEl.textContent += msg + "\n";
+    }
+
+    function switchTab(tabId) {
+      activeTab = tabId;
+      rightTabs.querySelectorAll(".right-tab").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.tab === tabId);
+      });
+      rightPanels().forEach((panel) => {
+        panel.hidden = panel.dataset.panel !== tabId;
+      });
+      if (tabId === "qa") {
+        notifyApiKeyChanged();
+        const input = document.getElementById("free-qa-input");
+        if (input) {
+          input.readOnly = false;
+          input.disabled = false;
+          if (input.getAttribute("inputmode") === "none") {
+            input.removeAttribute("inputmode");
+          }
+        }
+      }
+    }
+
+    rightTabs.querySelectorAll(".right-tab").forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    initFreeQaUI({
+      showToast: (m) => {
+        const t = document.getElementById("toast");
+        t.textContent = m;
+        t.hidden = false;
+        log("toast: " + m);
+      },
+      showError: (el, msg) => {
+        if (!el) return;
+        el.textContent = msg || "";
+        el.hidden = !msg;
+        if (msg) log("error: " + msg);
+      },
+      setBusy: (button, busy, busyLabel, idleLabel) => {
+        if (!button) return;
+        button.disabled = busy;
+        button.textContent = busy ? busyLabel : idleLabel;
+      },
+      getSelectedAuthor: () => "院長",
+      getTimelineEntries: () => [
+        {
+          recordDate: "2026-07-20",
+          headline: "再診",
+          author: "院長",
+          category: "none",
+          body: "腎数値は前回と同程度。経過観察。",
+          enteredAtIso: "2026-07-20T10:00:00.000Z",
+        },
+      ],
+    });
+
+    enterFreeQa(karteNumber);
+    switchTab("exam");
+
+    window.__freeQaHarness = {
+      flag: ENABLE_AI_SUGGEST_AFTER_SAVE,
+      switchTab,
+      karteNumber,
+      ready: true,
+    };
+    log("ready flag(AI suggest)=" + ENABLE_AI_SUGGEST_AFTER_SAVE);
+  </script>
+</body>
+</html>

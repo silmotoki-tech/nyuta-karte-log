@@ -53,14 +53,45 @@ export function initFreeQaUI(helpers = {}) {
   refreshKeyHint();
 }
 
+function ensureQaInputEditable() {
+  if (!qaInput) return;
+  qaInput.readOnly = false;
+  qaInput.disabled = false;
+  // 数字ゲート欄の inputmode=none が誤って付いていた場合に備える
+  if (qaInput.getAttribute("inputmode") === "none") {
+    qaInput.removeAttribute("inputmode");
+  }
+}
+
 export function enterFreeQa(karteNumber) {
   leaveFreeQa();
   state.karteNumber = karteNumber;
+  ensureQaInputEditable();
   refreshKeyHint();
   state.unsubscribe = subscribeFreeQA(karteNumber, (items) => {
     state.items = items;
     renderQaList();
   });
+}
+
+/**
+ * カルテが開いているのに自由質問が未接続なら再購読する。
+ * 既に同じカルテで購読中なら入力内容を維持する。
+ */
+export function ensureFreeQaActive(karteNumber) {
+  if (!karteNumber) return;
+  if (state.karteNumber === karteNumber && state.unsubscribe) {
+    ensureQaInputEditable();
+    refreshKeyHint();
+    return;
+  }
+  enterFreeQa(karteNumber);
+}
+
+/** 検索タブ表示時に呼ぶ。入力欄の編集可否と API キー案内を再確認する。 */
+export function onFreeQaTabShown() {
+  ensureQaInputEditable();
+  refreshKeyHint();
 }
 
 export function leaveFreeQa() {

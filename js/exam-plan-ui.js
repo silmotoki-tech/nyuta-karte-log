@@ -83,11 +83,17 @@ const state = {
 // --- DOM -----------------------------------------------------------------
 
 const rightTabs = document.getElementById("right-tabs");
-const rightPanels = document.querySelectorAll(".right-panel");
 const rightEmpty = document.getElementById("right-empty");
 
 const examRoot = document.getElementById("panel-exam");
 const btnExamNew = document.getElementById("btn-exam-new");
+
+/** タブ切替時の外部フック（自由質問の再同期など） */
+let onRightTabChange = null;
+
+function getRightPanels() {
+  return document.querySelectorAll(".right-panel");
+}
 
 const planList = document.getElementById("exam-plan-list");
 const planEmpty = document.getElementById("exam-plan-empty");
@@ -481,16 +487,23 @@ function switchTab(tabId) {
   rightTabs?.querySelectorAll(".right-tab").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.tab === tabId);
   });
+  const panels = getRightPanels();
   // カルテ未オープン時は案内メッセージのみ表示
   if (!state.karteNumber) {
-    rightPanels.forEach((panel) => {
+    panels.forEach((panel) => {
       panel.hidden = true;
     });
+    if (typeof onRightTabChange === "function") {
+      onRightTabChange(tabId, false);
+    }
     return;
   }
-  rightPanels.forEach((panel) => {
+  panels.forEach((panel) => {
     panel.hidden = panel.dataset.panel !== tabId;
   });
+  if (typeof onRightTabChange === "function") {
+    onRightTabChange(tabId, true);
+  }
 }
 
 /** AI提案など外部から右カラムタブを開く */
@@ -498,11 +511,16 @@ export function switchRightTab(tabId) {
   switchTab(tabId);
 }
 
+/** 右カラムタブ切替の通知を登録する（自由質問など） */
+export function setRightTabChangeHandler(handler) {
+  onRightTabChange = typeof handler === "function" ? handler : null;
+}
+
 function showRightEmpty(empty) {
   if (rightEmpty) rightEmpty.hidden = !empty;
   examRoot?.classList.toggle("is-disabled", empty);
   if (empty) {
-    rightPanels.forEach((p) => {
+    getRightPanels().forEach((p) => {
       p.hidden = true;
     });
   } else if (state.activeTab) {

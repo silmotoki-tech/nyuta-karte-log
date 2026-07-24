@@ -16,6 +16,7 @@ import {
   initExamPlanUI,
   enterExamPlan,
   leaveExamPlan,
+  setRightTabChangeHandler,
 } from "./exam-plan-ui.js";
 import {
   initMedsUI,
@@ -43,6 +44,8 @@ import {
   enterFreeQa,
   leaveFreeQa,
   notifyApiKeyChanged,
+  ensureFreeQaActive,
+  onFreeQaTabShown,
 } from "./free-qa-ui.js";
 import {
   initAiSuggestUI,
@@ -1517,6 +1520,13 @@ initFreeQaUI({
   setBusy,
   getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
   getTimelineEntries: () => state.entries || [],
+});
+
+// 検索タブ表示時に入力欄・APIキー案内を再確認（他タブ操作の影響を受けないようにする）
+setRightTabChangeHandler((tabId, hasKarte) => {
+  if (tabId !== "qa" || !hasKarte) return;
+  if (state.karteNumber) ensureFreeQaActive(state.karteNumber);
+  onFreeQaTabShown();
 });
 
 initAiSuggestUI({
