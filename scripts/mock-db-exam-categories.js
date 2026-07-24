@@ -160,20 +160,13 @@ const SEED = [
     ],
   }),
   ...categoryGroupSeed("imaging", {
-    id: "seed-imaging-heart-echo",
-    label: "心エコー",
+    id: "seed-imaging-echo",
+    label: "エコー",
     order: 20,
     children: [
       { id: "seed-imaging-heart-echo-scr", label: "心エコー(スクリーニング)" },
       { id: "seed-imaging-heart-echo-flow", label: "心エコー(流速あり)" },
       { id: "seed-imaging-heart-echo-enlarge", label: "心エコー(拡大チェック)" },
-    ],
-  }),
-  ...categoryGroupSeed("imaging", {
-    id: "seed-imaging-abdomen-echo",
-    label: "腹部エコー",
-    order: 30,
-    children: [
       { id: "seed-imaging-abdomen-echo-scr", label: "腹部エコー(スクリーニング)" },
       { id: "seed-imaging-abdomen-echo-spleen", label: "腹部エコー(脾臓)" },
       { id: "seed-imaging-abdomen-echo-liver", label: "腹部エコー(肝臓)" },
@@ -181,6 +174,22 @@ const SEED = [
       { id: "seed-imaging-abdomen-echo-ureter", label: "腹部エコー(尿管)" },
       { id: "seed-imaging-abdomen-echo-bladder", label: "腹部エコー(膀胱)" },
       { id: "seed-imaging-abdomen-echo-prostate", label: "腹部エコー(前立腺)" },
+    ],
+  }),
+  ...categoryGroupSeed("imaging", {
+    id: "seed-imaging-xray",
+    label: "レントゲン",
+    order: 30,
+    children: [
+      { id: "seed-imaging-xray-chest", label: "レントゲン(胸部)" },
+      { id: "seed-imaging-xray-trachea", label: "レントゲン(気管)" },
+      { id: "seed-imaging-xray-abdomen", label: "レントゲン(腹部)" },
+      { id: "seed-imaging-xray-hip", label: "レントゲン(股関節)" },
+      { id: "seed-imaging-xray-shoulder", label: "レントゲン(肩)" },
+      { id: "seed-imaging-xray-forelimb", label: "レントゲン(前肢)" },
+      { id: "seed-imaging-xray-hindlimb", label: "レントゲン(後肢)" },
+      { id: "seed-imaging-xray-nose", label: "レントゲン(鼻)" },
+      { id: "seed-imaging-xray-tooth", label: "レントゲン(歯)" },
     ],
   }),
   {

@@ -276,11 +276,11 @@ await page.locator('.exam-item-category-tab[data-category="imaging"]').click();
 await page.waitForTimeout(50);
 buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
 console.log("IMAGING ROOT", buttons);
-for (const label of ["セット", "心エコー", "腹部エコー"]) {
+for (const label of ["セット", "エコー", "レントゲン"]) {
   if (!buttons.includes(label)) throw new Error(`imaging group missing ${label}`);
 }
-if (buttons.includes("胸部スク") || buttons.includes("全スク")) {
-  throw new Error("old flat imaging leaves still at root");
+if (buttons.includes("心エコー") || buttons.includes("腹部エコー")) {
+  throw new Error("old echo groups should not be at imaging root");
 }
 await page.locator(".exam-item-btn", { hasText: /^セット$/ }).click();
 await page.waitForTimeout(50);
@@ -293,27 +293,14 @@ for (const label of ["全set", "胸部set", "腹部set"]) {
   if (!buttons.includes(label)) throw new Error(`imaging set leaf missing ${label}`);
 }
 await page.click("#btn-exam-plan-blood-back");
-await page.locator(".exam-item-btn", { hasText: /^心エコー$/ }).click();
+await page.locator(".exam-item-btn", { hasText: /^エコー$/ }).click();
 await page.waitForTimeout(50);
 buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("IMAGING HEART", buttons);
+console.log("IMAGING ECHO", buttons);
 for (const label of [
   "心エコー(スクリーニング)",
   "心エコー(流速あり)",
   "心エコー(拡大チェック)",
-]) {
-  if (!buttons.includes(label)) throw new Error(`heart echo leaf missing ${label}`);
-}
-await page.locator(".exam-item-btn", { hasText: "心エコー(スクリーニング)" }).click();
-if (!(await page.isHidden("#exam-plan-fasting-field"))) {
-  throw new Error("fasting should hide for imaging");
-}
-await page.click("#btn-exam-plan-blood-back");
-await page.locator(".exam-item-btn", { hasText: /^腹部エコー$/ }).click();
-await page.waitForTimeout(50);
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("IMAGING ABD", buttons);
-for (const label of [
   "腹部エコー(スクリーニング)",
   "腹部エコー(脾臓)",
   "腹部エコー(肝臓)",
@@ -322,7 +309,11 @@ for (const label of [
   "腹部エコー(膀胱)",
   "腹部エコー(前立腺)",
 ]) {
-  if (!buttons.includes(label)) throw new Error(`abdomen echo leaf missing ${label}`);
+  if (!buttons.includes(label)) throw new Error(`echo leaf missing ${label}`);
+}
+await page.locator(".exam-item-btn", { hasText: "心エコー(スクリーニング)" }).click();
+if (!(await page.isHidden("#exam-plan-fasting-field"))) {
+  throw new Error("fasting should hide for imaging");
 }
 await page.locator(".exam-item-btn", { hasText: "腹部エコー(脾臓)" }).click();
 const imgSummary = await page.locator("#exam-plan-selection-summary").innerText();
@@ -333,6 +324,29 @@ if (!imgSummary.includes("心エコー(スクリーニング)")) {
 if (!imgSummary.includes("腹部エコー(脾臓)")) {
   throw new Error(`missing abdomen echo in summary: ${imgSummary}`);
 }
+await page.click("#btn-exam-plan-blood-back");
+await page.locator(".exam-item-btn", { hasText: /^レントゲン$/ }).click();
+await page.waitForTimeout(50);
+buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
+console.log("IMAGING XRAY", buttons);
+for (const label of [
+  "レントゲン(胸部)",
+  "レントゲン(気管)",
+  "レントゲン(腹部)",
+  "レントゲン(股関節)",
+  "レントゲン(肩)",
+  "レントゲン(前肢)",
+  "レントゲン(後肢)",
+  "レントゲン(鼻)",
+  "レントゲン(歯)",
+]) {
+  if (!buttons.includes(label)) throw new Error(`xray leaf missing ${label}`);
+}
+if (buttons.includes("胸部X線")) {
+  throw new Error("胸部X線 should not appear");
+}
+await page.locator(".exam-item-btn", { hasText: /^レントゲン\(胸部\)$/ }).click();
+
 
 // 病理
 await page.locator('.exam-item-category-tab[data-category="pathology"]').click();
