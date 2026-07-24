@@ -14,6 +14,7 @@ import {
   fetchMedicationsOnce,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { canHandleShortcut, isImeKey } from "./ime-keys.js";
 import {
   FREQ_PRESETS_ABSOLUTE,
   FREQ_PRESETS_TRANSITION,
@@ -388,10 +389,11 @@ function createDrugCard(drug) {
   };
 
   header.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleExpand();
-    }
+    // Space は IME 漢字変換の候補送りと衝突するため使わない（Enter のみ）。
+    if (e.key !== "Enter") return;
+    if (!canHandleShortcut(e)) return;
+    e.preventDefault();
+    toggleExpand();
   });
 
   enableRowGestures(li, {
@@ -688,7 +690,7 @@ function wireAddModal() {
   btnAddSave?.addEventListener("click", handleAddSave);
   btnAddNewItem?.addEventListener("click", handleAddMedicationItemFromModal);
   addNewItemInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isImeKey(e)) {
       e.preventDefault();
       handleAddMedicationItemFromModal();
     }

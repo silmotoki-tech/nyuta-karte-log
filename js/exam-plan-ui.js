@@ -16,6 +16,7 @@ import {
   examFastingLabel,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { isImeKey } from "./ime-keys.js";
 
 /**
  * 残り日数の色分け閾値（仮。後で調整可能）。
@@ -893,7 +894,7 @@ function wirePlanModal() {
     updateExamItemAddUI();
   });
   planNewItemInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isImeKey(e)) {
       e.preventDefault();
       handleAddExamItemFromPlanModal();
     }

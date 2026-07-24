@@ -54,6 +54,7 @@ import {
   clearPasscodeVerified,
 } from "./passcode-auth.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { isImeKey } from "./ime-keys.js";
 
 // 記入者（獣医師・看護師を区別せず1列）
 const AUTHORS = [
@@ -412,7 +413,7 @@ passcodeInput.addEventListener("input", () => {
 });
 
 passcodeInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
+  if (event.key === "Enter" && !isImeKey(event)) {
     event.preventDefault();
     handlePasscodeNext();
   }
@@ -473,7 +474,7 @@ karteNumberInput.addEventListener("input", () => {
 });
 
 karteNumberInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
+  if (event.key === "Enter" && !isImeKey(event)) {
     event.preventDefault();
     handleKarteNext();
   }
@@ -522,7 +523,7 @@ btnAnimalBack.addEventListener("click", () => {
 });
 
 animalNameInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
+  if (event.key === "Enter" && !isImeKey(event)) {
     event.preventDefault();
     handleAnimalNext();
   }

@@ -12,6 +12,7 @@ import {
   deletePatientHistoryEntry,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { canHandleShortcut } from "./ime-keys.js";
 
 const HISTORY_TYPES = [
   { id: "disease", label: "疾患" },
@@ -230,10 +231,11 @@ function createHistoryCard(entry) {
   };
 
   header.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleExpand();
-    }
+    // Space は IME 漢字変換の候補送りと衝突するため使わない（Enter のみ）。
+    if (e.key !== "Enter") return;
+    if (!canHandleShortcut(e)) return;
+    e.preventDefault();
+    toggleExpand();
   });
 
   enableRowGestures(li, {

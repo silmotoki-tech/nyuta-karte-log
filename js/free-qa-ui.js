@@ -15,6 +15,7 @@ import {
 } from "./anthropic.js";
 import { openSettings } from "./settings-ui.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { isImeKey } from "./ime-keys.js";
 
 let deps = {
   showToast: () => {},
@@ -44,7 +45,7 @@ export function initFreeQaUI(helpers = {}) {
   btnAsk?.addEventListener("click", handleAsk);
   btnOpenSettingsFromQa?.addEventListener("click", () => openSettings());
   qaInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !isImeKey(e)) {
       e.preventDefault();
       handleAsk();
     }
