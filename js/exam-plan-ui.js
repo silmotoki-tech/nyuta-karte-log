@@ -364,18 +364,22 @@ export function getDueCountdown(dueDate, baselineDate = null, today = todayStr()
 }
 
 /**
- * 「あと○日（日付）」／「○日超過（日付）」
+ * 「あと○日」／「○日超過」／「本日期日」。
+ * includeDate=true のときだけ括弧付き日付を付ける（詳細・入力欄用）。
  */
-export function formatDueCountdown(info) {
+export function formatDueCountdown(info, { includeDate = true } = {}) {
   if (!info) return "";
-  const dateLabel = ymdFromStr(info.dueDate);
+  let text = "";
   if (info.remaining < 0) {
-    return `${Math.abs(info.remaining)}日超過（${dateLabel}）`;
+    text = `${Math.abs(info.remaining)}日超過`;
+  } else if (info.remaining === 0) {
+    text = "本日期日";
+  } else {
+    text = `あと${info.remaining}日`;
   }
-  if (info.remaining === 0) {
-    return `本日期日（${dateLabel}）`;
-  }
-  return `あと${info.remaining}日（${dateLabel}）`;
+  if (!includeDate) return text;
+  const dateLabel = ymdFromStr(info.dueDate);
+  return dateLabel ? `${text}（${dateLabel}）` : text;
 }
 
 /**
@@ -547,18 +551,21 @@ function renderUnifiedPlanList() {
 
     const info = document.createElement("div");
     info.className = "exam-list-item__info";
+    const head = document.createElement("div");
+    head.className = "exam-list-item__head";
     const title = document.createElement("div");
     title.className = "exam-list-item__title";
     title.textContent = entry.item;
     const dueEl = document.createElement("div");
     dueEl.className = `exam-list-item__due ${dueLevelClass(entry.countdown?.level || "far")}`;
     if (entry.countdown) {
-      dueEl.textContent = formatDueCountdown(entry.countdown);
+      dueEl.textContent = formatDueCountdown(entry.countdown, { includeDate: false });
     } else {
       dueEl.textContent = "予定日未設定";
       dueEl.className = "exam-list-item__due";
     }
-    info.append(title, dueEl);
+    head.append(title, dueEl);
+    info.appendChild(head);
     const fastingText = examFastingLabel(entry.fasting);
     if (fastingText) {
       const fastingEl = document.createElement("div");
@@ -568,7 +575,7 @@ function renderUnifiedPlanList() {
     }
     if (entry.note) {
       const noteEl = document.createElement("div");
-      noteEl.className = "exam-list-item__meta";
+      noteEl.className = "exam-list-item__note";
       noteEl.textContent = entry.note;
       info.appendChild(noteEl);
     }

@@ -1385,9 +1385,19 @@ html.is-unlocked .app {
   width: 100%;
 }
 
+.exam-list-item__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .exam-list-item__title {
+  flex: 1 1 auto;
+  min-width: 0;
   font-weight: 700;
   font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .exam-history-group-title {
@@ -1440,10 +1450,21 @@ html.is-unlocked .app {
   line-height: 1.4;
 }
 
+.exam-list-item__note {
+  font-size: 0.64rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .exam-list-item__due {
+  flex: 0 0 auto;
   font-size: 0.74rem;
   font-weight: 700;
-  margin-top: 2px;
+  margin-top: 0;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .exam-list-item__actions {
