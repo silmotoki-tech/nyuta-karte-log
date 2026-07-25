@@ -248,20 +248,20 @@ await page.locator("#med-add-category-buttons .med-cat-btn", {
 }).click();
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(250);
-const cardA = page.locator(".med-card", { hasText: "アモキシシリン" });
-await cardA.waitFor();
-const catBadge = await cardA.locator(".med-card__cat, [class*='med-cat']").first().textContent().catch(() => "");
-const cardHtml = await cardA.innerHTML();
-console.log("card category clues:", catBadge, cardHtml.includes("med-cat--A") || cardHtml.includes("カテゴリA") || /A/.test(cardHtml));
-if (!/med-cat--A|カテゴリ.?A|重要度.?A|\bA\b/.test(cardHtml) && !cardHtml.includes("A")) {
-  // カードに A 表示があるか（クラス名など）を確認
-  const hasA = await cardA.evaluate((el) =>
-    /A/.test(el.textContent || "") || el.className.includes("A") || !!el.querySelector(".med-cat--A, .med-card__badge--A")
+await page.waitForFunction(() =>
+  [...document.querySelectorAll(".med-card__name")].some(
+    (el) => (el.dataset.name || el.getAttribute("aria-label")) === "アモキシシリン"
+  )
+);
+const cardHtml = await page.evaluate(() => {
+  const nameEl = [...document.querySelectorAll(".med-card__name")].find(
+    (el) => (el.dataset.name || el.getAttribute("aria-label")) === "アモキシシリン"
   );
-  if (!hasA) {
-    // 一覧の並び・データ側は別途確認
-    console.warn("A badge text not obvious; checking data via evaluate");
-  }
+  return nameEl?.closest(".med-card")?.innerHTML || "";
+});
+console.log("card A has med-cat--A:", cardHtml.includes("med-cat--A"));
+if (!cardHtml.includes("med-cat--A")) {
+  throw new Error("category A not preserved on amoxicillin card");
 }
 
 // 外用: 中項目

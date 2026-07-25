@@ -326,10 +326,77 @@ function renderMedsList() {
   });
 }
 
+/**
+ * 薬剤名を canvas で描画する。
+ * iPad Safari は静的テキスト／::before にも赤いスペル波線を付けることがあるため、
+ * テキストノードを持たせず描画する（読み上げは aria-label）。
+ */
+function fillMedNameEl(nameEl, displayName) {
+  nameEl.replaceChildren();
+  nameEl.spellcheck = false;
+  nameEl.contentEditable = "false";
+  nameEl.translate = false;
+  nameEl.dataset.name = displayName;
+  nameEl.setAttribute("aria-label", displayName);
+  nameEl.setAttribute("role", "text");
+
+  const canvas = document.createElement("canvas");
+  canvas.className = "med-card__name-canvas";
+  canvas.setAttribute("aria-hidden", "true");
+  nameEl.appendChild(canvas);
+
+  const paint = () => {
+    if (!nameEl.isConnected) return;
+    const cs = getComputedStyle(nameEl);
+    const maxW = Math.max(0, Math.floor(nameEl.clientWidth));
+    if (!maxW) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    const fontPx = parseFloat(cs.fontSize) || 14;
+    const h = Math.ceil(fontPx * 1.35);
+
+    const probe = canvas.getContext("2d");
+    if (!probe) return;
+    probe.font = font;
+
+    let text = displayName;
+    let width = probe.measureText(text).width;
+    if (width > maxW) {
+      const ell = "…";
+      while (text.length > 0 && probe.measureText(text + ell).width > maxW) {
+        text = text.slice(0, -1);
+      }
+      text += ell;
+      width = probe.measureText(text).width;
+    }
+
+    const w = Math.max(1, Math.ceil(Math.min(width, maxW)));
+    canvas.width = Math.ceil(w * dpr);
+    canvas.height = Math.ceil(h * dpr);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = font;
+    ctx.fillStyle = cs.color;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.fillText(text, 0, h / 2);
+  };
+
+  const ro = new ResizeObserver(() => paint());
+  ro.observe(nameEl);
+  requestAnimationFrame(paint);
+}
+
 function createDrugCard(drug) {
   const li = document.createElement("li");
   li.className = "med-card";
   li.spellcheck = false;
+  li.contentEditable = "false";
   li.dataset.drugId = drug.id;
 
   const status = deriveStatus(drug);
@@ -361,12 +428,7 @@ function createDrugCard(drug) {
   const displayName = drug.name || "（名称未設定）";
   const nameEl = document.createElement("span");
   nameEl.className = "med-card__name";
-  nameEl.spellcheck = false;
-  // iPad Safari は spellcheck=false でも固有名詞に赤い波線を付けることがある。
-  // 1) 実テキストは空  2) 表示は ::before(attr)  3) 文字間 ZWSP で単語判定を崩す
-  nameEl.dataset.name = Array.from(displayName).join("\u200B");
-  nameEl.setAttribute("aria-label", displayName);
-  nameEl.textContent = "";
+  fillMedNameEl(nameEl, displayName);
 
   const statusEl = document.createElement("span");
   statusEl.className = `med-status med-status--${status.id}`;
