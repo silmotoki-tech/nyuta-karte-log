@@ -61,7 +61,8 @@ const state = {
   medicationItems: [],
   unsubscribeDrugs: null,
   unsubscribeItems: null,
-  expandedIds: new Set(),
+  /** 詳細シートで開いている薬剤ID（アコーディオンは使わない） */
+  detailDrugId: null,
   eventDraft: {
     mode: "create", // create | edit
     drugId: null,
@@ -93,6 +94,13 @@ let eventFreqPicker = null;
 const medsList = document.getElementById("meds-list");
 const medsEmpty = document.getElementById("meds-empty");
 const btnMedAdd = document.getElementById("btn-med-add");
+
+const detailSheet = document.getElementById("med-detail-sheet");
+const detailSheetName = document.getElementById("med-detail-sheet-name");
+const detailSheetStatus = document.getElementById("med-detail-sheet-status");
+const detailSheetBody = document.getElementById("med-detail-sheet-body");
+const btnCloseDetailSheet = document.getElementById("btn-close-med-detail-sheet");
+const btnDetailSheetClose = document.getElementById("btn-med-detail-sheet-close");
 
 const addModal = document.getElementById("med-add-modal");
 const addItemCategories = document.getElementById("med-add-item-categories");
@@ -271,6 +279,7 @@ function sortedDrugs(drugs) {
 export function initMedsUI(helpers = {}) {
   deps = { ...deps, ...helpers };
   wireToolbar();
+  wireDetailSheet();
   wireAddModal();
   wireEventModal();
   buildEventTypeButtons();
@@ -291,10 +300,15 @@ export function initMedsUI(helpers = {}) {
 export function enterMeds(karteNumber) {
   leaveMeds();
   state.karteNumber = karteNumber;
-  state.expandedIds = new Set();
+  state.detailDrugId = null;
   state.unsubscribeDrugs = subscribeMedications(karteNumber, (drugs) => {
     state.drugs = drugs;
     renderMedsList();
+    if (isDetailSheetOpen()) {
+      const drug = drugs.find((d) => d.id === state.detailDrugId);
+      if (drug) renderMedDetailSheet(drug);
+      else closeMedDetailSheet();
+    }
   });
 }
 
@@ -305,7 +319,8 @@ export function leaveMeds() {
   }
   state.karteNumber = null;
   state.drugs = [];
-  state.expandedIds = new Set();
+  state.detailDrugId = null;
+  closeMedDetailSheet();
   closeAddModal();
   closeEventModal();
   if (medsList) medsList.innerHTML = "";
@@ -402,18 +417,16 @@ function createDrugCard(drug) {
   const status = deriveStatus(drug);
   const expiryStatus = getExpiryStatus(drug.expiryEstimate);
   const recent = hasRecentEvent(drug);
-  const expanded = state.expandedIds.has(drug.id);
 
   if (expiryStatus === "overdue") li.classList.add("is-overdue");
   else if (expiryStatus === "approaching") li.classList.add("is-alert");
-  if (expanded) li.classList.add("is-expanded");
 
   const header = document.createElement("div");
   header.className = "med-card__header";
   header.setAttribute("role", "button");
   header.tabIndex = 0;
   header.spellcheck = false;
-  header.setAttribute("aria-expanded", String(expanded));
+  header.setAttribute("aria-haspopup", "dialog");
 
   const signs = document.createElement("span");
   signs.className = "med-card__signs";
@@ -440,12 +453,12 @@ function createDrugCard(drug) {
 
   const chevron = document.createElement("span");
   chevron.className = "med-card__chevron";
-  chevron.textContent = expanded ? "▾" : "▸";
+  chevron.textContent = "▸";
 
   header.append(signs, nameEl, statusEl, catEl, chevron);
   li.appendChild(header);
 
-  // 処方切れは行内の色＋短いラベルで示す（カード背景は使わない）
+  // 処方切れは行内の短いラベルで示す（詳細はシートへ）
   if (expiryStatus === "overdue" || expiryStatus === "approaching") {
     const inline = document.createElement("span");
     inline.className =
@@ -459,30 +472,26 @@ function createDrugCard(drug) {
       inline.textContent =
         daysLeft === 0 ? "本日まで" : `あと${daysLeft}日`;
     }
-    // 名前の直後（status の前）に差し込む
     nameEl.after(inline);
   }
 
-  if (expanded) {
-    li.appendChild(createDrugDetail(drug));
-  }
-
-  const toggleExpand = () => {
-    if (state.expandedIds.has(drug.id)) state.expandedIds.delete(drug.id);
-    else state.expandedIds.add(drug.id);
-    renderMedsList();
-  };
+  const openDetail = () => openMedDetailSheet(drug);
 
   header.addEventListener("keydown", (e) => {
     // Space は IME 漢字変換の候補送りと衝突するため使わない（Enter のみ）。
     if (e.key !== "Enter") return;
     if (!canHandleShortcut(e)) return;
     e.preventDefault();
-    toggleExpand();
+    openDetail();
   });
 
   enableRowGestures(li, {
     actions: [
+      {
+        action: "edit",
+        title: "詳細",
+        onClick: openDetail,
+      },
       {
         action: "delete",
         title: "削除",
@@ -493,7 +502,7 @@ function createDrugCard(drug) {
           if (!ok) return;
           try {
             await deleteMedication(state.karteNumber, drug.id);
-            state.expandedIds.delete(drug.id);
+            if (state.detailDrugId === drug.id) closeMedDetailSheet();
             deps.showToast("薬剤を削除しました。");
           } catch (err) {
             console.error(err);
@@ -502,25 +511,70 @@ function createDrugCard(drug) {
         },
       },
     ],
-    onActivate: (e) => {
-      if (e.target.closest(".med-card__detail")) return;
-      toggleExpand();
-    },
+    onActivate: openDetail,
   });
 
   return li;
 }
 
+function isDetailSheetOpen() {
+  return Boolean(detailSheet && !detailSheet.hidden && state.detailDrugId);
+}
+
+function wireDetailSheet() {
+  btnCloseDetailSheet?.addEventListener("click", closeMedDetailSheet);
+  btnDetailSheetClose?.addEventListener("click", closeMedDetailSheet);
+  detailSheet
+    ?.querySelector("[data-close-modal]")
+    ?.addEventListener("click", closeMedDetailSheet);
+}
+
+function openMedDetailSheet(drug) {
+  if (!drug?.id || !detailSheet) return;
+  state.detailDrugId = drug.id;
+  renderMedDetailSheet(drug);
+  detailSheet.hidden = false;
+}
+
+function closeMedDetailSheet() {
+  state.detailDrugId = null;
+  if (detailSheetBody) detailSheetBody.innerHTML = "";
+  if (detailSheetName) detailSheetName.textContent = "";
+  if (detailSheetStatus) detailSheetStatus.textContent = "";
+  if (detailSheet) detailSheet.hidden = true;
+}
+
+function renderMedDetailSheet(drug) {
+  if (!drug || !detailSheetBody) return;
+  const status = deriveStatus(drug);
+  if (detailSheetName) {
+    detailSheetName.textContent = drug.name || "（名称未設定）";
+  }
+  if (detailSheetStatus) {
+    const expiryStatus = getExpiryStatus(drug.expiryEstimate);
+    const bits = [`使用状況: ${status.label}`, `重要度: ${drug.category || "—"}`];
+    if (expiryStatus === "overdue") bits.push("期限超過");
+    else if (expiryStatus === "approaching") {
+      const daysLeft = daysBetween(todayStr(), drug.expiryEstimate);
+      bits.push(
+        daysLeft === 0 ? "本日まで" : `あと${daysLeft}日`
+      );
+    }
+    detailSheetStatus.textContent = bits.join(" · ");
+  }
+  detailSheetBody.replaceChildren(createDrugDetail(drug));
+}
+
 function createDrugDetail(drug) {
   const detail = document.createElement("div");
-  detail.className = "med-card__detail";
+  detail.className = "med-sheet__detail";
 
-  // カテゴリ切替
+  // 重要度（A/B/C）切替
   const catRow = document.createElement("div");
   catRow.className = "med-detail-row";
   const catLabel = document.createElement("span");
   catLabel.className = "label";
-  catLabel.textContent = "カテゴリ";
+  catLabel.textContent = "重要度";
   const catBtns = document.createElement("div");
   catBtns.className = "med-category-buttons";
   ["A", "B", "C"].forEach((cat) => {
@@ -538,10 +592,10 @@ function createDrugDetail(drug) {
     btn.addEventListener("click", async () => {
       try {
         await updateMedication(state.karteNumber, drug.id, { category: cat });
-        deps.showToast(`カテゴリを ${cat} に変更しました。`);
+        deps.showToast(`重要度を ${cat} に変更しました。`);
       } catch (err) {
         console.error(err);
-        deps.showToast("カテゴリの更新に失敗しました。", { isError: true });
+        deps.showToast("重要度の更新に失敗しました。", { isError: true });
       }
     });
     catBtns.appendChild(btn);
@@ -1374,15 +1428,14 @@ export async function ensureMedicationNameFromExternal(
 }
 
 /**
- * 薬剤カードを展開して一覧上で目立たせる。
+ * 薬剤詳細シートを開いて目立たせる。
  */
 export function focusMedicationByName(name) {
   const trimmed = (name || "").trim();
   if (!trimmed) return false;
   const drug = state.drugs.find((d) => d.name === trimmed);
   if (!drug) return false;
-  state.expandedIds.add(drug.id);
-  renderMedsList();
+  openMedDetailSheet(drug);
   return true;
 }
 

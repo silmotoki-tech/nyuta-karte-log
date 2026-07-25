@@ -45,6 +45,21 @@ function today() {
   return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate());
 }
 
+export const MEDICATION_ITEM_CATEGORIES = [
+  { id: "oral", label: "内服" },
+  { id: "topical", label: "外用" },
+  { id: "eye", label: "点眼" },
+];
+export function normalizeMedicationItemCategory(c) {
+  return ["oral","topical","eye"].includes(c) ? c : "oral";
+}
+export function normalizeMedicationItemKind(k) {
+  return k === "group" ? "group" : "leaf";
+}
+export function medicationItemCategoryLabel(c) {
+  return ({ oral:"内服", topical:"外用", eye:"点眼" })[normalizeMedicationItemCategory(c)] || c;
+}
+
 export function subscribeMedicationItems(cb) {
   itemListeners.push(cb);
   notifyItems();
@@ -57,9 +72,15 @@ export function subscribeMedications(karte, cb) {
   notifyMeds(karte);
   return () => medListeners.set(karte, (medListeners.get(karte)||[]).filter(x => x !== cb));
 }
-export async function addMedicationItem({ label }) {
+export async function addMedicationItem({ label, category, kind, parentId }) {
   const id = nid("mitem");
-  store.medicationItems[id] = { label: label || "", order: Date.now() };
+  store.medicationItems[id] = {
+    label: label || "",
+    category: category || "oral",
+    kind: kind || "leaf",
+    parentId: parentId || "",
+    order: Date.now(),
+  };
   notifyItems();
   return id;
 }
@@ -134,15 +155,34 @@ const harness = `<!DOCTYPE html>
   </div>
 </aside>
 
+<div class="modal" id="med-detail-sheet" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel">
+    <button class="modal__close" id="btn-close-med-detail-sheet" type="button">&times;</button>
+    <p id="med-detail-sheet-name"></p>
+    <p id="med-detail-sheet-status"></p>
+    <div id="med-detail-sheet-body" class="med-sheet__body"></div>
+    <button id="btn-med-detail-sheet-close" type="button">閉じる</button>
+  </div>
+</div>
+
 <div class="modal" id="med-add-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel">
     <button class="modal__close" id="btn-close-med-add" type="button">&times;</button>
+    <div class="exam-item-category-tabs" id="med-add-item-categories"></div>
+    <div class="exam-item-blood-nav" id="med-add-item-nav" hidden>
+      <button type="button" id="btn-med-add-item-back">← 戻る</button>
+      <span id="med-add-item-nav-label"></span>
+    </div>
     <div id="med-add-item-buttons" class="exam-item-buttons"></div>
     <p id="med-add-items-empty" hidden></p>
-    <input id="med-add-new-item" class="input" type="text" />
-    <button id="btn-med-add-new-item" type="button">追加</button>
-    <p id="med-add-item-error" hidden></p>
+    <div id="med-add-item-add">
+      <label id="med-add-new-item-label" for="med-add-new-item">新しい薬剤</label>
+      <input id="med-add-new-item" class="input" type="text" />
+      <button id="btn-med-add-new-item" type="button">追加</button>
+      <p id="med-add-item-error" hidden></p>
+    </div>
     <div id="med-add-category-buttons"></div>
     <div id="med-add-freq-modes"></div>
     <div id="med-add-freq-panel-preset"><div id="med-add-freq-presets"></div></div>
@@ -291,9 +331,13 @@ if (unit.some((u) => !u.ok)) throw new Error("deriveStatus unit failed");
 
 await page.evaluate(() => window.__enter("karte-hold"));
 
-// 薬剤追加
+// 薬剤追加（点眼＝中項目なしで即追加できる）
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
+await page.locator("#med-add-item-categories .exam-item-category-tab", {
+  hasText: "点眼",
+}).click();
+await page.waitForTimeout(80);
 await page.fill("#med-add-new-item", "プレドニゾロン");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(100);
@@ -304,14 +348,19 @@ async function headerStatus() {
   return page.locator("#meds-list .med-card .med-status").first().innerText();
 }
 
-async function addEvent(typeLabel) {
-  // 展開
-  const card = page.locator("#meds-list .med-card").first();
-  if (!(await card.locator(".med-card__detail").count())) {
-    await card.locator(".med-card__header").click();
-    await page.waitForTimeout(80);
+async function openDetailSheet() {
+  const sheet = page.locator("#med-detail-sheet");
+  if (await sheet.isHidden()) {
+    await page.locator("#meds-list .med-card__header").first().click();
+    await page.waitForSelector("#med-detail-sheet:not([hidden])");
   }
-  await card.locator("button", { hasText: "出来事を追加" }).click();
+}
+
+async function addEvent(typeLabel) {
+  await openDetailSheet();
+  await page
+    .locator("#med-detail-sheet-body button", { hasText: "出来事を追加" })
+    .click();
   await page.waitForSelector("#med-event-modal:not([hidden])");
   const types = await page.locator("#med-event-type-buttons .exam-item-btn").allTextContents();
   if (!types.includes("休薬中")) throw new Error(`休薬中 button missing: ${types}`);
@@ -325,13 +374,13 @@ let status = await headerStatus();
 console.log("after add:", status);
 if (status !== "使用中") throw new Error(`expected 使用中, got ${status}`);
 
-// 詳細に使用状況行がないこと
-await page.locator("#meds-list .med-card__header").first().click();
+// 詳細シート本文に重複の「使用状況」見出し行がないこと（ステータス要約はヘッダ側）
+await openDetailSheet();
 await page.waitForTimeout(80);
-const detailText = await page.locator("#meds-list .med-card__detail").innerText();
+const detailText = await page.locator("#med-detail-sheet-body .med-sheet__detail").innerText();
 console.log("DETAIL", detailText.slice(0, 200));
-if (detailText.includes("使用状況") || detailText.includes("履歴から自動")) {
-  throw new Error("detail should not show duplicate status");
+if (detailText.includes("履歴から自動")) {
+  throw new Error("detail should not show duplicate status helper");
 }
 
 await addEvent("休薬中");
@@ -350,12 +399,8 @@ console.log("after stop:", status);
 if (status !== "中止") throw new Error(`expected 中止, got ${status}`);
 
 // 履歴に休薬中・再開・中止が並ぶこと
-const card = page.locator("#meds-list .med-card").first();
-if (!(await card.locator(".med-card__detail").count())) {
-  await card.locator(".med-card__header").click();
-  await page.waitForSelector("#meds-list .med-card__detail", { timeout: 5000 });
-}
-const hist = await page.locator("#meds-list .med-card__detail").innerText();
+await openDetailSheet();
+const hist = await page.locator("#med-detail-sheet-body .med-sheet__detail").innerText();
 console.log("HIST", hist);
 for (const label of ["休薬中", "再開", "中止"]) {
   if (!hist.includes(label)) throw new Error(`history missing ${label}`);

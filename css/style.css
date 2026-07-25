@@ -2096,13 +2096,22 @@ html.is-unlocked .app {
   color: var(--color-brown);
 }
 
-.med-card__detail {
+.med-card__detail,
+.med-sheet__detail {
   padding: 4px 2px 10px 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   border-top: none;
   background-color: transparent;
+}
+
+.med-sheet__body {
+  margin-top: 4px;
+}
+
+.med-sheet__detail {
+  padding: 0;
 }
 
 .med-card .exam-alert {

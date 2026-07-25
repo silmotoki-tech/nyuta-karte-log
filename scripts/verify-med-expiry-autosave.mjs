@@ -104,6 +104,21 @@ function notifyMeds(k) {
   (medListeners.get(k) || []).forEach((cb) => cb(drugs.map(x => structuredClone(x))));
 }
 
+export const MEDICATION_ITEM_CATEGORIES = [
+  { id: "oral", label: "内服" },
+  { id: "topical", label: "外用" },
+  { id: "eye", label: "点眼" },
+];
+export function normalizeMedicationItemCategory(c) {
+  return ["oral","topical","eye"].includes(c) ? c : "oral";
+}
+export function normalizeMedicationItemKind(k) {
+  return k === "group" ? "group" : "leaf";
+}
+export function medicationItemCategoryLabel(c) {
+  return ({ oral:"内服", topical:"外用", eye:"点眼" })[normalizeMedicationItemCategory(c)] || c;
+}
+
 export function subscribeMedicationItems(cb) {
   itemListeners.push(cb);
   notifyItems();
@@ -116,9 +131,15 @@ export function subscribeMedications(karte, cb) {
   notifyMeds(karte);
   return () => medListeners.set(karte, (medListeners.get(karte)||[]).filter(x => x !== cb));
 }
-export async function addMedicationItem({ label }) {
+export async function addMedicationItem({ label, category, kind, parentId }) {
   const id = nid("mitem");
-  store.medicationItems[id] = { label: label || "", order: Date.now() };
+  store.medicationItems[id] = {
+    label: label || "",
+    category: category || "oral",
+    kind: kind || "leaf",
+    parentId: parentId || "",
+    order: Date.now(),
+  };
   notifyItems();
   return id;
 }
@@ -178,6 +199,17 @@ const harness = `<!DOCTYPE html>
   </div>
 </aside>
 <p id="toast" hidden style="position:fixed;bottom:12px;left:12px;right:12px;background:#333;color:#fff;padding:8px;z-index:99"></p>
+
+<div class="modal" id="med-detail-sheet" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel">
+    <button class="modal__close" id="btn-close-med-detail-sheet" type="button">&times;</button>
+    <p id="med-detail-sheet-name"></p>
+    <p id="med-detail-sheet-status"></p>
+    <div id="med-detail-sheet-body" class="med-sheet__body"></div>
+    <button id="btn-med-detail-sheet-close" type="button">閉じる</button>
+  </div>
+</div>
 
 <div class="modal" id="med-add-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
@@ -319,21 +351,22 @@ await page.waitForFunction(() => window.__ready === true);
 await page.waitForTimeout(200);
 
 await page.locator(".med-card__header").first().click();
-await page.waitForSelector(".med-expiry-row");
+await page.waitForSelector("#med-detail-sheet:not([hidden])");
+await page.waitForSelector("#med-detail-sheet-body .med-expiry-row");
 
-const detailText = await page.locator(".med-card.is-expanded").innerText();
+const detailText = await page.locator("#med-detail-sheet-body .med-sheet__detail").innerText();
 if (detailText.includes("期限を保存")) throw new Error("save button still present");
 if (detailText.includes("1ヶ月後") || detailText.includes("3ヶ月後")) {
   throw new Error("quick buttons still present");
 }
-if ((await page.locator(".med-expiry-row .med-expiry-clear").count()) !== 1) {
+if ((await page.locator("#med-detail-sheet-body .med-expiry-row .med-expiry-clear").count()) !== 1) {
   throw new Error("clear button should be beside date input");
 }
 await page.screenshot({ path: path.join(root, "tools/med-expiry-ui.png") });
 
 // change イベント＝カレンダーで ✅ 確定したときと同じ
-await page.locator(".med-expiry-row input[type='date']").fill(nearDate);
-await page.locator(".med-expiry-row input[type='date']").dispatchEvent("change");
+await page.locator("#med-detail-sheet-body .med-expiry-row input[type='date']").fill(nearDate);
+await page.locator("#med-detail-sheet-body .med-expiry-row input[type='date']").dispatchEvent("change");
 await page.waitForFunction(
   () => (document.getElementById("toast")?.textContent || "").includes("保存")
 );
@@ -344,13 +377,19 @@ if (!listNear.includes("あと3日")) throw new Error(`approaching label missing
 if (!(await page.locator(".med-card.is-alert").count())) {
   throw new Error("is-alert missing");
 }
-const noteNear = await page.locator(".med-expiry-note--near").innerText();
+const noteNear = await page
+  .locator("#med-detail-sheet-body .med-expiry-note--near")
+  .innerText();
 console.log("NOTE NEAR", noteNear);
 if (!noteNear.includes("あと3日")) throw new Error("detail note missing countdown");
 await page.screenshot({ path: path.join(root, "tools/med-expiry-near.png") });
 
-await page.locator(".med-expiry-row input[type='date']").fill(overdueDate);
-await page.locator(".med-expiry-row input[type='date']").dispatchEvent("change");
+await page
+  .locator("#med-detail-sheet-body .med-expiry-row input[type='date']")
+  .fill(overdueDate);
+await page
+  .locator("#med-detail-sheet-body .med-expiry-row input[type='date']")
+  .dispatchEvent("change");
 await page.waitForTimeout(250);
 const listOver = await page.locator("#meds-list").innerText();
 console.log("LIST OVER", listOver);
@@ -360,7 +399,7 @@ if (!(await page.locator(".med-card.is-overdue").count())) {
 }
 await page.screenshot({ path: path.join(root, "tools/med-expiry-overdue.png") });
 
-await page.locator(".med-expiry-clear").click();
+await page.locator("#med-detail-sheet-body .med-expiry-clear").click();
 await page.waitForTimeout(250);
 const listClear = await page.locator("#meds-list").innerText();
 if (listClear.includes("期限超過") || /あと\d+日/.test(listClear)) {
