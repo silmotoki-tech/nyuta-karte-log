@@ -36,9 +36,9 @@ const EVENT_TYPES = [
   { id: "add", label: "継続" },
   { id: "increase", label: "増量" },
   { id: "decrease", label: "減量" },
-  { id: "hold", label: "休薬中" },
   { id: "stop", label: "中止" },
   { id: "resume", label: "再開" },
+  { id: "hold", label: "休薬中" },
 ];
 
 const AMOUNT_PRESETS = [
@@ -701,18 +701,41 @@ function createDrugDetail(drug) {
   }
   detail.appendChild(expBlock);
 
+  // 出来事の種類（詳細シート上で明示的に選ぶ）
+  const eventQuick = document.createElement("div");
+  eventQuick.className = "field med-event-quick";
+  const eventQuickLabel = document.createElement("span");
+  eventQuickLabel.className = "label";
+  eventQuickLabel.textContent = "出来事を記録";
+  const eventQuickNote = document.createElement("p");
+  eventQuickNote.className = "field__note";
+  eventQuickNote.textContent =
+    "種類を選ぶと、日付・頻度などの入力画面が開きます。";
+  const eventQuickBtns = document.createElement("div");
+  eventQuickBtns.className = "exam-item-buttons med-event-quick__buttons";
+  eventQuickBtns.setAttribute("role", "group");
+  eventQuickBtns.setAttribute("aria-label", "出来事の種類");
+  EVENT_TYPES.forEach((t) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "exam-item-btn med-event-quick__btn";
+    btn.dataset.type = t.id;
+    btn.textContent = t.label;
+    btn.addEventListener("click", () => {
+      openEventModal(drug.id, null, { type: t.id });
+    });
+    eventQuickBtns.appendChild(btn);
+  });
+  eventQuick.append(eventQuickLabel, eventQuickBtns, eventQuickNote);
+  detail.appendChild(eventQuick);
+
   // 出来事履歴
   const histHead = document.createElement("div");
   histHead.className = "exam-section__head";
   const histTitle = document.createElement("h4");
   histTitle.className = "exam-section__title";
   histTitle.textContent = "出来事の履歴";
-  const addEventBtn = document.createElement("button");
-  addEventBtn.type = "button";
-  addEventBtn.className = "btn btn--small btn--primary";
-  addEventBtn.textContent = "出来事を追加";
-  addEventBtn.addEventListener("click", () => openEventModal(drug.id));
-  histHead.append(histTitle, addEventBtn);
+  histHead.appendChild(histTitle);
   detail.appendChild(histHead);
 
   const events = sortEvents(drug.events);
@@ -1218,7 +1241,14 @@ function applyEventChangeOptionsVisibility() {
     eventAmountBlock.hidden = true;
     state.eventDraft.changeFrequency = false;
     state.eventDraft.changeAmount = false;
+    return;
   }
+
+  // 増量・減量は頻度リニア選択をすぐ表示
+  eventFreqCheck.checked = true;
+  eventFreqBlock.hidden = false;
+  state.eventDraft.changeFrequency = true;
+  eventFreqPicker?.render();
 }
 
 function renderEventTypeSelection() {
@@ -1250,9 +1280,13 @@ function renderAmountPresets() {
   });
 }
 
-function openEventModal(drugId, eventToEdit = null) {
+function openEventModal(drugId, eventToEdit = null, options = {}) {
   const drug = state.drugs.find((d) => d.id === drugId);
   const isEdit = Boolean(eventToEdit);
+  const preferredType =
+    options?.type && EVENT_TYPES.some((t) => t.id === options.type)
+      ? options.type
+      : null;
 
   if (isEdit) {
     const hasFreq = Boolean(eventFrequencyText(eventToEdit) || eventToEdit.frequencyChange);
@@ -1297,25 +1331,28 @@ function openEventModal(drugId, eventToEdit = null) {
       eventFreqEls.otherInput.value = state.eventDraft.freq.other || "";
     }
   } else {
+    const type = preferredType || "add";
+    const needsFreq = type === "increase" || type === "decrease";
     state.eventDraft = {
       mode: "create",
       drugId,
       eventId: null,
-      type: "add",
+      type,
       date: todayStr(),
-      changeFrequency: false,
+      changeFrequency: needsFreq,
       changeAmount: false,
       freq: createEmptyFreqDraft(null),
       amountPreset: "",
       amountOther: "",
       detail: "",
     };
-    eventModalTitle.textContent = `出来事を追加 — ${drug?.name || ""}`;
+    const typeLabel = eventTypeLabel(type);
+    eventModalTitle.textContent = `${typeLabel}を記録 — ${drug?.name || ""}`;
     eventDate.value = todayStr();
     eventDetail.value = "";
-    eventFreqCheck.checked = false;
+    eventFreqCheck.checked = needsFreq;
     eventAmountCheck.checked = false;
-    eventFreqBlock.hidden = true;
+    eventFreqBlock.hidden = !needsFreq;
     eventAmountBlock.hidden = true;
     eventAmountOtherCheck.checked = false;
     eventAmountOtherInput.hidden = true;
@@ -1327,6 +1364,16 @@ function openEventModal(drugId, eventToEdit = null) {
   renderEventTypeSelection();
   renderAmountPresets();
   applyEventChangeOptionsVisibility();
+  // 増量・減量は頻度入力をすぐ使えるようにする
+  if (
+    state.eventDraft.mode === "create" &&
+    (state.eventDraft.type === "increase" || state.eventDraft.type === "decrease")
+  ) {
+    eventChangeOptions.hidden = false;
+    eventFreqCheck.checked = true;
+    eventFreqBlock.hidden = false;
+    state.eventDraft.changeFrequency = true;
+  }
   eventFreqPicker?.render();
   eventModal.hidden = false;
 }

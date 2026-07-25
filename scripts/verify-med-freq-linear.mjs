@@ -411,12 +411,13 @@ if (got !== "食後のみ") throw new Error(`other save failed: ${got}`);
 
 // --- 増量時の頻度（イベントモーダル）もリニアであること ---
 await openDrugDetail(page, "頻度よくある");
-await page.locator("#med-detail-sheet-body button", { hasText: "出来事を追加" }).click();
+await page.locator("#med-detail-sheet-body .med-event-quick__btn", { hasText: "増量" }).click();
 await page.waitForSelector("#med-event-modal:not([hidden])");
-await page.locator("#med-event-type-buttons .exam-item-btn", { hasText: "増量" }).click();
 await page.waitForTimeout(80);
-await page.check("#med-event-freq-check");
-await page.waitForTimeout(80);
+// 増量は回数変更＋頻度リニアが自動表示される
+if (await page.locator("#med-event-freq-block").isHidden()) {
+  throw new Error("freq block should open for increase");
+}
 const eventModes = await page
   .locator("#med-event-freq-modes .med-linear-picker__item-label")
   .allTextContents();

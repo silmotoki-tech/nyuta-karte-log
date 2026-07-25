@@ -2131,6 +2131,22 @@ html.is-unlocked .app {
   flex-wrap: wrap;
 }
 
+.med-event-quick {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-cream);
+}
+
+.med-event-quick__buttons {
+  margin-top: 6px;
+}
+
+.med-event-quick__btn {
+  min-width: 4.5em;
+}
+
 .med-category-buttons {
   display: flex;
   flex-wrap: wrap;

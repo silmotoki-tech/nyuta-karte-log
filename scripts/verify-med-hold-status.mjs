@@ -364,13 +364,20 @@ async function openDetailSheet() {
 
 async function addEvent(typeLabel) {
   await openDetailSheet();
-  await page
-    .locator("#med-detail-sheet-body button", { hasText: "出来事を追加" })
-    .click();
+  const quick = page.locator("#med-detail-sheet-body .med-event-quick__btn", {
+    hasText: typeLabel,
+  });
+  if ((await quick.count()) === 0) {
+    throw new Error(`quick event button missing: ${typeLabel}`);
+  }
+  await quick.click();
   await page.waitForSelector("#med-event-modal:not([hidden])");
-  const types = await page.locator("#med-event-type-buttons .exam-item-btn").allTextContents();
-  if (!types.includes("休薬中")) throw new Error(`休薬中 button missing: ${types}`);
-  await page.locator("#med-event-type-buttons .exam-item-btn", { hasText: typeLabel }).click();
+  const selected = await page
+    .locator("#med-event-type-buttons .exam-item-btn.is-selected")
+    .textContent();
+  if (selected?.trim() !== typeLabel) {
+    throw new Error(`event type not preselected: ${selected}`);
+  }
   await page.click("#btn-med-event-save");
   await page.waitForTimeout(150);
   await page.waitForSelector("#med-event-modal[hidden]", { timeout: 5000 }).catch(() => {});

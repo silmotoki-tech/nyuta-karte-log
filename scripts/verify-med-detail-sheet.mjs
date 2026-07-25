@@ -360,6 +360,18 @@ if (!(await sheetBody.locator("text=副作用・問題メモ").count())) {
 if (!(await sheetBody.locator("text=効果／処方の目安期限").count())) {
   throw new Error("expiry section missing");
 }
+if (!(await sheetBody.locator("text=出来事を記録").count())) {
+  throw new Error("event quick section missing");
+}
+const quickLabels = await sheetBody
+  .locator(".med-event-quick__btn")
+  .allTextContents();
+if (
+  JSON.stringify(quickLabels) !==
+  JSON.stringify(["継続", "増量", "減量", "中止", "再開", "休薬中"])
+) {
+  throw new Error("event quick buttons mismatch: " + quickLabels.join(","));
+}
 if (!(await sheetBody.locator("text=出来事の履歴").count())) {
   throw new Error("history section missing");
 }
