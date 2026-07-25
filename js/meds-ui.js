@@ -302,15 +302,9 @@ function renderMedsList() {
   const drugs = sortedDrugs(state.drugs);
   medsEmpty.hidden = drugs.length > 0;
 
-  let lastCategory = null;
+  // 並びは A→B→C のまま。カテゴリ見出し帯は出さずフラットに並べる
+  // （各行右の A/B/C バッジで十分）
   drugs.forEach((drug) => {
-    if (drug.category !== lastCategory) {
-      lastCategory = drug.category;
-      const heading = document.createElement("li");
-      heading.className = "meds-category-heading";
-      heading.textContent = `カテゴリ ${drug.category}`;
-      medsList.appendChild(heading);
-    }
     medsList.appendChild(createDrugCard(drug));
   });
 }
