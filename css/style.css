@@ -1968,14 +1968,14 @@ html.is-unlocked .app {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 2px;
+  gap: 8px;
+  padding: 12px 4px;
   border: none;
   background: none;
   cursor: pointer;
   font-family: inherit;
   text-align: left;
-  min-height: 28px;
+  min-height: 48px;
 }
 
 .med-card__header:hover {
@@ -1984,14 +1984,14 @@ html.is-unlocked .app {
 
 .med-card__signs {
   display: inline-flex;
-  width: 12px;
+  width: 14px;
   flex-shrink: 0;
   justify-content: center;
 }
 
 .med-sign--recent {
   color: #3b82f6;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   line-height: 1;
 }
 
@@ -2001,7 +2001,8 @@ html.is-unlocked .app {
   display: flex;
   align-items: center;
   font-weight: 700;
-  font-size: 0.84rem;
+  font-size: 1rem;
+  line-height: 1.3;
   color: var(--color-text);
   overflow: hidden;
   /* iPad Safari のスペル波線回避のため、表示は canvas（テキストノードなし） */
@@ -2021,7 +2022,7 @@ html.is-unlocked .app {
 
 .med-card__chevron {
   color: var(--color-text-muted);
-  font-size: 0.75rem;
+  font-size: 0.9rem;
   flex-shrink: 0;
 }
 
@@ -2030,8 +2031,9 @@ html.is-unlocked .app {
   align-items: center;
   border-radius: 0;
   padding: 0;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
   flex-shrink: 0;
   background: none;
 }
@@ -2058,8 +2060,9 @@ html.is-unlocked .app {
 
 .med-inline-status {
   flex-shrink: 0;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 800;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   text-decoration: none;
   text-decoration-line: none;
@@ -2077,10 +2080,10 @@ html.is-unlocked .app {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  font-size: 0.65rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 0.78rem;
   font-weight: 800;
   flex-shrink: 0;
 }
