@@ -55,20 +55,28 @@ const harness = `<!DOCTYPE html>
     <div class="modal__body">
       <div class="field">
         <span class="label">薬剤名</span>
-        <div class="exam-item-category-tabs" id="med-add-item-categories" role="tablist"></div>
-        <div class="exam-item-blood-nav" id="med-add-item-nav" hidden>
-          <button type="button" class="exam-item-blood-nav__back" id="btn-med-add-item-back">← 戻る</button>
-          <span class="exam-item-blood-nav__label" id="med-add-item-nav-label"></span>
-        </div>
-        <div class="exam-item-buttons" id="med-add-item-buttons"></div>
-        <p class="field__note" id="med-add-items-empty" hidden></p>
-        <div class="exam-item-add" id="med-add-item-add">
-          <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">新しい薬剤を追加</label>
-          <div class="exam-item-add__row">
-            <input id="med-add-new-item" class="input" type="text" />
-            <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">追加</button>
+        <div class="med-linear-picker" id="med-add-linear-picker">
+          <div class="med-linear-picker__col" id="med-add-col-category">
+            <div class="med-linear-picker__head">大項目</div>
+            <div class="med-linear-picker__list" id="med-add-col-category-list"></div>
           </div>
-          <p id="med-add-item-error" class="error-text" hidden></p>
+          <div class="med-linear-picker__col" id="med-add-col-group" hidden>
+            <div class="med-linear-picker__head">中項目</div>
+            <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
+          </div>
+          <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-add-col-leaf" hidden>
+            <div class="med-linear-picker__head">薬剤名</div>
+            <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
+            <p class="field__note" id="med-add-items-empty" hidden></p>
+            <div class="exam-item-add" id="med-add-item-add">
+              <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">新しい薬剤を追加</label>
+              <div class="exam-item-add__row">
+                <input id="med-add-new-item" class="input" type="text" />
+                <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">追加</button>
+              </div>
+              <p id="med-add-item-error" class="error-text" hidden></p>
+            </div>
+          </div>
         </div>
       </div>
       <div class="field">
@@ -195,50 +203,54 @@ await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.waitForTimeout(300);
 
-const tabs = await page
-  .locator("#med-add-item-categories .exam-item-category-tab")
+const categoryLabels = await page
+  .locator("#med-add-col-category-list .med-linear-picker__item-label")
   .allTextContents();
-console.log("tabs:", tabs);
-if (JSON.stringify(tabs) !== JSON.stringify(["内服", "外用", "点眼"])) {
-  throw new Error("category tabs mismatch");
+console.log("categories:", categoryLabels);
+if (JSON.stringify(categoryLabels) !== JSON.stringify(["内服", "外用", "点眼"])) {
+  throw new Error("category list mismatch");
 }
 
-// 内服ルート: 中項目のみ、追加欄は非表示
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
+  hasText: "内服",
+}).click();
+await page.waitForTimeout(100);
+
+// 内服: 中項目列、葉列はまだ非表示
 let buttons = await page
-  .locator("#med-add-item-buttons .exam-item-btn")
+  .locator("#med-add-col-group-list .med-linear-picker__item-label")
   .allTextContents();
-console.log("oral root groups sample:", buttons.slice(0, 5), "...", buttons.length);
+console.log("oral mid groups sample:", buttons.slice(0, 5), "...", buttons.length);
 if (!buttons.includes("抗生剤") || !buttons.includes("その他")) {
   throw new Error("oral mid groups missing");
 }
 if (buttons.includes("アモキシシリン")) {
-  throw new Error("legacy leaf should not show at oral root");
+  throw new Error("legacy leaf should not show in mid column");
 }
-const addHiddenAtRoot = await page.locator("#med-add-item-add").isHidden();
-if (!addHiddenAtRoot) throw new Error("add field should be hidden at oral root");
+if (!(await page.locator("#med-add-col-leaf").isHidden())) {
+  throw new Error("leaf col should be hidden until mid selected");
+}
 
-// その他へドリル → 既存3件
-await page.locator("#med-add-item-buttons .exam-item-btn", {
+// その他 → 既存3件
+await page.locator("#med-add-col-group-list .med-linear-picker__item", {
   hasText: "その他",
 }).click();
 await page.waitForTimeout(150);
 buttons = await page
-  .locator("#med-add-item-buttons .exam-item-btn")
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("oral/その他 leaves:", buttons);
 for (const name of ["アモキシシリン", "アラバ", "パラディア"]) {
   if (!buttons.includes(name)) throw new Error(`migrated leaf missing: ${name}`);
 }
-const navVisible = await page.locator("#med-add-item-nav").isVisible();
-if (!navVisible) throw new Error("back nav should show in mid group");
 const addVisible = await page.locator("#med-add-item-add").isVisible();
-if (!addVisible) throw new Error("add field should show in mid group");
+if (!addVisible) throw new Error("add field should show in leaf col");
 
-await page.locator("#med-add-item-buttons .exam-item-btn", {
+await page.locator("#med-add-col-leaf-list .med-linear-picker__item", {
   hasText: "アモキシシリン",
 }).click();
 const selected = await page
-  .locator("#med-add-item-buttons .exam-item-btn.is-selected")
+  .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
   .textContent();
 if (selected !== "アモキシシリン") throw new Error("leaf not selected");
 
@@ -267,47 +279,47 @@ if (!cardHtml.includes("med-cat--A")) {
 // 外用: 中項目
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
-await page.locator("#med-add-item-categories .exam-item-category-tab", {
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
   hasText: "外用",
 }).click();
 await page.waitForTimeout(100);
 buttons = await page
-  .locator("#med-add-item-buttons .exam-item-btn")
+  .locator("#med-add-col-group-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("topical groups:", buttons);
 if (JSON.stringify(buttons) !== JSON.stringify(["皮膚", "消毒", "耳"])) {
   throw new Error("topical groups mismatch");
 }
-await page.locator("#med-add-item-buttons .exam-item-btn", { hasText: "皮膚" }).click();
+await page.locator("#med-add-col-group-list .med-linear-picker__item", { hasText: "皮膚" }).click();
 await page.fill("#med-add-new-item", "イソジンゲル");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(150);
 buttons = await page
-  .locator("#med-add-item-buttons .exam-item-btn")
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 if (!buttons.includes("イソジンゲル")) throw new Error("topical add failed");
 
 // 点眼: 中項目なし・直下に追加
-await page.locator("#med-add-item-categories .exam-item-category-tab", {
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
   hasText: "点眼",
 }).click();
 await page.waitForTimeout(100);
-const eyeNavHidden = await page.locator("#med-add-item-nav").isHidden();
-if (!eyeNavHidden) throw new Error("eye should not show mid nav");
+const eyeMidHidden = await page.locator("#med-add-col-group").isHidden();
+if (!eyeMidHidden) throw new Error("eye should not show mid column");
 const eyeAddVisible = await page.locator("#med-add-item-add").isVisible();
-if (!eyeAddVisible) throw new Error("eye should show add field at root");
+if (!eyeAddVisible) throw new Error("eye should show add field in leaf col");
 buttons = await page
-  .locator("#med-add-item-buttons .exam-item-btn")
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
-console.log("eye root:", buttons);
+console.log("eye leaves:", buttons);
 if (buttons.some((b) => ["皮膚", "消毒", "耳", "抗生剤"].includes(b))) {
-  throw new Error("eye root should not show other category groups");
+  throw new Error("eye leaf should not show other category groups");
 }
 await page.fill("#med-add-new-item", "ヒアレイン");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(150);
 buttons = await page
-  .locator("#med-add-item-buttons .exam-item-btn")
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 if (!buttons.includes("ヒアレイン")) throw new Error("eye add failed");
 await page.locator("#med-add-category-buttons .med-cat-btn", {

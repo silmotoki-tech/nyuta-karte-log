@@ -81,8 +81,8 @@ const state = {
     category: "B",
     freq: createEmptyFreqDraft("preset"),
   },
-  /** 薬剤マスタピッカー: 大分類 oral|topical|eye、中項目 parentId（ルートは null） */
-  medItemCategory: "oral",
+  /** 薬剤マスタ・リニアピッカー: 大分類 oral|topical|eye|null、中項目 parentId（未選択は null） */
+  medItemCategory: null,
   medItemParentId: null,
 };
 
@@ -103,11 +103,11 @@ const btnCloseDetailSheet = document.getElementById("btn-close-med-detail-sheet"
 const btnDetailSheetClose = document.getElementById("btn-med-detail-sheet-close");
 
 const addModal = document.getElementById("med-add-modal");
-const addItemCategories = document.getElementById("med-add-item-categories");
-const addItemNav = document.getElementById("med-add-item-nav");
-const addItemNavLabel = document.getElementById("med-add-item-nav-label");
-const btnAddItemBack = document.getElementById("btn-med-add-item-back");
-const addItemButtons = document.getElementById("med-add-item-buttons");
+const addColCategoryList = document.getElementById("med-add-col-category-list");
+const addColGroup = document.getElementById("med-add-col-group");
+const addColGroupList = document.getElementById("med-add-col-group-list");
+const addColLeaf = document.getElementById("med-add-col-leaf");
+const addColLeafList = document.getElementById("med-add-col-leaf-list");
 const addItemsEmpty = document.getElementById("med-add-items-empty");
 const addItemAdd = document.getElementById("med-add-item-add");
 const addNewItemLabel = document.getElementById("med-add-new-item-label");
@@ -286,13 +286,12 @@ export function initMedsUI(helpers = {}) {
   buildAmountPresets();
   buildAddCategoryButtons();
   initFrequencyPickers();
-  renderMedItemCategoryTabs();
+  renderMedLinearPicker();
 
   state.unsubscribeItems = subscribeMedicationItems((items) => {
     state.medicationItems = items;
     if (addModal && !addModal.hidden) {
-      renderMedItemCategoryTabs();
-      renderAddItemButtons();
+      renderMedLinearPicker();
     }
   });
 }
@@ -820,27 +819,67 @@ function isMedGroup(item) {
   return normalizeMedicationItemKind(item?.kind) === "group";
 }
 
-function categorySupportsMedDrilldown(category) {
-  const cat = normalizeMedicationItemCategory(category);
-  return cat === "oral" || cat === "topical";
+function categorySupportsMedMidGroups(category) {
+  return category === "oral" || category === "topical";
 }
 
-function itemsInActiveMedCategory() {
-  const cat = normalizeMedicationItemCategory(state.medItemCategory);
+function activeMedCategoryId() {
+  const raw = state.medItemCategory;
+  if (raw == null || raw === "") return null;
+  return normalizeMedicationItemCategory(raw);
+}
+
+function itemsInMedCategory(category) {
+  const cat = normalizeMedicationItemCategory(category);
   return state.medicationItems.filter(
     (item) => normalizeMedicationItemCategory(item.category) === cat
   );
 }
 
-function visibleMedicationItemsForPicker() {
-  const items = itemsInActiveMedCategory();
-  const cat = normalizeMedicationItemCategory(state.medItemCategory);
-  // 点眼は中項目なし（フラット）。内服・外用は中項目→薬剤名のドリルダウン
-  if (!categorySupportsMedDrilldown(cat)) {
+function medGroupsForCategory(category) {
+  return itemsInMedCategory(category).filter((item) => isMedGroup(item));
+}
+
+function medLeavesForPicker() {
+  const cat = activeMedCategoryId();
+  if (!cat) return [];
+  const items = itemsInMedCategory(cat);
+  if (!categorySupportsMedMidGroups(cat)) {
     return items.filter((item) => !isMedGroup(item));
   }
-  const parentId = state.medItemParentId || "";
-  return items.filter((item) => (item.parentId || "") === parentId);
+  if (!state.medItemParentId) return [];
+  return items.filter(
+    (item) => !isMedGroup(item) && (item.parentId || "") === state.medItemParentId
+  );
+}
+
+function canAddMedicationLeaf() {
+  const cat = activeMedCategoryId();
+  if (!cat) return false;
+  if (!categorySupportsMedMidGroups(cat)) return true;
+  return Boolean(state.medItemParentId);
+}
+
+function createMedLinearItemButton({ label, selected, onClick }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "med-linear-picker__item";
+  btn.setAttribute("role", "option");
+  btn.setAttribute("aria-selected", String(Boolean(selected)));
+  btn.classList.toggle("is-selected", Boolean(selected));
+
+  const text = document.createElement("span");
+  text.className = "med-linear-picker__item-label";
+  text.textContent = label;
+
+  const check = document.createElement("span");
+  check.className = "med-linear-picker__check";
+  check.setAttribute("aria-hidden", "true");
+  check.textContent = "✓";
+
+  btn.append(text, check);
+  btn.addEventListener("click", onClick);
+  return btn;
 }
 
 function wireAddModal() {
@@ -849,10 +888,6 @@ function wireAddModal() {
   addModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeAddModal);
   btnAddSave?.addEventListener("click", handleAddSave);
   btnAddNewItem?.addEventListener("click", handleAddMedicationItemFromModal);
-  btnAddItemBack?.addEventListener("click", () => {
-    state.medItemParentId = null;
-    renderAddItemButtons();
-  });
   addNewItemInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !isImeKey(e)) {
       e.preventDefault();
@@ -888,55 +923,20 @@ function renderAddCategorySelection() {
   });
 }
 
-function renderMedItemCategoryTabs() {
-  if (!addItemCategories) return;
-  addItemCategories.innerHTML = "";
-  MEDICATION_ITEM_CATEGORIES.forEach((cat) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "exam-item-category-tab";
-    btn.setAttribute("role", "tab");
-    btn.dataset.category = cat.id;
-    btn.textContent = cat.label;
-    btn.setAttribute(
-      "aria-selected",
-      String(state.medItemCategory === cat.id)
-    );
-    btn.classList.toggle("is-active", state.medItemCategory === cat.id);
-    btn.addEventListener("click", () => {
-      state.medItemCategory = cat.id;
-      state.medItemParentId = null;
-      renderMedItemCategoryTabs();
-      renderAddItemButtons();
-    });
-    addItemCategories.appendChild(btn);
-  });
-}
+function updateMedLeafAddUI() {
+  const category = activeMedCategoryId();
+  const showLeaf = canAddMedicationLeaf();
+  const parent = state.medItemParentId
+    ? state.medicationItems.find((item) => item.id === state.medItemParentId)
+    : null;
+  const label = category ? medicationItemCategoryLabel(category) : "";
 
-function updateMedItemAddUI() {
-  const category = normalizeMedicationItemCategory(state.medItemCategory);
-  const supportsDrill = categorySupportsMedDrilldown(category);
-  const inDrillRoot = supportsDrill && !state.medItemParentId;
-  const inDrillGroup = supportsDrill && Boolean(state.medItemParentId);
-
-  // 内服・外用のルートは中項目選択のみ（薬剤名の追加欄は隠す）
-  if (addItemAdd) addItemAdd.hidden = inDrillRoot;
-
-  if (addItemNav) {
-    addItemNav.hidden = !inDrillGroup;
-  }
-  if (inDrillGroup && addItemNavLabel) {
-    const parent = state.medicationItems.find(
-      (item) => item.id === state.medItemParentId
-    );
-    addItemNavLabel.textContent = parent?.label || "中項目";
-  }
-
-  const label = medicationItemCategoryLabel(category);
   if (addNewItemLabel) {
-    addNewItemLabel.textContent = inDrillGroup
-      ? `新しい薬剤を追加（${addItemNavLabel?.textContent || label}）`
-      : `新しい薬剤を追加（${label}）`;
+    addNewItemLabel.textContent = parent
+      ? `新しい薬剤を追加（${parent.label || label}）`
+      : label
+        ? `新しい薬剤を追加（${label}）`
+        : "新しい薬剤を追加";
   }
   if (addNewItemInput) {
     addNewItemInput.placeholder =
@@ -947,39 +947,82 @@ function updateMedItemAddUI() {
           : "例）アモキシシリン";
   }
   if (addItemsEmpty) {
-    addItemsEmpty.textContent = inDrillRoot
-      ? "この分類にはまだ中項目がありません。"
-      : "この分類にはまだ薬剤がありません。下で追加できます。";
+    addItemsEmpty.textContent =
+      "この分類にはまだ薬剤がありません。下で追加できます。";
   }
+  if (addItemAdd) addItemAdd.hidden = !showLeaf;
 }
 
-function renderAddItemButtons() {
-  if (!addItemButtons) return;
-  addItemButtons.innerHTML = "";
-  const items = visibleMedicationItemsForPicker();
-  if (addItemsEmpty) addItemsEmpty.hidden = items.length > 0;
-  updateMedItemAddUI();
+function renderMedLinearPicker() {
+  const category = activeMedCategoryId();
+  const showMid = Boolean(category && categorySupportsMedMidGroups(category));
+  const showLeaf = Boolean(
+    category && (!categorySupportsMedMidGroups(category) || state.medItemParentId)
+  );
 
-  items.forEach((item) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "exam-item-btn";
-    btn.textContent = item.label;
-    if (isMedGroup(item)) {
-      btn.classList.add("exam-item-btn--group");
-      btn.addEventListener("click", () => {
-        state.medItemParentId = item.id;
-        renderAddItemButtons();
-      });
-    } else {
-      btn.classList.toggle("is-selected", state.addDraft.name === item.label);
-      btn.addEventListener("click", () => {
-        state.addDraft.name = item.label;
-        renderAddItemButtons();
+  if (addColGroup) addColGroup.hidden = !showMid;
+  if (addColLeaf) addColLeaf.hidden = !showLeaf;
+
+  if (addColCategoryList) {
+    addColCategoryList.innerHTML = "";
+    MEDICATION_ITEM_CATEGORIES.forEach((cat) => {
+      addColCategoryList.appendChild(
+        createMedLinearItemButton({
+          label: cat.label,
+          selected: category === cat.id,
+          onClick: () => {
+            const changed = state.medItemCategory !== cat.id;
+            state.medItemCategory = cat.id;
+            if (changed) {
+              state.medItemParentId = null;
+              state.addDraft.name = "";
+            }
+            renderMedLinearPicker();
+          },
+        })
+      );
+    });
+  }
+
+  if (addColGroupList) {
+    addColGroupList.innerHTML = "";
+    if (showMid) {
+      medGroupsForCategory(category).forEach((group) => {
+        addColGroupList.appendChild(
+          createMedLinearItemButton({
+            label: group.label,
+            selected: state.medItemParentId === group.id,
+            onClick: () => {
+              const changed = state.medItemParentId !== group.id;
+              state.medItemParentId = group.id;
+              if (changed) state.addDraft.name = "";
+              renderMedLinearPicker();
+            },
+          })
+        );
       });
     }
-    addItemButtons.appendChild(btn);
-  });
+  }
+
+  if (addColLeafList) {
+    addColLeafList.innerHTML = "";
+    const leaves = showLeaf ? medLeavesForPicker() : [];
+    if (addItemsEmpty) addItemsEmpty.hidden = !showLeaf || leaves.length > 0;
+    leaves.forEach((item) => {
+      addColLeafList.appendChild(
+        createMedLinearItemButton({
+          label: item.label,
+          selected: state.addDraft.name === item.label,
+          onClick: () => {
+            state.addDraft.name = item.label;
+            renderMedLinearPicker();
+          },
+        })
+      );
+    });
+  }
+
+  updateMedLeafAddUI();
 }
 
 /**
@@ -987,8 +1030,8 @@ function renderAddItemButtons() {
  * 内服・外用は中項目内、点眼は大分類直下に追加する。
  */
 async function handleAddMedicationItemFromModal() {
-  const category = normalizeMedicationItemCategory(state.medItemCategory);
-  if (categorySupportsMedDrilldown(category) && !state.medItemParentId) return;
+  const category = activeMedCategoryId();
+  if (!category || !canAddMedicationLeaf()) return;
 
   const label = addNewItemInput?.value.trim() || "";
   if (!label) {
@@ -997,7 +1040,7 @@ async function handleAddMedicationItemFromModal() {
   }
 
   const parentId =
-    categorySupportsMedDrilldown(category) && state.medItemParentId
+    categorySupportsMedMidGroups(category) && state.medItemParentId
       ? state.medItemParentId
       : "";
 
@@ -1013,8 +1056,7 @@ async function handleAddMedicationItemFromModal() {
     state.addDraft.name = label;
     if (addNewItemInput) addNewItemInput.value = "";
     deps.showError(addItemError, "");
-    renderMedItemCategoryTabs();
-    renderAddItemButtons();
+    renderMedLinearPicker();
     deps.showToast("既存の薬剤を選択しました。");
     return;
   }
@@ -1030,7 +1072,7 @@ async function handleAddMedicationItemFromModal() {
     });
     state.addDraft.name = label;
     if (addNewItemInput) addNewItemInput.value = "";
-    renderAddItemButtons();
+    renderMedLinearPicker();
     deps.showToast(
       `「${label}」を${medicationItemCategoryLabel(category)}に追加しました。`
     );
@@ -1048,14 +1090,13 @@ function openAddModal() {
     category: "B",
     freq: createEmptyFreqDraft("preset"),
   };
-  state.medItemCategory = "oral";
+  state.medItemCategory = null;
   state.medItemParentId = null;
   if (addNewItemInput) addNewItemInput.value = "";
   deps.showError(addItemError, "");
   if (addFreqEls.otherInput) addFreqEls.otherInput.value = "";
   deps.showError(addError, "");
-  renderMedItemCategoryTabs();
-  renderAddItemButtons();
+  renderMedLinearPicker();
   renderAddCategorySelection();
   addFreqPicker?.render();
   addModal.hidden = false;

@@ -55,20 +55,28 @@ const harness = `<!DOCTYPE html>
     <div class="modal__body">
       <div class="field">
         <span class="label">薬剤名</span>
-        <div class="exam-item-category-tabs" id="med-add-item-categories" role="tablist"></div>
-        <div class="exam-item-blood-nav" id="med-add-item-nav" hidden>
-          <button type="button" class="exam-item-blood-nav__back" id="btn-med-add-item-back">← 戻る</button>
-          <span class="exam-item-blood-nav__label" id="med-add-item-nav-label"></span>
-        </div>
-        <div class="exam-item-buttons" id="med-add-item-buttons"></div>
-        <p class="field__note" id="med-add-items-empty" hidden></p>
-        <div class="exam-item-add" id="med-add-item-add">
-          <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">新しい薬剤を追加</label>
-          <div class="exam-item-add__row">
-            <input id="med-add-new-item" class="input" type="text" />
-            <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">追加</button>
+        <div class="med-linear-picker" id="med-add-linear-picker">
+          <div class="med-linear-picker__col" id="med-add-col-category">
+            <div class="med-linear-picker__head">大項目</div>
+            <div class="med-linear-picker__list" id="med-add-col-category-list"></div>
           </div>
-          <p id="med-add-item-error" class="error-text" hidden></p>
+          <div class="med-linear-picker__col" id="med-add-col-group" hidden>
+            <div class="med-linear-picker__head">中項目</div>
+            <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
+          </div>
+          <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-add-col-leaf" hidden>
+            <div class="med-linear-picker__head">薬剤名</div>
+            <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
+            <p class="field__note" id="med-add-items-empty" hidden></p>
+            <div class="exam-item-add" id="med-add-item-add">
+              <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">新しい薬剤を追加</label>
+              <div class="exam-item-add__row">
+                <input id="med-add-new-item" class="input" type="text" />
+                <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">追加</button>
+              </div>
+              <p id="med-add-item-error" class="error-text" hidden></p>
+            </div>
+          </div>
         </div>
       </div>
       <div class="field">
@@ -190,18 +198,22 @@ await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.waitForTimeout(250);
 
-// 点眼タブで新規追加（中項目なし）→ カルテ横断でマスタ共有を確認
-await page.locator("#med-add-item-categories .exam-item-category-tab", {
+// 点眼で新規追加（中項目なし）→ カルテ横断でマスタ共有を確認
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
   hasText: "点眼",
 }).click();
 await page.waitForTimeout(100);
 await page.fill("#med-add-new-item", "点眼テスト薬");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(200);
-let buttons = await page.locator("#med-add-item-buttons .exam-item-btn").allTextContents();
+let buttons = await page
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .allTextContents();
 console.log("KARTE A after add:", buttons);
 if (!buttons.includes("点眼テスト薬")) throw new Error("master button missing");
-const selected = await page.locator("#med-add-item-buttons .exam-item-btn.is-selected").textContent();
+const selected = await page
+  .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+  .textContent();
 if (selected !== "点眼テスト薬") throw new Error("not selected");
 
 await page.click("#btn-med-add-save");
@@ -221,11 +233,13 @@ await page.evaluate(() => {
 await page.waitForTimeout(150);
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
-await page.locator("#med-add-item-categories .exam-item-category-tab", {
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
   hasText: "点眼",
 }).click();
 await page.waitForTimeout(100);
-buttons = await page.locator("#med-add-item-buttons .exam-item-btn").allTextContents();
+buttons = await page
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .allTextContents();
 console.log("KARTE B buttons:", buttons);
 if (!buttons.includes("点眼テスト薬")) throw new Error("master not shared to karte B");
 

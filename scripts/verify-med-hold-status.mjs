@@ -170,18 +170,23 @@ const harness = `<!DOCTYPE html>
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel">
     <button class="modal__close" id="btn-close-med-add" type="button">&times;</button>
-    <div class="exam-item-category-tabs" id="med-add-item-categories"></div>
-    <div class="exam-item-blood-nav" id="med-add-item-nav" hidden>
-      <button type="button" id="btn-med-add-item-back">← 戻る</button>
-      <span id="med-add-item-nav-label"></span>
-    </div>
-    <div id="med-add-item-buttons" class="exam-item-buttons"></div>
-    <p id="med-add-items-empty" hidden></p>
-    <div id="med-add-item-add">
-      <label id="med-add-new-item-label" for="med-add-new-item">新しい薬剤</label>
-      <input id="med-add-new-item" class="input" type="text" />
-      <button id="btn-med-add-new-item" type="button">追加</button>
-      <p id="med-add-item-error" hidden></p>
+    <div class="med-linear-picker" id="med-add-linear-picker">
+      <div class="med-linear-picker__col" id="med-add-col-category">
+        <div class="med-linear-picker__list" id="med-add-col-category-list"></div>
+      </div>
+      <div class="med-linear-picker__col" id="med-add-col-group" hidden>
+        <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
+      </div>
+      <div class="med-linear-picker__col" id="med-add-col-leaf" hidden>
+        <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
+        <p id="med-add-items-empty" hidden></p>
+        <div id="med-add-item-add">
+          <label id="med-add-new-item-label" for="med-add-new-item">新しい薬剤</label>
+          <input id="med-add-new-item" class="input" type="text" />
+          <button id="btn-med-add-new-item" type="button">追加</button>
+          <p id="med-add-item-error" hidden></p>
+        </div>
+      </div>
     </div>
     <div id="med-add-category-buttons"></div>
     <div id="med-add-freq-modes"></div>
@@ -334,7 +339,7 @@ await page.evaluate(() => window.__enter("karte-hold"));
 // 薬剤追加（点眼＝中項目なしで即追加できる）
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
-await page.locator("#med-add-item-categories .exam-item-category-tab", {
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
   hasText: "点眼",
 }).click();
 await page.waitForTimeout(80);

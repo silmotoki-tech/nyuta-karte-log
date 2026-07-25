@@ -178,20 +178,25 @@ const harness = `<!DOCTYPE html>
     </div>
     <div class="modal__body">
       <div class="field">
-        <div class="exam-item-category-tabs" id="med-add-item-categories"></div>
-        <div class="exam-item-blood-nav" id="med-add-item-nav" hidden>
-          <button type="button" class="exam-item-blood-nav__back" id="btn-med-add-item-back">← 戻る</button>
-          <span class="exam-item-blood-nav__label" id="med-add-item-nav-label"></span>
-        </div>
-        <div class="exam-item-buttons" id="med-add-item-buttons"></div>
-        <p class="field__note" id="med-add-items-empty" hidden></p>
-        <div class="exam-item-add" id="med-add-item-add">
-          <label class="label label--sub" id="med-add-new-item-label" for="med-add-new-item">新しい薬剤</label>
-          <div class="exam-item-add__row">
-            <input id="med-add-new-item" class="input" type="text" />
-            <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">追加</button>
+        <div class="med-linear-picker" id="med-add-linear-picker">
+          <div class="med-linear-picker__col" id="med-add-col-category">
+            <div class="med-linear-picker__list" id="med-add-col-category-list"></div>
           </div>
-          <p id="med-add-item-error" class="error-text" hidden></p>
+          <div class="med-linear-picker__col" id="med-add-col-group" hidden>
+            <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
+          </div>
+          <div class="med-linear-picker__col" id="med-add-col-leaf" hidden>
+            <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
+            <p class="field__note" id="med-add-items-empty" hidden></p>
+            <div class="exam-item-add" id="med-add-item-add">
+              <label class="label label--sub" id="med-add-new-item-label" for="med-add-new-item">新しい薬剤</label>
+              <div class="exam-item-add__row">
+                <input id="med-add-new-item" class="input" type="text" />
+                <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">追加</button>
+              </div>
+              <p id="med-add-item-error" class="error-text" hidden></p>
+            </div>
+          </div>
         </div>
       </div>
       <div class="field">

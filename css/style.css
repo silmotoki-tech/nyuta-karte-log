@@ -2734,6 +2734,131 @@ select.input {
   overflow: hidden;
 }
 
+.modal__panel--med-add {
+  max-width: 760px;
+}
+
+/* 薬剤追加: 大項目→中項目→薬剤名の横並びリニア選択 */
+.med-linear-picker {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 260px;
+  max-height: min(52vh, 420px);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.med-linear-picker__col {
+  flex: 1 1 0;
+  min-width: 132px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-cream);
+  overflow: hidden;
+}
+
+.med-linear-picker__col[hidden] {
+  display: none !important;
+}
+
+.med-linear-picker__col--leaf {
+  flex: 1.35 1 0;
+  min-width: 168px;
+  background-color: var(--color-white);
+}
+
+.med-linear-picker__head {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  background-color: rgba(255, 255, 255, 0.55);
+}
+
+.med-linear-picker__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  gap: 2px;
+}
+
+.med-linear-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  padding: 9px 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.med-linear-picker__item:hover {
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+.med-linear-picker__col--leaf .med-linear-picker__item:hover {
+  background-color: var(--color-cream);
+}
+
+.med-linear-picker__item.is-selected {
+  background-color: var(--color-brown-light);
+  color: var(--color-brown);
+}
+
+.med-linear-picker__item-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.med-linear-picker__check {
+  flex-shrink: 0;
+  width: 1.1em;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-green);
+  opacity: 0;
+}
+
+.med-linear-picker__item.is-selected .med-linear-picker__check {
+  opacity: 1;
+}
+
+.med-linear-picker__empty {
+  margin: 0;
+  padding: 4px 10px 0;
+}
+
+.med-linear-picker__col--leaf .exam-item-add {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-cream);
+}
+
 .modal__header {
   display: flex;
   align-items: center;

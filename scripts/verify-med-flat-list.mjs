@@ -14,6 +14,23 @@ const SYSTEM_CHROME =
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 const mockDb = `
+export const MEDICATION_ITEM_CATEGORIES = [
+  { id: "oral", label: "内服" },
+  { id: "topical", label: "外用" },
+  { id: "eye", label: "点眼" },
+];
+const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
+export function normalizeMedicationItemCategory(category) {
+  const id = String(category || "").trim();
+  return CATEGORY_IDS.has(id) ? id : "oral";
+}
+export function normalizeMedicationItemKind(kind) {
+  return String(kind || "").trim() === "group" ? "group" : "leaf";
+}
+export function medicationItemCategoryLabel(category) {
+  const id = normalizeMedicationItemCategory(category);
+  return MEDICATION_ITEM_CATEGORIES.find((c) => c.id === id)?.label || id;
+}
 const store = { medicationItems: {}, medications: {} };
 const itemListeners = [];
 const medListeners = new Map();
@@ -121,11 +138,21 @@ const harness = `<!DOCTYPE html>
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel">
     <button class="modal__close" id="btn-close-med-add" type="button">&times;</button>
-    <div id="med-add-item-buttons" class="exam-item-buttons"></div>
-    <p id="med-add-items-empty" hidden></p>
-    <input id="med-add-new-item" class="input" type="text" />
-    <button id="btn-med-add-new-item" type="button">追加</button>
-    <p id="med-add-item-error" hidden></p>
+    <div class="med-linear-picker" id="med-add-linear-picker">
+      <div class="med-linear-picker__list" id="med-add-col-category-list"></div>
+      <div id="med-add-col-group" hidden>
+        <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
+      </div>
+      <div id="med-add-col-leaf" hidden>
+        <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
+        <p id="med-add-items-empty" hidden></p>
+        <div id="med-add-item-add">
+          <input id="med-add-new-item" class="input" type="text" />
+          <button id="btn-med-add-new-item" type="button">追加</button>
+          <p id="med-add-item-error" hidden></p>
+        </div>
+      </div>
+    </div>
     <div id="med-add-category-buttons"></div>
     <div id="med-add-freq-modes"></div>
     <div id="med-add-freq-panel-preset"><div id="med-add-freq-presets"></div></div>
@@ -251,16 +278,18 @@ const info = await page.evaluate(() => {
   const headings = [...document.querySelectorAll(".meds-category-heading")].map(
     (el) => el.textContent
   );
-  const names = [...document.querySelectorAll(".med-card__name")].map(
-    (el) => el.textContent
-  );
+  const nameOf = (el) =>
+    el?.getAttribute("aria-label") ||
+    (el?.dataset.name || "").replace(/\u200B/g, "") ||
+    (el?.textContent || "").replace(/\u200B/g, "");
+  const names = [...document.querySelectorAll(".med-card__name")].map(nameOf);
   const cats = [...document.querySelectorAll(".med-card .med-cat")].map((el) =>
     el.textContent.trim()
   );
   const listTexts = [...document.querySelectorAll("#meds-list > li")].map((el) =>
     el.className.includes("meds-category-heading")
       ? `HEAD:${el.textContent}`
-      : `DRUG:${el.querySelector(".med-card__name")?.textContent || ""}`
+      : `DRUG:${nameOf(el.querySelector(".med-card__name"))}`
   );
   return { headings, names, cats, listTexts };
 });
