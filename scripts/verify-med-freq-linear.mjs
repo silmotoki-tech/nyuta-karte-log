@@ -34,15 +34,17 @@ const freqField = `
                 <div class="med-linear-picker__list" id="med-add-freq-presets"></div>
               </div>
               <div id="med-add-freq-panel-every-n" hidden>
-                <div class="freq-dual-fields">
-                  <button type="button" class="interval-value-display freq-field" id="med-add-freq-period">日数: 3</button>
-                  <button type="button" class="interval-value-display freq-field" id="med-add-freq-times">回数: 1</button>
+                <div class="med-linear-picker__list" id="med-add-freq-every-n-presets" role="listbox"></div>
+                <div id="med-add-freq-every-n-other" hidden>
+                  <div class="freq-dual-fields">
+                    <button type="button" class="interval-value-display freq-field" id="med-add-freq-period">日数: 3</button>
+                    <button type="button" class="interval-value-display freq-field" id="med-add-freq-times">回数: 1</button>
+                  </div>
+                  <div class="numpad" id="med-add-freq-every-n-numpad"></div>
                 </div>
-                <div class="numpad" id="med-add-freq-every-n-numpad"></div>
               </div>
               <div id="med-add-freq-panel-weekly" hidden>
-                <p class="interval-value-display" id="med-add-freq-weekly-display">週1回</p>
-                <div class="numpad" id="med-add-freq-weekly-numpad"></div>
+                <div class="med-linear-picker__list" id="med-add-freq-weekly-presets" role="listbox"></div>
               </div>
               <div id="med-add-freq-panel-weekdays" hidden>
                 <div class="med-linear-picker__list" id="med-add-freq-weekdays"></div>
@@ -54,6 +56,43 @@ const freqField = `
           </div>
         </div>
       </div>`;
+
+const eventFreqBlock = `
+        <div id="med-event-freq-block" hidden>
+          <div class="med-linear-picker med-linear-picker--freq" id="med-event-freq-picker">
+            <div class="med-linear-picker__col">
+              <div class="med-linear-picker__head">指定方法</div>
+              <div class="med-linear-picker__list" id="med-event-freq-modes"></div>
+            </div>
+            <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-event-freq-detail" hidden>
+              <div class="med-linear-picker__head" id="med-event-freq-detail-head">内容</div>
+              <div class="freq-linear-detail">
+                <div id="med-event-freq-panel-preset" hidden>
+                  <div class="med-linear-picker__list" id="med-event-freq-presets"></div>
+                </div>
+                <div id="med-event-freq-panel-every-n" hidden>
+                  <div class="med-linear-picker__list" id="med-event-freq-every-n-presets" role="listbox"></div>
+                  <div id="med-event-freq-every-n-other" hidden>
+                    <div class="freq-dual-fields">
+                      <button type="button" class="interval-value-display freq-field" id="med-event-freq-period">日数: 3</button>
+                      <button type="button" class="interval-value-display freq-field" id="med-event-freq-times">回数: 1</button>
+                    </div>
+                    <div class="numpad" id="med-event-freq-every-n-numpad"></div>
+                  </div>
+                </div>
+                <div id="med-event-freq-panel-weekly" hidden>
+                  <div class="med-linear-picker__list" id="med-event-freq-weekly-presets" role="listbox"></div>
+                </div>
+                <div id="med-event-freq-panel-weekdays" hidden>
+                  <div class="med-linear-picker__list" id="med-event-freq-weekdays"></div>
+                </div>
+                <div id="med-event-freq-panel-other" hidden>
+                  <input id="med-event-freq-other-input" class="input" type="text" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
 
 const harness = `<!DOCTYPE html>
 <html lang="ja">
@@ -159,47 +198,18 @@ const harness = `<!DOCTYPE html>
           <input type="checkbox" id="med-event-freq-check" />
           <span>回数を変更</span>
         </label>
-        <div id="med-event-freq-block" hidden>
-          <div class="med-linear-picker med-linear-picker--freq" id="med-event-freq-picker">
-            <div class="med-linear-picker__col">
-              <div class="med-linear-picker__head">指定方法</div>
-              <div class="med-linear-picker__list" id="med-event-freq-modes"></div>
-            </div>
-            <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-event-freq-detail" hidden>
-              <div class="med-linear-picker__head" id="med-event-freq-detail-head">内容</div>
-              <div class="freq-linear-detail">
-                <div id="med-event-freq-panel-preset" hidden>
-                  <div class="med-linear-picker__list" id="med-event-freq-presets"></div>
-                </div>
-                <div id="med-event-freq-panel-every-n" hidden>
-                  <div class="freq-dual-fields">
-                    <button type="button" class="interval-value-display freq-field" id="med-event-freq-period">日数: 3</button>
-                    <button type="button" class="interval-value-display freq-field" id="med-event-freq-times">回数: 1</button>
-                  </div>
-                  <div class="numpad" id="med-event-freq-every-n-numpad"></div>
-                </div>
-                <div id="med-event-freq-panel-weekly" hidden>
-                  <p class="interval-value-display" id="med-event-freq-weekly-display">週1回</p>
-                  <div class="numpad" id="med-event-freq-weekly-numpad"></div>
-                </div>
-                <div id="med-event-freq-panel-weekdays" hidden>
-                  <div class="med-linear-picker__list" id="med-event-freq-weekdays"></div>
-                </div>
-                <div id="med-event-freq-panel-other" hidden>
-                  <input id="med-event-freq-other-input" class="input" type="text" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        ${eventFreqBlock}
         <label class="exam-other-check">
           <input type="checkbox" id="med-event-amount-check" />
-          <span>1回の量を変更</span>
+          <span>量を変更</span>
         </label>
-        <div id="med-event-amount-block" hidden>
-          <div id="med-event-amount-presets"></div>
-          <input id="med-event-amount-other" type="checkbox" />
-          <input id="med-event-amount-other-input" type="text" hidden />
+        <div id="med-event-amount-block" class="med-amount-block" hidden>
+          <div class="med-linear-picker__list med-amount-presets" id="med-event-amount-presets" role="listbox"></div>
+          <label class="exam-other-check">
+            <input type="checkbox" id="med-event-amount-other" />
+            <span>その他</span>
+          </label>
+          <input id="med-event-amount-other-input" class="input" type="text" placeholder="例）1錠→0.5錠" hidden />
         </div>
       </div>
       <textarea id="med-event-detail" class="input"></textarea>
@@ -226,7 +236,17 @@ window.__ready = true;
 </html>`;
 
 async function clickLinear(page, listSel, label) {
-  await page.locator(`${listSel} .med-linear-picker__item`, { hasText: label }).click();
+  const item = page
+    .locator(`${listSel} .med-linear-picker__item`)
+    .filter({
+      has: page.locator(".med-linear-picker__item-label", {
+        hasText: new RegExp(
+          `^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`
+        ),
+      }),
+    });
+  await item.scrollIntoViewIfNeeded();
+  await item.click({ force: true });
 }
 
 async function openAddWithEyeDrug(page, drugName) {
@@ -259,6 +279,31 @@ async function freqLabelForDrug(page, drugName) {
     return ev.frequencyChange || "";
   }, drugName);
 }
+
+const EXPECTED_MODES = ["よくある", "○日に○回", "週○回", "曜日指定", "その他"];
+const EXPECTED_PRESETS = [
+  "1日1回",
+  "1日2回",
+  "1日3回",
+  "1日4回",
+  "1日5回",
+  "1日6回",
+  "1日7回",
+  "1日8回",
+];
+const EXPECTED_EVERY_N = [
+  "2日に1回",
+  "3日に1回",
+  "4日に1回",
+  "5日に1回",
+  "6日に1回",
+  "2投1休",
+  "3投1休",
+  "4投1休",
+  "5投1休",
+  "その他",
+];
+const EXPECTED_WEEKLY = ["週1回", "週2回", "週3回", "週4回", "週5回", "週6回"];
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
@@ -307,10 +352,7 @@ const modes = await page
   .locator("#med-add-freq-modes .med-linear-picker__item-label")
   .allTextContents();
 console.log("freq modes:", modes);
-if (
-  JSON.stringify(modes) !==
-  JSON.stringify(["よくある", "日に○回", "週○回", "曜日指定", "その他"])
-) {
+if (JSON.stringify(modes) !== JSON.stringify(EXPECTED_MODES)) {
   throw new Error("freq mode labels mismatch");
 }
 if (!(await page.locator("#med-add-freq-detail").isHidden())) {
@@ -321,7 +363,7 @@ await page.screenshot({
 });
 await page.click("#btn-med-add-cancel");
 
-// --- よくある ---
+// --- よくある（1日1〜8回、矢印なし） ---
 await openAddWithEyeDrug(page, "頻度よくある");
 await clickLinear(page, "#med-add-freq-modes", "よくある");
 await page.waitForTimeout(80);
@@ -332,7 +374,12 @@ const presets = await page
   .locator("#med-add-freq-presets .med-linear-picker__item-label")
   .allTextContents();
 console.log("presets:", presets);
-if (!presets.includes("1日2回")) throw new Error("preset missing");
+if (JSON.stringify(presets) !== JSON.stringify(EXPECTED_PRESETS)) {
+  throw new Error("absolute presets mismatch");
+}
+if (presets.some((p) => p.includes("→"))) {
+  throw new Error("transition arrows must be removed");
+}
 await page.screenshot({
   path: path.join(root, "tools/med-freq-linear-02-preset.png"),
 });
@@ -344,36 +391,90 @@ let got = await freqLabelForDrug(page, "頻度よくある");
 console.log("saved preset:", got);
 if (got !== "1日2回") throw new Error(`preset save failed: ${got}`);
 
-// --- 日に○回（○日に○回） ---
+// --- ○日に○回（固定選択肢） ---
 await openAddWithEyeDrug(page, "頻度日に");
-await clickLinear(page, "#med-add-freq-modes", "日に○回");
+await clickLinear(page, "#med-add-freq-modes", "○日に○回");
 await page.waitForTimeout(80);
 if (await page.locator("#med-add-freq-panel-every-n").isHidden()) {
   throw new Error("every_n panel missing");
 }
+const everyN = await page
+  .locator("#med-add-freq-every-n-presets .med-linear-picker__item-label")
+  .allTextContents();
+console.log("every_n:", everyN);
+if (JSON.stringify(everyN) !== JSON.stringify(EXPECTED_EVERY_N)) {
+  throw new Error("every_n presets mismatch");
+}
+if (!(await page.locator("#med-add-freq-every-n-other").isHidden())) {
+  throw new Error("every_n other numpad should be hidden until その他");
+}
 await page.screenshot({
   path: path.join(root, "tools/med-freq-linear-03-every-n.png"),
 });
-// デフォルト 3日に1回を確定して保存
-await page.locator("#med-add-freq-every-n-numpad .numpad__btn--confirm").click();
-await page.click("#med-add-freq-times");
-await page.locator("#med-add-freq-every-n-numpad .numpad__btn--confirm").click();
+await clickLinear(page, "#med-add-freq-every-n-presets", "3日に1回");
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(150);
 got = await freqLabelForDrug(page, "頻度日に");
 console.log("saved every_n:", got);
 if (got !== "3日に1回") throw new Error(`every_n save failed: ${got}`);
 
-// --- 週○回 ---
+// --- ○日に○回・その他（テンキー） ---
+await openAddWithEyeDrug(page, "頻度日にその他");
+await clickLinear(page, "#med-add-freq-modes", "○日に○回");
+await page.waitForTimeout(80);
+const otherBtn = page
+  .locator("#med-add-freq-every-n-presets .med-linear-picker__item")
+  .filter({
+    has: page.locator(".med-linear-picker__item-label", { hasText: /^その他$/ }),
+  });
+await otherBtn.evaluate((el) => el.click());
+await page.waitForTimeout(80);
+if (await page.locator("#med-add-freq-every-n-other").evaluate((el) => el.hidden)) {
+  throw new Error("every_n other numpad should show");
+}
+await page.screenshot({
+  path: path.join(root, "tools/med-freq-linear-03b-every-n-other.png"),
+  fullPage: true,
+});
+// その他選択時の初期値（3日・1回）で保存できること
+await page.locator("#med-add-freq-every-n-numpad").evaluate((el) => {
+  el.querySelector(".numpad__btn--confirm")?.click();
+});
+await page.locator("#med-add-freq-times").evaluate((el) => el.click());
+await page.locator("#med-add-freq-every-n-numpad").evaluate((el) => {
+  el.querySelector(".numpad__btn--confirm")?.click();
+});
+await page.click("#btn-med-add-save");
+await page.waitForTimeout(150);
+got = await freqLabelForDrug(page, "頻度日にその他");
+console.log("saved every_n other:", got);
+if (got !== "3日に1回") throw new Error(`every_n other save failed: ${got}`);
+
+// --- 投休 ---
+await openAddWithEyeDrug(page, "頻度投休");
+await clickLinear(page, "#med-add-freq-modes", "○日に○回");
+await clickLinear(page, "#med-add-freq-every-n-presets", "2投1休");
+await page.click("#btn-med-add-save");
+await page.waitForTimeout(150);
+got = await freqLabelForDrug(page, "頻度投休");
+console.log("saved on_off:", got);
+if (got !== "2投1休") throw new Error(`on_off save failed: ${got}`);
+
+// --- 週○回（固定選択肢） ---
 await openAddWithEyeDrug(page, "頻度週");
 await clickLinear(page, "#med-add-freq-modes", "週○回");
 await page.waitForTimeout(80);
+const weekly = await page
+  .locator("#med-add-freq-weekly-presets .med-linear-picker__item-label")
+  .allTextContents();
+console.log("weekly:", weekly);
+if (JSON.stringify(weekly) !== JSON.stringify(EXPECTED_WEEKLY)) {
+  throw new Error("weekly presets mismatch");
+}
 await page.screenshot({
   path: path.join(root, "tools/med-freq-linear-04-weekly.png"),
 });
-await page.locator("#med-add-freq-weekly-numpad .numpad__btn", { hasText: "削除" }).click();
-await page.locator("#med-add-freq-weekly-numpad .numpad__btn", { hasText: "2" }).click();
-await page.locator("#med-add-freq-weekly-numpad .numpad__btn--confirm").click();
+await clickLinear(page, "#med-add-freq-weekly-presets", "週2回");
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(150);
 got = await freqLabelForDrug(page, "頻度週");
@@ -409,12 +510,11 @@ got = await freqLabelForDrug(page, "頻度その他");
 console.log("saved other:", got);
 if (got !== "食後のみ") throw new Error(`other save failed: ${got}`);
 
-// --- 増量時の頻度（イベントモーダル）もリニアであること ---
+// --- 増量: 回数＋量の組み合わせ ---
 await openDrugDetail(page, "頻度よくある");
 await page.locator("#med-detail-sheet-body .med-event-quick__btn", { hasText: "増量" }).click();
 await page.waitForSelector("#med-event-modal:not([hidden])");
 await page.waitForTimeout(80);
-// 増量は回数変更＋頻度リニアが自動表示される
 if (await page.locator("#med-event-freq-block").isHidden()) {
   throw new Error("freq block should open for increase");
 }
@@ -422,10 +522,7 @@ const eventModes = await page
   .locator("#med-event-freq-modes .med-linear-picker__item-label")
   .allTextContents();
 console.log("event freq modes:", eventModes);
-if (
-  JSON.stringify(eventModes) !==
-  JSON.stringify(["よくある", "日に○回", "週○回", "曜日指定", "その他"])
-) {
+if (JSON.stringify(eventModes) !== JSON.stringify(EXPECTED_MODES)) {
   throw new Error("event freq modes mismatch");
 }
 await clickLinear(page, "#med-event-freq-modes", "よくある");
@@ -433,25 +530,86 @@ await page.waitForTimeout(80);
 const eventPresets = await page
   .locator("#med-event-freq-presets .med-linear-picker__item-label")
   .allTextContents();
-if (!eventPresets.includes("1日2回→1回")) {
-  throw new Error("transition presets missing in event modal");
+if (JSON.stringify(eventPresets) !== JSON.stringify(EXPECTED_PRESETS)) {
+  throw new Error("event absolute presets mismatch");
+}
+if (eventPresets.some((p) => p.includes("→"))) {
+  throw new Error("event transition arrows must be removed");
+}
+await clickLinear(page, "#med-event-freq-presets", "1日3回");
+
+// 量を変更も併用
+await page.check("#med-event-amount-check");
+await page.waitForTimeout(80);
+if (await page.locator("#med-event-amount-block").isHidden()) {
+  throw new Error("amount block should open");
+}
+const amounts = await page
+  .locator("#med-event-amount-presets .med-linear-picker__item-label")
+  .allTextContents();
+console.log("amount presets:", amounts);
+if (!amounts.includes("2倍に増やす") || !amounts.includes("半分に減らす")) {
+  throw new Error("amount presets missing");
 }
 await page.screenshot({
   path: path.join(root, "tools/med-freq-linear-07-event-increase.png"),
 });
-await clickLinear(page, "#med-event-freq-presets", "1日2回→3回");
+await clickLinear(page, "#med-event-amount-presets", "2倍に増やす");
 await page.click("#btn-med-event-save");
 await page.waitForTimeout(200);
 const hist = await page.locator("#med-detail-sheet-body").innerText();
-console.log("event hist snippet:", hist.includes("1日2回→3回"));
-if (!hist.includes("1日2回→3回")) {
-  throw new Error("event frequency not saved");
+console.log("hist has freq:", hist.includes("1日3回"), "amount:", hist.includes("2倍に増やす"));
+if (!hist.includes("1日3回")) throw new Error("event frequency not in history");
+if (!hist.includes("2倍に増やす")) throw new Error("event amount not in history");
+await page.screenshot({
+  path: path.join(root, "tools/med-freq-linear-08-history-combo.png"),
+});
+
+// --- 量のみ（回数オフ） ---
+await page.locator("#med-detail-sheet-body .med-event-quick__btn", { hasText: "減量" }).click();
+await page.waitForSelector("#med-event-modal:not([hidden])");
+await page.uncheck("#med-event-freq-check");
+await page.check("#med-event-amount-check");
+await page.waitForTimeout(80);
+await clickLinear(page, "#med-event-amount-presets", "半分に減らす");
+await page.screenshot({
+  path: path.join(root, "tools/med-freq-linear-09-amount-only.png"),
+});
+await page.click("#btn-med-event-save");
+await page.waitForTimeout(200);
+const hist2 = await page.locator("#med-detail-sheet-body").innerText();
+if (!hist2.includes("半分に減らす")) {
+  throw new Error("amount-only not in history");
 }
+await page.screenshot({
+  path: path.join(root, "tools/med-freq-linear-10-history-amount.png"),
+});
+
+// --- 量・その他フリーワード ---
+await page.locator("#med-detail-sheet-body .med-event-quick__btn", { hasText: "増量" }).click();
+await page.waitForSelector("#med-event-modal:not([hidden])");
+await page.uncheck("#med-event-freq-check");
+await page.check("#med-event-amount-check");
+await page.check("#med-event-amount-other");
+await page.waitForTimeout(80);
+await page.fill("#med-event-amount-other-input", "朝だけ半量");
+await page.screenshot({
+  path: path.join(root, "tools/med-freq-linear-11-amount-other.png"),
+});
+await page.click("#btn-med-event-save");
+await page.waitForTimeout(200);
+const hist3 = await page.locator("#med-detail-sheet-body").innerText();
+if (!hist3.includes("朝だけ半量")) {
+  throw new Error("amount other not in history");
+}
+await page.screenshot({
+  path: path.join(root, "tools/med-freq-linear-12-history-final.png"),
+});
 
 if (errors.length) {
   console.log("ERRORS", errors);
   throw new Error("page errors");
 }
-console.log("OK: freq linear picker all modes + event increase");
+console.log("OK: freq/amount presets + history reflection");
 await browser.close();
 server.close();

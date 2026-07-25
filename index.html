@@ -958,16 +958,18 @@
                 <div class="med-linear-picker__list" id="med-add-freq-presets"></div>
               </div>
               <div id="med-add-freq-panel-every-n" hidden>
-                <div class="freq-dual-fields">
-                  <button type="button" class="interval-value-display freq-field" id="med-add-freq-period">日数: 3</button>
-                  <button type="button" class="interval-value-display freq-field" id="med-add-freq-times">回数: 1</button>
+                <div class="med-linear-picker__list" id="med-add-freq-every-n-presets" role="listbox" aria-label="○日に○回の選択肢"></div>
+                <div id="med-add-freq-every-n-other" hidden>
+                  <div class="freq-dual-fields">
+                    <button type="button" class="interval-value-display freq-field" id="med-add-freq-period">日数: 3</button>
+                    <button type="button" class="interval-value-display freq-field" id="med-add-freq-times">回数: 1</button>
+                  </div>
+                  <div class="numpad" id="med-add-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
+                  <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
                 </div>
-                <div class="numpad" id="med-add-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
-                <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
               </div>
               <div id="med-add-freq-panel-weekly" hidden>
-                <p class="interval-value-display" id="med-add-freq-weekly-display">週1回</p>
-                <div class="numpad" id="med-add-freq-weekly-numpad" aria-label="週○回の数値入力"></div>
+                <div class="med-linear-picker__list" id="med-add-freq-weekly-presets" role="listbox" aria-label="週○回の選択肢"></div>
               </div>
               <div id="med-add-freq-panel-weekdays" hidden>
                 <div class="med-linear-picker__list" id="med-add-freq-weekdays" role="group" aria-label="曜日選択"></div>
@@ -1035,16 +1037,18 @@
                   <div class="med-linear-picker__list" id="med-event-freq-presets"></div>
                 </div>
                 <div id="med-event-freq-panel-every-n" hidden>
-                  <div class="freq-dual-fields">
-                    <button type="button" class="interval-value-display freq-field" id="med-event-freq-period">日数: 3</button>
-                    <button type="button" class="interval-value-display freq-field" id="med-event-freq-times">回数: 1</button>
+                  <div class="med-linear-picker__list" id="med-event-freq-every-n-presets" role="listbox" aria-label="○日に○回の選択肢"></div>
+                  <div id="med-event-freq-every-n-other" hidden>
+                    <div class="freq-dual-fields">
+                      <button type="button" class="interval-value-display freq-field" id="med-event-freq-period">日数: 3</button>
+                      <button type="button" class="interval-value-display freq-field" id="med-event-freq-times">回数: 1</button>
+                    </div>
+                    <div class="numpad" id="med-event-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
+                    <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
                   </div>
-                  <div class="numpad" id="med-event-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
-                  <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
                 </div>
                 <div id="med-event-freq-panel-weekly" hidden>
-                  <p class="interval-value-display" id="med-event-freq-weekly-display">週1回</p>
-                  <div class="numpad" id="med-event-freq-weekly-numpad" aria-label="週○回の数値入力"></div>
+                  <div class="med-linear-picker__list" id="med-event-freq-weekly-presets" role="listbox" aria-label="週○回の選択肢"></div>
                 </div>
                 <div id="med-event-freq-panel-weekdays" hidden>
                   <div class="med-linear-picker__list" id="med-event-freq-weekdays" role="group" aria-label="曜日選択"></div>
@@ -1059,15 +1063,15 @@
 
         <label class="exam-other-check">
           <input type="checkbox" id="med-event-amount-check" />
-          <span>1回の量を変更</span>
+          <span>量を変更</span>
         </label>
-        <div id="med-event-amount-block" hidden>
-          <div class="quick-date-buttons" id="med-event-amount-presets"></div>
+        <div id="med-event-amount-block" class="med-amount-block" hidden>
+          <div class="med-linear-picker__list med-amount-presets" id="med-event-amount-presets" role="listbox" aria-label="量変更の選択肢"></div>
           <label class="exam-other-check">
             <input type="checkbox" id="med-event-amount-other" />
-            <span>その他</span>
+            <span>その他（自由入力）</span>
           </label>
-          <input id="med-event-amount-other-input" class="input" type="text" placeholder="量変更の内容" hidden />
+          <input id="med-event-amount-other-input" class="input" type="text" placeholder="例）1錠→0.5錠、朝だけ半量" hidden />
         </div>
       </div>
 

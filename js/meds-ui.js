@@ -21,7 +21,6 @@ import { enableRowGestures } from "./row-gestures.js";
 import { canHandleShortcut, isImeKey } from "./ime-keys.js";
 import {
   FREQ_PRESETS_ABSOLUTE,
-  FREQ_PRESETS_TRANSITION,
   createEmptyFreqDraft,
   freqDraftFromEvent,
   resolveFrequencyDraft,
@@ -41,11 +40,14 @@ const EVENT_TYPES = [
   { id: "hold", label: "休薬中" },
 ];
 
+/** 量変更のよくあるパターン（増量・減量の両方で使う） */
 const AMOUNT_PRESETS = [
   "半分に減らす",
+  "3分の1に減らす",
   "4分の1に減らす",
-  "2倍に増やす",
   "1.5倍に増やす",
+  "2倍に増やす",
+  "3倍に増やす",
 ];
 
 let deps = {
@@ -149,11 +151,12 @@ const addFreqEls = {
   panelWeekly: document.getElementById("med-add-freq-panel-weekly"),
   panelWeekdays: document.getElementById("med-add-freq-panel-weekdays"),
   panelOther: document.getElementById("med-add-freq-panel-other"),
+  everyNPresets: document.getElementById("med-add-freq-every-n-presets"),
+  everyNOtherBlock: document.getElementById("med-add-freq-every-n-other"),
   everyNPeriod: document.getElementById("med-add-freq-period"),
   everyNTimes: document.getElementById("med-add-freq-times"),
   everyNNumpad: document.getElementById("med-add-freq-every-n-numpad"),
-  weeklyDisplay: document.getElementById("med-add-freq-weekly-display"),
-  weeklyNumpad: document.getElementById("med-add-freq-weekly-numpad"),
+  weeklyPresets: document.getElementById("med-add-freq-weekly-presets"),
   weekdays: document.getElementById("med-add-freq-weekdays"),
   otherInput: document.getElementById("med-add-freq-other-input"),
 };
@@ -168,11 +171,12 @@ const eventFreqEls = {
   panelWeekly: document.getElementById("med-event-freq-panel-weekly"),
   panelWeekdays: document.getElementById("med-event-freq-panel-weekdays"),
   panelOther: document.getElementById("med-event-freq-panel-other"),
+  everyNPresets: document.getElementById("med-event-freq-every-n-presets"),
+  everyNOtherBlock: document.getElementById("med-event-freq-every-n-other"),
   everyNPeriod: document.getElementById("med-event-freq-period"),
   everyNTimes: document.getElementById("med-event-freq-times"),
   everyNNumpad: document.getElementById("med-event-freq-every-n-numpad"),
-  weeklyDisplay: document.getElementById("med-event-freq-weekly-display"),
-  weeklyNumpad: document.getElementById("med-event-freq-weekly-numpad"),
+  weeklyPresets: document.getElementById("med-event-freq-weekly-presets"),
   weekdays: document.getElementById("med-event-freq-weekdays"),
   otherInput: document.getElementById("med-event-freq-other-input"),
 };
@@ -837,7 +841,7 @@ function initFrequencyPickers() {
     setDraft: (next) => {
       state.eventDraft.freq = next;
     },
-    getPresets: () => [...FREQ_PRESETS_ABSOLUTE, ...FREQ_PRESETS_TRANSITION],
+    getPresets: () => FREQ_PRESETS_ABSOLUTE,
     showError: (msg) => deps.showError(eventError, msg),
   });
   eventFreqPicker.init();
@@ -1234,6 +1238,7 @@ function wireEventModal() {
   eventAmountCheck?.addEventListener("change", () => {
     state.eventDraft.changeAmount = eventAmountCheck.checked;
     eventAmountBlock.hidden = !eventAmountCheck.checked;
+    if (eventAmountCheck.checked) renderAmountPresets();
   });
   eventAmountOtherCheck?.addEventListener("change", () => {
     eventAmountOtherInput.hidden = !eventAmountOtherCheck.checked;
@@ -1241,7 +1246,14 @@ function wireEventModal() {
       state.eventDraft.amountPreset = "";
       renderAmountPresets();
       eventAmountOtherInput.focus();
+    } else {
+      state.eventDraft.amountOther = "";
+      if (eventAmountOtherInput) eventAmountOtherInput.value = "";
+      renderAmountPresets();
     }
+  });
+  eventAmountOtherInput?.addEventListener("input", () => {
+    state.eventDraft.amountOther = eventAmountOtherInput.value;
   });
 }
 
@@ -1305,16 +1317,34 @@ function buildAmountPresets() {
 function renderAmountPresets() {
   if (!eventAmountPresets) return;
   eventAmountPresets.innerHTML = "";
+  const selected = state.eventDraft.amountPreset || "";
+  const useOther = Boolean(eventAmountOtherCheck?.checked);
   AMOUNT_PRESETS.forEach((label) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "quick-date-btn";
-    btn.textContent = label;
-    btn.classList.toggle("is-selected", state.eventDraft.amountPreset === label);
+    btn.className = "med-linear-picker__item";
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", String(!useOther && selected === label));
+    btn.classList.toggle("is-selected", !useOther && selected === label);
+
+    const text = document.createElement("span");
+    text.className = "med-linear-picker__item-label";
+    text.textContent = label;
+
+    const check = document.createElement("span");
+    check.className = "med-linear-picker__check";
+    check.setAttribute("aria-hidden", "true");
+    check.textContent = "✓";
+
+    btn.append(text, check);
     btn.addEventListener("click", () => {
-      eventAmountOtherCheck.checked = false;
-      eventAmountOtherInput.hidden = true;
+      if (eventAmountOtherCheck) eventAmountOtherCheck.checked = false;
+      if (eventAmountOtherInput) {
+        eventAmountOtherInput.hidden = true;
+        eventAmountOtherInput.value = "";
+      }
       state.eventDraft.amountPreset = label;
+      state.eventDraft.amountOther = "";
       renderAmountPresets();
     });
     eventAmountPresets.appendChild(btn);

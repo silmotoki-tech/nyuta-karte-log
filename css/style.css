@@ -1784,6 +1784,22 @@ html.is-unlocked .app {
   color: var(--color-green-dark);
 }
 
+.med-amount-block {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-cream);
+}
+
+.med-amount-presets {
+  max-height: min(36vh, 280px);
+  margin-bottom: 8px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-white);
+}
+
 /* 定期検査: 間隔単位・テンキー */
 .interval-unit-buttons {
   display: flex;
