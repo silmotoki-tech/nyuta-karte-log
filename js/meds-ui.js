@@ -345,6 +345,7 @@ function createDrugCard(drug) {
   header.className = "med-card__header";
   header.setAttribute("role", "button");
   header.tabIndex = 0;
+  header.spellcheck = false;
   header.setAttribute("aria-expanded", String(expanded));
 
   const signs = document.createElement("span");
@@ -357,10 +358,15 @@ function createDrugCard(drug) {
     signs.appendChild(recentSign);
   }
 
+  const displayName = drug.name || "（名称未設定）";
   const nameEl = document.createElement("span");
   nameEl.className = "med-card__name";
   nameEl.spellcheck = false;
-  nameEl.textContent = drug.name || "（名称未設定）";
+  // iPad Safari は spellcheck=false でも固有名詞に赤い波線を付けることがある。
+  // 1) 実テキストは空  2) 表示は ::before(attr)  3) 文字間 ZWSP で単語判定を崩す
+  nameEl.dataset.name = Array.from(displayName).join("\u200B");
+  nameEl.setAttribute("aria-label", displayName);
+  nameEl.textContent = "";
 
   const statusEl = document.createElement("span");
   statusEl.className = `med-status med-status--${status.id}`;

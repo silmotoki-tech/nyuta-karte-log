@@ -206,7 +206,11 @@ if (selected !== "点眼テスト薬") throw new Error("not selected");
 
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(200);
-const listA = await page.locator("#meds-list .med-card__name").allTextContents();
+const listA = await page.evaluate(() =>
+  [...document.querySelectorAll("#meds-list .med-card__name")].map(
+    (el) => el.getAttribute("aria-label") || (el.dataset.name || "").replace(/\u200B/g, "")
+  )
+);
 console.log("KARTE A list:", listA);
 if (!listA.includes("点眼テスト薬")) throw new Error("drug not on karte A list");
 

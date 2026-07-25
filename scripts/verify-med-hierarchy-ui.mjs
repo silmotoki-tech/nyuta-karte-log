@@ -316,7 +316,11 @@ await page.locator("#med-add-category-buttons .med-cat-btn", {
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(250);
 
-const names = await page.locator("#meds-list .med-card__name").allTextContents();
+const names = await page.evaluate(() =>
+  [...document.querySelectorAll("#meds-list .med-card__name")].map(
+    (el) => el.getAttribute("aria-label") || (el.dataset.name || "").replace(/\u200B/g, "")
+  )
+);
 console.log("list names:", names);
 if (!names.includes("アモキシシリン") || !names.includes("ヒアレイン")) {
   throw new Error("patient drugs missing");
@@ -325,10 +329,15 @@ if (!names.includes("アモキシシリン") || !names.includes("ヒアレイン
 // A/B 重要度が患者レコード側に残っていること
 const cats = await page.evaluate(() => {
   const cards = [...document.querySelectorAll("#meds-list .med-card")];
-  return cards.map((c) => ({
-    name: c.querySelector(".med-card__name")?.textContent?.trim(),
-    html: c.outerHTML,
-  }));
+  return cards.map((c) => {
+    const nameEl = c.querySelector(".med-card__name");
+    return {
+      name:
+        nameEl?.getAttribute("aria-label") ||
+        (nameEl?.dataset.name || "").replace(/\u200B/g, ""),
+      html: c.outerHTML,
+    };
+  });
 });
 const amo = cats.find((c) => c.name === "アモキシシリン");
 const hya = cats.find((c) => c.name === "ヒアレイン");

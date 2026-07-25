@@ -2001,16 +2001,42 @@ html.is-unlocked .app {
   text-overflow: ellipsis;
   white-space: nowrap;
   /* ブラウザのスペルチェック赤い下線を出さない（薬剤名は固有名詞のため誤検知されやすい） */
-  text-decoration: none;
-  text-decoration-line: none;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  -webkit-text-decoration-line: none !important;
+  text-decoration-color: transparent !important;
+  -webkit-text-decoration-color: transparent !important;
+  text-decoration-thickness: 0 !important;
+  /* iPad Safari でもスペルチェック対象になりにくいよう、表示は生成コンテンツ経由にする */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* Chrome 等が静的テキストにも付けることがあるスペル／文法エラーマーカーを消す */
+/* 実テキストを空にし data-name を表示する（WebKit の波線マーカー回避） */
+.med-card__name::before {
+  content: attr(data-name);
+}
+
+/* Chrome / Safari が付けるスペル／文法エラーマーカーを消す */
 .med-card ::spelling-error,
 .med-card ::grammar-error,
 .meds-list ::spelling-error,
-.meds-list ::grammar-error {
-  text-decoration-line: none;
+.meds-list ::grammar-error,
+.med-card__name::spelling-error,
+.med-card__name::grammar-error {
+  color: inherit;
+  background: transparent;
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  -webkit-text-decoration-line: none !important;
+  text-decoration-color: transparent !important;
+  -webkit-text-decoration-color: transparent !important;
+}
+
+/* 詳細内の input には付けない（編集不能になるため） */
+.med-card__header,
+.med-card__name {
+  -webkit-user-modify: read-only;
 }
 
 .med-card__chevron {
@@ -2522,7 +2548,9 @@ select.input {
 
 .med-card.swipeable .swipeable__front,
 .hist-card.swipeable .swipeable__front {
+  /* 背面の削除アクション（赤み）が透けて下線のように見えないよう不透明にする */
   background: var(--color-white);
+  background-color: var(--color-white);
 }
 
 .tpl-list-item.swipeable .swipeable__front {

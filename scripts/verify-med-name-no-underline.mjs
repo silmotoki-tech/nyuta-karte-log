@@ -1,56 +1,21 @@
 /**
- * 薬剤一覧の薬剤名に赤い下線（スペルチェック等）が出ないことを検証する。
+ * 薬剤名に赤い下線（スペルチェック波線／装飾）が出ないことを検証する。
+ * Chromium（狭い右カラム）と WebKit + iPad ビューポートの両方で確認する。
  */
-import { chromium } from "playwright";
+import { chromium, webkit, devices } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const SYSTEM_CHROME =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const require = createRequire(import.meta.url);
-
-function findChromeHeadlessShell() {
-  const cacheRoot = path.join(os.tmpdir(), "cursor-sandbox-cache");
-  if (!fs.existsSync(cacheRoot)) return null;
-  for (const dir of fs.readdirSync(cacheRoot)) {
-    const candidate = path.join(
-      cacheRoot,
-      dir,
-      "playwright/chromium_headless_shell-1228/chrome-headless-shell-mac-arm64/chrome-headless-shell"
-    );
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return null;
-}
-
-async function launchBrowser() {
-  const candidates = [
-    findChromeHeadlessShell(),
-    fs.existsSync(SYSTEM_CHROME) ? SYSTEM_CHROME : null,
-  ].filter(Boolean);
-  for (const executablePath of candidates) {
-    try {
-      return await chromium.launch({
-        executablePath,
-        headless: true,
-        timeout: 30_000,
-      });
-    } catch (err) {
-      console.warn("launch failed", executablePath, err.message);
-    }
-  }
-  throw new Error("Could not launch browser");
-}
 
 const harness = `<!DOCTYPE html>
 <html lang="ja"><head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body style="margin:0;background:#f5f6f7">
@@ -59,7 +24,7 @@ const harness = `<!DOCTYPE html>
   <div class="right-panel" id="panel-meds" style="display:flex">
     <section class="exam-section">
       <h3 class="exam-section__title">薬剤一覧</h3>
-      <ul class="meds-list" id="meds-list" spellcheck="false"></ul>
+      <ul class="meds-list" id="meds-list" spellcheck="false" lang="ja"></ul>
     </section>
   </div>
 </aside>
@@ -73,12 +38,15 @@ function card(name, { overdue = false, alert = false } = {}) {
   if (alert) li.classList.add("is-alert");
   const header = document.createElement("div");
   header.className = "med-card__header";
+  header.spellcheck = false;
   const signs = document.createElement("span");
   signs.className = "med-card__signs";
   const nameEl = document.createElement("span");
   nameEl.className = "med-card__name";
   nameEl.spellcheck = false;
-  nameEl.textContent = name;
+  nameEl.dataset.name = Array.from(name).join("\u200B");
+  nameEl.setAttribute("aria-label", name);
+  nameEl.textContent = "";
   const status = document.createElement("span");
   status.className = "med-status med-status--active";
   status.textContent = "使用中";
@@ -110,6 +78,7 @@ const list = document.getElementById("meds-list");
 list.appendChild(card("アモキシシリン", { overdue: true }));
 list.appendChild(card("アラバ", { alert: true }));
 list.appendChild(card("プレドニゾロン"));
+list.appendChild(card("AmoxicillinXYZQ"));
 window.__ready = true;
 </script>
 </body></html>`;
@@ -117,7 +86,10 @@ window.__ready = true;
 const server = http.createServer((req, res) => {
   let u = decodeURIComponent((req.url || "/").split("?")[0]);
   if (u === "/") {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    });
     res.end(harness);
     return;
   }
@@ -138,72 +110,23 @@ const server = http.createServer((req, res) => {
 
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
+const base = `http://127.0.0.1:${port}/`;
 
-const browser = await launchBrowser();
-const page = await browser.newPage({ viewport: { width: 400, height: 700 } });
-await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
-await page.waitForFunction(() => window.__ready === true);
-await page.waitForTimeout(400);
-
-const outPath = path.join(root, "tools/med-name-no-underline-verify.png");
-await page.screenshot({ path: outPath });
-
-const styles = await page.evaluate(() =>
-  [...document.querySelectorAll(".med-card__name")].map((el) => {
-    const cs = getComputedStyle(el);
-    return {
-      text: el.textContent,
-      textDecorationLine: cs.textDecorationLine,
-      spellcheck: el.spellcheck,
-    };
-  })
-);
-console.log("STYLES", styles);
-if (styles.some((s) => s.textDecorationLine && s.textDecorationLine !== "none")) {
-  throw new Error("med-card__name still has text-decoration-line");
-}
-
-// アラバ（オレンジ文字）行で、文字色以外の「赤い下線ピクセル」が名前直下に無いか確認
-const boxes = await page.evaluate(() =>
-  [...document.querySelectorAll(".med-card__name")].map((el) => {
-    const r = el.getBoundingClientRect();
-    return {
-      text: el.textContent,
-      x: r.x,
-      y: r.y,
-      w: r.width,
-      h: r.height,
-      bottom: r.bottom,
-    };
-  })
-);
-
-await browser.close();
-server.close();
-
-const { createCanvas, loadImage } = await import("canvas").catch(() => ({
-  createCanvas: null,
-  loadImage: null,
-}));
-
-// Pillow path (always available from earlier env)
-const { spawnSync } = await import("node:child_process");
-const py = `
+function analyzeRedBand(pngPath, boxes) {
+  const py = `
 from PIL import Image
-im = Image.open(${JSON.stringify(outPath)}).convert("RGB")
+im = Image.open(${JSON.stringify(pngPath)}).convert("RGB")
 boxes = ${JSON.stringify(boxes)}
 problems = []
 for b in boxes:
-    # 名前の直下 2px 帯を走査（文字本体は含めない）
     y0 = int(b["bottom"])
     y1 = min(im.height, y0 + 3)
     x0 = max(0, int(b["x"]))
-    x1 = min(im.width, int(b["x"] + min(b["w"], 120)))
+    x1 = min(im.width, int(b["x"] + min(b["w"], 140)))
     reds = 0
     for y in range(y0, y1):
         for x in range(x0, x1):
             r,g,bb = im.getpixel((x,y))
-            # 赤い下線: Rが高く、G/Bが低い。オレンジ本文色は帯外なので混入しにくい
             if r > 170 and g < 90 and bb < 90 and (r - g) > 80:
                 reds += 1
     print(b["text"], "underline_red_pixels", reds, "band", x0,y0,x1,y1)
@@ -213,8 +136,146 @@ if problems:
     raise SystemExit("RED_UNDERLINE " + ",".join(problems))
 print("OK: no red underline band under med names")
 `;
-const r = spawnSync("python3", ["-c", py], { encoding: "utf8" });
-process.stdout.write(r.stdout || "");
-process.stderr.write(r.stderr || "");
-if (r.status !== 0) process.exit(r.status || 1);
-console.log("OK: screenshot saved", outPath);
+  const r = spawnSync("python3", ["-c", py], { encoding: "utf8" });
+  process.stdout.write(r.stdout || "");
+  process.stderr.write(r.stderr || "");
+  if (r.status !== 0) {
+    throw new Error(`pixel analysis failed for ${pngPath}`);
+  }
+}
+
+async function runScenario({ label, browserType, contextOptions, outName }) {
+  const browser = await browserType.launch({ headless: true });
+  const context = await browser.newContext(contextOptions);
+  const page = await context.newPage();
+  await page.goto(base, { waitUntil: "networkidle" });
+  await page.waitForFunction(() => window.__ready === true);
+  await page.waitForTimeout(500);
+
+  const styles = await page.evaluate(() =>
+    [...document.querySelectorAll(".med-card__name")].map((el) => {
+      const cs = getComputedStyle(el);
+      const before = getComputedStyle(el, "::before");
+      return {
+        dataName: el.dataset.name || "",
+        textContent: el.textContent || "",
+        textDecorationLine: cs.textDecorationLine,
+        webkitTextDecorationLine: cs.webkitTextDecorationLine || "",
+        beforeContent: before.content,
+        spellcheck: el.spellcheck,
+      };
+    })
+  );
+  console.log(`[${label}] STYLES`, styles);
+
+  for (const s of styles) {
+    if (s.textContent.trim() !== "") {
+      throw new Error(`[${label}] name should use empty textContent (got "${s.textContent}")`);
+    }
+    if (!s.dataName) throw new Error(`[${label}] missing data-name`);
+    if (!s.dataName.includes("\u200B") && s.dataName.length > 1) {
+      throw new Error(`[${label}] data-name should contain ZWSP separators`);
+    }
+    if (s.textDecorationLine && s.textDecorationLine !== "none") {
+      throw new Error(`[${label}] text-decoration-line=${s.textDecorationLine}`);
+    }
+  }
+
+  // 期限アラート時も名前色が赤にならないこと
+  const nameColors = await page.evaluate(() =>
+    [...document.querySelectorAll(".med-card.is-overdue .med-card__name")].map((el) =>
+      getComputedStyle(el).color
+    )
+  );
+  for (const c of nameColors) {
+    // rgb of --color-text (near black), not danger red
+    const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (!m) continue;
+    const [, r, g, b] = m.map(Number);
+    if (r > 150 && g < 100 && b < 100) {
+      throw new Error(`[${label}] overdue name still red: ${c}`);
+    }
+  }
+
+  const outPath = path.join(root, "tools", outName);
+  await page.screenshot({ path: outPath, fullPage: true });
+
+  const boxes = await page.evaluate(() =>
+    [...document.querySelectorAll(".med-card__name")].map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        text: el.dataset.name || "",
+        x: r.x,
+        y: r.y,
+        w: r.width,
+        h: r.height,
+        bottom: r.bottom,
+      };
+    })
+  );
+  analyzeRedBand(outPath, boxes);
+
+  // 名前直下の拡大スクショ（目視確認用）
+  const first = boxes[0];
+  if (first) {
+    const zoomPath = path.join(
+      root,
+      "tools",
+      outName.replace(/\.png$/, "-zoom.png")
+    );
+    await page.screenshot({
+      path: zoomPath,
+      clip: {
+        x: Math.max(0, first.x - 4),
+        y: Math.max(0, first.y - 4),
+        width: Math.min(280, first.w + 40),
+        height: first.h + 12,
+      },
+    });
+    console.log(`[${label}] zoom saved`, zoomPath);
+  }
+
+  await browser.close();
+  console.log(`[${label}] OK`, outPath);
+}
+
+try {
+  await runScenario({
+    label: "chromium-narrow",
+    browserType: chromium,
+    contextOptions: { viewport: { width: 400, height: 800 } },
+    outName: "med-name-no-underline-verify.png",
+  });
+
+  const ipad = devices["iPad (gen 7)"] || devices["iPad Mini"] || null;
+  await runScenario({
+    label: "webkit-ipad",
+    browserType: webkit,
+    contextOptions: ipad
+      ? { ...ipad }
+      : {
+          viewport: { width: 810, height: 1080 },
+          userAgent:
+            "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+          isMobile: true,
+          hasTouch: true,
+        },
+    outName: "med-name-no-underline-ipad.png",
+  });
+
+  // 820px 境界付近（レスポンシブ保険）でも同様
+  await runScenario({
+    label: "webkit-820",
+    browserType: webkit,
+    contextOptions: {
+      viewport: { width: 820, height: 1180 },
+      isMobile: true,
+      hasTouch: true,
+    },
+    outName: "med-name-no-underline-820.png",
+  });
+} finally {
+  server.close();
+}
+
+console.log("OK: chromium + webkit/iPad underlines cleared");
