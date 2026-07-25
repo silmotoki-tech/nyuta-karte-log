@@ -33,11 +33,15 @@
 //     { item, date, note }
 //
 //   medicationItems/{itemId}/label                      … 薬剤マスタの表示名
+//   medicationItems/{itemId}/category                   … "oral"|"topical"|"eye"（内服／外用／点眼）
+//   medicationItems/{itemId}/kind                       … "group"|"leaf"（中項目／薬剤名）
+//   medicationItems/{itemId}/parentId                   … 中項目の親ID（トップ／点眼の葉は空）
 //   medicationItems/{itemId}/order                      … 並び順
+//     ※中項目シードは固定ID（seed-med-*）。既存フラット項目は内服→その他へ移行
 //
 //   medications/{カルテ番号}/{drugId}/schemaVersion
 //   medications/{カルテ番号}/{drugId}/name
-//   medications/{カルテ番号}/{drugId}/category           … "A"|"B"|"C"
+//   medications/{カルテ番号}/{drugId}/category           … "A"|"B"|"C"（重要度。マスタ階層とは別軸）
 //   medications/{カルテ番号}/{drugId}/sideEffectNote
 //   medications/{カルテ番号}/{drugId}/expiryEstimate     … 処方切れ目安日 "YYYY-MM-DD" or ""
 //   medications/{カルテ番号}/{drugId}/events/{eventId}
@@ -1271,12 +1275,175 @@ export async function deleteExamHistory(karteNumber, historyId) {
 
 // --- 薬剤マスタ -----------------------------------------------------------
 
+export const MEDICATION_ITEM_CATEGORIES = [
+  { id: "oral", label: "内服" },
+  { id: "topical", label: "外用" },
+  { id: "eye", label: "点眼" },
+];
+const MEDICATION_ITEM_CATEGORY_IDS = new Set(
+  MEDICATION_ITEM_CATEGORIES.map((c) => c.id)
+);
+
+/** 既存フラット薬剤の仮置き先（内服 → その他） */
+export const MED_ORAL_OTHER_GROUP_ID = "seed-med-oral-other";
+
 function medicationItemsRef() {
   return ref(db, "medicationItems");
 }
 
+export function normalizeMedicationItemCategory(category) {
+  const id = String(category || "").trim();
+  return MEDICATION_ITEM_CATEGORY_IDS.has(id) ? id : "oral";
+}
+
+export function normalizeMedicationItemKind(kind) {
+  return String(kind || "").trim() === "group" ? "group" : "leaf";
+}
+
+export function medicationItemCategoryLabel(category) {
+  const id = normalizeMedicationItemCategory(category);
+  return MEDICATION_ITEM_CATEGORIES.find((c) => c.id === id)?.label || id;
+}
+
+function normalizeMedicationItem(id, raw) {
+  const row = raw && typeof raw === "object" ? raw : {};
+  const kind = normalizeMedicationItemKind(row.kind);
+  return {
+    id,
+    label: row.label || "",
+    category: normalizeMedicationItemCategory(row.category),
+    kind,
+    parentId: kind === "group" ? "" : String(row.parentId || "").trim(),
+    order: typeof row.order === "number" ? row.order : 0,
+  };
+}
+
+function medGroupSeed(category, id, label, order) {
+  return {
+    id,
+    label,
+    category,
+    kind: "group",
+    parentId: "",
+    order,
+  };
+}
+
+/** 中項目シード（薬剤名の葉は空。ユーザーが各階層で追加する） */
+const MEDICATION_ITEM_GROUP_SEED = [
+  // 内服
+  medGroupSeed("oral", "seed-med-oral-antibiotic", "抗生剤", 10),
+  medGroupSeed("oral", "seed-med-oral-antiinflam", "消炎剤", 20),
+  medGroupSeed("oral", "seed-med-oral-analgesic", "鎮痛剤", 30),
+  medGroupSeed("oral", "seed-med-oral-steroid-antihist", "ステロイド・抗ヒス", 40),
+  medGroupSeed("oral", "seed-med-oral-gi-stomach", "消化器（胃）", 50),
+  medGroupSeed("oral", "seed-med-oral-gi-intestine", "消化器（腸）", 60),
+  medGroupSeed("oral", "seed-med-oral-liver-kidney", "肝臓・腎臓・泌尿器", 70),
+  medGroupSeed("oral", "seed-med-oral-cardio", "循環器", 80),
+  medGroupSeed("oral", "seed-med-oral-respiratory", "呼吸器", 90),
+  medGroupSeed("oral", "seed-med-oral-neuro", "神経・行動", 100),
+  medGroupSeed("oral", "seed-med-oral-antifungal", "抗真菌・駆虫・抗ウイルス", 110),
+  medGroupSeed("oral", "seed-med-oral-immuno", "免疫抑制", 120),
+  medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
+  medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
+  medGroupSeed("oral", "seed-med-oral-blood", "血液", 150),
+  medGroupSeed("oral", "seed-med-oral-anticancer", "抗がん剤", 160),
+  medGroupSeed("oral", "seed-med-oral-kampo", "漢方", 170),
+  medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
+  medGroupSeed("oral", "seed-med-oral-inject-suppository", "処方注射薬・座薬", 190),
+  // 外用
+  medGroupSeed("topical", "seed-med-topical-skin", "皮膚", 10),
+  medGroupSeed("topical", "seed-med-topical-disinfect", "消毒", 20),
+  medGroupSeed("topical", "seed-med-topical-ear", "耳", 30),
+];
+
+const MEDICATION_ITEM_GROUP_SEED_IDS = new Set(
+  MEDICATION_ITEM_GROUP_SEED.map((s) => s.id)
+);
+
+function medicationItemSeedPayload(seed) {
+  return {
+    label: seed.label,
+    category: normalizeMedicationItemCategory(seed.category),
+    kind: normalizeMedicationItemKind(seed.kind),
+    parentId: seed.parentId || "",
+    order: seed.order,
+  };
+}
+
+/**
+ * 中項目シードを補完し、旧フラット薬剤を内服→その他へ移す。
+ */
+export async function ensureMedicationItemDefaults() {
+  await authReady;
+  const snap = await get(medicationItemsRef());
+  const existing =
+    snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
+  const writes = {};
+
+  MEDICATION_ITEM_GROUP_SEED.forEach((seed) => {
+    const payload = medicationItemSeedPayload(seed);
+    const row = existing[seed.id];
+    if (!row) {
+      writes[seed.id] = payload;
+      return;
+    }
+    if ((row.label || "") !== payload.label) {
+      writes[`${seed.id}/label`] = payload.label;
+    }
+    if (normalizeMedicationItemCategory(row.category) !== payload.category) {
+      writes[`${seed.id}/category`] = payload.category;
+    }
+    if (normalizeMedicationItemKind(row.kind) !== payload.kind) {
+      writes[`${seed.id}/kind`] = payload.kind;
+    }
+    if (String(row.parentId || "").trim() !== "") {
+      writes[`${seed.id}/parentId`] = "";
+    }
+    if (typeof row.order !== "number" || row.order !== payload.order) {
+      writes[`${seed.id}/order`] = payload.order;
+    }
+  });
+
+  Object.entries(existing).forEach(([id, row]) => {
+    if (!row || typeof row !== "object") return;
+    if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return;
+
+    const hasCategory = Object.prototype.hasOwnProperty.call(row, "category");
+    const hasKind = Object.prototype.hasOwnProperty.call(row, "kind");
+    const kind = normalizeMedicationItemKind(row.kind);
+    const category = hasCategory
+      ? normalizeMedicationItemCategory(row.category)
+      : "";
+    const parentId = String(row.parentId || "").trim();
+
+    // 旧フラット（category/kind 無し）→ 内服／その他
+    const isLegacyFlat = !hasCategory || !hasKind;
+    // 内服・外用なのに親無しの葉 → 中項目直下へ（仮で内服／その他）
+    const isOrphanLeaf =
+      kind === "leaf" &&
+      (category === "oral" || category === "topical") &&
+      !parentId;
+
+    if (!isLegacyFlat && !isOrphanLeaf) return;
+
+    writes[id] = {
+      label: row.label || "",
+      category: "oral",
+      kind: "leaf",
+      parentId: MED_ORAL_OTHER_GROUP_ID,
+      order: typeof row.order === "number" ? row.order : Date.now(),
+    };
+  });
+
+  if (Object.keys(writes).length) {
+    await update(medicationItemsRef(), writes);
+  }
+}
+
 /**
  * 薬剤マスタをリアルタイム監視する。order 昇順で callback に渡す。
+ * 中項目シード／旧データの移行は監視開始後に遅延実行する。
  */
 export function subscribeMedicationItems(callback) {
   const r = medicationItemsRef();
@@ -1288,14 +1455,24 @@ export function subscribeMedicationItems(callback) {
       if (unsubscribed) return;
       listener = onValue(r, (snapshot) => {
         const value = snapshot.val() || {};
-        const items = Object.entries(value).map(([id, t]) => ({ id, ...t }));
+        const items = Object.entries(value).map(([id, t]) =>
+          normalizeMedicationItem(id, t)
+        );
         items.sort((a, b) => {
           const ord = (a.order ?? 0) - (b.order ?? 0);
           if (ord !== 0) return ord;
-          return (a.label || "").localeCompare(b.label || "");
+          return (a.label || "").localeCompare(b.label || "", "ja");
         });
         callback(items);
       });
+      const runSeed = () => {
+        if (unsubscribed) return;
+        ensureMedicationItemDefaults().catch((err) => {
+          console.error("薬剤マスタの初期化に失敗しました", err);
+        });
+      };
+      setTimeout(runSeed, 0);
+      setTimeout(runSeed, 2500);
     })
     .catch((err) => {
       console.error("薬剤マスタの監視開始に失敗しました", err);
@@ -1313,15 +1490,24 @@ export function subscribeMedicationItems(callback) {
 /**
  * 薬剤マスタを1回だけ取得する。
  */
-export async function fetchMedicationItemsOnce() {
+export async function fetchMedicationItemsOnce({ ensureDefaults = false } = {}) {
   await authReady;
+  if (ensureDefaults) {
+    try {
+      await ensureMedicationItemDefaults();
+    } catch (err) {
+      console.warn("薬剤マスタのシード補完に失敗しました", err);
+    }
+  }
   const snapshot = await get(medicationItemsRef());
   const value = snapshot.val() || {};
-  const items = Object.entries(value).map(([id, t]) => ({ id, ...t }));
+  const items = Object.entries(value).map(([id, t]) =>
+    normalizeMedicationItem(id, t)
+  );
   items.sort((a, b) => {
     const ord = (a.order ?? 0) - (b.order ?? 0);
     if (ord !== 0) return ord;
-    return (a.label || "").localeCompare(b.label || "");
+    return (a.label || "").localeCompare(b.label || "", "ja");
   });
   return items;
 }
@@ -1350,19 +1536,46 @@ export async function fetchExamItemsOnce({ ensureDefaults = false } = {}) {
   return items;
 }
 
-export async function addMedicationItem({ label, order }) {
+export async function addMedicationItem({
+  label,
+  order,
+  category,
+  kind = "leaf",
+  parentId = "",
+}) {
   await authReady;
+  const resolvedKind = normalizeMedicationItemKind(kind);
   const newRef = push(medicationItemsRef());
   await set(newRef, {
     label: label || "",
+    category: normalizeMedicationItemCategory(category),
+    kind: resolvedKind,
+    parentId: resolvedKind === "group" ? "" : String(parentId || "").trim(),
     order: typeof order === "number" ? order : Date.now(),
   });
   return newRef.key;
 }
 
-export async function updateMedicationItem(itemId, { label }) {
+export async function updateMedicationItem(
+  itemId,
+  { label, category, kind, parentId }
+) {
   await authReady;
-  await update(ref(db, `medicationItems/${itemId}`), { label: label || "" });
+  const patch = {};
+  if (label != null) patch.label = label || "";
+  if (category != null) {
+    patch.category = normalizeMedicationItemCategory(category);
+  }
+  if (kind != null) {
+    patch.kind = normalizeMedicationItemKind(kind);
+    if (patch.kind === "group") patch.parentId = "";
+  }
+  if (parentId != null && patch.kind !== "group") {
+    patch.parentId = String(parentId || "").trim();
+  }
+  if (Object.keys(patch).length) {
+    await update(ref(db, `medicationItems/${itemId}`), patch);
+  }
 }
 
 export async function deleteMedicationItem(itemId) {

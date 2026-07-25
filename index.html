@@ -820,10 +820,28 @@
     <div class="modal__body">
       <div class="field">
         <span class="label">薬剤名</span>
+        <div
+          class="exam-item-category-tabs"
+          id="med-add-item-categories"
+          role="tablist"
+          aria-label="薬剤の大分類"
+        ></div>
+        <div class="exam-item-blood-nav" id="med-add-item-nav" hidden>
+          <button
+            type="button"
+            class="exam-item-blood-nav__back"
+            id="btn-med-add-item-back"
+          >
+            ← 戻る
+          </button>
+          <span class="exam-item-blood-nav__label" id="med-add-item-nav-label"></span>
+        </div>
         <div class="exam-item-buttons" id="med-add-item-buttons"></div>
-        <p class="field__note" id="med-add-items-empty" hidden>まだ登録された薬剤はありません。下で追加できます。</p>
-        <div class="exam-item-add">
-          <label class="label label--sub" for="med-add-new-item">新しい薬剤を追加</label>
+        <p class="field__note" id="med-add-items-empty" hidden>この分類にはまだ薬剤がありません。下で追加できます。</p>
+        <div class="exam-item-add" id="med-add-item-add">
+          <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">
+            新しい薬剤を追加
+          </label>
           <div class="exam-item-add__row">
             <input
               id="med-add-new-item"
@@ -840,9 +858,9 @@
         </div>
       </div>
       <div class="field">
-        <span class="label">カテゴリ</span>
+        <span class="label">重要度</span>
         <div class="med-category-buttons" id="med-add-category-buttons"></div>
-        <p class="field__note">A=治療の主力 / B=補助的 / C=過去に使った程度</p>
+        <p class="field__note">A=治療の主力 / B=補助的 / C=過去に使った程度（マスタ階層とは別）</p>
       </div>
       <div class="field">
         <span class="label">初期の投与頻度（任意）</span>
