@@ -1,9 +1,10 @@
-// 薬剤マスタ階層（内服／外用／点眼）＋既存フラット移行付きモック
+// 薬剤マスタ階層（注射薬／内服薬／外用薬／点眼薬）＋既存フラット移行付きモック
 
 export const MEDICATION_ITEM_CATEGORIES = [
-  { id: "oral", label: "内服" },
-  { id: "topical", label: "外用" },
-  { id: "eye", label: "点眼" },
+  { id: "inject", label: "注射薬" },
+  { id: "oral", label: "内服薬" },
+  { id: "topical", label: "外用薬" },
+  { id: "eye", label: "点眼薬" },
 ];
 
 export const MED_ORAL_OTHER_GROUP_ID = "seed-med-oral-other";
@@ -211,23 +212,27 @@ export async function addMedicationItem({
   return id;
 }
 
-export async function addMedication(karte, { name, category }) {
+export async function addMedication(
+  karte,
+  { name, category, frequencyChange, frequency, changedBy, eventDate }
+) {
   const id = nid("drug");
+  const date = eventDate || "2026-07-01";
   ensureMeds(karte)[id] = {
     schemaVersion: 1,
     name: name || "",
-    category: category || "B",
+    category: category || "A",
     sideEffectNote: "",
     expiryEstimate: "",
     events: {
       [nid("ev")]: {
-        date: "2026-07-01",
+        date,
         type: "add",
-        detail: "",
-        frequencyChange: "",
-        frequency: null,
+        detail: "開始／継続",
+        frequencyChange: frequencyChange || "",
+        frequency: frequency || null,
         amountChange: "",
-        changedBy: "",
+        changedBy: changedBy || "",
       },
     },
   };
@@ -237,11 +242,35 @@ export async function addMedication(karte, { name, category }) {
 
 export async function updateMedication() {}
 export async function deleteMedication() {}
-export async function addMedicationEvent() {}
+export async function addMedicationEvent(
+  karte,
+  drugId,
+  { date, type, detail, frequencyChange, frequency, amountChange, changedBy }
+) {
+  const drug = ensureMeds(karte)[drugId];
+  if (!drug) throw new Error("drug missing");
+  if (!drug.events) drug.events = {};
+  const id = nid("ev");
+  drug.events[id] = {
+    date: date || "2026-07-01",
+    type: type || "add",
+    detail: detail || "",
+    frequencyChange: frequencyChange || "",
+    frequency: frequency || null,
+    amountChange: amountChange || "",
+    changedBy: changedBy || "",
+  };
+  notifyMeds(karte);
+  return id;
+}
 export async function updateMedicationEvent() {}
 export async function deleteMedicationEvent() {}
 export async function fetchMedicationsOnce(karte) {
-  return Object.entries(ensureMeds(karte)).map(([id, d]) => ({ id, ...d }));
+  return Object.entries(ensureMeds(karte)).map(([id, d]) => ({
+    id,
+    ...d,
+    events: d.events || {},
+  }));
 }
 
 /** 検証用 */

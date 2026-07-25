@@ -1,5 +1,6 @@
 // 投与頻度の入力UI・ラベル生成。
 // 薬剤の出来事（追加・増量・減量など）に付随して保存する。
+// UI は薬剤マスタと同じ「指定方法→内容」の横並びリニア選択。
 
 export const WEEKDAY_OPTIONS = [
   { id: 1, label: "月", full: "月曜日" },
@@ -13,7 +14,7 @@ export const WEEKDAY_OPTIONS = [
 
 export const FREQ_MODES = [
   { id: "preset", label: "よくある" },
-  { id: "every_n", label: "○日に○回" },
+  { id: "every_n", label: "日に○回" },
   { id: "weekly", label: "週○回" },
   { id: "weekdays", label: "曜日指定" },
   { id: "other", label: "その他" },
@@ -31,9 +32,9 @@ export const FREQ_PRESETS_TRANSITION = [
   "1日2回→3回",
 ];
 
-export function createEmptyFreqDraft(mode = "preset") {
+export function createEmptyFreqDraft(mode = null) {
   return {
-    mode,
+    mode: mode || null,
     preset: "",
     everyN: {
       periodBuffer: "3",
@@ -87,7 +88,11 @@ export function freqDraftFromEvent(ev) {
   }
   if (f?.kind === "preset" || f?.kind === "daily") {
     const d = createEmptyFreqDraft("preset");
-    d.preset = f.label || (f.kind === "daily" ? `1日${f.times}回` : "") || ev.frequencyChange || "";
+    d.preset =
+      f.label ||
+      (f.kind === "daily" ? `1日${f.times}回` : "") ||
+      ev.frequencyChange ||
+      "";
     return d;
   }
   // 構造化なし・ラベルのみ（旧データ含む）
@@ -125,7 +130,7 @@ export function freqDraftFromEvent(ev) {
     }
     return d;
   }
-  return createEmptyFreqDraft("preset");
+  return createEmptyFreqDraft(null);
 }
 
 export function formatWeekdaysLabel(weekdayIds) {
@@ -166,11 +171,20 @@ export function resolveFrequencyDraft(draft, { required = false } = {}) {
     return { ok: true, empty: true, frequencyChange: "", frequency: null };
   }
 
-  const mode = draft.mode || "preset";
+  const mode = draft.mode || null;
+  if (!mode) {
+    if (required) return { ok: false, message: "投与頻度の指定方法を選んでください。" };
+    return { ok: true, empty: true, frequencyChange: "", frequency: null };
+  }
 
   if (mode === "preset") {
     if (!draft.preset) {
-      if (required) return { ok: false, message: "よくあるパターンを選ぶか、他の指定方法を選んでください。" };
+      if (required) {
+        return {
+          ok: false,
+          message: "よくあるパターンを選ぶか、他の指定方法を選んでください。",
+        };
+      }
       return { ok: true, empty: true, frequencyChange: "", frequency: null };
     }
     return {
@@ -194,7 +208,7 @@ export function resolveFrequencyDraft(draft, { required = false } = {}) {
     if (period < 1 || times < 1) {
       return {
         ok: false,
-        message: "「○日に○回」は日数・回数をそれぞれ1以上で入力し、確定してください。",
+        message: "「日に○回」は日数・回数をそれぞれ1以上で入力し、確定してください。",
       };
     }
     const label = `${period}日に${times}回`;
@@ -291,11 +305,35 @@ export function mountNumpad(container, { onDigit, onDelete, onConfirm }) {
   });
 }
 
+function createLinearItemButton({ label, selected, onClick, title }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "med-linear-picker__item";
+  btn.setAttribute("role", "option");
+  btn.setAttribute("aria-selected", String(Boolean(selected)));
+  btn.classList.toggle("is-selected", Boolean(selected));
+  if (title) btn.title = title;
+
+  const text = document.createElement("span");
+  text.className = "med-linear-picker__item-label";
+  text.textContent = label;
+
+  const check = document.createElement("span");
+  check.className = "med-linear-picker__check";
+  check.setAttribute("aria-hidden", "true");
+  check.textContent = "✓";
+
+  btn.append(text, check);
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
 /**
  * 頻度ピッカーを指定ルート要素群にバインドする。
  * els: {
- *   modes, presets, panelPreset, panelEveryN, panelWeekly, panelWeekdays, panelOther,
- *   everyNPeriod, everyNTimes, everyNNumpad, weeklyDisplay, weeklyNumpad, weekdays, otherInput
+ *   detailCol, detailHead, modes, presets, panelPreset, panelEveryN, panelWeekly,
+ *   panelWeekdays, panelOther, everyNPeriod, everyNTimes, everyNNumpad,
+ *   weeklyDisplay, weeklyNumpad, weekdays, otherInput
  * }
  */
 export function bindFrequencyPicker(els, {
@@ -320,22 +358,31 @@ export function bindFrequencyPicker(els, {
     commit(d);
   }
 
+  function modeLabel(modeId) {
+    return FREQ_MODES.find((m) => m.id === modeId)?.label || "内容";
+  }
+
   function renderModes() {
     if (!els.modes) return;
     els.modes.innerHTML = "";
+    const current = draft().mode || null;
     FREQ_MODES.forEach((m) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "interval-unit-btn";
-      btn.textContent = m.label;
-      btn.classList.toggle("is-selected", draft().mode === m.id);
-      btn.addEventListener("click", () => setMode(m.id));
-      els.modes.appendChild(btn);
+      els.modes.appendChild(
+        createLinearItemButton({
+          label: m.label,
+          selected: current === m.id,
+          onClick: () => setMode(m.id),
+        })
+      );
     });
   }
 
   function renderPanels() {
-    const mode = draft().mode;
+    const mode = draft().mode || null;
+    if (els.detailCol) els.detailCol.hidden = !mode;
+    if (els.detailHead && mode) {
+      els.detailHead.textContent = modeLabel(mode);
+    }
     if (els.panelPreset) els.panelPreset.hidden = mode !== "preset";
     if (els.panelEveryN) els.panelEveryN.hidden = mode !== "every_n";
     if (els.panelWeekly) els.panelWeekly.hidden = mode !== "weekly";
@@ -348,15 +395,15 @@ export function bindFrequencyPicker(els, {
     els.presets.innerHTML = "";
     const list = typeof getPresets === "function" ? getPresets() : getPresets || [];
     list.forEach((label) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "quick-date-btn";
-      btn.textContent = label;
-      btn.classList.toggle("is-selected", draft().preset === label);
-      btn.addEventListener("click", () => {
-        commit({ ...draft(), mode: "preset", preset: label });
-      });
-      els.presets.appendChild(btn);
+      els.presets.appendChild(
+        createLinearItemButton({
+          label,
+          selected: draft().preset === label,
+          onClick: () => {
+            commit({ ...draft(), mode: "preset", preset: label });
+          },
+        })
+      );
     });
   }
 
@@ -386,19 +433,23 @@ export function bindFrequencyPicker(els, {
     els.weekdays.innerHTML = "";
     const selected = new Set(draft().weekdays || []);
     WEEKDAY_OPTIONS.forEach((w) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "weekday-btn";
-      btn.textContent = w.label;
-      btn.title = w.full;
-      btn.classList.toggle("is-selected", selected.has(w.id));
-      btn.addEventListener("click", () => {
-        const next = new Set(draft().weekdays || []);
-        if (next.has(w.id)) next.delete(w.id);
-        else next.add(w.id);
-        commit({ ...draft(), mode: "weekdays", weekdays: [...next].sort((a, b) => a - b) });
-      });
-      els.weekdays.appendChild(btn);
+      els.weekdays.appendChild(
+        createLinearItemButton({
+          label: w.full,
+          title: w.full,
+          selected: selected.has(w.id),
+          onClick: () => {
+            const next = new Set(draft().weekdays || []);
+            if (next.has(w.id)) next.delete(w.id);
+            else next.add(w.id);
+            commit({
+              ...draft(),
+              mode: "weekdays",
+              weekdays: [...next].sort((a, b) => a - b),
+            });
+          },
+        })
+      );
     });
   }
 

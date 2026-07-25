@@ -911,27 +911,47 @@
       </div>
       <div class="field">
         <span class="label">初期の投与頻度（任意）</span>
-        <div class="interval-unit-buttons freq-mode-buttons" id="med-add-freq-modes" role="group" aria-label="頻度の指定方法"></div>
-        <div id="med-add-freq-panel-preset">
-          <div class="quick-date-buttons" id="med-add-freq-presets"></div>
-        </div>
-        <div id="med-add-freq-panel-every-n" hidden>
-          <div class="freq-dual-fields">
-            <button type="button" class="interval-value-display freq-field" id="med-add-freq-period">日数: 3</button>
-            <button type="button" class="interval-value-display freq-field" id="med-add-freq-times">回数: 1</button>
+        <div class="med-linear-picker med-linear-picker--freq" id="med-add-freq-picker" aria-label="投与頻度の選択">
+          <div class="med-linear-picker__col" data-col="mode">
+            <div class="med-linear-picker__head">指定方法</div>
+            <div
+              class="med-linear-picker__list"
+              id="med-add-freq-modes"
+              role="listbox"
+              aria-label="頻度の指定方法"
+            ></div>
           </div>
-          <div class="numpad" id="med-add-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
-          <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
-        </div>
-        <div id="med-add-freq-panel-weekly" hidden>
-          <p class="interval-value-display" id="med-add-freq-weekly-display">週1回</p>
-          <div class="numpad" id="med-add-freq-weekly-numpad" aria-label="週○回の数値入力"></div>
-        </div>
-        <div id="med-add-freq-panel-weekdays" hidden>
-          <div class="weekday-buttons" id="med-add-freq-weekdays" role="group" aria-label="曜日選択"></div>
-        </div>
-        <div id="med-add-freq-panel-other" hidden>
-          <input id="med-add-freq-other-input" class="input" type="text" placeholder="頻度を自由に入力" />
+          <div
+            class="med-linear-picker__col med-linear-picker__col--leaf"
+            id="med-add-freq-detail"
+            data-col="detail"
+            hidden
+          >
+            <div class="med-linear-picker__head" id="med-add-freq-detail-head">内容</div>
+            <div class="freq-linear-detail">
+              <div id="med-add-freq-panel-preset" hidden>
+                <div class="med-linear-picker__list" id="med-add-freq-presets"></div>
+              </div>
+              <div id="med-add-freq-panel-every-n" hidden>
+                <div class="freq-dual-fields">
+                  <button type="button" class="interval-value-display freq-field" id="med-add-freq-period">日数: 3</button>
+                  <button type="button" class="interval-value-display freq-field" id="med-add-freq-times">回数: 1</button>
+                </div>
+                <div class="numpad" id="med-add-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
+                <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
+              </div>
+              <div id="med-add-freq-panel-weekly" hidden>
+                <p class="interval-value-display" id="med-add-freq-weekly-display">週1回</p>
+                <div class="numpad" id="med-add-freq-weekly-numpad" aria-label="週○回の数値入力"></div>
+              </div>
+              <div id="med-add-freq-panel-weekdays" hidden>
+                <div class="med-linear-picker__list" id="med-add-freq-weekdays" role="group" aria-label="曜日選択"></div>
+              </div>
+              <div id="med-add-freq-panel-other" hidden>
+                <input id="med-add-freq-other-input" class="input" type="text" placeholder="頻度を自由に入力" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <p id="med-add-error" class="error-text" role="alert" hidden></p>
@@ -946,7 +966,7 @@
 <!-- 薬剤: 出来事追加モーダル -->
 <div class="modal" id="med-event-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="med-event-modal-title">
+  <div class="modal__panel modal__panel--med-event" role="dialog" aria-modal="true" aria-labelledby="med-event-modal-title">
     <div class="modal__header">
       <h2 class="modal__title" id="med-event-modal-title">出来事を追加</h2>
       <button class="modal__close" id="btn-close-med-event" type="button" aria-label="閉じる">&times;</button>
@@ -968,27 +988,47 @@
           <span>回数を変更</span>
         </label>
         <div id="med-event-freq-block" hidden>
-          <div class="interval-unit-buttons freq-mode-buttons" id="med-event-freq-modes" role="group" aria-label="頻度の指定方法"></div>
-          <div id="med-event-freq-panel-preset">
-            <div class="quick-date-buttons" id="med-event-freq-presets"></div>
-          </div>
-          <div id="med-event-freq-panel-every-n" hidden>
-            <div class="freq-dual-fields">
-              <button type="button" class="interval-value-display freq-field" id="med-event-freq-period">日数: 3</button>
-              <button type="button" class="interval-value-display freq-field" id="med-event-freq-times">回数: 1</button>
+          <div class="med-linear-picker med-linear-picker--freq" id="med-event-freq-picker" aria-label="投与頻度の選択">
+            <div class="med-linear-picker__col" data-col="mode">
+              <div class="med-linear-picker__head">指定方法</div>
+              <div
+                class="med-linear-picker__list"
+                id="med-event-freq-modes"
+                role="listbox"
+                aria-label="頻度の指定方法"
+              ></div>
             </div>
-            <div class="numpad" id="med-event-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
-            <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
-          </div>
-          <div id="med-event-freq-panel-weekly" hidden>
-            <p class="interval-value-display" id="med-event-freq-weekly-display">週1回</p>
-            <div class="numpad" id="med-event-freq-weekly-numpad" aria-label="週○回の数値入力"></div>
-          </div>
-          <div id="med-event-freq-panel-weekdays" hidden>
-            <div class="weekday-buttons" id="med-event-freq-weekdays" role="group" aria-label="曜日選択"></div>
-          </div>
-          <div id="med-event-freq-panel-other" hidden>
-            <input id="med-event-freq-other-input" class="input" type="text" placeholder="回数変更の内容" />
+            <div
+              class="med-linear-picker__col med-linear-picker__col--leaf"
+              id="med-event-freq-detail"
+              data-col="detail"
+              hidden
+            >
+              <div class="med-linear-picker__head" id="med-event-freq-detail-head">内容</div>
+              <div class="freq-linear-detail">
+                <div id="med-event-freq-panel-preset" hidden>
+                  <div class="med-linear-picker__list" id="med-event-freq-presets"></div>
+                </div>
+                <div id="med-event-freq-panel-every-n" hidden>
+                  <div class="freq-dual-fields">
+                    <button type="button" class="interval-value-display freq-field" id="med-event-freq-period">日数: 3</button>
+                    <button type="button" class="interval-value-display freq-field" id="med-event-freq-times">回数: 1</button>
+                  </div>
+                  <div class="numpad" id="med-event-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
+                  <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
+                </div>
+                <div id="med-event-freq-panel-weekly" hidden>
+                  <p class="interval-value-display" id="med-event-freq-weekly-display">週1回</p>
+                  <div class="numpad" id="med-event-freq-weekly-numpad" aria-label="週○回の数値入力"></div>
+                </div>
+                <div id="med-event-freq-panel-weekdays" hidden>
+                  <div class="med-linear-picker__list" id="med-event-freq-weekdays" role="group" aria-label="曜日選択"></div>
+                </div>
+                <div id="med-event-freq-panel-other" hidden>
+                  <input id="med-event-freq-other-input" class="input" type="text" placeholder="回数変更の内容" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

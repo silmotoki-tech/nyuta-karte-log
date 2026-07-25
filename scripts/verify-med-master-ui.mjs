@@ -200,7 +200,7 @@ await page.waitForTimeout(250);
 
 // 点眼で新規追加（中項目なし）→ カルテ横断でマスタ共有を確認
 await page.locator("#med-add-col-category-list .med-linear-picker__item", {
-  hasText: "点眼",
+  hasText: "点眼薬",
 }).click();
 await page.waitForTimeout(100);
 await page.fill("#med-add-new-item", "点眼テスト薬");
@@ -215,6 +215,12 @@ const selected = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
   .textContent();
 if (selected !== "点眼テスト薬") throw new Error("not selected");
+const defaultImportance = await page
+  .locator("#med-add-category-buttons .med-cat-btn.is-selected")
+  .textContent();
+if (!defaultImportance?.startsWith("A")) {
+  throw new Error("new med importance default should be A");
+}
 
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(200);
@@ -225,6 +231,14 @@ const listA = await page.evaluate(() =>
 );
 console.log("KARTE A list:", listA);
 if (!listA.includes("点眼テスト薬")) throw new Error("drug not on karte A list");
+const savedCat = await page.evaluate(() => {
+  const nameEl = [...document.querySelectorAll("#meds-list .med-card__name")].find(
+    (el) =>
+      (el.getAttribute("aria-label") || el.dataset.name || "").includes("点眼テスト薬")
+  );
+  return nameEl?.closest(".med-card")?.querySelector(".med-cat")?.textContent?.trim() || "";
+});
+if (savedCat !== "A") throw new Error("saved importance should be A");
 
 await page.evaluate(() => {
   window.__leave();
@@ -234,7 +248,7 @@ await page.waitForTimeout(150);
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.locator("#med-add-col-category-list .med-linear-picker__item", {
-  hasText: "点眼",
+  hasText: "点眼薬",
 }).click();
 await page.waitForTimeout(100);
 buttons = await page

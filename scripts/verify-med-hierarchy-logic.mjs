@@ -20,10 +20,14 @@ const topicalGroups = Object.entries(items).filter(
 const eyeGroups = Object.entries(items).filter(
   ([, r]) => r.category === "eye" && r.kind === "group"
 );
+const injectGroups = Object.entries(items).filter(
+  ([, r]) => r.category === "inject" && r.kind === "group"
+);
 
 console.log("oral groups:", oralGroups.length);
 console.log("topical groups:", topicalGroups.length);
 console.log("eye groups:", eyeGroups.length);
+console.log("inject groups:", injectGroups.length);
 
 if (oralGroups.length !== 19) {
   throw new Error(`expected 19 oral groups, got ${oralGroups.length}`);
@@ -33,6 +37,9 @@ if (topicalGroups.length !== 3) {
 }
 if (eyeGroups.length !== 0) {
   throw new Error("eye must have no mid groups");
+}
+if (injectGroups.length !== 0) {
+  throw new Error("inject must have no mid groups");
 }
 if (!items[MED_ORAL_OTHER_GROUP_ID]) {
   throw new Error("その他 group missing");

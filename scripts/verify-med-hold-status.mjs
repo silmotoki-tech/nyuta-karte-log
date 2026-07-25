@@ -46,18 +46,19 @@ function today() {
 }
 
 export const MEDICATION_ITEM_CATEGORIES = [
-  { id: "oral", label: "内服" },
-  { id: "topical", label: "外用" },
-  { id: "eye", label: "点眼" },
+  { id: "inject", label: "注射薬" },
+  { id: "oral", label: "内服薬" },
+  { id: "topical", label: "外用薬" },
+  { id: "eye", label: "点眼薬" },
 ];
 export function normalizeMedicationItemCategory(c) {
-  return ["oral","topical","eye"].includes(c) ? c : "oral";
+  return ["inject","oral","topical","eye"].includes(c) ? c : "oral";
 }
 export function normalizeMedicationItemKind(k) {
   return k === "group" ? "group" : "leaf";
 }
 export function medicationItemCategoryLabel(c) {
-  return ({ oral:"内服", topical:"外用", eye:"点眼" })[normalizeMedicationItemCategory(c)] || c;
+  return ({ inject:"注射薬", oral:"内服薬", topical:"外用薬", eye:"点眼薬" })[normalizeMedicationItemCategory(c)] || c;
 }
 
 export function subscribeMedicationItems(cb) {
@@ -340,7 +341,7 @@ await page.evaluate(() => window.__enter("karte-hold"));
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.locator("#med-add-col-category-list .med-linear-picker__item", {
-  hasText: "点眼",
+  hasText: "点眼薬",
 }).click();
 await page.waitForTimeout(80);
 await page.fill("#med-add-new-item", "プレドニゾロン");

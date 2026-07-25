@@ -2734,8 +2734,39 @@ select.input {
   overflow: hidden;
 }
 
-.modal__panel--med-add {
+.modal__panel--med-add,
+.modal__panel--med-event {
   max-width: 760px;
+}
+
+.med-linear-picker--freq {
+  min-height: 220px;
+  max-height: min(48vh, 380px);
+}
+
+.freq-linear-detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.freq-linear-detail .med-linear-picker__list {
+  flex: 0 1 auto;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+
+.freq-linear-detail .field__note {
+  margin: 0;
+}
+
+.freq-linear-detail .input {
+  width: 100%;
 }
 
 /* 薬剤追加: 大項目→中項目→薬剤名の横並びリニア選択 */

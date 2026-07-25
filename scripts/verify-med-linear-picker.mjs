@@ -219,8 +219,18 @@ await page.waitForTimeout(200);
 // 初期: 大項目のみ
 const cats = await itemLabels(page, "#med-add-col-category-list");
 console.log("categories:", cats);
-if (JSON.stringify(cats) !== JSON.stringify(["内服", "外用", "点眼"])) {
+if (
+  JSON.stringify(cats) !==
+  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬"])
+) {
   throw new Error("category list mismatch");
+}
+const defaultImportance = await page
+  .locator("#med-add-category-buttons .med-cat-btn.is-selected")
+  .textContent();
+console.log("default importance:", defaultImportance);
+if (!defaultImportance?.startsWith("A")) {
+  throw new Error("new med importance default should be A");
 }
 if (!(await page.locator("#med-add-col-group").isHidden())) {
   throw new Error("mid col should be hidden initially");
@@ -232,8 +242,21 @@ await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-01-initial.png"),
 });
 
-// 内服 → 中項目
-await clickItem(page, "#med-add-col-category-list", "内服");
+// 注射薬 → 中項目なしで薬剤名列
+await clickItem(page, "#med-add-col-category-list", "注射薬");
+await page.waitForTimeout(100);
+if (!(await page.locator("#med-add-col-group").isHidden())) {
+  throw new Error("inject should hide mid column");
+}
+if (await page.locator("#med-add-col-leaf").isHidden()) {
+  throw new Error("inject should show leaf column directly");
+}
+await page.screenshot({
+  path: path.join(root, "tools/med-linear-picker-00-inject.png"),
+});
+
+// 内服薬 → 中項目
+await clickItem(page, "#med-add-col-category-list", "内服薬");
 await page.waitForTimeout(100);
 if (await page.locator("#med-add-col-group").isHidden()) {
   throw new Error("mid col should show after oral");
@@ -250,7 +273,7 @@ if (!groups.includes("抗生剤") || !groups.includes("その他")) {
 const oralSelected = await page
   .locator("#med-add-col-category-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
   .textContent();
-if (oralSelected !== "内服") throw new Error("oral not marked selected");
+if (oralSelected !== "内服薬") throw new Error("oral not marked selected");
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-02-oral-mid.png"),
 });
@@ -297,8 +320,8 @@ const stillSelectedLeaf = await page
   .count();
 if (stillSelectedLeaf !== 0) throw new Error("leaf selection should clear on mid change");
 
-// 点眼 → 中項目なしで直接薬剤名
-await clickItem(page, "#med-add-col-category-list", "点眼");
+// 点眼薬 → 中項目なしで直接薬剤名
+await clickItem(page, "#med-add-col-category-list", "点眼薬");
 await page.waitForTimeout(100);
 if (!(await page.locator("#med-add-col-group").isHidden())) {
   throw new Error("eye should hide mid column");
@@ -327,8 +350,8 @@ await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-06-eye-added.png"),
 });
 
-// 外用の中項目数確認
-await clickItem(page, "#med-add-col-category-list", "外用");
+// 外用薬の中項目数確認
+await clickItem(page, "#med-add-col-category-list", "外用薬");
 await page.waitForTimeout(80);
 const topical = await itemLabels(page, "#med-add-col-group-list");
 console.log("topical groups:", topical);
@@ -345,10 +368,23 @@ await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-07-topical.png"),
 });
 
+// 新規登録時の重要度が A のまま保存されること
+await page.click("#btn-med-add-save");
+await page.waitForTimeout(200);
+const savedCat = await page.evaluate(() => {
+  const nameEl = [...document.querySelectorAll("#meds-list .med-card__name")].find(
+    (el) =>
+      (el.getAttribute("aria-label") || el.dataset.name || "").includes("イソジンゲル")
+  );
+  return nameEl?.closest(".med-card")?.querySelector(".med-cat")?.textContent?.trim() || "";
+});
+console.log("saved importance for イソジンゲル:", savedCat);
+if (savedCat !== "A") throw new Error("saved importance should be A by default");
+
 if (errors.length) {
   console.log("ERRORS", errors);
   throw new Error("page errors");
 }
-console.log("OK: linear picker oral→mid→leaf and eye→leaf");
+console.log("OK: inject/oral/topical/eye labels + default importance A");
 await browser.close();
 server.close();

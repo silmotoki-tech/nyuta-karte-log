@@ -15,9 +15,10 @@ const SYSTEM_CHROME =
 
 const mockDb = `
 export const MEDICATION_ITEM_CATEGORIES = [
-  { id: "oral", label: "内服" },
-  { id: "topical", label: "外用" },
-  { id: "eye", label: "点眼" },
+  { id: "inject", label: "注射薬" },
+  { id: "oral", label: "内服薬" },
+  { id: "topical", label: "外用薬" },
+  { id: "eye", label: "点眼薬" },
 ];
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
 export function normalizeMedicationItemCategory(category) {

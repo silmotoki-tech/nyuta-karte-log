@@ -33,7 +33,7 @@
 //     { item, date, note }
 //
 //   medicationItems/{itemId}/label                      … 薬剤マスタの表示名
-//   medicationItems/{itemId}/category                   … "oral"|"topical"|"eye"（内服／外用／点眼）
+//   medicationItems/{itemId}/category                   … "inject"|"oral"|"topical"|"eye"（注射薬／内服薬／外用薬／点眼薬）
 //   medicationItems/{itemId}/kind                       … "group"|"leaf"（中項目／薬剤名）
 //   medicationItems/{itemId}/parentId                   … 中項目の親ID（トップ／点眼の葉は空）
 //   medicationItems/{itemId}/order                      … 並び順
@@ -1276,9 +1276,10 @@ export async function deleteExamHistory(karteNumber, historyId) {
 // --- 薬剤マスタ -----------------------------------------------------------
 
 export const MEDICATION_ITEM_CATEGORIES = [
-  { id: "oral", label: "内服" },
-  { id: "topical", label: "外用" },
-  { id: "eye", label: "点眼" },
+  { id: "inject", label: "注射薬" },
+  { id: "oral", label: "内服薬" },
+  { id: "topical", label: "外用薬" },
+  { id: "eye", label: "点眼薬" },
 ];
 const MEDICATION_ITEM_CATEGORY_IDS = new Set(
   MEDICATION_ITEM_CATEGORIES.map((c) => c.id)
@@ -1681,7 +1682,7 @@ export async function addMedication(
   await set(newRef, {
     schemaVersion: MEDICATION_SCHEMA_VERSION,
     name: name || "",
-    category: ["A", "B", "C"].includes(category) ? category : "B",
+    category: ["A", "B", "C"].includes(category) ? category : "A",
     sideEffectNote: sideEffectNote || "",
     expiryEstimate: expiryEstimate || "",
     events: {},

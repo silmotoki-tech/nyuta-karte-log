@@ -71,17 +71,17 @@ const state = {
     date: "",
     changeFrequency: false,
     changeAmount: false,
-    freq: createEmptyFreqDraft("preset"),
+    freq: createEmptyFreqDraft(null),
     amountPreset: "",
     amountOther: "",
     detail: "",
   },
   addDraft: {
     name: "",
-    category: "B",
-    freq: createEmptyFreqDraft("preset"),
+    category: "A",
+    freq: createEmptyFreqDraft(null),
   },
-  /** 薬剤マスタ・リニアピッカー: 大分類 oral|topical|eye|null、中項目 parentId（未選択は null） */
+  /** 薬剤マスタ・リニアピッカー: 大分類 inject|oral|topical|eye|null、中項目 parentId（未選択は null） */
   medItemCategory: null,
   medItemParentId: null,
 };
@@ -139,6 +139,8 @@ const btnEventCancel = document.getElementById("btn-med-event-cancel");
 const btnCloseEventModal = document.getElementById("btn-close-med-event");
 
 const addFreqEls = {
+  detailCol: document.getElementById("med-add-freq-detail"),
+  detailHead: document.getElementById("med-add-freq-detail-head"),
   modes: document.getElementById("med-add-freq-modes"),
   presets: document.getElementById("med-add-freq-presets"),
   panelPreset: document.getElementById("med-add-freq-panel-preset"),
@@ -156,6 +158,8 @@ const addFreqEls = {
 };
 
 const eventFreqEls = {
+  detailCol: document.getElementById("med-event-freq-detail"),
+  detailHead: document.getElementById("med-event-freq-detail-head"),
   modes: document.getElementById("med-event-freq-modes"),
   presets: document.getElementById("med-event-freq-presets"),
   panelPreset: document.getElementById("med-event-freq-panel-preset"),
@@ -944,7 +948,9 @@ function updateMedLeafAddUI() {
         ? "例）ヒアレイン"
         : category === "topical"
           ? "例）イソジン"
-          : "例）アモキシシリン";
+          : category === "inject"
+            ? "例）セファゾリン"
+            : "例）アモキシシリン";
   }
   if (addItemsEmpty) {
     addItemsEmpty.textContent =
@@ -1027,7 +1033,7 @@ function renderMedLinearPicker() {
 
 /**
  * 薬剤追加モーダル内でマスタへ新規追加し、その薬剤を選択する。
- * 内服・外用は中項目内、点眼は大分類直下に追加する。
+ * 内服薬・外用薬は中項目内、注射薬・点眼薬は大分類直下に追加する。
  */
 async function handleAddMedicationItemFromModal() {
   const category = activeMedCategoryId();
@@ -1087,8 +1093,8 @@ async function handleAddMedicationItemFromModal() {
 function openAddModal() {
   state.addDraft = {
     name: "",
-    category: "B",
-    freq: createEmptyFreqDraft("preset"),
+    category: "A",
+    freq: createEmptyFreqDraft(null),
   };
   state.medItemCategory = null;
   state.medItemParentId = null;
@@ -1299,7 +1305,7 @@ function openEventModal(drugId, eventToEdit = null) {
       date: todayStr(),
       changeFrequency: false,
       changeAmount: false,
-      freq: createEmptyFreqDraft("preset"),
+      freq: createEmptyFreqDraft(null),
       amountPreset: "",
       amountOther: "",
       detail: "",
@@ -1459,7 +1465,7 @@ export async function ensureMedicationNameFromExternal(
   }
   const drugId = await addMedication(karteNumber, {
     name: trimmed,
-    category: "B",
+    category: "A",
     changedBy: changedBy || "",
     eventDate: eventDate || todayStr(),
     frequencyChange: "",

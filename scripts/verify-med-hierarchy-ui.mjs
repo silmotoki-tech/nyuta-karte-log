@@ -207,12 +207,21 @@ const categoryLabels = await page
   .locator("#med-add-col-category-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("categories:", categoryLabels);
-if (JSON.stringify(categoryLabels) !== JSON.stringify(["内服", "外用", "点眼"])) {
+if (
+  JSON.stringify(categoryLabels) !==
+  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬"])
+) {
   throw new Error("category list mismatch");
+}
+const defaultImportance = await page
+  .locator("#med-add-category-buttons .med-cat-btn.is-selected")
+  .textContent();
+if (!defaultImportance?.startsWith("A")) {
+  throw new Error("new med importance default should be A");
 }
 
 await page.locator("#med-add-col-category-list .med-linear-picker__item", {
-  hasText: "内服",
+  hasText: "内服薬",
 }).click();
 await page.waitForTimeout(100);
 
@@ -280,7 +289,7 @@ if (!cardHtml.includes("med-cat--A")) {
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.locator("#med-add-col-category-list .med-linear-picker__item", {
-  hasText: "外用",
+  hasText: "外用薬",
 }).click();
 await page.waitForTimeout(100);
 buttons = await page
@@ -301,7 +310,7 @@ if (!buttons.includes("イソジンゲル")) throw new Error("topical add failed
 
 // 点眼: 中項目なし・直下に追加
 await page.locator("#med-add-col-category-list .med-linear-picker__item", {
-  hasText: "点眼",
+  hasText: "点眼薬",
 }).click();
 await page.waitForTimeout(100);
 const eyeMidHidden = await page.locator("#med-add-col-group").isHidden();
@@ -322,9 +331,7 @@ buttons = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 if (!buttons.includes("ヒアレイン")) throw new Error("eye add failed");
-await page.locator("#med-add-category-buttons .med-cat-btn", {
-  hasText: /^B/,
-}).click();
+// デフォルト A のまま保存（明示的に B へは変更しない）
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(250);
 
@@ -358,8 +365,8 @@ if (!amo || !/med-cat--A|data-category="A"|カテゴリA/.test(amo.html)) {
   const amoOk = amo && (amo.html.includes("med-cat--A") || amo.html.includes("A"));
   if (!amoOk) throw new Error("category A not preserved on amoxicillin card");
 }
-if (!hya || !(hya.html.includes("med-cat--B") || hya.html.includes("B"))) {
-  throw new Error("category B not set on eye drop card");
+if (!hya || !(hya.html.includes("med-cat--A") || /\bA\b/.test(hya.html))) {
+  throw new Error("category A default not set on eye drop card");
 }
 console.log("ABC ok for", amo.name, hya.name);
 
