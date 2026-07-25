@@ -52,9 +52,9 @@ const state = {
   karteNumber: null,
   plan: null,
   examItems: [],
-  /** 予定登録モーダル内の検査項目分類タブ */
-  examItemCategory: EXAM_ITEM_CATEGORIES[0]?.id || "blood",
-  /** 血液タブのドリルダウン中の大項目ID（null=ルート） */
+  /** 予定登録モーダル内の検査大分類（null=未選択） */
+  examItemCategory: null,
+  /** 血液・画像の中項目ID（null=未選択） */
   examBloodParentId: null,
   unsubscribePlan: null,
   unsubscribeItems: null,
@@ -118,11 +118,12 @@ const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
 
 const planModal = document.getElementById("exam-plan-modal");
 const planModalTitle = document.getElementById("exam-plan-modal-title");
-const planItemCategories = document.getElementById("exam-plan-item-categories");
-const planBloodNav = document.getElementById("exam-plan-blood-nav");
-const planBloodNavLabel = document.getElementById("exam-plan-blood-nav-label");
-const btnPlanBloodBack = document.getElementById("btn-exam-plan-blood-back");
-const planItemButtons = document.getElementById("exam-plan-item-buttons");
+const planColCategory = document.getElementById("exam-plan-col-category");
+const planColCategoryList = document.getElementById("exam-plan-col-category-list");
+const planColGroup = document.getElementById("exam-plan-col-group");
+const planColGroupList = document.getElementById("exam-plan-col-group-list");
+const planColLeaf = document.getElementById("exam-plan-col-leaf");
+const planColLeafList = document.getElementById("exam-plan-col-leaf-list");
 const planItemsEmpty = document.getElementById("exam-plan-items-empty");
 const planSelectionSummary = document.getElementById("exam-plan-selection-summary");
 const planItemAddDefault = document.getElementById("exam-plan-item-add-default");
@@ -430,16 +431,12 @@ export function initExamPlanUI(helpers = {}) {
 
   state.unsubscribeItems = subscribeExamItems((items) => {
     state.examItems = items;
-    // 予定登録モーダルが開いているときだけボタンを描画（起動時の不要なDOM更新を避ける）
+    // 予定登録モーダルが開いているときだけ描画（起動時の不要なDOM更新を避ける）
     if (planModal && !planModal.hidden) {
-      renderExamItemCategoryTabs();
-      renderPlanItemButtons();
-      updateExamItemAddUI();
+      renderExamLinearPicker();
     }
   });
 
-  renderExamItemCategoryTabs();
-  updateExamItemAddUI();
   showRightEmpty(true);
   switchTab("exam");
 }
@@ -914,11 +911,6 @@ function wirePlanModal() {
   planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
   btnPlanSave?.addEventListener("click", handlePlanSave);
   btnPlanAddItem?.addEventListener("click", () => handleAddExamItemFromPlanModal());
-  btnPlanBloodBack?.addEventListener("click", () => {
-    state.examBloodParentId = null;
-    renderPlanItemButtons();
-    updateExamItemAddUI();
-  });
   planNewItemInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !isImeKey(e)) {
       e.preventDefault();
@@ -1254,10 +1246,9 @@ function planNeedsFasting(itemLabel) {
   }
   if (compositeLabelNeedsFasting(itemLabel)) return true;
   if (!(itemLabel || "").trim()) return false;
-  // 追加直後でマスタ未反映のときだけ、血液タブの登録モーダルをフォールバック
+  // 追加直後でマスタ未反映のときだけ、血液分類の登録モーダルをフォールバック
   return (
-    normalizeExamItemCategory(state.examItemCategory) === "blood" &&
-    Boolean(planModal && !planModal.hidden)
+    activeExamCategoryId() === "blood" && Boolean(planModal && !planModal.hidden)
   );
 }
 
@@ -1276,8 +1267,15 @@ function renderPlanSelectionSummary() {
     count === 1 ? `選択中: ${label}` : `選択中（${count}件）: ${label}`;
 }
 
-function itemsInActiveCategory() {
-  const cat = normalizeExamItemCategory(state.examItemCategory);
+function activeExamCategoryId() {
+  const raw = state.examItemCategory;
+  if (raw == null || raw === "") return null;
+  return normalizeExamItemCategory(raw);
+}
+
+function itemsInActiveCategory(category = activeExamCategoryId()) {
+  if (!category) return [];
+  const cat = normalizeExamItemCategory(category);
   return state.examItems.filter(
     (item) => normalizeExamItemCategory(item.category) === cat
   );
@@ -1288,15 +1286,62 @@ function categorySupportsExamDrilldown(category) {
   return cat === "blood" || cat === "imaging";
 }
 
-function visibleExamItemsForPicker() {
-  const items = itemsInActiveCategory();
-  const cat = normalizeExamItemCategory(state.examItemCategory);
-  // 病理・その他はフラット。血液・画像は大項目→内訳のドリルダウン
+function examGroupsForCategory(category) {
+  return itemsInActiveCategory(category).filter((item) => isExamGroup(item));
+}
+
+function examRootLeavesForCategory(category) {
+  return itemsInActiveCategory(category).filter(
+    (item) => !isExamGroup(item) && !(item.parentId || "")
+  );
+}
+
+function examLeavesForPicker() {
+  const cat = activeExamCategoryId();
+  if (!cat) return [];
+  const items = itemsInActiveCategory(cat);
   if (!categorySupportsExamDrilldown(cat)) {
     return items.filter((item) => !isExamGroup(item));
   }
-  const parentId = state.examBloodParentId || "";
-  return items.filter((item) => (item.parentId || "") === parentId);
+  if (state.examBloodParentId) {
+    return items.filter(
+      (item) =>
+        !isExamGroup(item) && (item.parentId || "") === state.examBloodParentId
+    );
+  }
+  // 中項目未選択時は大分類直下の具体項目（CBC など）を3列目に出す
+  return examRootLeavesForCategory(cat);
+}
+
+function canAddExamLeaf() {
+  const cat = activeExamCategoryId();
+  if (!cat) return false;
+  if (!categorySupportsExamDrilldown(cat)) return true;
+  if (state.examBloodParentId) return true;
+  // 画像ルートでは従来どおり追加可。血液ルートは中項目選択後のみ
+  return cat === "imaging";
+}
+
+function createExamLinearItemButton({ label, selected, onClick }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "med-linear-picker__item";
+  btn.setAttribute("role", "option");
+  btn.setAttribute("aria-selected", String(Boolean(selected)));
+  btn.classList.toggle("is-selected", Boolean(selected));
+
+  const text = document.createElement("span");
+  text.className = "med-linear-picker__item-label";
+  text.textContent = label;
+
+  const check = document.createElement("span");
+  check.className = "med-linear-picker__check";
+  check.setAttribute("aria-hidden", "true");
+  check.textContent = "✓";
+
+  btn.append(text, check);
+  btn.addEventListener("click", onClick);
+  return btn;
 }
 
 function wireFastingButtons(container, onChange) {
@@ -1364,60 +1409,32 @@ function toggleExamLeaf(item) {
     }
   }
 
-  renderPlanItemButtons();
+  renderExamLinearPicker();
   renderPlanSelectionSummary();
   renderPlanFastingButtons();
 }
 
-function renderExamItemCategoryTabs() {
-  if (!planItemCategories) return;
-  planItemCategories.innerHTML = "";
-  EXAM_ITEM_CATEGORIES.forEach((cat) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "exam-item-category-tab";
-    btn.setAttribute("role", "tab");
-    btn.dataset.category = cat.id;
-    btn.textContent = cat.label;
-    btn.setAttribute("aria-selected", String(state.examItemCategory === cat.id));
-    btn.classList.toggle("is-active", state.examItemCategory === cat.id);
-    btn.addEventListener("click", () => {
-      state.examItemCategory = cat.id;
-      state.examBloodParentId = null;
-      // 複数選択はタブをまたいで保持する
-      renderExamItemCategoryTabs();
-      renderPlanItemButtons();
-      updateExamItemAddUI();
-      renderPlanSelectionSummary();
-      renderPlanFastingButtons();
-    });
-    planItemCategories.appendChild(btn);
-  });
-}
-
 function updateExamItemAddUI() {
-  const category = normalizeExamItemCategory(state.examItemCategory);
-  const supportsDrill = categorySupportsExamDrilldown(category);
-  const inDrillRoot = supportsDrill && !state.examBloodParentId;
-  const inDrillGroup = supportsDrill && Boolean(state.examBloodParentId);
-  const inBloodRoot = category === "blood" && !state.examBloodParentId;
+  const category = activeExamCategoryId();
+  const showLeaf = Boolean(planColLeaf && !planColLeaf.hidden);
+  const canAdd = showLeaf && canAddExamLeaf();
+  const inDrillGroup =
+    Boolean(category) &&
+    categorySupportsExamDrilldown(category) &&
+    Boolean(state.examBloodParentId);
+  const parent = inDrillGroup
+    ? state.examItems.find((item) => item.id === state.examBloodParentId)
+    : null;
+  const label = category ? examItemCategoryLabel(category) : "";
 
-  // 血液ルートでは追加欄なし。画像ルート・内訳・病理・その他は追加可
-  if (planItemAddDefault) planItemAddDefault.hidden = inBloodRoot;
+  if (planItemAddDefault) planItemAddDefault.hidden = !canAdd;
 
-  if (planBloodNav) {
-    planBloodNav.hidden = !inDrillGroup;
-  }
-  if (inDrillGroup && planBloodNavLabel) {
-    const parent = state.examItems.find((item) => item.id === state.examBloodParentId);
-    planBloodNavLabel.textContent = parent?.label || "内訳";
-  }
-
-  const label = examItemCategoryLabel(category);
   if (planNewItemLabel) {
     planNewItemLabel.textContent = inDrillGroup
-      ? `新しい内訳を追加（${planBloodNavLabel?.textContent || label}）`
-      : `新しい項目を追加（${label}）`;
+      ? `新しい内訳を追加（${parent?.label || label}）`
+      : label
+        ? `新しい項目を追加（${label}）`
+        : "新しい項目を追加";
   }
   if (planNewItemInput) {
     planNewItemInput.placeholder = inDrillGroup
@@ -1431,37 +1448,84 @@ function updateExamItemAddUI() {
           : "例）その他の検査";
   }
   if (planItemsEmpty) {
-    planItemsEmpty.textContent = inDrillRoot
-      ? "この分類にはまだ項目がありません。"
-      : "この分類にはまだ項目がありません。下で追加できます。";
+    planItemsEmpty.textContent = canAdd
+      ? "この分類にはまだ項目がありません。下で追加できます。"
+      : "この分類にはまだ項目がありません。";
   }
 }
 
-function renderPlanItemButtons() {
-  if (!planItemButtons) return;
-  planItemButtons.innerHTML = "";
-  const items = visibleExamItemsForPicker();
-  if (planItemsEmpty) planItemsEmpty.hidden = items.length > 0;
-  updateExamItemAddUI();
+function renderExamLinearPicker() {
+  const category = activeExamCategoryId();
+  const showMid = Boolean(category && categorySupportsExamDrilldown(category));
+  const rootLeaves = showMid ? examRootLeavesForCategory(category) : [];
+  const showLeaf = Boolean(
+    category &&
+      (!categorySupportsExamDrilldown(category) ||
+        state.examBloodParentId ||
+        rootLeaves.length > 0 ||
+        category === "imaging")
+  );
 
-  items.forEach((item) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "exam-item-btn";
-    btn.textContent = item.label;
-    if (isExamGroup(item)) {
-      btn.classList.add("exam-item-btn--group");
-      btn.addEventListener("click", () => {
-        state.examBloodParentId = item.id;
-        renderPlanItemButtons();
-        updateExamItemAddUI();
+  if (planColGroup) planColGroup.hidden = !showMid;
+  if (planColLeaf) planColLeaf.hidden = !showLeaf;
+
+  if (planColCategoryList) {
+    planColCategoryList.innerHTML = "";
+    EXAM_ITEM_CATEGORIES.forEach((cat) => {
+      planColCategoryList.appendChild(
+        createExamLinearItemButton({
+          label: cat.label,
+          selected: category === cat.id,
+          onClick: () => {
+            const changed = state.examItemCategory !== cat.id;
+            state.examItemCategory = cat.id;
+            if (changed) state.examBloodParentId = null;
+            // 複数選択は大分類をまたいで保持する
+            renderExamLinearPicker();
+            renderPlanSelectionSummary();
+            renderPlanFastingButtons();
+          },
+        })
+      );
+    });
+  }
+
+  if (planColGroupList) {
+    planColGroupList.innerHTML = "";
+    if (showMid) {
+      examGroupsForCategory(category).forEach((group) => {
+        planColGroupList.appendChild(
+          createExamLinearItemButton({
+            label: group.label,
+            selected: state.examBloodParentId === group.id,
+            onClick: () => {
+              state.examBloodParentId = group.id;
+              renderExamLinearPicker();
+              renderPlanSelectionSummary();
+              renderPlanFastingButtons();
+            },
+          })
+        );
       });
-    } else {
-      btn.classList.toggle("is-selected", isExamLeafSelected(item));
-      btn.addEventListener("click", () => toggleExamLeaf(item));
     }
-    planItemButtons.appendChild(btn);
-  });
+  }
+
+  if (planColLeafList) {
+    planColLeafList.innerHTML = "";
+    const leaves = showLeaf ? examLeavesForPicker() : [];
+    if (planItemsEmpty) planItemsEmpty.hidden = !showLeaf || leaves.length > 0;
+    leaves.forEach((item) => {
+      planColLeafList.appendChild(
+        createExamLinearItemButton({
+          label: item.label,
+          selected: isExamLeafSelected(item),
+          onClick: () => toggleExamLeaf(item),
+        })
+      );
+    });
+  }
+
+  updateExamItemAddUI();
   renderPlanSelectionSummary();
   renderPlanFastingButtons();
 }
@@ -1474,13 +1538,12 @@ function clearExamItemAddInputs() {
  * 予定登録モーダル内で検査項目マスタへ新規追加する（内訳・画像・その他）。
  */
 async function handleAddExamItemFromPlanModal() {
-  const category = normalizeExamItemCategory(state.examItemCategory);
-  // 血液ルートでは追加UIを出さない
-  if (category === "blood" && !state.examBloodParentId) return;
+  const category = activeExamCategoryId();
+  if (!category || !canAddExamLeaf()) return;
 
   const label = planNewItemInput?.value.trim() || "";
   const kind = "leaf";
-  // ドリルダウン中は親大項目の内訳として追加（血液・画像）
+  // 中項目選択中は親の内訳として追加（血液・画像）
   const parentId =
     categorySupportsExamDrilldown(category) && state.examBloodParentId
       ? state.examBloodParentId
@@ -1502,19 +1565,15 @@ async function handleAddExamItemFromPlanModal() {
         toggleExamLeaf(exists);
         clearExamItemAddInputs();
         deps.showError(planItemError, "");
-        renderExamItemCategoryTabs();
-        updateExamItemAddUI();
         deps.showToast("既存の項目を選択しました。");
         return;
       }
     }
     clearExamItemAddInputs();
     deps.showError(planItemError, "");
-    renderExamItemCategoryTabs();
-    renderPlanItemButtons();
-    updateExamItemAddUI();
+    renderExamLinearPicker();
     deps.showToast(
-      isExamGroup(exists) ? "既存の大項目を開きました。" : "既存の項目は選択済みです。"
+      isExamGroup(exists) ? "既存の中項目を開きました。" : "既存の項目は選択済みです。"
     );
     return;
   }
@@ -1536,7 +1595,7 @@ async function handleAddExamItemFromPlanModal() {
       if (!selectionNeedsFasting()) state.draft.fasting = "";
     }
     clearExamItemAddInputs();
-    renderPlanItemButtons();
+    renderExamLinearPicker();
     deps.showToast(`「${label}」を${examItemCategoryLabel(category)}に追加しました。`);
   } catch (err) {
     console.error(err);
@@ -1621,7 +1680,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     syncDueRelativeUI();
   }
   deps.showError(planError, "");
-  // 選択済み項目があればその分類／親グループを開く
+  // 選択済み項目があればその分類／親グループを開く。なければ大分類未選択から開始
   if (state.draft.selectedItems.length === 1) {
     const sel = state.draft.selectedItems[0];
     state.examItemCategory = normalizeExamItemCategory(sel.category);
@@ -1632,16 +1691,14 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
       state.examItemCategory = normalizeExamItemCategory(matched.category);
       state.examBloodParentId = matched.parentId || null;
     } else {
-      state.examItemCategory = EXAM_ITEM_CATEGORIES[0]?.id || "blood";
+      state.examItemCategory = null;
+      state.examBloodParentId = null;
     }
   } else {
-    state.examItemCategory = EXAM_ITEM_CATEGORIES[0]?.id || "blood";
+    state.examItemCategory = null;
+    state.examBloodParentId = null;
   }
-  renderExamItemCategoryTabs();
-  updateExamItemAddUI();
-  renderPlanItemButtons();
-  renderPlanSelectionSummary();
-  renderPlanFastingButtons();
+  renderExamLinearPicker();
   updateWindowNote();
   if (planModal) planModal.hidden = false;
 }
@@ -1649,6 +1706,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
 function closePlanModal() {
   if (planModal) planModal.hidden = true;
   state.editingPlanId = null;
+  state.examItemCategory = null;
   state.examBloodParentId = null;
   state.draft.selectedItems = [];
 }

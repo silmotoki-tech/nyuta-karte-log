@@ -83,21 +83,29 @@ const harness = `<!DOCTYPE html>
     <div class="modal__body">
       <div class="field">
         <span class="label">検査項目</span>
-        <div class="exam-item-category-tabs" id="exam-plan-item-categories" role="tablist"></div>
-        <div class="exam-item-blood-nav" id="exam-plan-blood-nav" hidden>
-          <button type="button" class="exam-item-blood-nav__back" id="btn-exam-plan-blood-back">← 戻る</button>
-          <span class="exam-item-blood-nav__label" id="exam-plan-blood-nav-label"></span>
-        </div>
-        <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
-        <p class="field__note" id="exam-plan-items-empty" hidden></p>
-        <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
-        <div class="exam-item-add" id="exam-plan-item-add-default">
-          <label class="label label--sub" id="exam-plan-new-item-label" for="exam-plan-new-item">新しい項目を追加</label>
-          <div class="exam-item-add__row">
-            <input id="exam-plan-new-item" class="input" type="text" />
-            <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">追加</button>
+        <div class="med-linear-picker" id="exam-plan-linear-picker" aria-label="検査項目の階層選択">
+          <div class="med-linear-picker__col" id="exam-plan-col-category">
+            <div class="med-linear-picker__head">大項目</div>
+            <div class="med-linear-picker__list" id="exam-plan-col-category-list" role="listbox"></div>
+          </div>
+          <div class="med-linear-picker__col" id="exam-plan-col-group" hidden>
+            <div class="med-linear-picker__head">中項目</div>
+            <div class="med-linear-picker__list" id="exam-plan-col-group-list" role="listbox"></div>
+          </div>
+          <div class="med-linear-picker__col med-linear-picker__col--leaf" id="exam-plan-col-leaf" hidden>
+            <div class="med-linear-picker__head">検査項目</div>
+            <div class="med-linear-picker__list" id="exam-plan-col-leaf-list" role="listbox"></div>
+            <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden></p>
+            <div class="exam-item-add" id="exam-plan-item-add-default">
+              <label class="label label--sub" id="exam-plan-new-item-label" for="exam-plan-new-item">新しい項目を追加</label>
+              <div class="exam-item-add__row">
+                <input id="exam-plan-new-item" class="input" type="text" />
+                <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">追加</button>
+              </div>
+            </div>
           </div>
         </div>
+        <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
         <p id="exam-plan-item-error" class="error-text" hidden></p>
       </div>
       <div class="field" id="exam-plan-fasting-field" hidden>
@@ -173,9 +181,28 @@ const browser = await chromium.launch({
   executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   headless: true,
 });
-const page = await browser.newPage({ viewport: { width: 420, height: 920 } });
+const page = await browser.newPage({ viewport: { width: 900, height: 920 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
+
+async function clickLinear(listSel, label) {
+  const items = page.locator(`${listSel} .med-linear-picker__item`);
+  const count = await items.count();
+  for (let i = 0; i < count; i += 1) {
+    const text = await items.nth(i).locator(".med-linear-picker__item-label").innerText();
+    if (text.trim() === label) {
+      await items.nth(i).click();
+      return;
+    }
+  }
+  throw new Error(`item not found in ${listSel}: ${label}`);
+}
+
+async function leafLabels() {
+  return page
+    .locator("#exam-plan-col-leaf-list .med-linear-picker__item-label")
+    .allTextContents();
+}
 
 await page.route("**/js/db.js", (route) =>
   route.fulfill({ contentType: "application/javascript", body: mockDb })
@@ -188,39 +215,42 @@ await page.waitForTimeout(300);
 await page.click("#btn-exam-new");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
 
-// 肝スク / 腎スクが先頭
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^肝臓$/ }).click();
+await clickLinear("#exam-plan-col-category-list", "血液");
+await clickLinear("#exam-plan-col-group-list", "肝臓");
 await page.waitForTimeout(50);
-let liver = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
+let liver = await leafLabels();
 console.log("LIVER", liver);
 if (liver[0] !== "肝スク") throw new Error(`肝スク should be first, got ${liver[0]}`);
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-liver-scr.png") });
 
-await page.click("#btn-exam-plan-blood-back");
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^腎臓$/ }).click();
+await clickLinear("#exam-plan-col-group-list", "腎臓");
 await page.waitForTimeout(50);
-let kidney = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
+let kidney = await leafLabels();
 console.log("KIDNEY", kidney);
 if (kidney[0] !== "腎スク") throw new Error(`腎スク should be first, got ${kidney[0]}`);
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-kidney-scr.png") });
 
-await page.click("#btn-exam-plan-blood-back");
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^肝臓$/ }).click();
+await clickLinear("#exam-plan-col-group-list", "肝臓");
 await page.waitForTimeout(50);
 
 // 複数選択: ALT・AST・ALP
 for (const label of ["ALT", "AST", "ALP"]) {
-  await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: new RegExp(`^${label}$`) }).click();
+  await clickLinear("#exam-plan-col-leaf-list", label);
 }
-const selectedCount = await page.locator("#exam-plan-item-buttons .exam-item-btn.is-selected").count();
+const selectedCount = await page
+  .locator("#exam-plan-col-leaf-list .med-linear-picker__item.is-selected")
+  .count();
 if (selectedCount !== 3) throw new Error(`expected 3 selected, got ${selectedCount}`);
 
 // トグル解除
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^ALP$/ }).click();
-if ((await page.locator("#exam-plan-item-buttons .exam-item-btn.is-selected").count()) !== 2) {
+await clickLinear("#exam-plan-col-leaf-list", "ALP");
+if (
+  (await page.locator("#exam-plan-col-leaf-list .med-linear-picker__item.is-selected").count()) !==
+  2
+) {
   throw new Error("deselect ALP failed");
 }
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^ALP$/ }).click();
+await clickLinear("#exam-plan-col-leaf-list", "ALP");
 
 const summary = await page.locator("#exam-plan-selection-summary").innerText();
 console.log("SUMMARY", summary);
@@ -253,15 +283,15 @@ if (sheetFasting !== "絶食：必要") throw new Error(`sheet fasting wrong: ${
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-sheet.png") });
 await page.click("#btn-close-exam-item-sheet");
 
-// 画像タブの複数選択（セット内訳）
+// 画像の複数選択（セット内訳）
 await page.click("#btn-exam-new");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
-await page.locator('.exam-item-category-tab[data-category="imaging"]').click();
+await clickLinear("#exam-plan-col-category-list", "画像");
 await page.waitForTimeout(50);
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^セット$/ }).click();
+await clickLinear("#exam-plan-col-group-list", "セット");
 await page.waitForTimeout(50);
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^胸部set$/ }).click();
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^腹部set$/ }).click();
+await clickLinear("#exam-plan-col-leaf-list", "胸部set");
+await clickLinear("#exam-plan-col-leaf-list", "腹部set");
 const imgSummary = await page.locator("#exam-plan-selection-summary").innerText();
 console.log("IMG SUMMARY", imgSummary);
 if (!imgSummary.includes("セット（胸部set・腹部set）")) {

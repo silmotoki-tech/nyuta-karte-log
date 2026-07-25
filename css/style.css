@@ -2751,7 +2751,8 @@ select.input {
 }
 
 .modal__panel--med-add,
-.modal__panel--med-event {
+.modal__panel--med-event,
+.modal__panel--exam-plan {
   max-width: 760px;
 }
 

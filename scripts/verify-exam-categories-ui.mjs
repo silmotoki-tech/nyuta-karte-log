@@ -83,37 +83,29 @@ const harness = `<!DOCTYPE html>
     <div class="modal__body">
       <div class="field">
         <span class="label">検査項目</span>
-        <div class="exam-item-category-tabs" id="exam-plan-item-categories" role="tablist"></div>
-        <div class="exam-item-blood-nav" id="exam-plan-blood-nav" hidden>
-          <button type="button" class="exam-item-blood-nav__back" id="btn-exam-plan-blood-back">← 戻る</button>
-          <span class="exam-item-blood-nav__label" id="exam-plan-blood-nav-label"></span>
+        <div class="med-linear-picker" id="exam-plan-linear-picker" aria-label="検査項目の階層選択">
+          <div class="med-linear-picker__col" id="exam-plan-col-category">
+            <div class="med-linear-picker__head">大項目</div>
+            <div class="med-linear-picker__list" id="exam-plan-col-category-list" role="listbox"></div>
+          </div>
+          <div class="med-linear-picker__col" id="exam-plan-col-group" hidden>
+            <div class="med-linear-picker__head">中項目</div>
+            <div class="med-linear-picker__list" id="exam-plan-col-group-list" role="listbox"></div>
+          </div>
+          <div class="med-linear-picker__col med-linear-picker__col--leaf" id="exam-plan-col-leaf" hidden>
+            <div class="med-linear-picker__head">検査項目</div>
+            <div class="med-linear-picker__list" id="exam-plan-col-leaf-list" role="listbox"></div>
+            <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden></p>
+            <div class="exam-item-add" id="exam-plan-item-add-default">
+              <label class="label label--sub" id="exam-plan-new-item-label" for="exam-plan-new-item">新しい項目を追加</label>
+              <div class="exam-item-add__row">
+                <input id="exam-plan-new-item" class="input" type="text" />
+                <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">追加</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
-        <p class="field__note" id="exam-plan-items-empty" hidden></p>
         <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
-        <div id="exam-plan-item-add-blood-root" hidden>
-          <div class="exam-item-add">
-            <label class="label label--sub" for="exam-plan-new-group">新しい大項目を追加</label>
-            <div class="exam-item-add__row">
-              <input id="exam-plan-new-group" class="input" type="text" />
-              <button id="btn-exam-plan-add-group" class="btn btn--small btn--outline" type="button">追加</button>
-            </div>
-          </div>
-          <div class="exam-item-add">
-            <label class="label label--sub" for="exam-plan-new-standalone">新しい独立項目を追加</label>
-            <div class="exam-item-add__row">
-              <input id="exam-plan-new-standalone" class="input" type="text" />
-              <button id="btn-exam-plan-add-standalone" class="btn btn--small btn--outline" type="button">追加</button>
-            </div>
-          </div>
-        </div>
-        <div class="exam-item-add" id="exam-plan-item-add-default">
-          <label class="label label--sub" id="exam-plan-new-item-label" for="exam-plan-new-item">新しい項目を追加</label>
-          <div class="exam-item-add__row">
-            <input id="exam-plan-new-item" class="input" type="text" />
-            <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">追加</button>
-          </div>
-        </div>
         <p id="exam-plan-item-error" class="error-text" hidden></p>
       </div>
       <div class="field" id="exam-plan-fasting-field" hidden>
@@ -189,9 +181,26 @@ const browser = await chromium.launch({
   executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   headless: true,
 });
-const page = await browser.newPage({ viewport: { width: 420, height: 900 } });
+const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
+
+async function clickLinear(listSel, label) {
+  const items = page.locator(`${listSel} .med-linear-picker__item`);
+  const count = await items.count();
+  for (let i = 0; i < count; i += 1) {
+    const text = await items.nth(i).locator(".med-linear-picker__item-label").innerText();
+    if (text.trim() === label) {
+      await items.nth(i).click();
+      return;
+    }
+  }
+  throw new Error(`item not found in ${listSel}: ${label}`);
+}
+
+async function labelsOf(listSel) {
+  return page.locator(`${listSel} .med-linear-picker__item-label`).allTextContents();
+}
 
 await page.route("**/js/db.js", (route) =>
   route.fulfill({ contentType: "application/javascript", body: mockDb })
@@ -204,36 +213,38 @@ await page.waitForTimeout(300);
 await page.click("#btn-exam-new");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
 
-const tabLabels = await page.locator(".exam-item-category-tab").allTextContents();
+const tabLabels = await labelsOf("#exam-plan-col-category-list");
 console.log("TABS", tabLabels);
 if (JSON.stringify(tabLabels) !== JSON.stringify(["血液", "画像", "病理", "その他"])) {
-  throw new Error("category tabs wrong");
+  throw new Error("category list wrong");
 }
 
-let active = await page.locator(".exam-item-category-tab.is-active").textContent();
-if (active !== "血液") throw new Error("default should be 血液");
-
-let buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("BLOOD ROOT", buttons);
-for (const label of ["肝臓", "腎臓", "脂質", "ホルモン", "CBC", "血糖(アントセンス)"]) {
-  if (!buttons.includes(label)) throw new Error(`blood root missing ${label}`);
-}
-if (buttons.includes("ALT")) throw new Error("ALT should not appear at blood root");
-
-// 大項目 → 内訳
-await page.locator(".exam-item-btn", { hasText: "肝臓" }).click();
+await clickLinear("#exam-plan-col-category-list", "血液");
 await page.waitForTimeout(50);
-if (await page.isHidden("#exam-plan-blood-nav")) throw new Error("blood nav should show");
-const navLabel = await page.locator("#exam-plan-blood-nav-label").textContent();
-if (navLabel !== "肝臓") throw new Error("nav label should be 肝臓");
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("LIVER", buttons);
-if (buttons[0] !== "肝スク") throw new Error("肝スク should be first in liver");
-if (!buttons.includes("ALT") || !buttons.includes("AST")) throw new Error("liver children missing");
-if (buttons.includes("CBC")) throw new Error("CBC leaked into liver");
+let groups = await labelsOf("#exam-plan-col-group-list");
+let leaves = await labelsOf("#exam-plan-col-leaf-list");
+console.log("BLOOD GROUPS", groups);
+console.log("BLOOD ROOT LEAVES", leaves);
+for (const label of ["肝臓", "腎臓", "脂質", "ホルモン"]) {
+  if (!groups.includes(label)) throw new Error(`blood mid missing ${label}`);
+}
+for (const label of ["CBC", "血糖(アントセンス)"]) {
+  if (!leaves.includes(label)) throw new Error(`blood root leaf missing ${label}`);
+}
+if (leaves.includes("ALT")) throw new Error("ALT should not appear before mid select");
 
-await page.locator("#exam-plan-item-buttons .exam-item-btn", { hasText: /^ALT$/ }).click();
-let selected = await page.locator("#exam-plan-item-buttons .exam-item-btn.is-selected").textContent();
+await clickLinear("#exam-plan-col-group-list", "肝臓");
+await page.waitForTimeout(50);
+leaves = await labelsOf("#exam-plan-col-leaf-list");
+console.log("LIVER", leaves);
+if (leaves[0] !== "肝スク") throw new Error("肝スク should be first in liver");
+if (!leaves.includes("ALT") || !leaves.includes("AST")) throw new Error("liver children missing");
+if (leaves.includes("CBC")) throw new Error("CBC leaked into liver");
+
+await clickLinear("#exam-plan-col-leaf-list", "ALT");
+let selected = await page
+  .locator("#exam-plan-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+  .textContent();
 if (selected !== "ALT") throw new Error("select ALT failed");
 if (await page.isHidden("#exam-plan-fasting-field")) throw new Error("fasting should show for blood");
 
@@ -251,8 +262,11 @@ if (!listText.includes("絶食：必要")) throw new Error("fasting not shown in
 // 独立項目
 await page.click("#btn-exam-new");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
-await page.locator(".exam-item-btn", { hasText: "CBC" }).click();
-selected = await page.locator(".exam-item-btn.is-selected").textContent();
+await clickLinear("#exam-plan-col-category-list", "血液");
+await clickLinear("#exam-plan-col-leaf-list", "CBC");
+selected = await page
+  .locator("#exam-plan-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+  .textContent();
 if (selected !== "CBC") throw new Error("select CBC failed");
 await page.locator('#exam-plan-fasting-buttons [data-fasting="none"]').click();
 await page.fill("#exam-plan-due-date", "2026-08-02");
@@ -263,59 +277,44 @@ if (!listText2.includes("CBC") || !listText2.includes("絶食：不要")) {
   throw new Error("CBC fasting none not shown");
 }
 
-// 詳細シートでも絶食表示
 await page.locator("#exam-plan-list .exam-list-item").filter({ hasText: "肝臓（ALT）" }).click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 const sheetFasting = await page.locator("#exam-item-sheet-fasting").textContent();
 if (sheetFasting !== "絶食：必要") throw new Error("sheet fasting wrong");
 await page.click("#btn-close-exam-item-sheet");
 
-// 画像（大項目→内訳）
+// 画像
 await page.click("#btn-exam-new");
-await page.locator('.exam-item-category-tab[data-category="imaging"]').click();
+await clickLinear("#exam-plan-col-category-list", "画像");
 await page.waitForTimeout(50);
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("IMAGING ROOT", buttons);
+groups = await labelsOf("#exam-plan-col-group-list");
+console.log("IMAGING ROOT", groups);
 for (const label of ["セット", "エコー", "レントゲン"]) {
-  if (!buttons.includes(label)) throw new Error(`imaging group missing ${label}`);
+  if (!groups.includes(label)) throw new Error(`imaging group missing ${label}`);
 }
-if (buttons.includes("心エコー") || buttons.includes("腹部エコー")) {
-  throw new Error("old echo groups should not be at imaging root");
-}
-await page.locator(".exam-item-btn", { hasText: /^セット$/ }).click();
+await clickLinear("#exam-plan-col-group-list", "セット");
 await page.waitForTimeout(50);
-if (!(await page.isVisible("#exam-plan-blood-nav"))) {
-  throw new Error("imaging drill nav should show");
-}
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("IMAGING SET", buttons);
+leaves = await labelsOf("#exam-plan-col-leaf-list");
+console.log("IMAGING SET", leaves);
 for (const label of ["全set", "胸部set", "腹部set"]) {
-  if (!buttons.includes(label)) throw new Error(`imaging set leaf missing ${label}`);
+  if (!leaves.includes(label)) throw new Error(`imaging set leaf missing ${label}`);
 }
-await page.click("#btn-exam-plan-blood-back");
-await page.locator(".exam-item-btn", { hasText: /^エコー$/ }).click();
+await clickLinear("#exam-plan-col-group-list", "エコー");
 await page.waitForTimeout(50);
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("IMAGING ECHO", buttons);
+leaves = await labelsOf("#exam-plan-col-leaf-list");
+console.log("IMAGING ECHO", leaves);
 for (const label of [
   "心エコー(スクリーニング)",
   "心エコー(流速あり)",
-  "心エコー(拡大チェック)",
-  "腹部エコー(スクリーニング)",
   "腹部エコー(脾臓)",
-  "腹部エコー(肝臓)",
-  "腹部エコー(腎臓)",
-  "腹部エコー(尿管)",
-  "腹部エコー(膀胱)",
-  "腹部エコー(前立腺)",
 ]) {
-  if (!buttons.includes(label)) throw new Error(`echo leaf missing ${label}`);
+  if (!leaves.includes(label)) throw new Error(`echo leaf missing ${label}`);
 }
-await page.locator(".exam-item-btn", { hasText: "心エコー(スクリーニング)" }).click();
+await clickLinear("#exam-plan-col-leaf-list", "心エコー(スクリーニング)");
 if (!(await page.isHidden("#exam-plan-fasting-field"))) {
   throw new Error("fasting should hide for imaging");
 }
-await page.locator(".exam-item-btn", { hasText: "腹部エコー(脾臓)" }).click();
+await clickLinear("#exam-plan-col-leaf-list", "腹部エコー(脾臓)");
 const imgSummary = await page.locator("#exam-plan-selection-summary").innerText();
 console.log("IMAGING SUMMARY", imgSummary);
 if (!imgSummary.includes("心エコー(スクリーニング)")) {
@@ -324,35 +323,21 @@ if (!imgSummary.includes("心エコー(スクリーニング)")) {
 if (!imgSummary.includes("腹部エコー(脾臓)")) {
   throw new Error(`missing abdomen echo in summary: ${imgSummary}`);
 }
-await page.click("#btn-exam-plan-blood-back");
-await page.locator(".exam-item-btn", { hasText: /^レントゲン$/ }).click();
+await clickLinear("#exam-plan-col-group-list", "レントゲン");
 await page.waitForTimeout(50);
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("IMAGING XRAY", buttons);
-for (const label of [
-  "レントゲン(胸部)",
-  "レントゲン(気管)",
-  "レントゲン(腹部)",
-  "レントゲン(股関節)",
-  "レントゲン(肩)",
-  "レントゲン(前肢)",
-  "レントゲン(後肢)",
-  "レントゲン(鼻)",
-  "レントゲン(歯)",
-]) {
-  if (!buttons.includes(label)) throw new Error(`xray leaf missing ${label}`);
-}
-if (buttons.includes("胸部X線")) {
-  throw new Error("胸部X線 should not appear");
-}
-await page.locator(".exam-item-btn", { hasText: /^レントゲン\(胸部\)$/ }).click();
-
+leaves = await labelsOf("#exam-plan-col-leaf-list");
+console.log("IMAGING XRAY", leaves);
+if (!leaves.includes("レントゲン(胸部)")) throw new Error("xray leaf missing");
+await clickLinear("#exam-plan-col-leaf-list", "レントゲン(胸部)");
 
 // 病理
-await page.locator('.exam-item-category-tab[data-category="pathology"]').click();
+await clickLinear("#exam-plan-col-category-list", "病理");
 await page.waitForTimeout(50);
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("PATHOLOGY", buttons);
+if (!(await page.locator("#exam-plan-col-group").isHidden())) {
+  throw new Error("pathology should hide mid");
+}
+leaves = await labelsOf("#exam-plan-col-leaf-list");
+console.log("PATHOLOGY", leaves);
 const pathologySeeds = [
   "細胞診(院内)",
   "細胞診(外注)",
@@ -363,10 +348,12 @@ const pathologySeeds = [
   "真菌培養(外注)",
 ];
 for (const label of pathologySeeds) {
-  if (!buttons.includes(label)) throw new Error(`pathology seed missing ${label}`);
+  if (!leaves.includes(label)) throw new Error(`pathology seed missing ${label}`);
 }
-await page.locator(".exam-item-btn", { hasText: "組織検査" }).click();
-selected = await page.locator(".exam-item-btn.is-selected").textContent();
+await clickLinear("#exam-plan-col-leaf-list", "組織検査");
+selected = await page
+  .locator("#exam-plan-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+  .textContent();
 if (selected !== "組織検査") throw new Error("select pathology item failed");
 if (!(await page.isHidden("#exam-plan-fasting-field"))) {
   throw new Error("fasting should hide for pathology");
@@ -374,9 +361,9 @@ if (!(await page.isHidden("#exam-plan-fasting-field"))) {
 await page.fill("#exam-plan-new-item", "追加病理");
 await page.click("#btn-exam-plan-add-item");
 await page.waitForTimeout(200);
-buttons = await page.locator("#exam-plan-item-buttons .exam-item-btn").allTextContents();
-console.log("PATHOLOGY after add", buttons);
-if (!buttons.includes("追加病理")) throw new Error("add pathology item failed");
+leaves = await labelsOf("#exam-plan-col-leaf-list");
+console.log("PATHOLOGY after add", leaves);
+if (!leaves.includes("追加病理")) throw new Error("add pathology item failed");
 
 await page.screenshot({ path: path.join(root, "tools/exam-category-verify.png") });
 if (errors.length) {

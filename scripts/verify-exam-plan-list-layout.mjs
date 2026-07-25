@@ -117,19 +117,20 @@ const harness = `<!DOCTYPE html>
 <div class="modal" id="exam-plan-modal" hidden>
   <button id="btn-close-exam-plan" type="button"></button>
   <h2 id="exam-plan-modal-title"></h2>
-  <div id="exam-plan-item-categories"></div>
-  <div id="exam-plan-blood-nav" hidden>
-    <button id="btn-exam-plan-blood-back" type="button"></button>
-    <span id="exam-plan-blood-nav-label"></span>
+  <div id="exam-plan-linear-picker">
+    <div id="exam-plan-col-category"><div id="exam-plan-col-category-list"></div></div>
+    <div id="exam-plan-col-group" hidden><div id="exam-plan-col-group-list"></div></div>
+    <div id="exam-plan-col-leaf" hidden>
+      <div id="exam-plan-col-leaf-list"></div>
+      <p id="exam-plan-items-empty" hidden></p>
+      <div id="exam-plan-item-add-default">
+        <label id="exam-plan-new-item-label"></label>
+        <input id="exam-plan-new-item" />
+        <button id="btn-exam-plan-add-item" type="button"></button>
+      </div>
+    </div>
   </div>
-  <div id="exam-plan-item-buttons"></div>
-  <p id="exam-plan-items-empty" hidden></p>
   <p id="exam-plan-selection-summary" hidden></p>
-  <div id="exam-plan-item-add-default">
-    <label id="exam-plan-new-item-label"></label>
-    <input id="exam-plan-new-item" />
-    <button id="btn-exam-plan-add-item" type="button"></button>
-  </div>
   <p id="exam-plan-item-error" hidden></p>
   <div id="exam-plan-fasting-field" hidden>
     <div id="exam-plan-fasting-buttons" class="exam-fasting-buttons">

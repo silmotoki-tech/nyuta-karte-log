@@ -615,7 +615,7 @@
 <!-- 検査予定: 登録・編集モーダル -->
 <div class="modal" id="exam-plan-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-plan-modal-title">
+  <div class="modal__panel modal__panel--exam-plan" role="dialog" aria-modal="true" aria-labelledby="exam-plan-modal-title">
     <div class="modal__header">
       <h2 class="modal__title" id="exam-plan-modal-title">次回予定を登録</h2>
       <button class="modal__close" id="btn-close-exam-plan" type="button" aria-label="閉じる">&times;</button>
@@ -624,42 +624,69 @@
       <div class="field">
         <span class="label">検査項目</span>
         <div
-          class="exam-item-category-tabs"
-          id="exam-plan-item-categories"
-          role="tablist"
-          aria-label="検査項目の分類"
-        ></div>
-        <div class="exam-item-blood-nav" id="exam-plan-blood-nav" hidden>
-          <button
-            type="button"
-            class="exam-item-blood-nav__back"
-            id="btn-exam-plan-blood-back"
+          class="med-linear-picker"
+          id="exam-plan-linear-picker"
+          aria-label="検査項目の階層選択"
+        >
+          <div class="med-linear-picker__col" id="exam-plan-col-category" data-col="category">
+            <div class="med-linear-picker__head">大項目</div>
+            <div
+              class="med-linear-picker__list"
+              id="exam-plan-col-category-list"
+              role="listbox"
+              aria-label="大項目"
+            ></div>
+          </div>
+          <div
+            class="med-linear-picker__col"
+            id="exam-plan-col-group"
+            data-col="group"
+            hidden
           >
-            ← 戻る
-          </button>
-          <span class="exam-item-blood-nav__label" id="exam-plan-blood-nav-label"></span>
-        </div>
-        <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
-        <p class="field__note" id="exam-plan-items-empty" hidden>この分類にはまだ項目がありません。下で追加できます。</p>
-        <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
-
-        <div class="exam-item-add" id="exam-plan-item-add-default">
-          <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">
-            新しい項目を追加
-          </label>
-          <div class="exam-item-add__row">
-            <input
-              id="exam-plan-new-item"
-              class="input"
-              type="text"
-              placeholder="例）レントゲン"
-              autocomplete="off"
-            />
-            <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">
-              追加
-            </button>
+            <div class="med-linear-picker__head">中項目</div>
+            <div
+              class="med-linear-picker__list"
+              id="exam-plan-col-group-list"
+              role="listbox"
+              aria-label="中項目"
+            ></div>
+          </div>
+          <div
+            class="med-linear-picker__col med-linear-picker__col--leaf"
+            id="exam-plan-col-leaf"
+            data-col="leaf"
+            hidden
+          >
+            <div class="med-linear-picker__head">検査項目</div>
+            <div
+              class="med-linear-picker__list"
+              id="exam-plan-col-leaf-list"
+              role="listbox"
+              aria-label="検査項目"
+            ></div>
+            <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden>
+              この分類にはまだ項目がありません。下で追加できます。
+            </p>
+            <div class="exam-item-add" id="exam-plan-item-add-default">
+              <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">
+                新しい項目を追加
+              </label>
+              <div class="exam-item-add__row">
+                <input
+                  id="exam-plan-new-item"
+                  class="input"
+                  type="text"
+                  placeholder="例）レントゲン"
+                  autocomplete="off"
+                />
+                <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">
+                  追加
+                </button>
+              </div>
+            </div>
           </div>
         </div>
+        <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
         <p id="exam-plan-item-error" class="error-text" role="alert" hidden></p>
       </div>
 
