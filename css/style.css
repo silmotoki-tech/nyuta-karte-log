@@ -216,12 +216,15 @@ html.is-unlocked .app {
 .layout {
   flex: 1;
   min-height: 0;
+  height: 100%;
   display: grid;
   --left-col-width: 210px;
   --right-col-width: 308px; /* 280px から約10%拡大 */
   /* 左・中央・右のコンテンツ上端を揃える共通余白 */
   --col-pad-top: 10px;
   grid-template-columns: var(--left-col-width) minmax(0, 1fr) var(--right-col-width);
+  /* 行を viewport 高さに拘束し、各カラム内スクロールを有効にする */
+  grid-template-rows: minmax(0, 1fr);
   transition: grid-template-columns 0.2s ease;
 }
 
@@ -323,7 +326,11 @@ html.is-unlocked .app {
   border-left: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
+  /* タブは固定し、下の .right-panel だけを縦スクロールさせる */
   overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
   padding-top: var(--col-pad-top);
 }
 
@@ -1184,14 +1191,23 @@ html.is-unlocked .app {
 }
 
 .right-panel {
-  flex: 1;
+  /* タブ直下のコンテンツ領域：高さはカラム残り分に拘束し、中身が増えたら縦スクロール */
+  flex: 1 1 0;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 8px 10px 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* 子を縮めて overflow:hidden で切らない（スクロール不能の原因になる） */
+  align-content: flex-start;
+}
+
+.right-panel > * {
+  flex-shrink: 0;
 }
 
 .right-panel[hidden] {
