@@ -324,11 +324,13 @@ html.is-unlocked .app {
 }
 
 .col--center {
-  background-color: var(--color-cream);
+  /* メイン作業面は白（cream がツールバー下に透けないようにする） */
+  background-color: var(--color-white);
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 内側の time-line を独立スクロールさせる */
-  padding-top: var(--col-pad-top);
+  /* 上余白は .center-toolbar / .center-gate 側で取る（3カラムで同じ起点） */
+  padding-top: 0;
 }
 
 .col--right {
@@ -341,7 +343,8 @@ html.is-unlocked .app {
   min-height: 0;
   height: 100%;
   max-height: 100%;
-  padding-top: var(--col-pad-top);
+  /* 上余白は .right-tabs 側で取る */
+  padding-top: 0;
 }
 
 .col__title {
@@ -614,10 +617,10 @@ html.is-unlocked .app {
 .center-toolbar {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  /* center だと枠線付きボタンに合わせて主ボタンが数px下がるため、上端基準で揃える */
+  align-items: flex-start;
   gap: 8px;
-  /* 上端は .col--center の --col-pad-top に合わせ、内側上余白は付けない */
-  padding: 0 16px 10px;
+  padding: var(--col-pad-top) 16px 10px;
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-white);
 }
@@ -951,6 +954,7 @@ html.is-unlocked .app {
   min-height: 0;
   overflow-y: auto;
   padding: 10px 14px 20px;
+  background-color: var(--color-white);
 }
 
 .timeline-title {
@@ -1145,10 +1149,9 @@ html.is-unlocked .app {
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 2px;
-  /* 上端は .col--right の --col-pad-top に合わせ、内側上余白は付けない。
-     タブ文字は字体アセント分だけ下に見えるため、3px 上げて左・中央の上端インクと揃える */
-  margin-top: -3px;
-  padding: 0 8px;
+  margin: 0;
+  /* 左カラム・中央ツールバーと同じ --col-pad-top から開始 */
+  padding: var(--col-pad-top) 8px 0;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
   background-color: var(--color-white);
@@ -1157,7 +1160,8 @@ html.is-unlocked .app {
 .right-tab {
   border: none;
   background: none;
-  /* 上パディングを付けない（左の患者名・中央のボタン上端と文字開始位置を揃える） */
+  /* 上パディングなし＝タブ行の上端＝カラム上端余白の直後。
+     line-height を詰めて、字体アセントによる見た目の下ズレを抑える */
   padding: 0 7px 8px;
   min-height: 28px;
   font-size: 0.74rem;
@@ -1166,7 +1170,7 @@ html.is-unlocked .app {
   border-bottom: 2px solid transparent;
   cursor: pointer;
   font-family: inherit;
-  line-height: 1.25;
+  line-height: 1;
 }
 
 .right-tab:hover:not(:disabled) {
@@ -2313,6 +2317,8 @@ select.input {
 .btn--primary {
   background-color: var(--color-green);
   color: var(--color-white);
+  /* outline ボタン（1.5px 枠）と高さを揃え、ツールバー上端ズレを防ぐ */
+  border: 1.5px solid transparent;
 }
 
 .btn--primary:hover:not(:disabled) {
