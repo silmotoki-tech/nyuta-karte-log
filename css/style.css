@@ -2757,6 +2757,8 @@ select.input {
 }
 
 .med-linear-picker--freq {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   min-height: 220px;
   max-height: min(48vh, 380px);
 }
@@ -2786,21 +2788,30 @@ select.input {
   width: 100%;
 }
 
-/* 薬剤追加: 大項目→中項目→薬剤名の横並びリニア選択 */
+/* 薬剤・検査: 大項目→中項目→小項目の横並びリニア選択（列数で均等配分） */
 .med-linear-picker {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
   gap: 8px;
   min-height: 260px;
   max-height: min(52vh, 420px);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+}
+
+.med-linear-picker[data-cols="1"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.med-linear-picker[data-cols="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.med-linear-picker[data-cols="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .med-linear-picker__col {
-  flex: 1 1 0;
-  min-width: 132px;
-  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border: 1.5px solid var(--color-border);
@@ -2813,9 +2824,17 @@ select.input {
   display: none !important;
 }
 
+.med-linear-picker__col.is-placeholder {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.med-linear-picker__col.is-placeholder .exam-item-add,
+.med-linear-picker__col.is-placeholder .med-linear-picker__empty {
+  display: none !important;
+}
+
 .med-linear-picker__col--leaf {
-  flex: 1.35 1 0;
-  min-width: 168px;
   background-color: var(--color-white);
 }
 
@@ -2840,12 +2859,22 @@ select.input {
   gap: 2px;
 }
 
+.med-linear-picker__hint {
+  margin: 0;
+  padding: 14px 10px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+
 .med-linear-picker__item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
+  min-height: 40px;
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;

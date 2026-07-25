@@ -22,16 +22,16 @@ const mockDb = fs.readFileSync(
 const pickerField = `
       <div class="field">
         <span class="label">薬剤名</span>
-        <div class="med-linear-picker" id="med-add-linear-picker" aria-label="薬剤の階層選択">
+        <div class="med-linear-picker" id="med-add-linear-picker" data-cols="3" aria-label="薬剤の階層選択">
           <div class="med-linear-picker__col" id="med-add-col-category" data-col="category">
             <div class="med-linear-picker__head">大項目</div>
             <div class="med-linear-picker__list" id="med-add-col-category-list" role="listbox" aria-label="大項目"></div>
           </div>
-          <div class="med-linear-picker__col" id="med-add-col-group" data-col="group" hidden>
+          <div class="med-linear-picker__col is-placeholder" id="med-add-col-group" data-col="group">
             <div class="med-linear-picker__head">中項目</div>
             <div class="med-linear-picker__list" id="med-add-col-group-list" role="listbox" aria-label="中項目"></div>
           </div>
-          <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-add-col-leaf" data-col="leaf" hidden>
+          <div class="med-linear-picker__col med-linear-picker__col--leaf is-placeholder" id="med-add-col-leaf" data-col="leaf">
             <div class="med-linear-picker__head">薬剤名</div>
             <div class="med-linear-picker__list" id="med-add-col-leaf-list" role="listbox" aria-label="薬剤名"></div>
             <p class="field__note med-linear-picker__empty" id="med-add-items-empty" hidden></p>
@@ -216,7 +216,25 @@ await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.waitForTimeout(200);
 
-// 初期: 大項目のみ
+async function medColWidths() {
+  return page.evaluate(() => {
+    const root = document.getElementById("med-add-linear-picker");
+    return [...root.querySelectorAll(".med-linear-picker__col")]
+      .filter((el) => !el.hidden)
+      .map((el) => Math.round(el.getBoundingClientRect().width));
+  });
+}
+
+function assertBalanced(widths, label) {
+  if (widths.length < 2) return;
+  const max = Math.max(...widths);
+  const min = Math.min(...widths);
+  if (max - min > 24) {
+    throw new Error(`${label}: column widths uneven ${JSON.stringify(widths)}`);
+  }
+}
+
+// 初期: 3列枠を確保（中・葉はプレースホルダー）
 const cats = await itemLabels(page, "#med-add-col-category-list");
 console.log("categories:", cats);
 if (
@@ -232,17 +250,23 @@ console.log("default importance:", defaultImportance);
 if (!defaultImportance?.startsWith("A")) {
   throw new Error("new med importance default should be A");
 }
-if (!(await page.locator("#med-add-col-group").isHidden())) {
-  throw new Error("mid col should be hidden initially");
+if (!(await page.locator("#med-add-col-group").evaluate((el) => el.classList.contains("is-placeholder")))) {
+  throw new Error("mid col should be placeholder initially");
 }
-if (!(await page.locator("#med-add-col-leaf").isHidden())) {
-  throw new Error("leaf col should be hidden initially");
+if (!(await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contains("is-placeholder")))) {
+  throw new Error("leaf col should be placeholder initially");
 }
+let widths = await medColWidths();
+console.log("med initial widths:", widths);
+assertBalanced(widths, "med initial");
+await page.screenshot({
+  path: path.join(root, "tools/med-linear-layout-01-stage1.png"),
+});
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-01-initial.png"),
 });
 
-// 注射薬 → 中項目なしで薬剤名列
+// 注射薬 → 中項目なしで薬剤名列（2列均等）
 await clickItem(page, "#med-add-col-category-list", "注射薬");
 await page.waitForTimeout(100);
 if (!(await page.locator("#med-add-col-group").isHidden())) {
@@ -251,18 +275,24 @@ if (!(await page.locator("#med-add-col-group").isHidden())) {
 if (await page.locator("#med-add-col-leaf").isHidden()) {
   throw new Error("inject should show leaf column directly");
 }
+if ((await page.locator("#med-add-linear-picker").getAttribute("data-cols")) !== "2") {
+  throw new Error("inject should use 2-col layout");
+}
+widths = await medColWidths();
+console.log("inject widths:", widths);
+assertBalanced(widths, "inject");
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-00-inject.png"),
 });
 
-// 内服薬 → 中項目
+// 内服薬 → 中項目（葉はプレースホルダーのまま3列）
 await clickItem(page, "#med-add-col-category-list", "内服薬");
 await page.waitForTimeout(100);
 if (await page.locator("#med-add-col-group").isHidden()) {
   throw new Error("mid col should show after oral");
 }
-if (!(await page.locator("#med-add-col-leaf").isHidden())) {
-  throw new Error("leaf col should stay hidden until mid selected");
+if (!(await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contains("is-placeholder")))) {
+  throw new Error("leaf col should stay placeholder until mid selected");
 }
 const groups = await itemLabels(page, "#med-add-col-group-list");
 console.log("oral groups count:", groups.length, "sample:", groups.slice(0, 5));
@@ -274,6 +304,12 @@ const oralSelected = await page
   .locator("#med-add-col-category-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
   .textContent();
 if (oralSelected !== "内服薬") throw new Error("oral not marked selected");
+widths = await medColWidths();
+console.log("oral stage2 widths:", widths);
+assertBalanced(widths, "oral stage2");
+await page.screenshot({
+  path: path.join(root, "tools/med-linear-layout-02-stage2.png"),
+});
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-02-oral-mid.png"),
 });
@@ -281,8 +317,8 @@ await page.screenshot({
 // その他 → 薬剤名
 await clickItem(page, "#med-add-col-group-list", "その他");
 await page.waitForTimeout(100);
-if (await page.locator("#med-add-col-leaf").isHidden()) {
-  throw new Error("leaf col should show after mid");
+if (await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contains("is-placeholder"))) {
+  throw new Error("leaf col should activate after mid");
 }
 const leaves = await itemLabels(page, "#med-add-col-leaf-list");
 console.log("oral/その他 leaves:", leaves);
@@ -292,6 +328,12 @@ for (const name of ["アモキシシリン", "アラバ", "パラディア"]) {
 if (!(await page.locator("#med-add-item-add").isVisible())) {
   throw new Error("add field should be visible in leaf col");
 }
+widths = await medColWidths();
+console.log("oral stage3 widths:", widths);
+assertBalanced(widths, "oral stage3");
+await page.screenshot({
+  path: path.join(root, "tools/med-linear-layout-03-stage3.png"),
+});
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-03-oral-leaf.png"),
 });

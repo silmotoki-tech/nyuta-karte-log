@@ -103,6 +103,7 @@ const btnCloseDetailSheet = document.getElementById("btn-close-med-detail-sheet"
 const btnDetailSheetClose = document.getElementById("btn-med-detail-sheet-close");
 
 const addModal = document.getElementById("med-add-modal");
+const addLinearPicker = document.getElementById("med-add-linear-picker");
 const addColCategoryList = document.getElementById("med-add-col-category-list");
 const addColGroup = document.getElementById("med-add-col-group");
 const addColGroupList = document.getElementById("med-add-col-group-list");
@@ -909,6 +910,29 @@ function createMedLinearItemButton({ label, selected, onClick }) {
   return btn;
 }
 
+/** active=操作可 / placeholder=枠だけ確保 / absent=列ごと非表示（2列レイアウト用） */
+function setMedLinearColState(col, mode) {
+  if (!col) return;
+  if (mode === "absent") {
+    col.hidden = true;
+    col.classList.remove("is-placeholder");
+    col.setAttribute("aria-hidden", "true");
+    return;
+  }
+  col.hidden = false;
+  col.classList.toggle("is-placeholder", mode === "placeholder");
+  col.setAttribute("aria-hidden", mode === "placeholder" ? "true" : "false");
+}
+
+function fillMedLinearPlaceholder(listEl, message) {
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  const hint = document.createElement("p");
+  hint.className = "med-linear-picker__hint";
+  hint.textContent = message;
+  listEl.appendChild(hint);
+}
+
 function wireAddModal() {
   btnCloseAddModal?.addEventListener("click", closeAddModal);
   btnAddCancel?.addEventListener("click", closeAddModal);
@@ -984,13 +1008,18 @@ function updateMedLeafAddUI() {
 
 function renderMedLinearPicker() {
   const category = activeMedCategoryId();
-  const showMid = Boolean(category && categorySupportsMedMidGroups(category));
-  const showLeaf = Boolean(
-    category && (!categorySupportsMedMidGroups(category) || state.medItemParentId)
-  );
+  const usesMid = Boolean(category && categorySupportsMedMidGroups(category));
+  const midState = !category ? "placeholder" : usesMid ? "active" : "absent";
+  const leafState = !category
+    ? "placeholder"
+    : usesMid && !state.medItemParentId
+      ? "placeholder"
+      : "active";
+  const colCount = midState === "absent" ? "2" : "3";
 
-  if (addColGroup) addColGroup.hidden = !showMid;
-  if (addColLeaf) addColLeaf.hidden = !showLeaf;
+  if (addLinearPicker) addLinearPicker.dataset.cols = colCount;
+  setMedLinearColState(addColGroup, midState);
+  setMedLinearColState(addColLeaf, leafState);
 
   if (addColCategoryList) {
     addColCategoryList.innerHTML = "";
@@ -1014,8 +1043,10 @@ function renderMedLinearPicker() {
   }
 
   if (addColGroupList) {
-    addColGroupList.innerHTML = "";
-    if (showMid) {
+    if (midState === "placeholder") {
+      fillMedLinearPlaceholder(addColGroupList, "大項目を選ぶと表示されます");
+    } else if (midState === "active") {
+      addColGroupList.innerHTML = "";
       medGroupsForCategory(category).forEach((group) => {
         addColGroupList.appendChild(
           createMedLinearItemButton({
@@ -1030,25 +1061,35 @@ function renderMedLinearPicker() {
           })
         );
       });
+    } else {
+      addColGroupList.innerHTML = "";
     }
   }
 
   if (addColLeafList) {
-    addColLeafList.innerHTML = "";
-    const leaves = showLeaf ? medLeavesForPicker() : [];
-    if (addItemsEmpty) addItemsEmpty.hidden = !showLeaf || leaves.length > 0;
-    leaves.forEach((item) => {
-      addColLeafList.appendChild(
-        createMedLinearItemButton({
-          label: item.label,
-          selected: state.addDraft.name === item.label,
-          onClick: () => {
-            state.addDraft.name = item.label;
-            renderMedLinearPicker();
-          },
-        })
+    if (leafState === "placeholder") {
+      fillMedLinearPlaceholder(
+        addColLeafList,
+        category ? "中項目を選ぶと表示されます" : "大項目を選ぶと表示されます"
       );
-    });
+      if (addItemsEmpty) addItemsEmpty.hidden = true;
+    } else {
+      addColLeafList.innerHTML = "";
+      const leaves = medLeavesForPicker();
+      if (addItemsEmpty) addItemsEmpty.hidden = leaves.length > 0;
+      leaves.forEach((item) => {
+        addColLeafList.appendChild(
+          createMedLinearItemButton({
+            label: item.label,
+            selected: state.addDraft.name === item.label,
+            onClick: () => {
+              state.addDraft.name = item.label;
+              renderMedLinearPicker();
+            },
+          })
+        );
+      });
+    }
   }
 
   updateMedLeafAddUI();

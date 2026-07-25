@@ -118,7 +118,7 @@ const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
 
 const planModal = document.getElementById("exam-plan-modal");
 const planModalTitle = document.getElementById("exam-plan-modal-title");
-const planColCategory = document.getElementById("exam-plan-col-category");
+const planLinearPicker = document.getElementById("exam-plan-linear-picker");
 const planColCategoryList = document.getElementById("exam-plan-col-category-list");
 const planColGroup = document.getElementById("exam-plan-col-group");
 const planColGroupList = document.getElementById("exam-plan-col-group-list");
@@ -1344,6 +1344,35 @@ function createExamLinearItemButton({ label, selected, onClick }) {
   return btn;
 }
 
+/** active=操作可 / placeholder=枠だけ確保 / absent=列ごと非表示（2列レイアウト用） */
+function setExamLinearColState(col, mode) {
+  if (!col) return;
+  if (mode === "absent") {
+    col.hidden = true;
+    col.classList.remove("is-placeholder");
+    col.setAttribute("aria-hidden", "true");
+    return;
+  }
+  col.hidden = false;
+  col.classList.toggle("is-placeholder", mode === "placeholder");
+  col.setAttribute("aria-hidden", mode === "placeholder" ? "true" : "false");
+}
+
+function fillExamLinearPlaceholder(listEl, message) {
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  const hint = document.createElement("p");
+  hint.className = "med-linear-picker__hint";
+  hint.textContent = message;
+  listEl.appendChild(hint);
+}
+
+function isExamLeafColActive() {
+  return Boolean(
+    planColLeaf && !planColLeaf.hidden && !planColLeaf.classList.contains("is-placeholder")
+  );
+}
+
 function wireFastingButtons(container, onChange) {
   if (!container || container.dataset.wired === "1") return;
   container.dataset.wired = "1";
@@ -1416,7 +1445,7 @@ function toggleExamLeaf(item) {
 
 function updateExamItemAddUI() {
   const category = activeExamCategoryId();
-  const showLeaf = Boolean(planColLeaf && !planColLeaf.hidden);
+  const showLeaf = isExamLeafColActive();
   const canAdd = showLeaf && canAddExamLeaf();
   const inDrillGroup =
     Boolean(category) &&
@@ -1456,18 +1485,26 @@ function updateExamItemAddUI() {
 
 function renderExamLinearPicker() {
   const category = activeExamCategoryId();
-  const showMid = Boolean(category && categorySupportsExamDrilldown(category));
-  const rootLeaves = showMid ? examRootLeavesForCategory(category) : [];
-  const showLeaf = Boolean(
+  const usesMid = Boolean(category && categorySupportsExamDrilldown(category));
+  const rootLeaves = usesMid ? examRootLeavesForCategory(category) : [];
+  const leafReady = Boolean(
     category &&
-      (!categorySupportsExamDrilldown(category) ||
+      (!usesMid ||
         state.examBloodParentId ||
         rootLeaves.length > 0 ||
         category === "imaging")
   );
+  const midState = !category ? "placeholder" : usesMid ? "active" : "absent";
+  const leafState = !category
+    ? "placeholder"
+    : leafReady
+      ? "active"
+      : "placeholder";
+  const colCount = midState === "absent" ? "2" : "3";
 
-  if (planColGroup) planColGroup.hidden = !showMid;
-  if (planColLeaf) planColLeaf.hidden = !showLeaf;
+  if (planLinearPicker) planLinearPicker.dataset.cols = colCount;
+  setExamLinearColState(planColGroup, midState);
+  setExamLinearColState(planColLeaf, leafState);
 
   if (planColCategoryList) {
     planColCategoryList.innerHTML = "";
@@ -1491,8 +1528,10 @@ function renderExamLinearPicker() {
   }
 
   if (planColGroupList) {
-    planColGroupList.innerHTML = "";
-    if (showMid) {
+    if (midState === "placeholder") {
+      fillExamLinearPlaceholder(planColGroupList, "大項目を選ぶと表示されます");
+    } else if (midState === "active") {
+      planColGroupList.innerHTML = "";
       examGroupsForCategory(category).forEach((group) => {
         planColGroupList.appendChild(
           createExamLinearItemButton({
@@ -1507,22 +1546,32 @@ function renderExamLinearPicker() {
           })
         );
       });
+    } else {
+      planColGroupList.innerHTML = "";
     }
   }
 
   if (planColLeafList) {
-    planColLeafList.innerHTML = "";
-    const leaves = showLeaf ? examLeavesForPicker() : [];
-    if (planItemsEmpty) planItemsEmpty.hidden = !showLeaf || leaves.length > 0;
-    leaves.forEach((item) => {
-      planColLeafList.appendChild(
-        createExamLinearItemButton({
-          label: item.label,
-          selected: isExamLeafSelected(item),
-          onClick: () => toggleExamLeaf(item),
-        })
+    if (leafState === "placeholder") {
+      fillExamLinearPlaceholder(
+        planColLeafList,
+        category ? "中項目を選ぶと表示されます" : "大項目を選ぶと表示されます"
       );
-    });
+      if (planItemsEmpty) planItemsEmpty.hidden = true;
+    } else {
+      planColLeafList.innerHTML = "";
+      const leaves = examLeavesForPicker();
+      if (planItemsEmpty) planItemsEmpty.hidden = leaves.length > 0;
+      leaves.forEach((item) => {
+        planColLeafList.appendChild(
+          createExamLinearItemButton({
+            label: item.label,
+            selected: isExamLeafSelected(item),
+            onClick: () => toggleExamLeaf(item),
+          })
+        );
+      });
+    }
   }
 
   updateExamItemAddUI();

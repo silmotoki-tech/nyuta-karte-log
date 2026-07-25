@@ -22,16 +22,16 @@ const mockDb = fs.readFileSync(
 const pickerField = `
       <div class="field">
         <span class="label">検査項目</span>
-        <div class="med-linear-picker" id="exam-plan-linear-picker" aria-label="検査項目の階層選択">
+        <div class="med-linear-picker" id="exam-plan-linear-picker" data-cols="3" aria-label="検査項目の階層選択">
           <div class="med-linear-picker__col" id="exam-plan-col-category" data-col="category">
             <div class="med-linear-picker__head">大項目</div>
             <div class="med-linear-picker__list" id="exam-plan-col-category-list" role="listbox" aria-label="大項目"></div>
           </div>
-          <div class="med-linear-picker__col" id="exam-plan-col-group" data-col="group" hidden>
+          <div class="med-linear-picker__col is-placeholder" id="exam-plan-col-group" data-col="group">
             <div class="med-linear-picker__head">中項目</div>
             <div class="med-linear-picker__list" id="exam-plan-col-group-list" role="listbox" aria-label="中項目"></div>
           </div>
-          <div class="med-linear-picker__col med-linear-picker__col--leaf" id="exam-plan-col-leaf" data-col="leaf" hidden>
+          <div class="med-linear-picker__col med-linear-picker__col--leaf is-placeholder" id="exam-plan-col-leaf" data-col="leaf">
             <div class="med-linear-picker__head">検査項目</div>
             <div class="med-linear-picker__list" id="exam-plan-col-leaf-list" role="listbox" aria-label="検査項目"></div>
             <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden></p>
@@ -188,6 +188,24 @@ async function shot(page, name) {
   });
 }
 
+async function visibleColWidths(page) {
+  return page.evaluate(() => {
+    const root = document.getElementById("exam-plan-linear-picker");
+    return [...root.querySelectorAll(".med-linear-picker__col")]
+      .filter((el) => !el.hidden)
+      .map((el) => Math.round(el.getBoundingClientRect().width));
+  });
+}
+
+function assertBalancedWidths(widths, label) {
+  if (widths.length < 2) return;
+  const max = Math.max(...widths);
+  const min = Math.min(...widths);
+  if (max - min > 24) {
+    throw new Error(`${label}: column widths uneven ${JSON.stringify(widths)}`);
+  }
+}
+
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
   if (urlPath === "/tools/exam-linear-picker-harness.html") {
@@ -233,18 +251,27 @@ await page.click("#btn-exam-new");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
 await page.waitForTimeout(200);
 
-// 初期: 大項目のみ
+// 初期: 3列枠を確保し、中・葉はプレースホルダー
 const cats = await itemLabels(page, "#exam-plan-col-category-list");
 console.log("categories:", cats);
 if (JSON.stringify(cats) !== JSON.stringify(["血液", "画像", "病理", "その他"])) {
   throw new Error("category list mismatch");
 }
-if (!(await page.locator("#exam-plan-col-group").isHidden())) {
-  throw new Error("mid col should be hidden initially");
+if (
+  (await page.locator("#exam-plan-linear-picker").getAttribute("data-cols")) !== "3"
+) {
+  throw new Error("initial data-cols should be 3");
 }
-if (!(await page.locator("#exam-plan-col-leaf").isHidden())) {
-  throw new Error("leaf col should be hidden initially");
+if (!(await page.locator("#exam-plan-col-group").evaluate((el) => el.classList.contains("is-placeholder")))) {
+  throw new Error("mid col should be placeholder initially");
 }
+if (!(await page.locator("#exam-plan-col-leaf").evaluate((el) => el.classList.contains("is-placeholder")))) {
+  throw new Error("leaf col should be placeholder initially");
+}
+let widths = await visibleColWidths(page);
+console.log("initial widths:", widths);
+assertBalancedWidths(widths, "initial");
+await shot(page, "exam-linear-layout-01-stage1.png");
 await shot(page, "exam-linear-picker-01-initial.png");
 
 // ---- 血液: 大項目 → 中項目 → 肝臓内訳 ----
@@ -253,6 +280,13 @@ await page.waitForTimeout(100);
 if (await page.locator("#exam-plan-col-group").isHidden()) {
   throw new Error("blood should show mid column");
 }
+if (await page.locator("#exam-plan-col-group").evaluate((el) => el.classList.contains("is-placeholder"))) {
+  throw new Error("blood mid should be active");
+}
+widths = await visibleColWidths(page);
+console.log("blood stage2 widths:", widths);
+assertBalancedWidths(widths, "blood stage2");
+await shot(page, "exam-linear-layout-02-stage2.png");
 const bloodGroups = await itemLabels(page, "#exam-plan-col-group-list");
 console.log("blood groups:", bloodGroups.slice(0, 6));
 for (const label of ["肝臓", "腎臓", "脂質", "ホルモン"]) {
@@ -293,6 +327,10 @@ console.log("blood summary:", summary);
 if (!summary.includes("肝臓（ALT・AST）")) {
   throw new Error(`summary wrong: ${summary}`);
 }
+widths = await visibleColWidths(page);
+console.log("blood stage3 widths:", widths);
+assertBalancedWidths(widths, "blood stage3");
+await shot(page, "exam-linear-layout-03-stage3.png");
 await shot(page, "exam-linear-picker-03-blood-liver.png");
 
 // 中項目の選び直し
