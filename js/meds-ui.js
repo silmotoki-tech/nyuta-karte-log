@@ -318,6 +318,7 @@ function renderMedsList() {
 function createDrugCard(drug) {
   const li = document.createElement("li");
   li.className = "med-card";
+  li.spellcheck = false;
   li.dataset.drugId = drug.id;
 
   const status = deriveStatus(drug);
@@ -347,6 +348,7 @@ function createDrugCard(drug) {
 
   const nameEl = document.createElement("span");
   nameEl.className = "med-card__name";
+  nameEl.spellcheck = false;
   nameEl.textContent = drug.name || "（名称未設定）";
 
   const statusEl = document.createElement("span");
