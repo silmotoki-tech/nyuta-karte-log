@@ -404,9 +404,9 @@ const browser = await launchBrowser();
     path: path.join(root, "tools/master-add-exam-kidney.png"),
   });
 
-  // 画像 → エコー
+  // 画像 → 心エコー
   await clickItem(page, "#exam-plan-col-category-list", "画像");
-  await clickItem(page, "#exam-plan-col-group-list", "エコー");
+  await clickItem(page, "#exam-plan-col-group-list", "心エコー");
   await addLeaf(
     page,
     "#exam-plan-new-item",
@@ -447,8 +447,8 @@ const browser = await launchBrowser();
   const kidneyId = examItems.find(
     (i) => i.label === "腎臓" && i.kind === "group"
   )?.id;
-  const echoId = examItems.find(
-    (i) => i.label === "エコー" && i.kind === "group"
+  const heartEchoId = examItems.find(
+    (i) => i.label === "心エコー" && i.kind === "group"
   )?.id;
   assertItem(examItems, "検証ALT肝", {
     category: "blood",
@@ -463,13 +463,13 @@ const browser = await launchBrowser();
   }
   assertItem(examItems, "検証心エコー追加", {
     category: "imaging",
-    parentId: echoId,
+    parentId: heartEchoId,
   });
   assertItem(examItems, "検証病理項目", { category: "pathology", parentId: "" });
   console.log("exam hierarchy add OK", {
     liverId,
     kidneyId,
-    echoId,
+    heartEchoId,
   });
   if (errors.length) throw new Error("exam page errors: " + errors.join("; "));
   await page.close();

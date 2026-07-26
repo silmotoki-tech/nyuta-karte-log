@@ -558,21 +558,29 @@ const EXAM_ITEM_SEED = [
       { id: "seed-other-abdomen-set", label: "腹部set" },
     ],
   }),
+  // 心エコー／腹部エコーを中項目にし、小項目は内訳名のみ（二重表示防止）
   ...categoryGroupSeed("imaging", {
-    id: "seed-imaging-echo",
-    label: "エコー",
+    id: "seed-imaging-heart-echo",
+    label: "心エコー",
     order: 20,
     children: [
-      { id: "seed-imaging-heart-echo-scr", label: "心エコー(スクリーニング)" },
-      { id: "seed-imaging-heart-echo-flow", label: "心エコー(流速あり)" },
-      { id: "seed-imaging-heart-echo-enlarge", label: "心エコー(拡大チェック)" },
-      { id: "seed-imaging-abdomen-echo-scr", label: "腹部エコー(スクリーニング)" },
-      { id: "seed-imaging-abdomen-echo-spleen", label: "腹部エコー(脾臓)" },
-      { id: "seed-imaging-abdomen-echo-liver", label: "腹部エコー(肝臓)" },
-      { id: "seed-imaging-abdomen-echo-kidney", label: "腹部エコー(腎臓)" },
-      { id: "seed-imaging-abdomen-echo-ureter", label: "腹部エコー(尿管)" },
-      { id: "seed-imaging-abdomen-echo-bladder", label: "腹部エコー(膀胱)" },
-      { id: "seed-imaging-abdomen-echo-prostate", label: "腹部エコー(前立腺)" },
+      { id: "seed-imaging-heart-echo-scr", label: "スクリーニング" },
+      { id: "seed-imaging-heart-echo-flow", label: "流速あり" },
+      { id: "seed-imaging-heart-echo-enlarge", label: "拡大チェック" },
+    ],
+  }),
+  ...categoryGroupSeed("imaging", {
+    id: "seed-imaging-abdomen-echo",
+    label: "腹部エコー",
+    order: 25,
+    children: [
+      { id: "seed-imaging-abdomen-echo-scr", label: "スクリーニング" },
+      { id: "seed-imaging-abdomen-echo-spleen", label: "脾臓" },
+      { id: "seed-imaging-abdomen-echo-liver", label: "肝臓" },
+      { id: "seed-imaging-abdomen-echo-kidney", label: "腎臓" },
+      { id: "seed-imaging-abdomen-echo-ureter", label: "尿管" },
+      { id: "seed-imaging-abdomen-echo-bladder", label: "膀胱" },
+      { id: "seed-imaging-abdomen-echo-prostate", label: "前立腺" },
     ],
   }),
   ...categoryGroupSeed("imaging", {
@@ -580,15 +588,15 @@ const EXAM_ITEM_SEED = [
     label: "レントゲン",
     order: 30,
     children: [
-      { id: "seed-imaging-xray-chest", label: "レントゲン(胸部)" },
-      { id: "seed-imaging-xray-trachea", label: "レントゲン(気管)" },
-      { id: "seed-imaging-xray-abdomen", label: "レントゲン(腹部)" },
-      { id: "seed-imaging-xray-hip", label: "レントゲン(股関節)" },
-      { id: "seed-imaging-xray-shoulder", label: "レントゲン(肩)" },
-      { id: "seed-imaging-xray-forelimb", label: "レントゲン(前肢)" },
-      { id: "seed-imaging-xray-hindlimb", label: "レントゲン(後肢)" },
-      { id: "seed-imaging-xray-nose", label: "レントゲン(鼻)" },
-      { id: "seed-imaging-xray-tooth", label: "レントゲン(歯)" },
+      { id: "seed-imaging-xray-chest", label: "胸部" },
+      { id: "seed-imaging-xray-trachea", label: "気管" },
+      { id: "seed-imaging-xray-abdomen", label: "腹部" },
+      { id: "seed-imaging-xray-hip", label: "股関節" },
+      { id: "seed-imaging-xray-shoulder", label: "肩" },
+      { id: "seed-imaging-xray-forelimb", label: "前肢" },
+      { id: "seed-imaging-xray-hindlimb", label: "後肢" },
+      { id: "seed-imaging-xray-nose", label: "鼻" },
+      { id: "seed-imaging-xray-tooth", label: "歯" },
     ],
   }),
   {
@@ -693,9 +701,8 @@ const EXAM_ITEM_SEED = [
 const EXAM_ITEM_SEED_RETIRE = [
   "seed-imaging-chest-scr",
   "seed-imaging-abdomen-scr",
-  // 旧・心エコー／腹部エコー大項目（エコー大項目へ統合）
-  "seed-imaging-heart-echo",
-  "seed-imaging-abdomen-echo",
+  // 旧・エコー一括中項目（心エコー／腹部エコーへ分割）
+  "seed-imaging-echo",
 ];
 
 /** ラベル一致で削除する重複・旧項目（ユーザー追加分も含む） */
@@ -738,6 +745,86 @@ const EXAM_ITEM_LABEL_MIGRATE = [
     parentId: "seed-imaging-set",
     order: 10,
   },
+  // 親名込みラベル → 内訳のみ（二重表示防止）
+  { from: "レントゲン(胸部)", to: "胸部", category: "imaging", parentId: "seed-imaging-xray", order: 10 },
+  { from: "レントゲン(気管)", to: "気管", category: "imaging", parentId: "seed-imaging-xray", order: 20 },
+  { from: "レントゲン(腹部)", to: "腹部", category: "imaging", parentId: "seed-imaging-xray", order: 30 },
+  { from: "レントゲン(股関節)", to: "股関節", category: "imaging", parentId: "seed-imaging-xray", order: 40 },
+  { from: "レントゲン(肩)", to: "肩", category: "imaging", parentId: "seed-imaging-xray", order: 50 },
+  { from: "レントゲン(前肢)", to: "前肢", category: "imaging", parentId: "seed-imaging-xray", order: 60 },
+  { from: "レントゲン(後肢)", to: "後肢", category: "imaging", parentId: "seed-imaging-xray", order: 70 },
+  { from: "レントゲン(鼻)", to: "鼻", category: "imaging", parentId: "seed-imaging-xray", order: 80 },
+  { from: "レントゲン(歯)", to: "歯", category: "imaging", parentId: "seed-imaging-xray", order: 90 },
+  {
+    from: "心エコー(スクリーニング)",
+    to: "スクリーニング",
+    category: "imaging",
+    parentId: "seed-imaging-heart-echo",
+    order: 10,
+  },
+  {
+    from: "心エコー(流速あり)",
+    to: "流速あり",
+    category: "imaging",
+    parentId: "seed-imaging-heart-echo",
+    order: 20,
+  },
+  {
+    from: "心エコー(拡大チェック)",
+    to: "拡大チェック",
+    category: "imaging",
+    parentId: "seed-imaging-heart-echo",
+    order: 30,
+  },
+  {
+    from: "腹部エコー(スクリーニング)",
+    to: "スクリーニング",
+    category: "imaging",
+    parentId: "seed-imaging-abdomen-echo",
+    order: 10,
+  },
+  {
+    from: "腹部エコー(脾臓)",
+    to: "脾臓",
+    category: "imaging",
+    parentId: "seed-imaging-abdomen-echo",
+    order: 20,
+  },
+  {
+    from: "腹部エコー(肝臓)",
+    to: "肝臓",
+    category: "imaging",
+    parentId: "seed-imaging-abdomen-echo",
+    order: 30,
+  },
+  {
+    from: "腹部エコー(腎臓)",
+    to: "腎臓",
+    category: "imaging",
+    parentId: "seed-imaging-abdomen-echo",
+    order: 40,
+  },
+  {
+    from: "腹部エコー(尿管)",
+    to: "尿管",
+    category: "imaging",
+    parentId: "seed-imaging-abdomen-echo",
+    order: 50,
+  },
+  {
+    from: "腹部エコー(膀胱)",
+    to: "膀胱",
+    category: "imaging",
+    parentId: "seed-imaging-abdomen-echo",
+    order: 60,
+  },
+  {
+    from: "腹部エコー(前立腺)",
+    to: "前立腺",
+    category: "imaging",
+    parentId: "seed-imaging-abdomen-echo",
+    order: 70,
+  },
 ];
 
 function examItemsRef() {
@@ -751,6 +838,19 @@ export function normalizeExamItemCategory(category) {
 
 export function normalizeExamItemKind(kind) {
   return String(kind || "").trim() === "group" ? "group" : "leaf";
+}
+
+/**
+ * 「レントゲン(腹部)」→「腹部」のように、親名が先頭に付いた小項目ラベルを内訳だけにする。
+ */
+function stripParentPrefixFromLeafLabel(label, parentLabel) {
+  const raw = String(label || "").trim();
+  const parent = String(parentLabel || "").trim();
+  if (!raw || !parent) return raw;
+  const escaped = parent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`^${escaped}\\s*[（(]\\s*(.+?)\\s*[）)]$`);
+  const m = raw.match(re);
+  return m?.[1]?.trim() || raw;
 }
 
 function normalizeExamItem(id, raw) {
@@ -795,29 +895,39 @@ function normalizeExamItem(id, raw) {
     kind = "group";
     parentId = "";
     order = 10;
-  } else if (id === "seed-imaging-echo") {
-    label = "エコー";
+  } else if (id === "seed-imaging-heart-echo") {
+    label = "心エコー";
     category = "imaging";
     kind = "group";
     parentId = "";
     order = 20;
+  } else if (id === "seed-imaging-abdomen-echo") {
+    label = "腹部エコー";
+    category = "imaging";
+    kind = "group";
+    parentId = "";
+    order = 25;
   } else if (id === "seed-imaging-xray") {
     label = "レントゲン";
     category = "imaging";
     kind = "group";
     parentId = "";
     order = 30;
-  } else if (
-    id.startsWith("seed-imaging-heart-echo-") ||
-    id.startsWith("seed-imaging-abdomen-echo-")
-  ) {
+  } else if (id.startsWith("seed-imaging-heart-echo-")) {
     category = "imaging";
     kind = "leaf";
-    parentId = "seed-imaging-echo";
+    parentId = "seed-imaging-heart-echo";
+    label = stripParentPrefixFromLeafLabel(label, "心エコー");
+  } else if (id.startsWith("seed-imaging-abdomen-echo-")) {
+    category = "imaging";
+    kind = "leaf";
+    parentId = "seed-imaging-abdomen-echo";
+    label = stripParentPrefixFromLeafLabel(label, "腹部エコー");
   } else if (id.startsWith("seed-imaging-xray-")) {
     category = "imaging";
     kind = "leaf";
     parentId = "seed-imaging-xray";
+    label = stripParentPrefixFromLeafLabel(label, "レントゲン");
   }
 
   return {
@@ -854,7 +964,8 @@ export async function ensureExamItemDefaults() {
     "seed-other-chest-set",
     "seed-other-abdomen-set",
     "seed-imaging-full-scr",
-    "seed-imaging-echo",
+    "seed-imaging-heart-echo",
+    "seed-imaging-abdomen-echo",
     "seed-imaging-xray",
     "seed-imaging-heart-echo-scr",
     "seed-imaging-heart-echo-flow",

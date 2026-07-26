@@ -198,86 +198,113 @@ const EXAM_QUERY_SYNONYMS = [
   { test: /全スク|全set|全身スク/, labels: ["全set"] },
   {
     test: /レントゲン\s*[（(]?胸部[）)]?|胸部X線|胸部ｘ線|胸部x線|胸XP/,
-    labels: ["レントゲン(胸部)"],
+    parentLabels: ["レントゲン"],
+    labels: ["胸部"],
   },
   {
     test: /レントゲン\s*[（(]?気管[）)]?/,
-    labels: ["レントゲン(気管)"],
+    parentLabels: ["レントゲン"],
+    labels: ["気管"],
   },
   {
     test: /レントゲン\s*[（(]?腹部[）)]?|腹部X線/,
-    labels: ["レントゲン(腹部)"],
+    parentLabels: ["レントゲン"],
+    labels: ["腹部"],
   },
   {
     test: /レントゲン\s*[（(]?股関節[）)]?/,
-    labels: ["レントゲン(股関節)"],
+    parentLabels: ["レントゲン"],
+    labels: ["股関節"],
   },
   {
     test: /レントゲン\s*[（(]?肩[）)]?/,
-    labels: ["レントゲン(肩)"],
+    parentLabels: ["レントゲン"],
+    labels: ["肩"],
   },
   {
     test: /レントゲン\s*[（(]?前肢[）)]?/,
-    labels: ["レントゲン(前肢)"],
+    parentLabels: ["レントゲン"],
+    labels: ["前肢"],
   },
   {
     test: /レントゲン\s*[（(]?後肢[）)]?/,
-    labels: ["レントゲン(後肢)"],
+    parentLabels: ["レントゲン"],
+    labels: ["後肢"],
   },
   {
     test: /レントゲン\s*[（(]?鼻[）)]?/,
-    labels: ["レントゲン(鼻)"],
+    parentLabels: ["レントゲン"],
+    labels: ["鼻"],
   },
   {
     test: /レントゲン\s*[（(]?歯[）)]?|歯科レントゲン/,
-    labels: ["レントゲン(歯)"],
+    parentLabels: ["レントゲン"],
+    labels: ["歯"],
   },
   {
     test: /心エコー\s*[（(]?スクリーニング[）)]?|心エコースク/,
-    labels: ["心エコー(スクリーニング)"],
+    parentLabels: ["心エコー"],
+    labels: ["スクリーニング"],
   },
   {
     test: /心エコー\s*[（(]?流速|流速あり/,
-    labels: ["心エコー(流速あり)"],
+    parentLabels: ["心エコー"],
+    labels: ["流速あり"],
   },
   {
     test: /心エコー\s*[（(]?拡大|拡大チェック/,
-    labels: ["心エコー(拡大チェック)"],
+    parentLabels: ["心エコー"],
+    labels: ["拡大チェック"],
   },
   {
     test: /腹部エコー\s*[（(]?スクリーニング[）)]?|腹エコースク/,
-    labels: ["腹部エコー(スクリーニング)"],
+    parentLabels: ["腹部エコー"],
+    labels: ["スクリーニング"],
   },
   {
     test: /腹部エコー\s*[（(]?脾臓[）)]?|腹エコー.*脾/,
-    labels: ["腹部エコー(脾臓)"],
+    parentLabels: ["腹部エコー"],
+    labels: ["脾臓"],
   },
   {
     test: /腹部エコー\s*[（(]?肝臓[）)]?|腹エコー.*肝臓/,
-    labels: ["腹部エコー(肝臓)"],
+    parentLabels: ["腹部エコー"],
+    labels: ["肝臓"],
   },
   {
     test: /腹部エコー\s*[（(]?腎臓[）)]?|腹エコー.*腎/,
-    labels: ["腹部エコー(腎臓)"],
+    parentLabels: ["腹部エコー"],
+    labels: ["腎臓"],
   },
   {
     test: /腹部エコー\s*[（(]?尿管[）)]?|腹エコー.*尿管/,
-    labels: ["腹部エコー(尿管)"],
+    parentLabels: ["腹部エコー"],
+    labels: ["尿管"],
   },
   {
     test: /腹部エコー\s*[（(]?膀胱[）)]?|腹エコー.*膀胱/,
-    labels: ["腹部エコー(膀胱)"],
+    parentLabels: ["腹部エコー"],
+    labels: ["膀胱"],
   },
   {
     test: /腹部エコー\s*[（(]?前立腺[）)]?|腹エコー.*前立腺/,
-    labels: ["腹部エコー(前立腺)"],
+    parentLabels: ["腹部エコー"],
+    labels: ["前立腺"],
   },
   {
     test: /エコー|超音波/,
-    parentLabels: ["エコー"],
+    parentLabels: ["心エコー", "腹部エコー"],
   },
-  { test: /心エコー|心臓エコー|心臓超音波/, parentLabels: ["エコー"], labels: ["心エコー(スクリーニング)", "心エコー(流速あり)", "心エコー(拡大チェック)"] },
-  { test: /腹部エコー|お腹のエコー|腹エコー/, parentLabels: ["エコー"], labels: ["腹部エコー(スクリーニング)", "腹部エコー(脾臓)", "腹部エコー(肝臓)", "腹部エコー(腎臓)", "腹部エコー(尿管)", "腹部エコー(膀胱)", "腹部エコー(前立腺)"] },
+  {
+    test: /心エコー|心臓エコー|心臓超音波/,
+    parentLabels: ["心エコー"],
+    labels: ["スクリーニング", "流速あり", "拡大チェック"],
+  },
+  {
+    test: /腹部エコー|お腹のエコー|腹エコー/,
+    parentLabels: ["腹部エコー"],
+    labels: ["スクリーニング", "脾臓", "肝臓", "腎臓", "尿管", "膀胱", "前立腺"],
+  },
   {
     test: /病理検査|病理に|病理へ|病理提出|組織診|生検|バイオプシー/,
     labels: ["組織検査", "細胞診(院内)", "細胞診(外注)"],
@@ -398,7 +425,7 @@ export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 
 
   const scored = targets.map((t) => {
     const score = scoreExamLabelMatch(q, t.label, t);
-    const displayLabel = t.parentLabel ? `${t.label}（${t.parentLabel}）` : t.label;
+    const displayLabel = t.parentLabel ? `${t.parentLabel} ＞ ${t.label}` : t.label;
     return {
       item: t.item,
       label: t.label,
@@ -419,8 +446,9 @@ export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 
   const out = [];
   for (const row of scored) {
     if (row.score < minScore) continue;
-    if (seen.has(row.label)) continue;
-    seen.add(row.label);
+    const key = row.item?.id || `${row.parentLabel || ""}::${row.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
     out.push(row);
     if (out.length >= limit) break;
   }

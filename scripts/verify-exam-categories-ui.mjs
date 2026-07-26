@@ -256,7 +256,7 @@ await page.waitForTimeout(100);
 
 const listText = await page.locator("#exam-plan-list").innerText();
 console.log("LIST", listText);
-if (!listText.includes("肝臓（ALT）")) throw new Error("肝臓（ALT） not in plan list");
+if (!listText.includes("肝臓 ＞ ALT")) throw new Error("肝臓 ＞ ALT not in plan list");
 if (!listText.includes("絶食：必要")) throw new Error("fasting not shown in list");
 
 // 独立項目
@@ -277,7 +277,7 @@ if (!listText2.includes("CBC") || !listText2.includes("絶食：不要")) {
   throw new Error("CBC fasting none not shown");
 }
 
-await page.locator("#exam-plan-list .exam-list-item").filter({ hasText: "肝臓（ALT）" }).click();
+await page.locator("#exam-plan-list .exam-list-item").filter({ hasText: "肝臓 ＞ ALT" }).click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 const sheetFasting = await page.locator("#exam-item-sheet-fasting").textContent();
 if (sheetFasting !== "絶食：必要") throw new Error("sheet fasting wrong");
@@ -289,7 +289,7 @@ await clickLinear("#exam-plan-col-category-list", "画像");
 await page.waitForTimeout(50);
 groups = await labelsOf("#exam-plan-col-group-list");
 console.log("IMAGING ROOT", groups);
-for (const label of ["セット", "エコー", "レントゲン"]) {
+for (const label of ["セット", "心エコー", "腹部エコー", "レントゲン"]) {
   if (!groups.includes(label)) throw new Error(`imaging group missing ${label}`);
 }
 await clickLinear("#exam-plan-col-group-list", "セット");
@@ -299,36 +299,37 @@ console.log("IMAGING SET", leaves);
 for (const label of ["全set", "胸部set", "腹部set"]) {
   if (!leaves.includes(label)) throw new Error(`imaging set leaf missing ${label}`);
 }
-await clickLinear("#exam-plan-col-group-list", "エコー");
+await clickLinear("#exam-plan-col-group-list", "心エコー");
 await page.waitForTimeout(50);
 leaves = await labelsOf("#exam-plan-col-leaf-list");
-console.log("IMAGING ECHO", leaves);
-for (const label of [
-  "心エコー(スクリーニング)",
-  "心エコー(流速あり)",
-  "腹部エコー(脾臓)",
-]) {
-  if (!leaves.includes(label)) throw new Error(`echo leaf missing ${label}`);
+console.log("IMAGING HEART ECHO", leaves);
+for (const label of ["スクリーニング", "流速あり", "拡大チェック"]) {
+  if (!leaves.includes(label)) throw new Error(`heart echo leaf missing ${label}`);
 }
-await clickLinear("#exam-plan-col-leaf-list", "心エコー(スクリーニング)");
+await clickLinear("#exam-plan-col-leaf-list", "スクリーニング");
 if (!(await page.isHidden("#exam-plan-fasting-field"))) {
   throw new Error("fasting should hide for imaging");
 }
-await clickLinear("#exam-plan-col-leaf-list", "腹部エコー(脾臓)");
+await clickLinear("#exam-plan-col-group-list", "腹部エコー");
+await page.waitForTimeout(50);
+await clickLinear("#exam-plan-col-leaf-list", "脾臓");
 const imgSummary = await page.locator("#exam-plan-selection-summary").innerText();
 console.log("IMAGING SUMMARY", imgSummary);
-if (!imgSummary.includes("心エコー(スクリーニング)")) {
+if (!imgSummary.includes("心エコー ＞ スクリーニング")) {
   throw new Error(`missing heart echo in summary: ${imgSummary}`);
 }
-if (!imgSummary.includes("腹部エコー(脾臓)")) {
+if (!imgSummary.includes("腹部エコー ＞ 脾臓")) {
   throw new Error(`missing abdomen echo in summary: ${imgSummary}`);
+}
+if (imgSummary.includes("心エコー ＞ 心エコー") || imgSummary.includes("腹部エコー ＞ 腹部エコー")) {
+  throw new Error(`duplicated parent in summary: ${imgSummary}`);
 }
 await clickLinear("#exam-plan-col-group-list", "レントゲン");
 await page.waitForTimeout(50);
 leaves = await labelsOf("#exam-plan-col-leaf-list");
 console.log("IMAGING XRAY", leaves);
-if (!leaves.includes("レントゲン(胸部)")) throw new Error("xray leaf missing");
-await clickLinear("#exam-plan-col-leaf-list", "レントゲン(胸部)");
+if (!leaves.includes("胸部")) throw new Error("xray leaf missing");
+await clickLinear("#exam-plan-col-leaf-list", "胸部");
 
 // 病理
 await clickLinear("#exam-plan-col-category-list", "病理");

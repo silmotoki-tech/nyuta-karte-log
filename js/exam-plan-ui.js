@@ -1209,7 +1209,24 @@ function isExamLeafSelected(item) {
 const EXAM_CATEGORY_SORT = { blood: 0, imaging: 1, pathology: 2, other: 3 };
 
 /**
- * 複数選択を「肝臓（ALT・AST・ALP）・胸部スク」形式の表示名にまとめる。
+ * 小項目ラベルから中項目名の重複プレフィックスを取り除く。
+ * 例: parent=レントゲン, leaf=レントゲン(腹部) → 腹部
+ */
+function leafLabelWithoutParentPrefix(leafLabel, parentLabel) {
+  const leaf = String(leafLabel || "").trim();
+  const parent = String(parentLabel || "").trim();
+  if (!leaf || !parent) return leaf;
+  const escaped = parent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const wrapped = new RegExp(`^${escaped}\\s*[（(]\\s*(.+?)\\s*[）)]$`);
+  const m = leaf.match(wrapped);
+  if (m?.[1]?.trim()) return m[1].trim();
+  if (leaf === parent) return leaf;
+  return leaf;
+}
+
+/**
+ * 複数選択を「肝臓 ＞ ALT・AST・ALP」「レントゲン ＞ 腹部」形式の表示名にまとめる。
+ * 中項目名は一度だけ付け、小項目側に親名が残っていても二重表示しない。
  */
 function formatSelectedExamLabels(selected, examItems = state.examItems) {
   const list = Array.isArray(selected) ? selected.filter((s) => (s.label || "").trim()) : [];
@@ -1245,9 +1262,13 @@ function formatSelectedExamLabels(selected, examItems = state.examItems) {
       if (seenParents.has(sel.parentId)) return;
       seenParents.add(sel.parentId);
       const parent = byId.get(sel.parentId);
+      const parentLabel = (parent?.label || "").trim() || "検査";
       const children = parentBuckets.get(sel.parentId) || [];
-      const childLabels = children.map((c) => c.label).join("・");
-      segments.push(`${parent?.label || "検査"}（${childLabels}）`);
+      const childLabels = children
+        .map((c) => leafLabelWithoutParentPrefix(c.label, parentLabel))
+        .filter(Boolean)
+        .join("・");
+      segments.push(`${parentLabel} ＞ ${childLabels}`);
       return;
     }
     segments.push(sel.label);
@@ -1270,7 +1291,7 @@ function escapeRegExp(text) {
   return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** 複合名（例: 肝臓（ALT・AST））に血液項目が含まれるか */
+/** 複合名（例: 肝臓 ＞ ALT・AST / 旧: 肝臓（ALT・AST））に血液項目が含まれるか */
 function compositeLabelNeedsFasting(itemLabel) {
   const text = (itemLabel || "").trim();
   if (!text) return false;
@@ -1282,7 +1303,9 @@ function compositeLabelNeedsFasting(itemLabel) {
     const name = (leaf.label || "").trim();
     if (!name) return false;
     if (text === name) return true;
-    const re = new RegExp(`(?:^|[（・])${escapeRegExp(name)}(?:[）・]|$)`);
+    const re = new RegExp(
+      `(?:^|[（・＞>]\\s*)${escapeRegExp(name)}(?:[）・]|$)`
+    );
     return re.test(text);
   });
 }
@@ -1519,7 +1542,7 @@ function updateExamItemAddUI() {
   if (planNewItemInput) {
     planNewItemInput.placeholder = inDrillGroup
       ? category === "imaging"
-        ? "例）心エコー(追加)"
+        ? "例）流速あり"
         : "例）ALT"
       : category === "imaging"
         ? "例）レントゲン"

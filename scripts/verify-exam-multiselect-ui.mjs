@@ -254,7 +254,7 @@ await clickLinear("#exam-plan-col-leaf-list", "ALP");
 
 const summary = await page.locator("#exam-plan-selection-summary").innerText();
 console.log("SUMMARY", summary);
-if (!summary.includes("肝臓（ALT・AST・ALP）")) {
+if (!summary.includes("肝臓 ＞ ALT・AST・ALP")) {
   throw new Error(`summary format wrong: ${summary}`);
 }
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-stage.png") });
@@ -267,18 +267,18 @@ await page.waitForTimeout(120);
 
 const listText = await page.locator("#exam-plan-list").innerText();
 console.log("LIST", listText);
-if (!listText.includes("肝臓（ALT・AST・ALP）")) {
+if (!listText.includes("肝臓 ＞ ALT・AST・ALP")) {
   throw new Error("grouped label missing in list");
 }
 if (!listText.includes("絶食：必要")) throw new Error("fasting missing in list");
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-list.png") });
 
-await page.locator("#exam-plan-list .exam-list-item").filter({ hasText: "肝臓（ALT・AST・ALP）" }).click();
+await page.locator("#exam-plan-list .exam-list-item").filter({ hasText: "肝臓 ＞ ALT・AST・ALP" }).click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 const sheetItem = await page.locator("#exam-item-sheet-item").innerText();
 const sheetFasting = await page.locator("#exam-item-sheet-fasting").innerText();
 console.log("SHEET", sheetItem, sheetFasting);
-if (sheetItem !== "肝臓（ALT・AST・ALP）") throw new Error(`sheet item wrong: ${sheetItem}`);
+if (sheetItem !== "肝臓 ＞ ALT・AST・ALP") throw new Error(`sheet item wrong: ${sheetItem}`);
 if (sheetFasting !== "絶食：必要") throw new Error(`sheet fasting wrong: ${sheetFasting}`);
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-sheet.png") });
 await page.click("#btn-close-exam-item-sheet");
@@ -294,7 +294,7 @@ await clickLinear("#exam-plan-col-leaf-list", "胸部set");
 await clickLinear("#exam-plan-col-leaf-list", "腹部set");
 const imgSummary = await page.locator("#exam-plan-selection-summary").innerText();
 console.log("IMG SUMMARY", imgSummary);
-if (!imgSummary.includes("セット（胸部set・腹部set）")) {
+if (!imgSummary.includes("セット ＞ 胸部set・腹部set")) {
   throw new Error(`imaging multi summary wrong: ${imgSummary}`);
 }
 if (!(await page.isHidden("#exam-plan-fasting-field"))) {
@@ -304,7 +304,7 @@ await page.fill("#exam-plan-due-date", "2026-09-02");
 await page.click("#btn-exam-plan-save");
 await page.waitForTimeout(120);
 const listText2 = await page.locator("#exam-plan-list").innerText();
-if (!listText2.includes("セット（胸部set・腹部set）")) {
+if (!listText2.includes("セット ＞ 胸部set・腹部set")) {
   throw new Error("imaging multi missing in list");
 }
 

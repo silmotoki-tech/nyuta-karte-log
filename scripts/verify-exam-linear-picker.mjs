@@ -324,7 +324,7 @@ if (!selectedLeaves.includes("ALT") || !selectedLeaves.includes("AST")) {
 }
 const summary = await page.locator("#exam-plan-selection-summary").innerText();
 console.log("blood summary:", summary);
-if (!summary.includes("肝臓（ALT・AST）")) {
+if (!summary.includes("肝臓 ＞ ALT・AST")) {
   throw new Error(`summary wrong: ${summary}`);
 }
 widths = await visibleColWidths(page);
@@ -346,7 +346,7 @@ await clickItem(page, "#exam-plan-col-category-list", "画像");
 await page.waitForTimeout(100);
 const imgGroups = await itemLabels(page, "#exam-plan-col-group-list");
 console.log("imaging groups:", imgGroups);
-for (const label of ["セット", "エコー", "レントゲン"]) {
+for (const label of ["セット", "心エコー", "腹部エコー", "レントゲン"]) {
   if (!imgGroups.includes(label)) throw new Error(`imaging mid missing ${label}`);
 }
 if (!(await page.locator("#exam-plan-item-add-default").isVisible())) {
@@ -354,20 +354,20 @@ if (!(await page.locator("#exam-plan-item-add-default").isVisible())) {
 }
 await shot(page, "exam-linear-picker-05-imaging-mid.png");
 
-await clickItem(page, "#exam-plan-col-group-list", "エコー");
+await clickItem(page, "#exam-plan-col-group-list", "心エコー");
 await page.waitForTimeout(80);
 const echo = await itemLabels(page, "#exam-plan-col-leaf-list");
 console.log("echo leaves count:", echo.length);
-if (!echo.includes("心エコー(スクリーニング)")) {
+if (!echo.includes("スクリーニング")) {
   throw new Error("echo leaf missing");
 }
-await clickItem(page, "#exam-plan-col-leaf-list", "心エコー(スクリーニング)");
+await clickItem(page, "#exam-plan-col-leaf-list", "スクリーニング");
 await shot(page, "exam-linear-picker-06-imaging-echo.png");
 
 await clickItem(page, "#exam-plan-col-group-list", "レントゲン");
 await page.waitForTimeout(80);
 const xray = await itemLabels(page, "#exam-plan-col-leaf-list");
-if (!xray.includes("レントゲン(胸部)")) throw new Error("xray leaf missing");
+if (!xray.includes("胸部")) throw new Error("xray leaf missing");
 await shot(page, "exam-linear-picker-07-imaging-xray.png");
 
 // ---- 病理（中項目なし） ----
