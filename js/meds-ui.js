@@ -1113,20 +1113,23 @@ async function handleAddMedicationItemFromModal() {
     return;
   }
 
+  // いま開いている階層へ追加（内服・外用で中項目選択中はその配下、注射・点眼は大分類直下）
   const parentId =
     categorySupportsMedMidGroups(category) && state.medItemParentId
       ? state.medItemParentId
       : "";
 
+  // 同名でも別中項目なら新規作成（現在の category + parentId のみ既存扱い）
   const exists = state.medicationItems.find(
     (item) =>
+      !isMedGroup(item) &&
       (item.label || "").trim() === label &&
       normalizeMedicationItemCategory(item.category) === category &&
-      !isMedGroup(item)
+      String(item.parentId || "").trim() === String(parentId || "").trim()
   );
   if (exists) {
-    state.medItemCategory = normalizeMedicationItemCategory(exists.category);
-    state.medItemParentId = exists.parentId || null;
+    state.medItemCategory = category;
+    state.medItemParentId = parentId || null;
     state.addDraft.name = label;
     if (addNewItemInput) addNewItemInput.value = "";
     deps.showError(addItemError, "");
@@ -1147,9 +1150,13 @@ async function handleAddMedicationItemFromModal() {
     state.addDraft.name = label;
     if (addNewItemInput) addNewItemInput.value = "";
     renderMedLinearPicker();
-    deps.showToast(
-      `「${label}」を${medicationItemCategoryLabel(category)}に追加しました。`
-    );
+    const parent = parentId
+      ? state.medicationItems.find((item) => item.id === parentId)
+      : null;
+    const place = parent?.label
+      ? `${medicationItemCategoryLabel(category)}／${parent.label}`
+      : medicationItemCategoryLabel(category);
+    deps.showToast(`「${label}」を${place}に追加しました。`);
   } catch (err) {
     console.error(err);
     deps.showError(addItemError, "追加に失敗しました。もう一度お試しください。");
