@@ -32,10 +32,13 @@ const pickerField = `
             <div class="med-linear-picker__list" id="exam-plan-col-group-list" role="listbox" aria-label="中項目"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf is-placeholder" id="exam-plan-col-leaf" data-col="leaf">
-            <div class="med-linear-picker__head">検査項目</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label">検査項目</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-exam-plan-add-toggle" hidden aria-expanded="false">＋</button>
+            </div>
             <div class="med-linear-picker__list" id="exam-plan-col-leaf-list" role="listbox" aria-label="検査項目"></div>
             <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden></p>
-            <div class="exam-item-add" id="exam-plan-item-add-default">
+            <div class="exam-item-add" id="exam-plan-item-add-default" hidden>
               <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">新しい項目を追加</label>
               <div class="exam-item-add__row">
                 <input id="exam-plan-new-item" class="input" type="text" />
@@ -301,6 +304,9 @@ if (bloodRoots.includes("ALT")) throw new Error("ALT should not appear before mi
 if (!(await page.locator("#exam-plan-item-add-default").isHidden())) {
   throw new Error("blood root should hide add field");
 }
+if (!(await page.locator("#btn-exam-plan-add-toggle").isHidden())) {
+  throw new Error("blood root should hide add toggle");
+}
 await shot(page, "exam-linear-picker-02-blood-mid.png");
 
 await clickItem(page, "#exam-plan-col-group-list", "肝臓");
@@ -311,8 +317,11 @@ if (liver[0] !== "肝スク") throw new Error(`肝スク should be first, got ${
 if (!liver.includes("ALT") || !liver.includes("AST")) {
   throw new Error("liver children missing");
 }
-if (!(await page.locator("#exam-plan-item-add-default").isVisible())) {
-  throw new Error("add field should show inside liver");
+if (!(await page.locator("#btn-exam-plan-add-toggle").isVisible())) {
+  throw new Error("add toggle should show inside liver");
+}
+if (!(await page.locator("#exam-plan-item-add-default").isHidden())) {
+  throw new Error("add field should stay collapsed until + is pressed");
 }
 await clickItem(page, "#exam-plan-col-leaf-list", "ALT");
 await clickItem(page, "#exam-plan-col-leaf-list", "AST");
@@ -349,8 +358,11 @@ console.log("imaging groups:", imgGroups);
 for (const label of ["セット", "心エコー", "腹部エコー", "レントゲン"]) {
   if (!imgGroups.includes(label)) throw new Error(`imaging mid missing ${label}`);
 }
-if (!(await page.locator("#exam-plan-item-add-default").isVisible())) {
-  throw new Error("imaging root should allow add");
+if (!(await page.locator("#btn-exam-plan-add-toggle").isVisible())) {
+  throw new Error("imaging root should show add toggle");
+}
+if (!(await page.locator("#exam-plan-item-add-default").isHidden())) {
+  throw new Error("imaging root add form should stay collapsed");
 }
 await shot(page, "exam-linear-picker-05-imaging-mid.png");
 
@@ -385,6 +397,8 @@ for (const label of ["細胞診(院内)", "組織検査", "細菌培養(院内)"
   if (!pathology.includes(label)) throw new Error(`pathology missing ${label}`);
 }
 await clickItem(page, "#exam-plan-col-leaf-list", "組織検査");
+await page.click("#btn-exam-plan-add-toggle");
+await page.waitForSelector("#exam-plan-item-add-default:not([hidden])");
 await page.fill("#exam-plan-new-item", "追加病理");
 await page.click("#btn-exam-plan-add-item");
 await page.waitForTimeout(200);

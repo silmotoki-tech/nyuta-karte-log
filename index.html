@@ -674,7 +674,21 @@
             id="exam-plan-col-leaf"
             data-col="leaf"
           >
-            <div class="med-linear-picker__head">検査項目</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label">検査項目</span>
+              <button
+                type="button"
+                class="exam-item-add__toggle"
+                id="btn-exam-plan-add-toggle"
+                hidden
+                aria-expanded="false"
+                aria-controls="exam-plan-item-add-default"
+                aria-label="新しい項目を追加"
+                title="新しい項目を追加"
+              >
+                ＋
+              </button>
+            </div>
             <div
               class="med-linear-picker__list"
               id="exam-plan-col-leaf-list"
@@ -682,9 +696,9 @@
               aria-label="検査項目"
             ></div>
             <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden>
-              この分類にはまだ項目がありません。下で追加できます。
+              この分類にはまだ項目がありません。＋から追加できます。
             </p>
-            <div class="exam-item-add" id="exam-plan-item-add-default">
+            <div class="exam-item-add" id="exam-plan-item-add-default" hidden>
               <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">
                 新しい項目を追加
               </label>
@@ -968,7 +982,21 @@
             id="med-add-col-leaf"
             data-col="leaf"
           >
-            <div class="med-linear-picker__head">薬剤名</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label">薬剤名</span>
+              <button
+                type="button"
+                class="exam-item-add__toggle"
+                id="btn-med-add-toggle"
+                hidden
+                aria-expanded="false"
+                aria-controls="med-add-item-add"
+                aria-label="新しい薬剤を追加"
+                title="新しい薬剤を追加"
+              >
+                ＋
+              </button>
+            </div>
             <div
               class="med-linear-picker__list"
               id="med-add-col-leaf-list"
@@ -976,9 +1004,9 @@
               aria-label="薬剤名"
             ></div>
             <p class="field__note med-linear-picker__empty" id="med-add-items-empty" hidden>
-              この分類にはまだ薬剤がありません。下で追加できます。
+              この分類にはまだ薬剤がありません。＋から追加できます。
             </p>
-            <div class="exam-item-add" id="med-add-item-add">
+            <div class="exam-item-add" id="med-add-item-add" hidden>
               <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">
                 新しい薬剤を追加
               </label>

@@ -32,10 +32,13 @@ const pickerField = `
             <div class="med-linear-picker__list" id="med-add-col-group-list" role="listbox" aria-label="中項目"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf is-placeholder" id="med-add-col-leaf" data-col="leaf">
-            <div class="med-linear-picker__head">薬剤名</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label">薬剤名</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-med-add-toggle" hidden aria-expanded="false">＋</button>
+            </div>
             <div class="med-linear-picker__list" id="med-add-col-leaf-list" role="listbox" aria-label="薬剤名"></div>
             <p class="field__note med-linear-picker__empty" id="med-add-items-empty" hidden></p>
-            <div class="exam-item-add" id="med-add-item-add">
+            <div class="exam-item-add" id="med-add-item-add" hidden>
               <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">新しい薬剤を追加</label>
               <div class="exam-item-add__row">
                 <input id="med-add-new-item" class="input" type="text" />
@@ -325,8 +328,11 @@ console.log("oral/その他 leaves:", leaves);
 for (const name of ["アモキシシリン", "アラバ", "パラディア"]) {
   if (!leaves.includes(name)) throw new Error(`migrated leaf missing: ${name}`);
 }
-if (!(await page.locator("#med-add-item-add").isVisible())) {
-  throw new Error("add field should be visible in leaf col");
+if (!(await page.locator("#btn-med-add-toggle").isVisible())) {
+  throw new Error("add toggle should be visible in leaf col");
+}
+if (!(await page.locator("#med-add-item-add").isHidden())) {
+  throw new Error("add field should stay collapsed until + is pressed");
 }
 widths = await medColWidths();
 console.log("oral stage3 widths:", widths);
@@ -371,13 +377,18 @@ if (!(await page.locator("#med-add-col-group").isHidden())) {
 if (await page.locator("#med-add-col-leaf").isHidden()) {
   throw new Error("eye should show leaf column directly");
 }
-if (!(await page.locator("#med-add-item-add").isVisible())) {
-  throw new Error("eye should show add field");
+if (!(await page.locator("#btn-med-add-toggle").isVisible())) {
+  throw new Error("eye should show add toggle");
+}
+if (!(await page.locator("#med-add-item-add").isHidden())) {
+  throw new Error("eye add form should stay collapsed");
 }
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-05-eye.png"),
 });
 
+await page.click("#btn-med-add-toggle");
+await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "ヒアレイン");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(150);
@@ -401,6 +412,8 @@ if (JSON.stringify(topical) !== JSON.stringify(["皮膚", "消毒", "耳"])) {
   throw new Error("topical groups mismatch");
 }
 await clickItem(page, "#med-add-col-group-list", "皮膚");
+await page.click("#btn-med-add-toggle");
+await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "イソジンゲル");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(120);

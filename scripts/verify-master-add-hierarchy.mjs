@@ -110,10 +110,13 @@ const examHarness = `<!DOCTYPE html>
             <div class="med-linear-picker__list" id="exam-plan-col-group-list"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf" id="exam-plan-col-leaf">
-            <div class="med-linear-picker__head">検査項目</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label">検査項目</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-exam-plan-add-toggle" hidden aria-expanded="false">＋</button>
+            </div>
             <div class="med-linear-picker__list" id="exam-plan-col-leaf-list"></div>
             <p id="exam-plan-items-empty" hidden></p>
-            <div class="exam-item-add" id="exam-plan-item-add-default">
+            <div class="exam-item-add" id="exam-plan-item-add-default" hidden>
               <label id="exam-plan-new-item-label" for="exam-plan-new-item">新しい項目を追加</label>
               <div class="exam-item-add__row">
                 <input id="exam-plan-new-item" class="input" type="text" />
@@ -203,10 +206,13 @@ const medHarness = `<!DOCTYPE html>
             <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-add-col-leaf">
-            <div class="med-linear-picker__head">薬剤名</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label">薬剤名</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-med-add-toggle" hidden aria-expanded="false">＋</button>
+            </div>
             <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
             <p id="med-add-items-empty" hidden></p>
-            <div class="exam-item-add" id="med-add-item-add">
+            <div class="exam-item-add" id="med-add-item-add" hidden>
               <label id="med-add-new-item-label" for="med-add-new-item">新しい薬剤</label>
               <div class="exam-item-add__row">
                 <input id="med-add-new-item" class="input" type="text" />
@@ -314,6 +320,17 @@ async function clickItem(page, listSel, label) {
 }
 
 async function addLeaf(page, inputSel, btnSel, label) {
+  const toggleSel = inputSel.includes("exam-plan")
+    ? "#btn-exam-plan-add-toggle"
+    : "#btn-med-add-toggle";
+  const formSel = inputSel.includes("exam-plan")
+    ? "#exam-plan-item-add-default"
+    : "#med-add-item-add";
+  const formHidden = await page.locator(formSel).evaluate((el) => el.hidden);
+  if (formHidden) {
+    await page.click(toggleSel);
+    await page.waitForSelector(`${formSel}:not([hidden])`);
+  }
   await page.fill(inputSel, label);
   await page.locator(btnSel).evaluate((el) => el.click());
   await page.waitForTimeout(120);

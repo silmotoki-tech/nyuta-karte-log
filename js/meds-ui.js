@@ -113,6 +113,7 @@ const addColLeaf = document.getElementById("med-add-col-leaf");
 const addColLeafList = document.getElementById("med-add-col-leaf-list");
 const addItemsEmpty = document.getElementById("med-add-items-empty");
 const addItemAdd = document.getElementById("med-add-item-add");
+const btnAddToggle = document.getElementById("btn-med-add-toggle");
 const addNewItemLabel = document.getElementById("med-add-new-item-label");
 const addNewItemInput = document.getElementById("med-add-new-item");
 const btnAddNewItem = document.getElementById("btn-med-add-new-item");
@@ -943,7 +944,16 @@ function wireAddModal() {
   addModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeAddModal);
   btnAddSave?.addEventListener("click", handleAddSave);
   btnAddNewItem?.addEventListener("click", handleAddMedicationItemFromModal);
+  btnAddToggle?.addEventListener("click", () => {
+    const open = addItemAdd && !addItemAdd.hidden;
+    setMedItemAddFormOpen(!open);
+  });
   addNewItemInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setMedItemAddFormOpen(false);
+      return;
+    }
     if (e.key === "Enter" && !isImeKey(e)) {
       e.preventDefault();
       handleAddMedicationItemFromModal();
@@ -978,6 +988,25 @@ function renderAddCategorySelection() {
   });
 }
 
+function setMedItemAddFormOpen(open) {
+  if (addItemAdd) addItemAdd.hidden = !open;
+  if (btnAddToggle) {
+    btnAddToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    btnAddToggle.textContent = open ? "×" : "＋";
+    btnAddToggle.setAttribute(
+      "aria-label",
+      open ? "追加フォームを閉じる" : "新しい薬剤を追加"
+    );
+    btnAddToggle.title = open ? "閉じる" : "新しい薬剤を追加";
+  }
+  if (!open) {
+    if (addNewItemInput) addNewItemInput.value = "";
+    deps.showError(addItemError, "");
+  } else {
+    queueMicrotask(() => addNewItemInput?.focus({ preventScroll: true }));
+  }
+}
+
 function updateMedLeafAddUI() {
   const category = activeMedCategoryId();
   const showLeaf = canAddMedicationLeaf();
@@ -985,6 +1014,11 @@ function updateMedLeafAddUI() {
     ? state.medicationItems.find((item) => item.id === state.medItemParentId)
     : null;
   const label = category ? medicationItemCategoryLabel(category) : "";
+
+  if (btnAddToggle) btnAddToggle.hidden = !showLeaf;
+  if (!showLeaf) {
+    setMedItemAddFormOpen(false);
+  }
 
   if (addNewItemLabel) {
     addNewItemLabel.textContent = parent
@@ -1005,9 +1039,8 @@ function updateMedLeafAddUI() {
   }
   if (addItemsEmpty) {
     addItemsEmpty.textContent =
-      "この分類にはまだ薬剤がありません。下で追加できます。";
+      "この分類にはまだ薬剤がありません。＋から追加できます。";
   }
-  if (addItemAdd) addItemAdd.hidden = !showLeaf;
 }
 
 function renderMedLinearPicker() {
@@ -1131,7 +1164,7 @@ async function handleAddMedicationItemFromModal() {
     state.medItemCategory = category;
     state.medItemParentId = parentId || null;
     state.addDraft.name = label;
-    if (addNewItemInput) addNewItemInput.value = "";
+    setMedItemAddFormOpen(false);
     deps.showError(addItemError, "");
     renderMedLinearPicker();
     deps.showToast("既存の薬剤を選択しました。");
@@ -1148,7 +1181,7 @@ async function handleAddMedicationItemFromModal() {
       parentId,
     });
     state.addDraft.name = label;
-    if (addNewItemInput) addNewItemInput.value = "";
+    setMedItemAddFormOpen(false);
     renderMedLinearPicker();
     const parent = parentId
       ? state.medicationItems.find((item) => item.id === parentId)
@@ -1171,6 +1204,7 @@ function openAddModal() {
     category: "A",
     freq: createEmptyFreqDraft(null),
   };
+  setMedItemAddFormOpen(false);
   state.medItemCategory = null;
   state.medItemParentId = null;
   if (addNewItemInput) addNewItemInput.value = "";

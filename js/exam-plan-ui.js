@@ -127,6 +127,7 @@ const planColLeafList = document.getElementById("exam-plan-col-leaf-list");
 const planItemsEmpty = document.getElementById("exam-plan-items-empty");
 const planSelectionSummary = document.getElementById("exam-plan-selection-summary");
 const planItemAddDefault = document.getElementById("exam-plan-item-add-default");
+const btnPlanAddToggle = document.getElementById("btn-exam-plan-add-toggle");
 const planNewItemLabel = document.getElementById("exam-plan-new-item-label");
 const planNewItemInput = document.getElementById("exam-plan-new-item");
 const btnPlanAddItem = document.getElementById("btn-exam-plan-add-item");
@@ -914,7 +915,16 @@ function wirePlanModal() {
   planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
   btnPlanSave?.addEventListener("click", handlePlanSave);
   btnPlanAddItem?.addEventListener("click", () => handleAddExamItemFromPlanModal());
+  btnPlanAddToggle?.addEventListener("click", () => {
+    const open = planItemAddDefault && !planItemAddDefault.hidden;
+    setExamItemAddFormOpen(!open);
+  });
   planNewItemInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setExamItemAddFormOpen(false);
+      return;
+    }
     if (e.key === "Enter" && !isImeKey(e)) {
       e.preventDefault();
       handleAddExamItemFromPlanModal();
@@ -1517,6 +1527,25 @@ function toggleExamLeaf(item) {
   renderPlanFastingButtons();
 }
 
+function setExamItemAddFormOpen(open) {
+  if (planItemAddDefault) planItemAddDefault.hidden = !open;
+  if (btnPlanAddToggle) {
+    btnPlanAddToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    btnPlanAddToggle.textContent = open ? "×" : "＋";
+    btnPlanAddToggle.setAttribute(
+      "aria-label",
+      open ? "追加フォームを閉じる" : "新しい項目を追加"
+    );
+    btnPlanAddToggle.title = open ? "閉じる" : "新しい項目を追加";
+  }
+  if (!open) {
+    clearExamItemAddInputs();
+    deps.showError(planItemError, "");
+  } else {
+    queueMicrotask(() => planNewItemInput?.focus({ preventScroll: true }));
+  }
+}
+
 function updateExamItemAddUI() {
   const category = activeExamCategoryId();
   const showLeaf = isExamLeafColActive();
@@ -1530,7 +1559,10 @@ function updateExamItemAddUI() {
     : null;
   const label = category ? examItemCategoryLabel(category) : "";
 
-  if (planItemAddDefault) planItemAddDefault.hidden = !canAdd;
+  if (btnPlanAddToggle) btnPlanAddToggle.hidden = !canAdd;
+  if (!canAdd) {
+    setExamItemAddFormOpen(false);
+  }
 
   if (planNewItemLabel) {
     planNewItemLabel.textContent = inDrillGroup
@@ -1552,7 +1584,7 @@ function updateExamItemAddUI() {
   }
   if (planItemsEmpty) {
     planItemsEmpty.textContent = canAdd
-      ? "この分類にはまだ項目がありません。下で追加できます。"
+      ? "この分類にはまだ項目がありません。＋から追加できます。"
       : "この分類にはまだ項目がありません。";
   }
 }
@@ -1657,6 +1689,10 @@ function clearExamItemAddInputs() {
   if (planNewItemInput) planNewItemInput.value = "";
 }
 
+function collapseExamItemAddForm() {
+  setExamItemAddFormOpen(false);
+}
+
 /**
  * 予定登録モーダル内で検査項目マスタへ新規追加する（内訳・画像・その他）。
  */
@@ -1690,12 +1726,12 @@ async function handleAddExamItemFromPlanModal() {
     state.examBloodParentId = parentId || null;
     if (!isExamLeafSelected(exists)) {
       toggleExamLeaf(exists);
-      clearExamItemAddInputs();
+      collapseExamItemAddForm();
       deps.showError(planItemError, "");
       deps.showToast("既存の項目を選択しました。");
       return;
     }
-    clearExamItemAddInputs();
+    collapseExamItemAddForm();
     deps.showError(planItemError, "");
     renderExamLinearPicker();
     deps.showToast("既存の項目は選択済みです。");
@@ -1718,7 +1754,7 @@ async function handleAddExamItemFromPlanModal() {
       syncDraftItemFromSelection();
       if (!selectionNeedsFasting()) state.draft.fasting = "";
     }
-    clearExamItemAddInputs();
+    collapseExamItemAddForm();
     renderExamLinearPicker();
     const parent = parentId
       ? state.examItems.find((item) => item.id === parentId)
@@ -1799,7 +1835,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     state.draft.baselineDate = todayStr();
   }
 
-  clearExamItemAddInputs();
+  collapseExamItemAddForm();
   deps.showError(planItemError, "");
   if (planDueDate) planDueDate.value = state.draft.dueDate;
   if (planNote) planNote.value = state.draft.note;

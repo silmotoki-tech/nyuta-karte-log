@@ -1636,6 +1636,44 @@ html.is-unlocked .app {
   gap: 6px;
 }
 
+.exam-item-add[hidden] {
+  display: none !important;
+}
+
+.exam-item-add__toggle {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+  background-color: var(--color-white);
+  color: var(--color-brown);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exam-item-add__toggle:hover {
+  border-color: var(--color-green);
+  color: var(--color-green);
+}
+
+.exam-item-add__toggle[aria-expanded="true"] {
+  border-color: var(--color-brown);
+  background-color: var(--color-cream);
+}
+
+.exam-item-add__toggle[hidden] {
+  display: none !important;
+}
+
 .exam-item-blood-nav {
   display: flex;
   align-items: center;
@@ -2905,6 +2943,7 @@ select.input {
 }
 
 .med-linear-picker__col.is-placeholder .exam-item-add,
+.med-linear-picker__col.is-placeholder .exam-item-add__toggle,
 .med-linear-picker__col.is-placeholder .med-linear-picker__empty {
   display: none !important;
 }
@@ -2915,13 +2954,22 @@ select.input {
 
 .med-linear-picker__head {
   flex-shrink: 0;
-  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px 6px 10px;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
   border-bottom: 1px solid var(--color-border);
   background-color: rgba(255, 255, 255, 0.55);
+}
+
+.med-linear-picker__head-label {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .med-linear-picker__list {

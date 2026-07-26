@@ -65,10 +65,13 @@ const harness = `<!DOCTYPE html>
             <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-add-col-leaf" hidden>
-            <div class="med-linear-picker__head">薬剤名</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label">薬剤名</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-med-add-toggle" hidden aria-expanded="false">＋</button>
+            </div>
             <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
             <p class="field__note" id="med-add-items-empty" hidden></p>
-            <div class="exam-item-add" id="med-add-item-add">
+            <div class="exam-item-add" id="med-add-item-add" hidden>
               <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">新しい薬剤を追加</label>
               <div class="exam-item-add__row">
                 <input id="med-add-new-item" class="input" type="text" />
@@ -252,8 +255,10 @@ console.log("oral/その他 leaves:", buttons);
 for (const name of ["アモキシシリン", "アラバ", "パラディア"]) {
   if (!buttons.includes(name)) throw new Error(`migrated leaf missing: ${name}`);
 }
-const addVisible = await page.locator("#med-add-item-add").isVisible();
-if (!addVisible) throw new Error("add field should show in leaf col");
+const addToggleVisible = await page.locator("#btn-med-add-toggle").isVisible();
+if (!addToggleVisible) throw new Error("add toggle should show in leaf col");
+const addCollapsed = await page.locator("#med-add-item-add").isHidden();
+if (!addCollapsed) throw new Error("add field should stay collapsed until +");
 
 await page.locator("#med-add-col-leaf-list .med-linear-picker__item", {
   hasText: "アモキシシリン",
@@ -300,6 +305,8 @@ if (JSON.stringify(buttons) !== JSON.stringify(["皮膚", "消毒", "耳"])) {
   throw new Error("topical groups mismatch");
 }
 await page.locator("#med-add-col-group-list .med-linear-picker__item", { hasText: "皮膚" }).click();
+await page.click("#btn-med-add-toggle");
+await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "イソジンゲル");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(150);
@@ -315,8 +322,8 @@ await page.locator("#med-add-col-category-list .med-linear-picker__item", {
 await page.waitForTimeout(100);
 const eyeMidHidden = await page.locator("#med-add-col-group").isHidden();
 if (!eyeMidHidden) throw new Error("eye should not show mid column");
-const eyeAddVisible = await page.locator("#med-add-item-add").isVisible();
-if (!eyeAddVisible) throw new Error("eye should show add field in leaf col");
+const eyeToggleVisible = await page.locator("#btn-med-add-toggle").isVisible();
+if (!eyeToggleVisible) throw new Error("eye should show add toggle in leaf col");
 buttons = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
@@ -324,6 +331,8 @@ console.log("eye leaves:", buttons);
 if (buttons.some((b) => ["皮膚", "消毒", "耳", "抗生剤"].includes(b))) {
   throw new Error("eye leaf should not show other category groups");
 }
+await page.click("#btn-med-add-toggle");
+await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "ヒアレイン");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(150);
