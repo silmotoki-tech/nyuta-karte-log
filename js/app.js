@@ -1213,16 +1213,24 @@ function createTimelineItem(entry) {
   const starBtn = li.querySelector(".tl-item__star");
   const dateEl = li.querySelector(".tl-item__date");
   const headlineEl = li.querySelector(".tl-item__headline");
-  const catLabelEl = li.querySelector(".tl-item__cat-label");
   const metaEl = li.querySelector(".tl-item__meta");
   const bodyEl = li.querySelector(".tl-item__body");
+  const sideMeta = buildEntrySideMeta(entry);
+  const catName = categoryShort(entry.category);
 
   starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
   dateEl.textContent = mdFromStr(entry.recordDate) || "";
   headlineEl.textContent = entry.headline || "（見出しなし）";
-  catLabelEl.textContent = categoryShort(entry.category);
-  metaEl.textContent = buildEntrySideMeta(entry);
   bodyEl.textContent = entry.body || "";
+
+  // 時刻・記入者は常時非表示。タップで開閉。カテゴリ名もここで補足。
+  const metaParts = [];
+  if (catName) metaParts.push(catName);
+  if (sideMeta) metaParts.push(sideMeta);
+  if (metaEl) {
+    metaEl.textContent = metaParts.join("　·　");
+    metaEl.hidden = true;
+  }
 
   starBtn.addEventListener("click", async () => {
     const next = !entry.important;
@@ -1261,6 +1269,10 @@ function createTimelineItem(entry) {
         },
       },
     ],
+    onActivate: () => {
+      if (!metaEl || !metaEl.textContent) return;
+      metaEl.hidden = !metaEl.hidden;
+    },
   });
 
   return li;
