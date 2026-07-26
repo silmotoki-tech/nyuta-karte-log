@@ -2766,7 +2766,7 @@ select.input {
   margin: 0;
 }
 
-/* ===== 定型文管理モーダル ===== */
+/* ===== 共通モーダル（ヘッダー／フッター固定 + 本文スクロール） ===== */
 .modal {
   position: fixed;
   inset: 0;
@@ -2774,7 +2774,11 @@ select.input {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: max(12px, env(safe-area-inset-top, 0px))
+    max(12px, env(safe-area-inset-right, 0px))
+    max(12px, env(safe-area-inset-bottom, 0px))
+    max(12px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
 }
 
 .modal[hidden] {
@@ -2791,13 +2795,14 @@ select.input {
   position: relative;
   width: 100%;
   max-width: 520px;
-  max-height: 86vh;
+  max-height: min(86vh, calc(100dvh - 24px), calc(100vh - 24px));
   background-color: var(--color-white);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
 }
 
 .modal__panel--med-add,
@@ -3013,8 +3018,11 @@ select.input {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
   padding: 16px 20px;
   border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  z-index: 2;
 }
 
 .modal__title {
@@ -3035,11 +3043,29 @@ select.input {
 }
 
 .modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 18px 20px 22px;
+  overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.modal__footer {
+  flex-shrink: 0;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  z-index: 2;
+}
+
+.modal__footer .tpl-editor__actions,
+.modal__footer .exam-sheet__actions {
+  margin-top: 0;
 }
 
 .tpl-list {

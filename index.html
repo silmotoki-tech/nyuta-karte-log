@@ -517,6 +517,8 @@
       </div>
 
       <p id="exam-sheet-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="exam-sheet__actions" id="exam-item-sheet-actions">
         <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-exam-sheet-complete" class="btn btn--small btn--outline" type="button">完了</button>
@@ -588,6 +590,8 @@
         <textarea id="entry-edit-body" class="textarea" rows="6"></textarea>
       </div>
       <p id="entry-edit-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-entry-edit-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-entry-edit-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -615,10 +619,12 @@
         <label class="label" for="tpl-text-input">挿入される本文</label>
         <textarea id="tpl-text-input" class="textarea" rows="3" placeholder="ボタンを押したときに本文へ挿入される文章"></textarea>
         <p id="tpl-error" class="error-text" role="alert" hidden></p>
-        <div class="tpl-editor__actions">
-          <button id="btn-tpl-save" class="btn btn--small btn--primary" type="button">追加する</button>
-          <button id="btn-tpl-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
-        </div>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <div class="tpl-editor__actions">
+        <button id="btn-tpl-save" class="btn btn--small btn--primary" type="button">追加する</button>
+        <button id="btn-tpl-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
       </div>
     </div>
   </div>
@@ -772,6 +778,8 @@
       </div>
 
       <p id="exam-plan-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-exam-plan-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-exam-plan-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -798,6 +806,8 @@
         <input id="exam-complete-note" class="input" type="text" placeholder="例）異常なし" />
       </div>
       <p id="exam-complete-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-exam-complete-save" class="btn btn--small btn--primary" type="button">完了として記録</button>
         <button id="btn-exam-complete-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -817,6 +827,8 @@
     <div class="modal__body">
       <p class="field__note" id="exam-after-summary" hidden></p>
       <p class="card__hint">実施を記録しました。次の予定日を入力するか、終了してください。</p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-exam-after-next" class="btn btn--small btn--primary" type="button">次の予定を入力する</button>
         <button id="btn-exam-after-end" class="btn btn--small btn--outline" type="button">終了する</button>
@@ -852,6 +864,8 @@
       </div>
       <p class="field__note">新規登録時の状態は「進行中」です。完治・完結したら詳細から終了に切り替えられます。</p>
       <p id="history-add-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-history-add-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-history-add-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -879,6 +893,8 @@
       </div>
       <p class="field__note">既存のメモは上書きされず、日付付きで積み上がります。</p>
       <p id="history-note-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-history-note-save" class="btn btn--small btn--primary" type="button">追記する</button>
         <button id="btn-history-note-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -899,6 +915,8 @@
       <p class="exam-sheet__item" id="med-detail-sheet-name"></p>
       <p class="field__note" id="med-detail-sheet-status"></p>
       <div id="med-detail-sheet-body" class="med-sheet__body"></div>
+    </div>
+    <div class="modal__footer">
       <div class="exam-sheet__actions">
         <button id="btn-med-detail-sheet-close" class="btn btn--small btn--outline" type="button">閉じる</button>
       </div>
@@ -1034,6 +1052,8 @@
         </div>
       </div>
       <p id="med-add-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-med-add-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-med-add-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1133,6 +1153,8 @@
       </div>
 
       <p id="med-event-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-med-event-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-med-event-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1169,6 +1191,8 @@
         <div class="author-row" id="procedure-author-row"></div>
       </div>
       <p id="procedure-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-procedure-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-procedure-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1205,6 +1229,8 @@
         <div class="author-row" id="special-note-author-row"></div>
       </div>
       <p id="special-note-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-special-note-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-special-note-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1300,6 +1326,8 @@
     <div class="modal__body">
       <div id="ai-suggest-adjust-body"></div>
       <p id="ai-suggest-adjust-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
       <div class="tpl-editor__actions">
         <button id="btn-ai-suggest-adjust-confirm" class="btn btn--small btn--primary" type="button">この内容で確定</button>
         <button id="btn-ai-suggest-adjust-cancel" class="btn btn--small btn--outline" type="button">戻る</button>
