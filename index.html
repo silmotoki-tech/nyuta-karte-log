@@ -483,9 +483,26 @@
         </div>
       </div>
 
-      <div class="field">
-        <label class="label" for="exam-sheet-due-date">次回予定日</label>
-        <input id="exam-sheet-due-date" class="input input--date" type="date" />
+      <div class="field exam-due-field">
+        <span class="label">次回予定日</span>
+        <div class="exam-due-calendar">
+          <span class="label label--sub exam-due-calendar__caption">カレンダーで直接選択</span>
+          <div class="exam-due-calendar__row">
+            <input
+              id="exam-sheet-due-date"
+              class="input input--date exam-due-calendar__input"
+              type="date"
+            />
+            <button
+              id="btn-exam-sheet-due-calendar"
+              class="btn btn--small btn--outline exam-due-calendar__btn"
+              type="button"
+              aria-label="カレンダーを開く"
+            >
+              カレンダー
+            </button>
+          </div>
+        </div>
         <span class="label label--sub">今日からの相対指定</span>
         <div class="interval-unit-buttons" id="exam-sheet-due-units" role="group" aria-label="相対指定の単位"></div>
         <p class="interval-value-display" id="exam-sheet-due-display">0日後</p>
@@ -698,9 +715,26 @@
         <p class="field__note">血液検査の予定では、絶食の要不要を選んでください。</p>
       </div>
 
-      <div class="field">
-        <label class="label" for="exam-plan-due-date">予定日</label>
-        <input id="exam-plan-due-date" class="input input--date" type="date" />
+      <div class="field exam-due-field">
+        <span class="label">予定日</span>
+        <div class="exam-due-calendar">
+          <span class="label label--sub exam-due-calendar__caption">カレンダーで直接選択</span>
+          <div class="exam-due-calendar__row">
+            <input
+              id="exam-plan-due-date"
+              class="input input--date exam-due-calendar__input"
+              type="date"
+            />
+            <button
+              id="btn-exam-plan-due-calendar"
+              class="btn btn--small btn--outline exam-due-calendar__btn"
+              type="button"
+              aria-label="カレンダーを開く"
+            >
+              カレンダー
+            </button>
+          </div>
+        </div>
         <span class="label label--sub">今日からの相対指定</span>
         <div class="interval-unit-buttons" id="exam-plan-due-units" role="group" aria-label="相対指定の単位"></div>
         <p class="interval-value-display" id="exam-plan-due-display">0日後</p>
@@ -709,8 +743,31 @@
         <p class="field__note" id="exam-plan-window-note"></p>
       </div>
 
+      <div class="field exam-plan-done-field" id="exam-plan-done-field">
+        <span class="label">当日のやった内容（任意）</span>
+        <p class="field__note">
+          本日実施した検査を、実施履歴にも残せます（次回予定の登録と同時に保存されます）。
+        </p>
+        <label class="exam-other-check">
+          <input type="checkbox" id="exam-plan-done-check" />
+          <span>選択した検査を実施履歴に登録する</span>
+        </label>
+        <div class="exam-plan-done-block" id="exam-plan-done-block" hidden>
+          <label class="label label--sub" for="exam-plan-done-date">実施日</label>
+          <input id="exam-plan-done-date" class="input input--date" type="date" />
+          <label class="label label--sub" for="exam-plan-done-note">実施メモ（任意）</label>
+          <input
+            id="exam-plan-done-note"
+            class="input"
+            type="text"
+            placeholder="例）数値異常なし、経過良好"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
       <div class="field">
-        <label class="label" for="exam-plan-note">メモ（任意）</label>
+        <label class="label" for="exam-plan-note">次回予定のメモ（任意）</label>
         <input id="exam-plan-note" class="input" type="text" placeholder="例）術後フォロー" />
       </div>
 

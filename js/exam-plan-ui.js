@@ -134,10 +134,16 @@ const planItemError = document.getElementById("exam-plan-item-error");
 const planFastingField = document.getElementById("exam-plan-fasting-field");
 const planFastingButtons = document.getElementById("exam-plan-fasting-buttons");
 const planDueDate = document.getElementById("exam-plan-due-date");
+const btnPlanDueCalendar = document.getElementById("btn-exam-plan-due-calendar");
 const planDueUnits = document.getElementById("exam-plan-due-units");
 const planDueDisplay = document.getElementById("exam-plan-due-display");
 const planDueNumpad = document.getElementById("exam-plan-due-numpad");
 const planWindowNote = document.getElementById("exam-plan-window-note");
+const planDoneField = document.getElementById("exam-plan-done-field");
+const planDoneCheck = document.getElementById("exam-plan-done-check");
+const planDoneBlock = document.getElementById("exam-plan-done-block");
+const planDoneDate = document.getElementById("exam-plan-done-date");
+const planDoneNote = document.getElementById("exam-plan-done-note");
 const planNote = document.getElementById("exam-plan-note");
 const planError = document.getElementById("exam-plan-error");
 const btnPlanSave = document.getElementById("btn-exam-plan-save");
@@ -147,6 +153,7 @@ const btnClosePlanModal = document.getElementById("btn-close-exam-plan");
 const itemSheetFasting = document.getElementById("exam-item-sheet-fasting");
 const sheetFastingField = document.getElementById("exam-sheet-fasting-field");
 const sheetFastingButtons = document.getElementById("exam-sheet-fasting-buttons");
+const btnSheetDueCalendar = document.getElementById("btn-exam-sheet-due-calendar");
 
 const completeModal = document.getElementById("exam-complete-modal");
 const completeDate = document.getElementById("exam-complete-date");
@@ -830,12 +837,8 @@ function wireNextPlanActions() {
     closeExamItemSheet();
     handleEndPlan(id);
   });
-  sheetDueDate?.addEventListener("change", () => {
-    if (state.syncingDueFromRelative) return;
-    state.draft.dueDate = sheetDueDate.value;
-    syncRelativeFromCalendar(sheetDueDate.value);
-    updateWindowNote();
-  });
+  wireDueDateInput(sheetDueDate);
+  btnSheetDueCalendar?.addEventListener("click", () => openDueCalendarPicker(sheetDueDate));
 }
 
 async function handleSheetSave() {
@@ -924,12 +927,46 @@ function wirePlanModal() {
     syncSheetFastingUI();
   });
 
-  planDueDate?.addEventListener("change", () => {
-    if (state.syncingDueFromRelative) return;
-    state.draft.dueDate = planDueDate.value;
-    syncRelativeFromCalendar(planDueDate.value);
-    updateWindowNote();
+  wireDueDateInput(planDueDate);
+  btnPlanDueCalendar?.addEventListener("click", () => openDueCalendarPicker(planDueDate));
+  planDoneCheck?.addEventListener("change", syncPlanDoneBlockVisibility);
+}
+
+/**
+ * ネイティブ日付ピッカーを開く（iPad モーダル内でもボタン経由なら開きやすい）。
+ */
+function openDueCalendarPicker(inputEl) {
+  if (!inputEl) return;
+  inputEl.focus({ preventScroll: true });
+  try {
+    if (typeof inputEl.showPicker === "function") {
+      inputEl.showPicker();
+      return;
+    }
+  } catch {
+    // showPicker が拒否されても focus だけでネイティブ UI が出る端末がある
+  }
+  // 予定日欄が見える位置までスクロール
+  inputEl.closest(".exam-due-field")?.scrollIntoView({
+    block: "nearest",
+    behavior: "smooth",
   });
+}
+
+/**
+ * カレンダー日付変更 → 相対指定へ反映（change / input の両方）。
+ */
+function wireDueDateInput(inputEl) {
+  if (!inputEl || inputEl.dataset.dueWired === "1") return;
+  inputEl.dataset.dueWired = "1";
+  const onPick = () => {
+    if (state.syncingDueFromRelative) return;
+    state.draft.dueDate = inputEl.value;
+    syncRelativeFromCalendar(inputEl.value);
+    updateWindowNote();
+  };
+  inputEl.addEventListener("change", onPick);
+  inputEl.addEventListener("input", onPick);
 }
 
 /**
@@ -1743,6 +1780,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   deps.showError(planItemError, "");
   if (planDueDate) planDueDate.value = state.draft.dueDate;
   if (planNote) planNote.value = state.draft.note;
+  resetPlanDoneFields(mode);
   if (state.draft.dueDate) {
     syncRelativeFromCalendar(state.draft.dueDate);
   } else {
@@ -1773,6 +1811,21 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   if (planModal) planModal.hidden = false;
 }
 
+function resetPlanDoneFields(mode) {
+  // 完了直後の「次の予定」では実施履歴は既に記録済みなので出さない
+  const showDone = mode !== "afterComplete";
+  if (planDoneField) planDoneField.hidden = !showDone;
+  if (planDoneCheck) planDoneCheck.checked = false;
+  if (planDoneDate) planDoneDate.value = todayStr();
+  if (planDoneNote) planDoneNote.value = "";
+  syncPlanDoneBlockVisibility();
+}
+
+function syncPlanDoneBlockVisibility() {
+  const on = Boolean(planDoneCheck?.checked);
+  if (planDoneBlock) planDoneBlock.hidden = !on;
+}
+
 function closePlanModal() {
   if (planModal) planModal.hidden = true;
   state.editingPlanId = null;
@@ -1793,17 +1846,27 @@ async function handlePlanSave() {
   const fasting = planNeedsFasting(item)
     ? normalizeExamFasting(state.draft.fasting)
     : "";
+  const saveDoneHistory =
+    Boolean(planDoneCheck?.checked) &&
+    planDoneField &&
+    !planDoneField.hidden;
+  const doneDate = planDoneDate?.value || "";
+  const doneNote = planDoneNote?.value.trim() || "";
 
   if (!item) {
     deps.showError(planError, "検査項目を選ぶか、新しい項目を追加してください。");
     return;
   }
   if (!dueDate) {
-    deps.showError(planError, "日付を選択してください。");
+    deps.showError(planError, "予定日を選択してください。");
     return;
   }
   if (planNeedsFasting(item) && !fasting) {
     deps.showError(planError, "絶食の要不要を選んでください。");
+    return;
+  }
+  if (saveDoneHistory && !doneDate) {
+    deps.showError(planError, "実施日を選択してください。");
     return;
   }
 
@@ -1821,8 +1884,20 @@ async function handlePlanSave() {
       baselineDate: keepBaseline,
     });
 
+    if (saveDoneHistory) {
+      await addExamHistory(state.karteNumber, {
+        item,
+        date: doneDate,
+        note: doneNote,
+      });
+    }
+
     closePlanModal();
-    deps.showToast("予定を保存しました。");
+    deps.showToast(
+      saveDoneHistory
+        ? "予定と当日の実施内容を保存しました。"
+        : "予定を保存しました。"
+    );
   } catch (err) {
     console.error(err);
     deps.showError(planError, "保存に失敗しました。もう一度お試しください。");

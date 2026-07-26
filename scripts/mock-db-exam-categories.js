@@ -366,6 +366,10 @@ export function subscribeExamPlan(karte, cb) {
     );
 }
 
+export async function getExamPlan(karte) {
+  return structuredClone(ensurePlan(karte));
+}
+
 export async function addExamItem({ label, order, category, kind = "leaf", parentId = "" }) {
   const resolvedKind = normalizeExamItemKind(kind);
   const id = nid("item");
