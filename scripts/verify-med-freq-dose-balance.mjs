@@ -1,5 +1,5 @@
 /**
- * 投与頻度・投与量: 左の指定方法行高さと右の選択肢マス高さが揃うことを検証する。
+ * 投与頻度・投与量: 枠を行数ぶんコンパクトに縮め、引き伸ばさないことを検証する。
  */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -172,49 +172,51 @@ await page.waitForFunction(() => window.__ready === true);
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 
-async function measure(pickerSel, modeName, rightListSel, expectedModes) {
+async function measure(pickerSel, modeName, rightListSel) {
   await page.locator(pickerSel).scrollIntoViewIfNeeded();
-  await page.locator(`${pickerSel} [data-col="mode"]`).getByRole("option", { name: modeName }).click();
+  await page
+    .locator(`${pickerSel} [data-col="mode"]`)
+    .getByRole("option", { name: modeName })
+    .click();
   await page.waitForSelector(`${pickerSel} ${rightListSel} .med-linear-picker__item`);
-  return page.evaluate(
-    ({ pickerSel: ps, rightListSel: rs, expectedModes: em }) => {
-      const picker = document.querySelector(ps);
-      const modes = [...picker.querySelectorAll('[data-col="mode"] .med-linear-picker__item')];
-      const rights = [...picker.querySelectorAll(`${rs} .med-linear-picker__item`)];
-      const modeHs = modes.map((el) => Math.round(el.getBoundingClientRect().height * 10) / 10);
-      const rightHs = rights.slice(0, em).map((el) => Math.round(el.getBoundingClientRect().height * 10) / 10);
-      const modeRows = getComputedStyle(picker).getPropertyValue("--mode-rows").trim();
-      const leftCol = picker.querySelector('[data-col="mode"]');
-      const rightCol = picker.querySelector('[data-col="detail"]');
-      return {
-        modeRows,
-        modeCount: modes.length,
-        rightCount: rights.length,
-        modeHs,
-        rightHs,
-        leftH: Math.round(leftCol.getBoundingClientRect().height * 10) / 10,
-        rightH: Math.round(rightCol.getBoundingClientRect().height * 10) / 10,
-        avgMode: modeHs.reduce((a, b) => a + b, 0) / modeHs.length,
-        avgRight: rightHs.reduce((a, b) => a + b, 0) / rightHs.length,
-      };
-    },
-    { pickerSel, rightListSel, expectedModes }
-  );
+  return page.evaluate(({ pickerSel: ps, rightListSel: rs }) => {
+    const picker = document.querySelector(ps);
+    const modes = [...picker.querySelectorAll('[data-col="mode"] .med-linear-picker__item')];
+    const rights = [...picker.querySelectorAll(`${rs} .med-linear-picker__item`)];
+    const modeList = picker.querySelector('[data-col="mode"] .med-linear-picker__list');
+    const detail = picker.querySelector(".freq-linear-detail");
+    const cs = getComputedStyle(picker);
+    return {
+      modeRows: cs.getPropertyValue("--mode-rows").trim(),
+      rowH: cs.getPropertyValue("--mode-row-h").trim(),
+      pickerH: Math.round(picker.getBoundingClientRect().height * 10) / 10,
+      leftColH: Math.round(
+        picker.querySelector('[data-col="mode"]').getBoundingClientRect().height * 10
+      ) / 10,
+      rightColH: Math.round(
+        picker.querySelector('[data-col="detail"]').getBoundingClientRect().height * 10
+      ) / 10,
+      modeListH: Math.round(modeList.getBoundingClientRect().height * 10) / 10,
+      detailH: Math.round(detail.getBoundingClientRect().height * 10) / 10,
+      modeHs: modes.map((el) => Math.round(el.getBoundingClientRect().height * 10) / 10),
+      rightHs: rights
+        .slice(0, 3)
+        .map((el) => Math.round(el.getBoundingClientRect().height * 10) / 10),
+      modeCount: modes.length,
+      rightCount: rights.length,
+    };
+  }, { pickerSel, rightListSel });
 }
 
-const freq = await measure(
-  "#med-add-freq-picker",
-  "よくある",
-  "#med-add-freq-presets",
-  5
-);
+const freq = await measure("#med-add-freq-picker", "よくある", "#med-add-freq-presets");
 console.log("freq", freq);
 assert.equal(freq.modeRows, "5");
 assert.equal(freq.modeCount, 5);
-assert.ok(freq.rightCount >= 5);
-const freqDiff = Math.abs(freq.avgMode - freq.avgRight);
-assert.ok(freqDiff <= 2, `freq cell height mismatch ${freq.avgMode} vs ${freq.avgRight}`);
-assert.ok(Math.abs(freq.leftH - freq.rightH) <= 2, "freq column heights differ");
+assert.ok(freq.pickerH < 280, "freq picker still too tall: " + freq.pickerH);
+assert.ok(freq.modeHs.every((h) => h >= 38 && h <= 42), "freq mode rows not compact: " + freq.modeHs);
+assert.ok(freq.rightHs.every((h) => h >= 38 && h <= 42), "freq right rows not compact: " + freq.rightHs);
+assert.ok(Math.abs(freq.modeListH - freq.detailH) <= 2, "freq list/detail height mismatch");
+assert.ok(Math.abs(freq.leftColH - freq.rightColH) <= 2, "freq columns height mismatch");
 
 await page.screenshot({
   path: path.join(outDir, "01-freq-balance.png"),
@@ -231,19 +233,16 @@ await page.screenshot({
   },
 });
 
-const dose = await measure(
-  "#med-add-dose-picker",
-  "錠数（整数）",
-  "#med-add-dose-integer",
-  3
-);
+const dose = await measure("#med-add-dose-picker", "錠数（整数）", "#med-add-dose-integer");
 console.log("dose", dose);
 assert.equal(dose.modeRows, "3");
 assert.equal(dose.modeCount, 3);
-assert.ok(dose.rightCount >= 3);
-const doseDiff = Math.abs(dose.avgMode - dose.avgRight);
-assert.ok(doseDiff <= 2, `dose cell height mismatch ${dose.avgMode} vs ${dose.avgRight}`);
-assert.ok(Math.abs(dose.leftH - dose.rightH) <= 2, "dose column heights differ");
+assert.ok(dose.pickerH < freq.pickerH, "dose should be shorter than freq");
+assert.ok(dose.pickerH < 220, "dose picker still too tall: " + dose.pickerH);
+assert.ok(dose.modeHs.every((h) => h >= 38 && h <= 42), "dose mode rows not compact: " + dose.modeHs);
+assert.ok(dose.rightHs.every((h) => h >= 38 && h <= 42), "dose right rows not compact: " + dose.rightHs);
+assert.ok(Math.abs(dose.modeListH - dose.detailH) <= 2, "dose list/detail height mismatch");
+assert.ok(Math.abs(dose.leftColH - dose.rightColH) <= 2, "dose columns height mismatch");
 
 await page.locator("#med-add-dose-picker").scrollIntoViewIfNeeded();
 await page.screenshot({
@@ -263,5 +262,5 @@ await page.screenshot({
 
 await browser.close();
 server.close();
-console.log("OK: med freq/dose height balance");
+console.log("OK: med freq/dose compact balance");
 console.log("shots:", outDir);

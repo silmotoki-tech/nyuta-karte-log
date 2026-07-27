@@ -3134,10 +3134,11 @@ select.input {
 }
 
 .modal__panel--med-add .med-linear-picker--freq,
-.modal__panel--med-event .med-linear-picker--freq {
-  min-height: 160px;
-  height: min(28vh, 220px);
-  max-height: min(28vh, 220px);
+.modal__panel--med-event .med-linear-picker--freq,
+.modal__panel--med-add .med-linear-picker--dose {
+  min-height: 0;
+  height: auto;
+  max-height: none;
 }
 
 /* 短いビューポート: 選択枠・ゲートテンキーを縮め、画面内スクロールを優先 */
@@ -3178,11 +3179,12 @@ select.input {
     flex-shrink: 1;
   }
 
-  .med-linear-picker--freq {
-    min-height: 120px;
-    height: min(24vh, 160px);
-    max-height: min(24vh, 160px);
-    flex-shrink: 1;
+  .med-linear-picker--freq,
+  .med-linear-picker--dose {
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    flex-shrink: 0;
   }
 
   .modal__panel--exam-plan .med-linear-picker,
@@ -3193,10 +3195,11 @@ select.input {
   }
 
   .modal__panel--med-add .med-linear-picker--freq,
-  .modal__panel--med-event .med-linear-picker--freq {
-    min-height: 110px;
-    height: min(22vh, 150px);
-    max-height: min(22vh, 150px);
+  .modal__panel--med-event .med-linear-picker--freq,
+  .modal__panel--med-add .med-linear-picker--dose {
+    min-height: 0;
+    height: auto;
+    max-height: none;
   }
 
   .modal__body {
@@ -3233,11 +3236,13 @@ select.input {
   }
 
   .med-linear-picker--freq,
+  .med-linear-picker--dose,
   .modal__panel--med-add .med-linear-picker--freq,
-  .modal__panel--med-event .med-linear-picker--freq {
-    min-height: 96px;
-    height: min(20vh, 120px);
-    max-height: min(20vh, 120px);
+  .modal__panel--med-event .med-linear-picker--freq,
+  .modal__panel--med-add .med-linear-picker--dose {
+    min-height: 0;
+    height: auto;
+    max-height: none;
   }
 }
 
@@ -3341,20 +3346,26 @@ select.input {
   }
 }
 
+/* 頻度・投与量: 左の行数ぶんだけコンパクトに収める（引き伸ばさない） */
 .med-linear-picker--freq,
 .med-linear-picker.med-linear-picker--freq,
 .med-linear-picker.med-linear-picker--dose {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr);
-  min-height: 200px;
-  height: min(40vh, 320px);
-  max-height: min(40vh, 320px);
+  grid-template-rows: auto;
+  align-items: stretch;
+  min-height: 0;
+  height: auto;
+  max-height: none;
   overflow: hidden;
-  /* 左の指定方法の行数。右の選択肢マス高さもこれに合わせる */
   --mode-rows: 5;
+  --mode-row-h: 40px;
   --mode-list-gap: 2px;
   --mode-list-pad: 4px;
+  --mode-list-h: calc(
+    var(--mode-rows) * var(--mode-row-h) + (var(--mode-rows) - 1) * var(--mode-list-gap) +
+      2 * var(--mode-list-pad)
+  );
 }
 
 .med-linear-picker--dose,
@@ -3362,24 +3373,36 @@ select.input {
   --mode-rows: 3;
 }
 
-/* 左: 指定方法を行数ぶん均等に伸ばす */
+.med-linear-picker--freq > .med-linear-picker__col {
+  height: auto;
+  max-height: none;
+}
+
+/* 左: 指定方法は通常の行高で、行数ぶんの高さだけ確保 */
 .med-linear-picker--freq > .med-linear-picker__col[data-col="mode"] > .med-linear-picker__list {
-  display: grid;
-  grid-template-rows: repeat(var(--mode-rows), minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  height: var(--mode-list-h);
+  max-height: var(--mode-list-h);
   gap: var(--mode-list-gap);
   padding: var(--mode-list-pad);
+  overflow: hidden;
 }
 
 .med-linear-picker--freq > .med-linear-picker__col[data-col="mode"] .med-linear-picker__item {
-  min-height: 0;
-  height: 100%;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  flex: 0 0 var(--mode-row-h);
+  min-height: var(--mode-row-h);
+  height: var(--mode-row-h);
+  padding-top: 0;
+  padding-bottom: 0;
   box-sizing: border-box;
 }
 
 .freq-linear-detail {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
+  height: var(--mode-list-h);
+  max-height: var(--mode-list-h);
   min-height: 0;
   overflow: hidden;
   -webkit-overflow-scrolling: touch;
@@ -3388,6 +3411,7 @@ select.input {
   display: flex;
   flex-direction: column;
   gap: 0;
+  box-sizing: border-box;
 }
 
 .freq-linear-detail > [hidden] {
@@ -3411,16 +3435,14 @@ select.input {
   gap: var(--mode-list-gap, 2px);
 }
 
-/* 右: 1マス高さを左の指定方法と同じにする（多い場合はスクロール） */
+/* 右: 左と同じコンパクトな行高（多い分は枠内スクロール） */
 .med-linear-picker--freq .freq-linear-detail .med-linear-picker__item {
-  flex: 0 0 auto;
+  flex: 0 0 var(--mode-row-h);
+  min-height: var(--mode-row-h);
+  height: var(--mode-row-h);
+  padding-top: 0;
+  padding-bottom: 0;
   box-sizing: border-box;
-  min-height: calc(
-    (100% - (var(--mode-rows) - 1) * var(--mode-list-gap)) / var(--mode-rows)
-  );
-  height: auto;
-  padding-top: 4px;
-  padding-bottom: 4px;
 }
 
 .freq-linear-detail .field__note {
