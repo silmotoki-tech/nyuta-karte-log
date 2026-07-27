@@ -23,18 +23,39 @@ assert.ok(
   "記入中以外に applyWaitingUpdate する分岐が残っている"
 );
 assert.ok(
-  appSrc.includes("新しいバージョンがあります。更新しますか？"),
+  appSrc.includes("新しいバージョンがあります"),
   "更新案内テキストがない"
 );
+assert.ok(appSrc.includes("dismissUpdatePrompt"), "dismissUpdatePrompt がない");
 
 const swSrc = readFileSync(join(root, "js/sw-update.js"), "utf8");
 assert.ok(swSrc.includes("visibilitychange"), "visibilitychange チェックがない");
 assert.ok(swSrc.includes("pageshow"), "pageshow チェックがない");
 assert.ok(swSrc.includes("checkForUpdates"), "checkForUpdates がない");
+assert.ok(swSrc.includes("checkForUpdatesNow"), "checkForUpdatesNow がない");
+assert.ok(swSrc.includes("setInterval"), "定期 update ポーリングがない");
+assert.ok(swSrc.includes("GET_VERSION"), "制御中バージョン問い合わせがない");
+assert.ok(swSrc.includes("detectVersionMismatch"), "バージョン突合がない");
+assert.ok(swSrc.includes("updateViaCache"), "updateViaCache: none がない");
+
+const versionSrc = readFileSync(join(root, "js/app-version.js"), "utf8");
+const cacheLabel = versionSrc.match(/CACHE_LABEL\s*=\s*["']([^"']+)["']/)?.[1];
+assert.ok(cacheLabel, "CACHE_LABEL がない");
 
 const swWorker = readFileSync(join(root, "service-worker.js"), "utf8");
-assert.ok(swWorker.includes('CACHE_VERSION = "v57"'), "CACHE_VERSION が上がっていない");
+assert.ok(
+  swWorker.includes(`CACHE_VERSION = "${cacheLabel}"`),
+  `CACHE_VERSION が app-version（${cacheLabel}）と一致しない`
+);
 assert.ok(swWorker.includes("cache.add(url)"), "install の個別 cache.add がない");
+assert.ok(swWorker.includes("GET_VERSION"), "SW の GET_VERSION 応答がない");
+
+const settingsSrc = readFileSync(join(root, "js/settings-ui.js"), "utf8");
+assert.ok(settingsSrc.includes("checkForUpdatesNow"), "設定の更新確認がない");
+assert.ok(
+  readFileSync(join(root, "index.html"), "utf8").includes("btn-settings-check-update"),
+  "更新を確認ボタンがない"
+);
 
 // --- UI: onUpdateAvailable 相当でバナーが出る ---
 function contentType(filePath) {

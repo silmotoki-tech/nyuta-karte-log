@@ -3,6 +3,7 @@
 
 import { hasApiKey, setApiKey, clearApiKey } from "./api-key.js";
 import { APP_VERSION, CACHE_LABEL } from "./app-version.js";
+import { checkForUpdatesNow } from "./sw-update.js";
 
 let deps = {
   showToast: () => {},
@@ -27,6 +28,7 @@ const qrReaderEl = document.getElementById("settings-qr-reader");
 const qrSection = document.getElementById("settings-qr-section");
 const settingsError = document.getElementById("settings-error");
 const settingsVersionEl = document.getElementById("settings-app-version");
+const btnCheckUpdate = document.getElementById("btn-settings-check-update");
 
 const appMenu = document.getElementById("app-menu");
 const btnAppMenu = document.getElementById("btn-app-menu");
@@ -48,6 +50,7 @@ export function initSettingsUI(helpers = {}) {
   btnScanQr?.addEventListener("click", startQrScan);
   btnStopScan?.addEventListener("click", stopQrScan);
   btnDeleteKey?.addEventListener("click", handleDeleteKey);
+  btnCheckUpdate?.addEventListener("click", handleCheckUpdate);
   btnLockApiKeySettings?.addEventListener("click", () => openSettings());
 
   btnAppMenu?.addEventListener("click", (event) => {
@@ -85,6 +88,31 @@ export function openSettings() {
 function refreshVersionLabel() {
   if (!settingsVersionEl) return;
   settingsVersionEl.textContent = `バージョン ${APP_VERSION}（${CACHE_LABEL}）`;
+}
+
+async function handleCheckUpdate() {
+  if (!btnCheckUpdate) return;
+  const prev = btnCheckUpdate.textContent;
+  btnCheckUpdate.disabled = true;
+  btnCheckUpdate.textContent = "確認中…";
+  try {
+    const result = await checkForUpdatesNow();
+    if (!result?.ok) {
+      deps.showToast("更新チェックに対応していません。", { isError: true });
+      return;
+    }
+    if (result.mode === "current") {
+      deps.showToast("最新のバージョンです。");
+      return;
+    }
+    // バナー表示は sw-update / app 側の onUpdateAvailable に任せる
+    await closeSettings();
+  } catch {
+    deps.showToast("更新の確認に失敗しました。", { isError: true });
+  } finally {
+    btnCheckUpdate.disabled = false;
+    btnCheckUpdate.textContent = prev || "更新を確認";
+  }
 }
 
 export async function closeSettings() {

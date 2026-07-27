@@ -55,6 +55,11 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 html,
 body {
   margin: 0;
@@ -72,10 +77,14 @@ body {
 }
 
 .app {
+  height: 100%;
   height: 100vh;
   height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .app[hidden] {
@@ -86,10 +95,17 @@ body {
 .lock-screen {
   height: 100vh;
   height: 100dvh;
+  max-height: 100dvh;
+  box-sizing: border-box;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 28px 20px;
+  justify-content: flex-start;
+  padding: 20px 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   /* ロック画面のみブランド色のグラデを維持（本編の薄いグレー地とは分離） */
   background:
     radial-gradient(ellipse 80% 60% at 50% 0%, rgba(111, 184, 43, 0.22), transparent 60%),
@@ -121,19 +137,23 @@ html.is-unlocked .app {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
+  /* 余白があるときだけ中央寄せ。足りないときは上からスクロール */
+  margin-top: auto;
+  margin-bottom: auto;
+  flex-shrink: 0;
 }
 
 .lock-screen__icon {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border-radius: 16px;
   box-shadow: 0 8px 24px rgba(107, 72, 52, 0.12);
 }
 
 .lock-screen__brand {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--color-brown);
   letter-spacing: 0.03em;
@@ -553,11 +573,17 @@ html.is-unlocked .app {
 /* ===== 中央カラム ===== */
 .center-gate {
   flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 32px 20px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px 16px;
+  box-sizing: border-box;
 }
 
 .center-gate[hidden] {
@@ -567,12 +593,20 @@ html.is-unlocked .app {
 .gate-card {
   width: 100%;
   max-width: 420px;
+  margin-top: auto;
+  margin-bottom: auto;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .numpad--gate {
   max-width: 100%;
   width: 100%;
   margin: 4px auto 0;
+}
+
+.numpad--gate .numpad__btn {
+  min-height: 44px;
 }
 
 .card {
@@ -3063,7 +3097,7 @@ select.input {
   position: relative;
   width: 100%;
   max-width: 520px;
-  max-height: min(86vh, calc(100dvh - 24px), calc(100vh - 24px));
+  max-height: min(86vh, calc(100dvh - 24px), calc(100svh - 24px), calc(100vh - 24px));
   background-color: var(--color-white);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
@@ -3096,6 +3130,91 @@ select.input {
   min-height: 160px;
   height: min(28vh, 220px);
   max-height: min(28vh, 220px);
+}
+
+/* 短いビューポート: 選択枠・ゲートテンキーを縮め、画面内スクロールを優先 */
+@media (max-height: 720px) {
+  .lock-screen__icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .lock-screen__brand {
+    font-size: 1.12rem;
+  }
+
+  .lock-screen__inner {
+    gap: 10px;
+  }
+
+  .card {
+    padding: 14px;
+    gap: 8px;
+  }
+
+  .input--large {
+    font-size: 1.55rem;
+    padding: 10px 12px;
+  }
+
+  .numpad--gate .numpad__btn {
+    padding: 8px 4px;
+    min-height: 36px;
+    font-size: 0.92rem;
+  }
+
+  .med-linear-picker,
+  .med-linear-picker--freq {
+    min-height: 120px;
+    height: min(24vh, 160px);
+    max-height: min(24vh, 160px);
+    flex-shrink: 1;
+  }
+
+  .modal__panel--exam-plan .med-linear-picker,
+  .modal__panel--med-add .med-linear-picker,
+  .modal__panel--med-add .med-linear-picker--freq,
+  .modal__panel--med-event .med-linear-picker--freq {
+    min-height: 110px;
+    height: min(22vh, 150px);
+    max-height: min(22vh, 150px);
+  }
+
+  .modal__body {
+    gap: 12px;
+    padding: 14px 16px 16px;
+  }
+
+  .modal__header {
+    padding: 12px 16px;
+  }
+
+  .modal__footer {
+    padding: 10px 16px 12px;
+  }
+}
+
+@media (max-height: 560px) {
+  .lock-screen__icon {
+    display: none;
+  }
+
+  .numpad--gate .numpad__btn {
+    padding: 6px 2px;
+    min-height: 32px;
+    font-size: 0.88rem;
+  }
+
+  .med-linear-picker,
+  .med-linear-picker--freq,
+  .modal__panel--exam-plan .med-linear-picker,
+  .modal__panel--med-add .med-linear-picker,
+  .modal__panel--med-add .med-linear-picker--freq,
+  .modal__panel--med-event .med-linear-picker--freq {
+    min-height: 96px;
+    height: min(20vh, 120px);
+    max-height: min(20vh, 120px);
+  }
 }
 
 .med-add-meta {
@@ -3559,6 +3678,10 @@ select.input {
   font-size: 0.8rem;
   color: var(--color-text-muted);
   font-weight: 600;
+}
+
+.settings-section--version .btn {
+  margin-top: 10px;
 }
 
 /* ===== SW更新バナー ===== */

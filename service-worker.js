@@ -8,7 +8,7 @@
 //
 // ※ CACHE_VERSION を上げるときは js/app-version.js の APP_VERSION / CACHE_LABEL も合わせて更新する。
 
-const CACHE_VERSION = "v120";
+const CACHE_VERSION = "v122";
 const CACHE_NAME = `nyuta-karte-log-${CACHE_VERSION}`;
 
 const APP_SHELL_FILES = [
@@ -66,6 +66,16 @@ self.addEventListener("install", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+  if (event.data && event.data.type === "GET_VERSION") {
+    const port = event.ports && event.ports[0];
+    if (port) {
+      port.postMessage({
+        cacheLabel: CACHE_VERSION,
+        version: CACHE_VERSION,
+      });
+    }
   }
 });
 

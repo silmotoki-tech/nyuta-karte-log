@@ -55,6 +55,7 @@ import {
 import {
   initServiceWorkerUpdates,
   applyWaitingUpdate,
+  dismissUpdatePrompt,
 } from "./sw-update.js";
 import {
   isPasscodeVerified,
@@ -1550,24 +1551,25 @@ initAiSuggestUI({
 });
 
 initServiceWorkerUpdates({
-  onUpdateAvailable: (reg) => {
+  onUpdateAvailable: (reg, meta = {}) => {
     // 新しい SW があるときは必ず確認バナーを出す（記入中の強制リロードを避ける）
     document.querySelectorAll(".sw-update-banner").forEach((el) => el.remove());
     const banner = document.createElement("div");
     banner.className = "sw-update-banner";
     banner.setAttribute("role", "status");
+    const remote = meta.remoteLabel ? `（${meta.remoteLabel}）` : "";
     banner.innerHTML = `
-      <p class="sw-update-banner__text">新しいバージョンがあります。更新しますか？</p>
+      <p class="sw-update-banner__text">新しいバージョンがあります${remote}。更新しますか？</p>
       <div class="sw-update-banner__actions">
         <button type="button" class="btn btn--small btn--primary" data-sw-update>更新する</button>
         <button type="button" class="btn btn--small btn--outline" data-sw-dismiss>あとで</button>
       </div>
     `;
     banner.querySelector("[data-sw-update]").addEventListener("click", () => {
-      applyWaitingUpdate(reg);
+      applyWaitingUpdate(reg, { mode: meta.mode });
     });
     banner.querySelector("[data-sw-dismiss]").addEventListener("click", () => {
-      banner.remove();
+      dismissUpdatePrompt(30);
     });
     document.body.appendChild(banner);
   },
