@@ -1,18 +1,35 @@
-// 右カラム「処置ログ」タブのUIと操作ロジック。
-// 手動追加に加え、将来のAI提案フローからも db.addProcedure(..., { source: "ai" })
-// で同じデータ構造に登録できる想定。
+// 右カラム「処置」タブ: 予定一覧＋実施履歴。
+// 予定日入力は検査予定と同じカレンダー／相対テンキー方式。
 
 import {
-  subscribeProcedures,
+  subscribeProcedureBundle,
   addProcedure,
   updateProcedure,
   deleteProcedure,
+  saveProcedurePlan,
+  deleteProcedurePlan,
+  completeProcedurePlan,
+  reviveProcedurePlan,
 } from "./db.js";
+import {
+  getDueCountdown,
+  formatDueCountdown,
+  unitToDays,
+  formatRelativeOffsetLabel,
+} from "./exam-plan-ui.js";
 import { enableRowGestures } from "./row-gestures.js";
 
 const AUTHORS = [
   "院長", "大辻", "川邉", "齋藤", "横井", "德永",
   "種田", "竹内", "神子島", "大澤", "川合", "嶋本", "道野",
+];
+
+const DAYS_PER_MONTH = 30;
+const DAYS_PER_WEEK = 7;
+const INTERVAL_UNITS = [
+  { id: "day", label: "日" },
+  { id: "week", label: "週" },
+  { id: "month", label: "月" },
 ];
 
 let deps = {
@@ -24,28 +41,52 @@ let deps = {
 
 const state = {
   karteNumber: null,
-  items: [],
+  plans: [],
+  history: [],
   unsubscribe: null,
-  editingId: null,
+  editingHistoryId: null,
+  editingHistoryStore: "history",
+  editingPlanId: null,
   modalAuthor: "",
+  syncingDueFromRelative: false,
+  dueRelativeUnit: "day",
+  dueRelativeValue: 0,
+  dueRelativeBuffer: "",
 };
 
-const procList = document.getElementById("procedures-list");
-const procEmpty = document.getElementById("procedures-empty");
-const btnProcAdd = document.getElementById("btn-procedure-add");
+const planList = document.getElementById("procedure-plan-list");
+const planEmpty = document.getElementById("procedure-plan-empty");
+const histList = document.getElementById("procedures-list");
+const histEmpty = document.getElementById("procedures-empty");
+const btnPlanAdd = document.getElementById("btn-procedure-plan-add");
+const btnHistAdd = document.getElementById("btn-procedure-add");
 
-const procModal = document.getElementById("procedure-modal");
-const procModalTitle = document.getElementById("procedure-modal-title");
-const procDate = document.getElementById("procedure-date");
-const procContent = document.getElementById("procedure-content");
-const procAuthorRow = document.getElementById("procedure-author-row");
-const procAuthorHint = document.getElementById("procedure-author-hint");
-const procError = document.getElementById("procedure-error");
-const btnProcSave = document.getElementById("btn-procedure-save");
-const btnProcCancel = document.getElementById("btn-procedure-cancel");
-const btnCloseProcModal = document.getElementById("btn-close-procedure-modal");
+const planModal = document.getElementById("procedure-plan-modal");
+const planModalTitle = document.getElementById("procedure-plan-modal-title");
+const planContent = document.getElementById("procedure-plan-content");
+const planDueDate = document.getElementById("procedure-plan-due-date");
+const planDueUnits = document.getElementById("procedure-plan-due-units");
+const planDueDisplay = document.getElementById("procedure-plan-due-display");
+const planDueNumpad = document.getElementById("procedure-plan-due-numpad");
+const planWindowNote = document.getElementById("procedure-plan-window-note");
+const planNote = document.getElementById("procedure-plan-note");
+const planError = document.getElementById("procedure-plan-error");
+const btnPlanSave = document.getElementById("btn-procedure-plan-save");
+const btnPlanComplete = document.getElementById("btn-procedure-plan-complete");
+const btnPlanCancel = document.getElementById("btn-procedure-plan-cancel");
+const btnClosePlanModal = document.getElementById("btn-close-procedure-plan-modal");
 
-// --- ユーティリティ -------------------------------------------------------
+const histModal = document.getElementById("procedure-modal");
+const histModalTitle = document.getElementById("procedure-modal-title");
+const histDate = document.getElementById("procedure-date");
+const histContent = document.getElementById("procedure-content");
+const histNote = document.getElementById("procedure-note");
+const histAuthorRow = document.getElementById("procedure-author-row");
+const histAuthorHint = document.getElementById("procedure-author-hint");
+const histError = document.getElementById("procedure-error");
+const btnHistSave = document.getElementById("btn-procedure-save");
+const btnHistCancel = document.getElementById("btn-procedure-cancel");
+const btnCloseHistModal = document.getElementById("btn-close-procedure-modal");
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -70,26 +111,67 @@ function mdhmFromIso(iso) {
   return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${pad2(d.getMinutes())}`;
 }
 
+function parseDateStr(dateStr) {
+  if (!dateStr) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function addDays(dateStr, days) {
+  const d = parseDateStr(dateStr);
+  if (!d) return "";
+  d.setDate(d.getDate() + (Number(days) || 0));
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function daysBetween(fromStr, toStr) {
+  const from = parseDateStr(fromStr);
+  const to = parseDateStr(toStr);
+  if (!from || !to) return null;
+  return Math.round((to - from) / 86400000);
+}
+
+function dueLevelClass(level) {
+  if (level === "overdue") return "exam-due-text--overdue";
+  if (level === "close") return "exam-due-text--close";
+  if (level === "near") return "exam-due-text--near";
+  return "exam-due-text--far";
+}
+
 // --- 公開API --------------------------------------------------------------
 
 export function initProceduresUI(helpers = {}) {
   deps = { ...deps, ...helpers };
   buildAuthorButtons();
-  btnProcAdd?.addEventListener("click", () => openModal("create"));
-  btnCloseProcModal?.addEventListener("click", closeModal);
-  btnProcCancel?.addEventListener("click", closeModal);
-  procModal
-    ?.querySelector("[data-close-modal]")
-    ?.addEventListener("click", closeModal);
-  btnProcSave?.addEventListener("click", handleSave);
+  buildPlanDueRelativeUI();
+
+  btnPlanAdd?.addEventListener("click", () => openPlanModal("create"));
+  btnHistAdd?.addEventListener("click", () => openHistModal("create"));
+
+  btnClosePlanModal?.addEventListener("click", closePlanModal);
+  btnPlanCancel?.addEventListener("click", closePlanModal);
+  planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
+  btnPlanSave?.addEventListener("click", handlePlanSave);
+  btnPlanComplete?.addEventListener("click", handlePlanCompleteFromModal);
+
+  btnCloseHistModal?.addEventListener("click", closeHistModal);
+  btnHistCancel?.addEventListener("click", closeHistModal);
+  histModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeHistModal);
+  btnHistSave?.addEventListener("click", handleHistSave);
+
+  wireDueDateInput(planDueDate);
+  planDueDate?.addEventListener("click", () => openDueCalendarPicker(planDueDate));
 }
 
 export function enterProcedures(karteNumber) {
   leaveProcedures();
   state.karteNumber = karteNumber;
-  state.unsubscribe = subscribeProcedures(karteNumber, (items) => {
-    state.items = items;
-    renderList();
+  state.unsubscribe = subscribeProcedureBundle(karteNumber, (bundle) => {
+    state.plans = bundle.plans || [];
+    state.history = bundle.history || [];
+    renderAll();
   });
 }
 
@@ -99,38 +181,103 @@ export function leaveProcedures() {
     state.unsubscribe = null;
   }
   state.karteNumber = null;
-  state.items = [];
-  closeModal();
-  if (procList) procList.innerHTML = "";
+  state.plans = [];
+  state.history = [];
+  closePlanModal();
+  closeHistModal();
+  if (planList) planList.innerHTML = "";
+  if (histList) histList.innerHTML = "";
 }
 
-/**
- * AI提案フローなど外部からの登録用フック。
- */
 export async function addProcedureFromExternal(karteNumber, payload) {
   return addProcedure(karteNumber, {
     ...payload,
+    note: payload.note || "",
     source: payload.source || "ai",
   });
 }
 
 // --- 描画 ----------------------------------------------------------------
 
-function renderList() {
-  if (!procList) return;
-  procList.innerHTML = "";
-  const items = state.items;
-  if (procEmpty) procEmpty.hidden = items.length > 0;
+function renderAll() {
+  renderPlanList();
+  renderHistoryList();
+}
 
-  items.forEach((item) => {
-    procList.appendChild(createCard(item));
+function renderPlanList() {
+  if (!planList) return;
+  planList.innerHTML = "";
+  const plans = state.plans;
+  if (planEmpty) planEmpty.hidden = plans.length > 0;
+
+  plans.forEach((plan) => {
+    const countdown = plan.dueDate
+      ? getDueCountdown(plan.dueDate, plan.baselineDate || null)
+      : null;
+    const li = document.createElement("li");
+    li.className = "exam-list-item";
+    li.dataset.planId = plan.id;
+
+    const info = document.createElement("div");
+    info.className = "exam-list-item__info";
+    const head = document.createElement("div");
+    head.className = "exam-list-item__head";
+    const title = document.createElement("div");
+    title.className = "exam-list-item__title";
+    title.textContent = plan.content || "（内容なし）";
+    const dueEl = document.createElement("div");
+    if (countdown) {
+      dueEl.className = `exam-list-item__due ${dueLevelClass(countdown.level)}`;
+      dueEl.textContent = formatDueCountdown(countdown, { includeDate: false });
+    } else {
+      dueEl.className = "exam-list-item__due";
+      dueEl.textContent = "予定日未設定";
+    }
+    head.append(title, dueEl);
+    info.appendChild(head);
+    if (plan.note) {
+      const noteEl = document.createElement("div");
+      noteEl.className = "exam-list-item__note";
+      noteEl.textContent = plan.note;
+      info.appendChild(noteEl);
+    }
+    li.appendChild(info);
+
+    enableRowGestures(li, {
+      actions: [
+        {
+          action: "edit",
+          title: "編集",
+          onClick: () => openPlanModal("edit", plan),
+        },
+        {
+          action: "delete",
+          title: "完了",
+          onClick: () => handleCompletePlan(plan),
+        },
+      ],
+      onActivate: () => openPlanModal("edit", plan),
+    });
+    planList.appendChild(li);
   });
 }
 
-function createCard(item) {
+function renderHistoryList() {
+  if (!histList) return;
+  histList.innerHTML = "";
+  const items = state.history;
+  if (histEmpty) histEmpty.hidden = items.length > 0;
+
+  items.forEach((item) => {
+    histList.appendChild(createHistoryCard(item));
+  });
+}
+
+function createHistoryCard(item) {
   const li = document.createElement("li");
   li.className = "proc-card";
   li.dataset.entryId = item.id;
+  li.dataset.store = item.store || "history";
 
   const dateEl = document.createElement("p");
   dateEl.className = "proc-card__date";
@@ -139,6 +286,15 @@ function createCard(item) {
   const contentEl = document.createElement("p");
   contentEl.className = "proc-card__content";
   contentEl.textContent = item.content || "（内容なし）";
+
+  li.append(dateEl, contentEl);
+
+  if (item.note) {
+    const noteEl = document.createElement("p");
+    noteEl.className = "proc-card__note";
+    noteEl.textContent = item.note;
+    li.appendChild(noteEl);
+  }
 
   const meta = document.createElement("p");
   meta.className = "proc-card__meta";
@@ -150,23 +306,30 @@ function createCard(item) {
     parts.push(`最終編集 ${when}${by}`);
   }
   meta.textContent = parts.join("　／　");
+  li.appendChild(meta);
 
-  li.append(dateEl, contentEl, meta);
   enableRowGestures(li, {
     actions: [
       {
+        action: "refresh",
+        title: "予定に戻す",
+        onClick: () => handleRevive(item),
+      },
+      {
         action: "edit",
         title: "編集",
-        onClick: () => openModal("edit", item),
+        onClick: () => openHistModal("edit", item),
       },
       {
         action: "delete",
         title: "削除",
         onClick: async () => {
-          const ok = window.confirm("この処置ログを削除しますか？");
+          const ok = window.confirm("この実施履歴を削除しますか？");
           if (!ok) return;
           try {
-            await deleteProcedure(state.karteNumber, item.id);
+            await deleteProcedure(state.karteNumber, item.id, {
+              store: item.store || "history",
+            });
             deps.showToast("削除しました。");
           } catch (err) {
             console.error(err);
@@ -175,16 +338,365 @@ function createCard(item) {
         },
       },
     ],
-    onActivate: () => openModal("edit", item),
+    onActivate: () => openHistModal("edit", item),
   });
   return li;
 }
 
-// --- モーダル ------------------------------------------------------------
+// --- 予定日（相対テンキー） ----------------------------------------------
+
+function mountNumpad(container, { onDigit, onDelete, onConfirm }) {
+  if (!container) return;
+  container.innerHTML = "";
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "削除", "0", "確定"];
+  keys.forEach((key) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "numpad__btn";
+    btn.textContent = key;
+    if (key === "削除") {
+      btn.classList.add("numpad__btn--action");
+      btn.addEventListener("click", onDelete);
+    } else if (key === "確定") {
+      btn.classList.add("numpad__btn--action", "numpad__btn--confirm");
+      btn.addEventListener("click", onConfirm);
+    } else {
+      btn.addEventListener("click", () => onDigit(key));
+    }
+    container.appendChild(btn);
+  });
+}
+
+function mountUnitButtons(container, selectedUnit, onSelect) {
+  if (!container) return;
+  container.innerHTML = "";
+  INTERVAL_UNITS.forEach((u) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "interval-unit-btn";
+    btn.textContent = u.label;
+    btn.classList.toggle("is-selected", u.id === selectedUnit);
+    btn.addEventListener("click", () => onSelect(u.id));
+    container.appendChild(btn);
+  });
+}
+
+function openDueCalendarPicker(inputEl) {
+  if (!inputEl) return;
+  inputEl.focus({ preventScroll: true });
+  try {
+    if (typeof inputEl.showPicker === "function") inputEl.showPicker();
+  } catch {
+    // ignore
+  }
+}
+
+function wireDueDateInput(inputEl) {
+  if (!inputEl || inputEl.dataset.dueWired === "1") return;
+  inputEl.dataset.dueWired = "1";
+  const onPick = () => {
+    if (state.syncingDueFromRelative) return;
+    syncRelativeFromCalendar(inputEl.value);
+    updateWindowNote();
+  };
+  inputEl.addEventListener("change", onPick);
+  inputEl.addEventListener("input", onPick);
+}
+
+function expressDaysAsRelative(days) {
+  const d = Math.max(0, Number(days) || 0);
+  if (d > 0 && d % DAYS_PER_MONTH === 0) {
+    return { unit: "month", value: d / DAYS_PER_MONTH };
+  }
+  if (d > 0 && d % DAYS_PER_WEEK === 0) {
+    return { unit: "week", value: d / DAYS_PER_WEEK };
+  }
+  return { unit: "day", value: d };
+}
+
+function resetDueRelative() {
+  state.dueRelativeUnit = "day";
+  state.dueRelativeValue = 0;
+  state.dueRelativeBuffer = "";
+}
+
+function syncRelativeFromCalendar(dateStr) {
+  if (!dateStr) {
+    resetDueRelative();
+    syncDueRelativeUI();
+    return;
+  }
+  const days = daysBetween(todayStr(), dateStr);
+  if (days == null) return;
+  if (days < 0) {
+    state.dueRelativeUnit = "day";
+    state.dueRelativeValue = 0;
+    state.dueRelativeBuffer = "0";
+  } else {
+    const expressed = expressDaysAsRelative(days);
+    state.dueRelativeUnit = expressed.unit;
+    state.dueRelativeValue = expressed.value;
+    state.dueRelativeBuffer = String(expressed.value);
+  }
+  syncDueRelativeUI();
+}
+
+function applyDueRelativeToCalendar() {
+  const buffered = Number(state.dueRelativeBuffer);
+  const value =
+    buffered >= 0 && state.dueRelativeBuffer !== ""
+      ? buffered
+      : Number(state.dueRelativeValue) || 0;
+  state.dueRelativeValue = value;
+  state.dueRelativeBuffer = String(value);
+  const days = unitToDays(state.dueRelativeUnit, value);
+  const date = addDays(todayStr(), days);
+  state.syncingDueFromRelative = true;
+  if (planDueDate) planDueDate.value = date;
+  state.syncingDueFromRelative = false;
+  updateWindowNote();
+  syncDueRelativeUI();
+}
+
+function buildPlanDueRelativeUI() {
+  mountNumpad(planDueNumpad, {
+    onDigit: (d) => {
+      if (state.dueRelativeBuffer.length >= 4) return;
+      state.dueRelativeBuffer =
+        state.dueRelativeBuffer === "0" ? d : state.dueRelativeBuffer + d;
+      syncDueRelativeUI();
+    },
+    onDelete: () => {
+      state.dueRelativeBuffer = state.dueRelativeBuffer.slice(0, -1);
+      syncDueRelativeUI();
+    },
+    onConfirm: () => {
+      const n = Number(state.dueRelativeBuffer);
+      if (state.dueRelativeBuffer === "" || Number.isNaN(n) || n < 0) {
+        deps.showError(planError, "相対日数は0以上の数値を入力し、「確定」してください。");
+        return;
+      }
+      if (n < 1) {
+        deps.showError(
+          planError,
+          "1以上の相対日数を入力するか、カレンダーで日付を選んでください。"
+        );
+        return;
+      }
+      deps.showError(planError, "");
+      applyDueRelativeToCalendar();
+    },
+  });
+  syncDueRelativeUI();
+}
+
+function syncDueRelativeUI() {
+  const onUnitSelect = (unit) => {
+    const prevUnit = state.dueRelativeUnit;
+    const prevValue =
+      state.dueRelativeBuffer !== ""
+        ? Number(state.dueRelativeBuffer) || 0
+        : Number(state.dueRelativeValue) || 0;
+    const days = unitToDays(prevUnit, prevValue);
+    let nextValue = days;
+    if (unit === "week") nextValue = Math.max(0, Math.round(days / DAYS_PER_WEEK));
+    else if (unit === "month") nextValue = Math.max(0, Math.round(days / DAYS_PER_MONTH));
+    state.dueRelativeUnit = unit;
+    state.dueRelativeValue = nextValue;
+    state.dueRelativeBuffer = nextValue > 0 || days === 0 ? String(nextValue) : "";
+    if (nextValue > 0 || planDueDate?.value) {
+      applyDueRelativeToCalendar();
+    } else {
+      syncDueRelativeUI();
+    }
+  };
+
+  mountUnitButtons(planDueUnits, state.dueRelativeUnit, onUnitSelect);
+  if (planDueDisplay) {
+    const shown =
+      state.dueRelativeBuffer !== ""
+        ? state.dueRelativeBuffer
+        : String(state.dueRelativeValue ?? "");
+    planDueDisplay.textContent = formatRelativeOffsetLabel(
+      state.dueRelativeUnit,
+      shown === "" ? 0 : shown
+    );
+  }
+}
+
+function updateWindowNote() {
+  if (!planWindowNote) return;
+  const due = planDueDate?.value || "";
+  if (!due) {
+    planWindowNote.textContent = "";
+    return;
+  }
+  const info = getDueCountdown(due, todayStr());
+  planWindowNote.textContent = info
+    ? `予定日: ${formatDueCountdown(info)}`
+    : "";
+  planWindowNote.className = `field__note ${dueLevelClass(info?.level || "far")}`;
+}
+
+// --- 予定モーダル --------------------------------------------------------
+
+function openPlanModal(mode, plan = null) {
+  state.editingPlanId = mode === "edit" && plan ? plan.id : null;
+  if (planModalTitle) {
+    planModalTitle.textContent =
+      mode === "edit" ? "処置予定を編集" : "処置予定を登録";
+  }
+  if (planContent) planContent.value = plan?.content || "";
+  if (planNote) planNote.value = plan?.note || "";
+  const due = plan?.dueDate || "";
+  if (planDueDate) planDueDate.value = due;
+  if (due) {
+    syncRelativeFromCalendar(due);
+  } else {
+    resetDueRelative();
+    syncDueRelativeUI();
+  }
+  updateWindowNote();
+  if (btnPlanComplete) btnPlanComplete.hidden = mode !== "edit";
+  deps.showError(planError, "");
+  if (planModal) planModal.hidden = false;
+  setTimeout(() => planContent?.focus(), 0);
+}
+
+function closePlanModal() {
+  state.editingPlanId = null;
+  if (planModal) planModal.hidden = true;
+  deps.showError(planError, "");
+}
+
+async function handlePlanSave() {
+  const content = (planContent?.value || "").trim();
+  const dueDate = planDueDate?.value || "";
+  const note = (planNote?.value || "").trim();
+
+  if (!content) {
+    deps.showError(planError, "処置内容を入力してください。");
+    return;
+  }
+  if (!dueDate) {
+    deps.showError(planError, "予定日を選択してください。");
+    return;
+  }
+  if (!state.karteNumber) {
+    deps.showError(planError, "カルテを開いてから操作してください。");
+    return;
+  }
+
+  deps.showError(planError, "");
+  deps.setBusy(btnPlanSave, true, "保存中...", "保存する");
+  try {
+    await saveProcedurePlan(state.karteNumber, {
+      planId: state.editingPlanId,
+      content,
+      dueDate,
+      note,
+      baselineDate: todayStr(),
+      source: "manual",
+    });
+    closePlanModal();
+    deps.showToast(state.editingPlanId ? "予定を更新しました。" : "予定を登録しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnPlanSave, false, "保存中...", "保存する");
+  }
+}
+
+async function handleCompletePlan(plan) {
+  if (!plan?.id || !state.karteNumber) return;
+  const label = plan.content || "処置";
+  const ok = window.confirm(
+    `「${label}」を完了として実施履歴に移しますか？\n実施日は本日（${ymdFromStr(todayStr())}）になります。`
+  );
+  if (!ok) return;
+  const author = deps.getSelectedAuthor() || plan.confirmedBy || "";
+  try {
+    await completeProcedurePlan(state.karteNumber, plan.id, {
+      date: todayStr(),
+      content: plan.content || "",
+      note: plan.note || "",
+      confirmedBy: author,
+    });
+    deps.showToast("完了として実施履歴に移しました。");
+    closePlanModal();
+  } catch (err) {
+    console.error(err);
+    deps.showToast("完了処理に失敗しました。", { isError: true });
+  }
+}
+
+async function handlePlanCompleteFromModal() {
+  const plan = state.plans.find((p) => p.id === state.editingPlanId);
+  if (!plan) {
+    deps.showError(planError, "編集中の予定が見つかりません。");
+    return;
+  }
+  // モーダル上の最新入力を反映してから完了
+  const content = (planContent?.value || "").trim();
+  const note = (planNote?.value || "").trim();
+  const dueDate = planDueDate?.value || "";
+  if (!content) {
+    deps.showError(planError, "処置内容を入力してください。");
+    return;
+  }
+  if (dueDate || note !== (plan.note || "") || content !== (plan.content || "")) {
+    try {
+      await saveProcedurePlan(state.karteNumber, {
+        planId: plan.id,
+        content,
+        dueDate: dueDate || plan.dueDate || todayStr(),
+        note,
+        baselineDate: todayStr(),
+      });
+    } catch (err) {
+      console.error(err);
+      deps.showError(planError, "保存に失敗したため完了できませんでした。");
+      return;
+    }
+  }
+  await handleCompletePlan({ ...plan, content, note });
+}
+
+async function handleRevive(item) {
+  const label = item.content || "処置";
+  const ok = window.confirm(
+    `「${label}」を処置予定一覧に戻しますか？\n予定日は未設定のまま戻ります（実施履歴はそのまま残ります）。`
+  );
+  if (!ok) return;
+  try {
+    const planId = await reviveProcedurePlan(state.karteNumber, {
+      content: item.content || "",
+      note: item.note || "",
+      confirmedBy: item.confirmedBy || "",
+    });
+    deps.showToast("予定に戻しました。予定日を入力してください。");
+    // 購読反映後に編集を開く
+    const openWhenReady = (attempt = 0) => {
+      const plan = state.plans.find((p) => p.id === planId);
+      if (plan) {
+        openPlanModal("edit", plan);
+        return;
+      }
+      if (attempt < 30) setTimeout(() => openWhenReady(attempt + 1), 40);
+    };
+    openWhenReady();
+  } catch (err) {
+    console.error(err);
+    deps.showToast("予定に戻す操作に失敗しました。", { isError: true });
+  }
+}
+
+// --- 実施履歴モーダル ----------------------------------------------------
 
 function buildAuthorButtons() {
-  if (!procAuthorRow) return;
-  procAuthorRow.innerHTML = "";
+  if (!histAuthorRow) return;
+  histAuthorRow.innerHTML = "";
   AUTHORS.forEach((name) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -194,106 +706,113 @@ function buildAuthorButtons() {
     btn.addEventListener("click", () => {
       state.modalAuthor = name;
       renderAuthorSelection();
-      deps.showError(procError, "");
+      deps.showError(histError, "");
     });
-    procAuthorRow.appendChild(btn);
+    histAuthorRow.appendChild(btn);
   });
 }
 
 function renderAuthorSelection() {
-  procAuthorRow?.querySelectorAll(".author-btn").forEach((btn) => {
+  histAuthorRow?.querySelectorAll(".author-btn").forEach((btn) => {
     btn.classList.toggle("is-selected", btn.dataset.author === state.modalAuthor);
   });
 }
 
-function openModal(mode, item = null) {
-  state.editingId = mode === "edit" && item ? item.id : null;
+function openHistModal(mode, item = null) {
+  state.editingHistoryId = mode === "edit" && item ? item.id : null;
+  state.editingHistoryStore =
+    mode === "edit" && item ? item.store || "history" : "history";
   const selected = deps.getSelectedAuthor() || "";
 
-  if (procModalTitle) {
-    procModalTitle.textContent =
-      mode === "edit" ? "処置ログを編集" : "処置ログを追加";
+  if (histModalTitle) {
+    histModalTitle.textContent =
+      mode === "edit" ? "実施履歴を編集" : "実施を記録";
   }
-  if (procDate) procDate.value = item?.date || todayStr();
-  if (procContent) procContent.value = item?.content || "";
+  if (histDate) histDate.value = item?.date || todayStr();
+  if (histContent) histContent.value = item?.content || "";
+  if (histNote) histNote.value = item?.note || "";
 
   if (mode === "edit") {
     state.modalAuthor = selected || item?.lastEditedBy || item?.confirmedBy || "";
-    if (procAuthorHint) {
-      procAuthorHint.textContent = "この編集を行った人を選択してください。";
+    if (histAuthorHint) {
+      histAuthorHint.textContent = "この編集を行った人を選択してください。";
     }
   } else {
     state.modalAuthor = selected;
-    if (procAuthorHint) {
-      procAuthorHint.textContent = selected
+    if (histAuthorHint) {
+      histAuthorHint.textContent = selected
         ? `中央カラムで選択中の記入者「${selected}」を初期値にしています。必要なら変更できます。`
         : "記入者を選択してください（中央カラムで選択済みなら自動で入ります）。";
     }
   }
 
   renderAuthorSelection();
-  deps.showError(procError, "");
-  if (btnProcSave) btnProcSave.textContent = mode === "edit" ? "保存する" : "追加する";
-  if (procModal) procModal.hidden = false;
-  setTimeout(() => procContent?.focus(), 0);
+  deps.showError(histError, "");
+  if (btnHistSave) btnHistSave.textContent = mode === "edit" ? "保存する" : "追加する";
+  if (histModal) histModal.hidden = false;
+  setTimeout(() => histContent?.focus(), 0);
 }
 
-function closeModal() {
-  state.editingId = null;
+function closeHistModal() {
+  state.editingHistoryId = null;
+  state.editingHistoryStore = "history";
   state.modalAuthor = "";
-  if (procModal) procModal.hidden = true;
-  deps.showError(procError, "");
+  if (histModal) histModal.hidden = true;
+  deps.showError(histError, "");
 }
 
-async function handleSave() {
-  const date = procDate?.value || "";
-  const content = (procContent?.value || "").trim();
+async function handleHistSave() {
+  const date = histDate?.value || "";
+  const content = (histContent?.value || "").trim();
+  const note = (histNote?.value || "").trim();
   const author = state.modalAuthor || deps.getSelectedAuthor() || "";
 
   if (!date) {
-    deps.showError(procError, "日付を選択してください。");
+    deps.showError(histError, "実施日を選択してください。");
     return;
   }
   if (!content) {
-    deps.showError(procError, "処置内容を入力してください。");
+    deps.showError(histError, "処置内容を入力してください。");
     return;
   }
   if (!author) {
-    deps.showError(procError, "記入者（編集者）を選択してください。");
+    deps.showError(histError, "記入者（編集者）を選択してください。");
     return;
   }
   if (!state.karteNumber) {
-    deps.showError(procError, "カルテを開いてから操作してください。");
+    deps.showError(histError, "カルテを開いてから操作してください。");
     return;
   }
 
-  deps.showError(procError, "");
-  const idleLabel = state.editingId ? "保存する" : "追加する";
-  deps.setBusy(btnProcSave, true, "保存中...", idleLabel);
+  deps.showError(histError, "");
+  const idleLabel = state.editingHistoryId ? "保存する" : "追加する";
+  deps.setBusy(btnHistSave, true, "保存中...", idleLabel);
 
   try {
-    if (state.editingId) {
-      await updateProcedure(state.karteNumber, state.editingId, {
-        date,
-        content,
-        editedBy: author,
-      });
-      closeModal();
+    if (state.editingHistoryId) {
+      await updateProcedure(
+        state.karteNumber,
+        state.editingHistoryId,
+        { date, content, note, editedBy: author },
+        { store: state.editingHistoryStore }
+      );
+      closeHistModal();
       deps.showToast("編集内容を保存しました。");
     } else {
       await addProcedure(state.karteNumber, {
         date,
         content,
+        note,
         confirmedBy: author,
         source: "manual",
       });
-      closeModal();
-      deps.showToast("処置ログを追加しました。");
+      closeHistModal();
+      deps.showToast("実施履歴に追加しました。");
     }
   } catch (err) {
     console.error(err);
-    deps.showError(procError, "保存に失敗しました。もう一度お試しください。");
+    deps.showError(histError, "保存に失敗しました。もう一度お試しください。");
   } finally {
-    deps.setBusy(btnProcSave, false, "保存中...", idleLabel);
+    deps.setBusy(btnHistSave, false, "保存中...", idleLabel);
   }
 }

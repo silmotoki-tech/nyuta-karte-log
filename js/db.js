@@ -68,12 +68,11 @@
 //   freeQA/{カルテ番号}/{questionId}/askedAt             … ISO文字列
 //   freeQA/{カルテ番号}/{questionId}/askedBy
 //
-//   procedures/{カルテ番号}/{entryId}/schemaVersion      … 処置ログ
-//   procedures/{カルテ番号}/{entryId}/date               … "YYYY-MM-DD"
-//   procedures/{カルテ番号}/{entryId}/content            … 処置内容
-//   procedures/{カルテ番号}/{entryId}/confirmedBy        … 記入者
-//   procedures/{カルテ番号}/{entryId}/lastEditedAt       … 最終編集ISO（任意）
-//   procedures/{カルテ番号}/{entryId}/lastEditedBy       … 最終編集者（任意）
+//   procedures/{カルテ番号}/plans/{planId}               … 処置予定
+//     { content, dueDate, baselineDate, note, source?, confirmedBy? }
+//   procedures/{カルテ番号}/history/{entryId}            … 実施履歴
+//     { schemaVersion, date, content, note, confirmedBy, lastEditedAt?, lastEditedBy?, source }
+//   procedures/{カルテ番号}/{entryId}                    … 旧形式の実施履歴（互換。history へは移さず読む）
 //
 //   specialNotes/{カルテ番号}/{entryId}/schemaVersion    … 特記事項（恒常的な注意）
 //   specialNotes/{カルテ番号}/{entryId}/content          … 本文
@@ -2204,24 +2203,48 @@ export async function deleteFreeQA(karteNumber, questionId) {
   await remove(freeQaEntryRef(karteNumber, questionId));
 }
 
-// --- 処置ログ（procedures） -----------------------------------------------
+// --- 処置ログ（procedures: plans + history） --------------------------------
 
-export const PROCEDURE_SCHEMA_VERSION = 1;
+export const PROCEDURE_SCHEMA_VERSION = 2;
 
 function proceduresRootRef(karteNumber) {
   return ref(db, `procedures/${karteNumber}`);
 }
 
-function procedureEntryRef(karteNumber, entryId) {
+function procedurePlansRef(karteNumber) {
+  return ref(db, `procedures/${karteNumber}/plans`);
+}
+
+function procedureHistoryRef(karteNumber) {
+  return ref(db, `procedures/${karteNumber}/history`);
+}
+
+function procedureHistoryEntryRef(karteNumber, entryId) {
+  return ref(db, `procedures/${karteNumber}/history/${entryId}`);
+}
+
+function procedureLegacyEntryRef(karteNumber, entryId) {
   return ref(db, `procedures/${karteNumber}/${entryId}`);
 }
 
-function normalizeProcedureEntry(id, raw) {
+function procedurePlanEntryRef(karteNumber, planId) {
+  return ref(db, `procedures/${karteNumber}/plans/${planId}`);
+}
+
+function todayIsoDateProc() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function normalizeProcedureHistoryEntry(id, raw, store = "history") {
   const entry = {
     id,
+    store,
     schemaVersion: PROCEDURE_SCHEMA_VERSION,
     date: "",
     content: "",
+    note: "",
     confirmedBy: "",
     lastEditedAt: "",
     lastEditedBy: "",
@@ -2231,6 +2254,7 @@ function normalizeProcedureEntry(id, raw) {
   entry.schemaVersion = raw.schemaVersion || PROCEDURE_SCHEMA_VERSION;
   entry.date = raw.date || "";
   entry.content = raw.content || "";
+  entry.note = raw.note || "";
   entry.confirmedBy = raw.confirmedBy || "";
   entry.lastEditedAt = raw.lastEditedAt || "";
   entry.lastEditedBy = raw.lastEditedBy || "";
@@ -2238,7 +2262,27 @@ function normalizeProcedureEntry(id, raw) {
   return entry;
 }
 
-function sortProcedures(entries) {
+function normalizeProcedurePlan(id, raw) {
+  const plan = {
+    id,
+    content: "",
+    dueDate: "",
+    baselineDate: "",
+    note: "",
+    confirmedBy: "",
+    source: "manual",
+  };
+  if (!raw || typeof raw !== "object") return plan;
+  plan.content = raw.content || "";
+  plan.dueDate = raw.dueDate || raw.targetDate || raw.dueDateFrom || "";
+  plan.baselineDate = raw.baselineDate || "";
+  plan.note = raw.note || "";
+  plan.confirmedBy = raw.confirmedBy || "";
+  plan.source = raw.source === "ai" ? "ai" : "manual";
+  return plan;
+}
+
+function sortProcedureHistory(entries) {
   return [...entries].sort((a, b) => {
     const rd = (b.date || "").localeCompare(a.date || "");
     if (rd !== 0) return rd;
@@ -2248,10 +2292,57 @@ function sortProcedures(entries) {
   });
 }
 
+function sortProcedurePlans(plans) {
+  return [...plans].sort((a, b) => {
+    const ad = a.dueDate || "9999-99-99";
+    const bd = b.dueDate || "9999-99-99";
+    const rd = ad.localeCompare(bd);
+    if (rd !== 0) return rd;
+    return (a.content || "").localeCompare(b.content || "");
+  });
+}
+
+function parseProceduresRoot(value) {
+  const root = value && typeof value === "object" ? value : {};
+  const plans = [];
+  const history = [];
+
+  const plansRaw =
+    root.plans && typeof root.plans === "object" && !Array.isArray(root.plans)
+      ? root.plans
+      : {};
+  Object.entries(plansRaw).forEach(([id, raw]) => {
+    if (!raw || typeof raw !== "object") return;
+    plans.push(normalizeProcedurePlan(id, raw));
+  });
+
+  const historyRaw =
+    root.history && typeof root.history === "object" && !Array.isArray(root.history)
+      ? root.history
+      : {};
+  Object.entries(historyRaw).forEach(([id, raw]) => {
+    if (!raw || typeof raw !== "object") return;
+    history.push(normalizeProcedureHistoryEntry(id, raw, "history"));
+  });
+
+  // 旧形式: root 直下のエントリを実施履歴として読む（plans/history キーは除外）
+  Object.entries(root).forEach(([id, raw]) => {
+    if (id === "plans" || id === "history") return;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+    history.push(normalizeProcedureHistoryEntry(id, raw, "legacy"));
+  });
+
+  return {
+    plans: sortProcedurePlans(plans),
+    history: sortProcedureHistory(history),
+  };
+}
+
 /**
- * 処置ログ一覧をリアルタイム監視する（日付の新しい順）。
+ * 処置の予定＋実施履歴をリアルタイム監視する。
+ * callback({ plans, history })
  */
-export function subscribeProcedures(karteNumber, callback) {
+export function subscribeProcedureBundle(karteNumber, callback) {
   const r = proceduresRootRef(karteNumber);
   let unsubscribed = false;
   let listener = null;
@@ -2260,11 +2351,7 @@ export function subscribeProcedures(karteNumber, callback) {
     .then(() => {
       if (unsubscribed) return;
       listener = onValue(r, (snapshot) => {
-        const value = snapshot.val() || {};
-        const items = Object.entries(value).map(([id, raw]) =>
-          normalizeProcedureEntry(id, raw)
-        );
-        callback(sortProcedures(items));
+        callback(parseProceduresRoot(snapshot.val()));
       });
     })
     .catch((err) => {
@@ -2281,19 +2368,103 @@ export function subscribeProcedures(karteNumber, callback) {
 }
 
 /**
- * 処置ログを新規追加する。
- * source を "ai" にすれば、将来のAI提案フローからも同じAPIで登録できる。
+ * 互換: 実施履歴のみを配列で返す購読。
+ */
+export function subscribeProcedures(karteNumber, callback) {
+  return subscribeProcedureBundle(karteNumber, (bundle) => {
+    callback(bundle.history || []);
+  });
+}
+
+/**
+ * 処置予定を追加または更新する。
+ * @returns {Promise<string>} planId
+ */
+export async function saveProcedurePlan(
+  karteNumber,
+  { planId = null, content, dueDate, note = "", baselineDate = "", confirmedBy = "", source = "manual" }
+) {
+  await authReady;
+  const record = {
+    content: (content || "").trim(),
+    dueDate: dueDate || "",
+    baselineDate: baselineDate || (dueDate ? todayIsoDateProc() : todayIsoDateProc()),
+    note: note || "",
+    confirmedBy: confirmedBy || "",
+    source: source === "ai" ? "ai" : "manual",
+  };
+  if (planId) {
+    await update(procedurePlanEntryRef(karteNumber, planId), record);
+    return planId;
+  }
+  const newRef = push(procedurePlansRef(karteNumber));
+  await set(newRef, record);
+  return newRef.key;
+}
+
+/**
+ * 処置予定を削除する（終了・完了後のクリア。履歴は触らない）。
+ */
+export async function deleteProcedurePlan(karteNumber, planId) {
+  await authReady;
+  if (!planId) return;
+  await remove(procedurePlanEntryRef(karteNumber, planId));
+}
+
+/**
+ * 実施履歴の内容から処置予定一覧へ戻す（予定日は未設定）。
+ * 実施履歴は変更しない。
+ * @returns {Promise<string>} planId
+ */
+export async function reviveProcedurePlan(
+  karteNumber,
+  { content, note = "", confirmedBy = "" }
+) {
+  return saveProcedurePlan(karteNumber, {
+    content,
+    dueDate: "",
+    note,
+    baselineDate: todayIsoDateProc(),
+    confirmedBy,
+  });
+}
+
+/**
+ * 処置予定を完了し、実施履歴へ移す（予定は削除）。
+ * @returns {Promise<string>} historyId
+ */
+export async function completeProcedurePlan(
+  karteNumber,
+  planId,
+  { date, note, confirmedBy, content }
+) {
+  await authReady;
+  if (!planId) throw new Error("planId が必要です");
+  const historyId = await addProcedure(karteNumber, {
+    date,
+    content,
+    note,
+    confirmedBy,
+    source: "manual",
+  });
+  await deleteProcedurePlan(karteNumber, planId);
+  return historyId;
+}
+
+/**
+ * 実施履歴を新規追加する（旧 addProcedure。history/ へ書く）。
  */
 export async function addProcedure(
   karteNumber,
-  { date, content, confirmedBy, source = "manual" }
+  { date, content, confirmedBy, note = "", source = "manual" }
 ) {
   await authReady;
-  const newRef = push(proceduresRootRef(karteNumber));
+  const newRef = push(procedureHistoryRef(karteNumber));
   await set(newRef, {
     schemaVersion: PROCEDURE_SCHEMA_VERSION,
     date: date || "",
     content: content || "",
+    note: note || "",
     confirmedBy: confirmedBy || "",
     lastEditedAt: "",
     lastEditedBy: "",
@@ -2303,29 +2474,46 @@ export async function addProcedure(
 }
 
 /**
- * 処置ログを上書き更新する（最終編集日時・編集者を記録）。
+ * 実施履歴を上書き更新する。
+ * store: "history"（既定）| "legacy"
  */
 export async function updateProcedure(
   karteNumber,
   entryId,
-  { date, content, editedBy }
+  { date, content, note, editedBy },
+  { store = "history" } = {}
 ) {
   await authReady;
-  await update(procedureEntryRef(karteNumber, entryId), {
+  const target =
+    store === "legacy"
+      ? procedureLegacyEntryRef(karteNumber, entryId)
+      : procedureHistoryEntryRef(karteNumber, entryId);
+  const patch = {
     schemaVersion: PROCEDURE_SCHEMA_VERSION,
     date: date || "",
     content: content || "",
     lastEditedAt: new Date().toISOString(),
     lastEditedBy: editedBy || "",
-  });
+  };
+  if (note !== undefined) patch.note = note || "";
+  await update(target, patch);
 }
 
 /**
- * 処置ログを削除する。
+ * 実施履歴を削除する。
+ * store: "history"（既定）| "legacy"
  */
-export async function deleteProcedure(karteNumber, entryId) {
+export async function deleteProcedure(
+  karteNumber,
+  entryId,
+  { store = "history" } = {}
+) {
   await authReady;
-  await remove(procedureEntryRef(karteNumber, entryId));
+  const target =
+    store === "legacy"
+      ? procedureLegacyEntryRef(karteNumber, entryId)
+      : procedureHistoryEntryRef(karteNumber, entryId);
+  await remove(target);
 }
 
 // --- 特記事項（specialNotes） ----------------------------------------------

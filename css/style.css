@@ -3651,11 +3651,27 @@ select.input {
   word-break: break-word;
 }
 
+.proc-card__note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--color-brown);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .proc-card__meta {
   margin: 0;
   font-size: 0.68rem;
   color: var(--color-text-muted);
   font-weight: 600;
+}
+
+.proc-due-field {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  background: transparent;
 }
 
 .proc-card__actions {
