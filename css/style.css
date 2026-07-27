@@ -58,6 +58,8 @@
 html {
   height: 100%;
   overflow: hidden;
+  /* ダブルタップズームを抑止（パン／スクロールは許可。ピンチは viewport 側で無効化） */
+  touch-action: manipulation;
 }
 
 html,
@@ -74,6 +76,19 @@ body {
     "Noto Sans JP", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* 入力欄・ボタンでもダブルタップズームを抑止（文字選択は可能のまま） */
+button,
+a,
+input,
+textarea,
+select,
+label,
+summary,
+[role="button"] {
+  touch-action: manipulation;
 }
 
 .app {
