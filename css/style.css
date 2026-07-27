@@ -2232,6 +2232,8 @@ html.is-unlocked .app {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   max-width: 280px;
+  /* 連続タップ時のダブルタップズームを抑止（スクロール・ピンチには影響しない） */
+  touch-action: manipulation;
 }
 
 /* コンパクト化はキーの余白だけ。3×4 グリッドは維持する */
@@ -2252,6 +2254,8 @@ html.is-unlocked .app {
   cursor: pointer;
   font-family: inherit;
   min-height: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .numpad.numpad--compact .numpad__btn {
