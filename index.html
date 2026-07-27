@@ -1074,8 +1074,8 @@
         <div class="med-category-buttons" id="med-add-category-buttons"></div>
       </div>
       <div class="field">
-        <span class="label">初期の投与頻度（任意）</span>
-        <div class="med-linear-picker med-linear-picker--freq" id="med-add-freq-picker" aria-label="投与頻度の選択">
+        <span class="label">投与頻度（任意）</span>
+        <div class="med-linear-picker med-linear-picker--freq" id="med-add-freq-picker" aria-label="投与頻度の選択" data-cols="2">
           <div class="med-linear-picker__col" data-col="mode">
             <div class="med-linear-picker__head">指定方法</div>
             <div
@@ -1122,37 +1122,56 @@
       </div>
       <div class="field" id="med-add-dose">
         <span class="label">投与量（任意）</span>
-        <div class="med-dose-picker" aria-label="投与量の選択">
-          <div class="med-dose-picker__group">
-            <div class="med-dose-picker__head">錠数</div>
+        <div
+          class="med-linear-picker med-linear-picker--freq med-linear-picker--dose"
+          id="med-add-dose-picker"
+          aria-label="投与量の選択"
+          data-cols="2"
+        >
+          <div class="med-linear-picker__col" data-col="mode">
+            <div class="med-linear-picker__head">指定方法</div>
             <div
-              class="med-dose-picker__grid"
-              id="med-add-dose-integer"
+              class="med-linear-picker__list"
+              id="med-add-dose-modes"
               role="listbox"
-              aria-label="錠数の選択肢"
+              aria-label="投与量の指定方法"
             ></div>
           </div>
-          <div class="med-dose-picker__group">
-            <div class="med-dose-picker__head">分数</div>
-            <div
-              class="med-dose-picker__grid"
-              id="med-add-dose-fraction"
-              role="listbox"
-              aria-label="分数の選択肢"
-            ></div>
-          </div>
-          <label class="exam-other-check">
-            <input type="checkbox" id="med-add-dose-other" />
-            <span>その他（自由入力）</span>
-          </label>
-          <input
-            id="med-add-dose-other-input"
-            class="input"
-            type="text"
-            placeholder="例）0.5ml、1滴、朝1錠夕半錠"
-            autocomplete="off"
+          <div
+            class="med-linear-picker__col med-linear-picker__col--leaf"
+            id="med-add-dose-detail"
+            data-col="detail"
             hidden
-          />
+          >
+            <div class="med-linear-picker__head" id="med-add-dose-detail-head">内容</div>
+            <div class="freq-linear-detail">
+              <div id="med-add-dose-panel-integer" hidden>
+                <div
+                  class="med-linear-picker__list"
+                  id="med-add-dose-integer"
+                  role="listbox"
+                  aria-label="錠数の選択肢"
+                ></div>
+              </div>
+              <div id="med-add-dose-panel-fraction" hidden>
+                <div
+                  class="med-linear-picker__list"
+                  id="med-add-dose-fraction"
+                  role="listbox"
+                  aria-label="分数の選択肢"
+                ></div>
+              </div>
+              <div id="med-add-dose-panel-other" hidden>
+                <input
+                  id="med-add-dose-other-input"
+                  class="input"
+                  type="text"
+                  placeholder="例）0.5ml、1滴、朝1錠夕半錠"
+                  autocomplete="off"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="field med-add-meta">
@@ -1235,7 +1254,7 @@
           </label>
         </div>
         <div id="med-event-freq-block" hidden>
-          <div class="med-linear-picker med-linear-picker--freq" id="med-event-freq-picker" aria-label="投与頻度の選択">
+          <div class="med-linear-picker med-linear-picker--freq" id="med-event-freq-picker" aria-label="投与頻度の選択" data-cols="2">
             <div class="med-linear-picker__col" data-col="mode">
               <div class="med-linear-picker__head">指定方法</div>
               <div

@@ -335,7 +335,8 @@ await page.getByRole("option", { name: "内服薬" }).click();
 await page.getByRole("option", { name: "抗菌薬" }).click();
 await page.getByRole("option", { name: "アモキシシリン" }).click();
 await page.locator("#med-add-expiry").fill(later);
-await page.locator("#med-add-dose-integer .med-dose-btn", { hasText: /^1錠$/ }).click();
+await page.getByRole("option", { name: "錠数（整数）" }).click();
+await page.getByRole("option", { name: "1錠" }).click();
 await page.locator("#med-add-note").fill("胃腸障害に注意");
 await page.locator("#med-add-date").fill(addDays(T, -2));
 const selectedName = await page.evaluate(() => {

@@ -1,5 +1,5 @@
 /**
- * 薬剤追加: 投与量ボタン選択／その他自由入力の登録を検証する。
+ * 投与頻度ラベル変更＋投与量リニア段階選択を検証する。
  */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -56,6 +56,19 @@ async function launchBrowser() {
   }
   return chromium.launch({ headless: true });
 }
+
+const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");
+assert.ok(
+  indexHtml.includes(">投与頻度（任意）<"),
+  "freq label not updated"
+);
+assert.ok(!indexHtml.includes("初期の投与頻度"), "old freq label remains");
+assert.ok(
+  indexHtml.includes('id="med-add-dose-picker"') &&
+    indexHtml.includes('id="med-add-dose-modes"'),
+  "dose linear picker missing"
+);
+assert.ok(!indexHtml.includes("med-dose-picker__grid"), "old dose grid remains");
 
 const mockDb = `
 const store = { medicationItems: {}, medications: {} };
@@ -148,7 +161,6 @@ store.medicationItems["l1"] = { schemaVersion:1, label:"アモキシシリン", 
 store.medicationItems["l2"] = { schemaVersion:1, label:"セファレキシン", category:"oral", kind:"leaf", parentId:"g1", order:2 };
 `;
 
-const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const harness = indexHtml
   .replace(/<script type="module" src="\.\/js\/app\.js"><\/script>/, "")
   .replace(
@@ -174,13 +186,6 @@ window.__dumpStore = __dumpStore;
 window.__ready = true;
 </script>`
   );
-
-assert.ok(
-  indexHtml.includes("med-add-dose-integer") &&
-    indexHtml.includes("その他（自由入力）") &&
-    !/<input[^>]*id="med-add-dose"[^>]*>/.test(indexHtml),
-  "dose picker HTML missing or old free-text input remains"
-);
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
@@ -211,7 +216,7 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const { port } = server.address();
 const browser = await launchBrowser();
-const page = await browser.newPage({ viewport: { width: 980, height: 1100 } });
+const page = await browser.newPage({ viewport: { width: 980, height: 1200 } });
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => window.__ready === true);
 
@@ -249,112 +254,107 @@ async function waitForDrugInList(name) {
   }, name);
 }
 
-// --- UI: 選択肢とラベル ---
 await openAddAndPickDrug("アモキシシリン");
-await page.locator("#med-add-dose").scrollIntoViewIfNeeded();
-const ui = await page.evaluate(() => {
-  const root = document.getElementById("med-add-dose");
-  const ints = [...document.querySelectorAll("#med-add-dose-integer .med-dose-btn")].map(
-    (b) => b.textContent.trim()
+await page.locator("#med-add-freq-picker").scrollIntoViewIfNeeded();
+
+const layout = await page.evaluate(() => {
+  const body = document.querySelector("#med-add-modal .modal__body");
+  const text = body.innerText;
+  const freq = document.getElementById("med-add-freq-picker");
+  const dose = document.getElementById("med-add-dose-picker");
+  const freqModes = [...document.querySelectorAll("#med-add-freq-modes .med-linear-picker__item")].map(
+    (el) => el.textContent.replace("✓", "").trim()
   );
-  const fracs = [...document.querySelectorAll("#med-add-dose-fraction .med-dose-btn")].map(
-    (b) => b.textContent.trim()
+  const doseModes = [...document.querySelectorAll("#med-add-dose-modes .med-linear-picker__item")].map(
+    (el) => el.textContent.replace("✓", "").trim()
   );
+  const freqCs = getComputedStyle(freq);
+  const doseCs = getComputedStyle(dose);
   return {
-    text: root.innerText,
-    ints,
-    fracs,
-    hasOther: Boolean(document.getElementById("med-add-dose-other")),
-    otherHidden: document.getElementById("med-add-dose-other-input")?.hidden === true,
+    text,
+    hasOldLabel: text.includes("初期の投与頻度"),
+    hasNewLabel: text.includes("投与頻度（任意）"),
+    freqModes,
+    doseModes,
+    freqDisplay: freqCs.display,
+    doseDisplay: doseCs.display,
+    freqTemplate: freqCs.gridTemplateColumns,
+    doseTemplate: doseCs.gridTemplateColumns,
+    freqDataCols: freq.getAttribute("data-cols"),
+    doseDataCols: dose.getAttribute("data-cols"),
+    doseHasFreqClass: dose.classList.contains("med-linear-picker--freq"),
+    doseDetailHidden: document.getElementById("med-add-dose-detail")?.hidden === true,
   };
 });
-console.log("ui", ui);
-assert.deepEqual(ui.ints, [
-  "1錠",
-  "2錠",
-  "3錠",
-  "4錠",
-  "5錠",
-  "6錠",
-  "7錠",
-  "8錠",
-  "9錠",
-  "10錠",
-]);
-assert.deepEqual(ui.fracs, [
-  "1/2錠",
-  "1/3錠",
-  "1/4錠",
-  "1/6錠",
-  "1/8錠",
-  "2/3錠",
-  "3/4錠",
-  "2/6錠",
-]);
-assert.ok(ui.text.includes("錠数"));
-assert.ok(ui.text.includes("分数"));
-assert.ok(ui.text.includes("その他（自由入力）"));
-assert.equal(ui.hasOther, true);
-assert.equal(ui.otherHidden, true);
+console.log("layout", layout);
+assert.equal(layout.hasOldLabel, false);
+assert.equal(layout.hasNewLabel, true);
+assert.deepEqual(layout.doseModes, ["錠数（整数）", "分数", "その他"]);
+assert.equal(layout.freqDisplay, "grid");
+assert.equal(layout.doseDisplay, "grid");
+assert.equal(layout.freqDataCols, "2");
+assert.equal(layout.doseDataCols, "2");
+assert.equal(layout.doseHasFreqClass, true);
+assert.equal(layout.doseDetailHidden, true);
+assert.ok(
+  layout.freqTemplate === layout.doseTemplate,
+  "freq/dose grid templates differ: " + layout.freqTemplate + " vs " + layout.doseTemplate
+);
 
-await page.locator("#med-add-dose-integer .med-dose-btn", { hasText: /^3錠$/ }).click();
 await page.screenshot({
-  path: path.join(outDir, "01-dose-preset-selected.png"),
+  path: path.join(outDir, "01-freq-and-dose-unified.png"),
   fullPage: false,
 });
-const selected = await page.locator("#med-add-dose-integer .med-dose-btn.is-selected").textContent();
-assert.equal(selected?.trim(), "3錠");
+
+// 錠数 → 3錠
+await page.getByRole("option", { name: "錠数（整数）" }).click();
+await page.waitForSelector("#med-add-dose-detail:not([hidden])");
+await page.getByRole("option", { name: "3錠" }).click();
+const integerUi = await page.evaluate(() => ({
+  head: document.getElementById("med-add-dose-detail-head")?.textContent,
+  selected: [...document.querySelectorAll("#med-add-dose-integer .is-selected")].map((el) =>
+    el.textContent.replace("✓", "").trim()
+  ),
+  ints: [...document.querySelectorAll("#med-add-dose-integer .med-linear-picker__item")].map((el) =>
+    el.textContent.replace("✓", "").trim()
+  ),
+}));
+console.log("integerUi", integerUi);
+assert.equal(integerUi.head, "錠数（整数）");
+assert.deepEqual(integerUi.selected, ["3錠"]);
+assert.equal(integerUi.ints.length, 10);
+await page.screenshot({
+  path: path.join(outDir, "02-dose-integer-selected.png"),
+  fullPage: false,
+});
 await page.click("#btn-med-add-save");
 await page.waitForFunction(() => document.getElementById("med-add-modal")?.hidden === true);
 await waitForDrugInList("アモキシシリン");
-const presetSaved = await amountFor("アモキシシリン");
-console.log("presetSaved", presetSaved);
-assert.equal(presetSaved, "3錠");
-
-// detail history shows amount
+assert.equal(await amountFor("アモキシシリン"), "3錠");
 await clickDrugCard("アモキシシリン");
-const detailText = await page.locator("#med-detail-sheet-body").innerText();
-assert.ok(detailText.includes("量: 3錠"), "detail missing amount: " + detailText);
+assert.ok((await page.locator("#med-detail-sheet-body").innerText()).includes("量: 3錠"));
 await page.screenshot({
-  path: path.join(outDir, "02-detail-preset-saved.png"),
+  path: path.join(outDir, "03-detail-integer-saved.png"),
   fullPage: false,
 });
 await page.click("#btn-med-detail-sheet-close");
 
-// --- その他（自由入力） ---
+// その他
 await openAddAndPickDrug("セファレキシン");
-await page.locator("#med-add-dose").scrollIntoViewIfNeeded();
-await page.locator("#med-add-dose-other").check();
-await page.waitForSelector("#med-add-dose-other-input:not([hidden])");
+await page.locator("#med-add-dose-picker").scrollIntoViewIfNeeded();
+await page.locator("#med-add-dose-modes").getByRole("option", { name: "その他" }).click();
+await page.waitForSelector("#med-add-dose-panel-other:not([hidden])");
 await page.fill("#med-add-dose-other-input", "0.5ml");
-const otherUi = await page.evaluate(() => ({
-  selectedCount: document.querySelectorAll("#med-add-dose .med-dose-btn.is-selected").length,
-  otherValue: document.getElementById("med-add-dose-other-input")?.value,
-}));
-console.log("otherUi", otherUi);
-assert.equal(otherUi.selectedCount, 0);
-assert.equal(otherUi.otherValue, "0.5ml");
 await page.screenshot({
-  path: path.join(outDir, "03-dose-other-input.png"),
+  path: path.join(outDir, "04-dose-other-input.png"),
   fullPage: false,
 });
 await page.click("#btn-med-add-save");
 await page.waitForFunction(() => document.getElementById("med-add-modal")?.hidden === true);
 await waitForDrugInList("セファレキシン");
-const otherSaved = await amountFor("セファレキシン");
-console.log("otherSaved", otherSaved);
-assert.equal(otherSaved, "0.5ml");
+assert.equal(await amountFor("セファレキシン"), "0.5ml");
 
-await clickDrugCard("セファレキシン");
-const otherDetail = await page.locator("#med-detail-sheet-body").innerText();
-assert.ok(otherDetail.includes("量: 0.5ml"), "detail missing other amount: " + otherDetail);
-await page.screenshot({
-  path: path.join(outDir, "04-detail-other-saved.png"),
-  fullPage: false,
-});
-
-// fraction preset too
-await page.click("#btn-med-detail-sheet-close");
+// 分数
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.getByRole("option", { name: "内服薬" }).click();
@@ -368,7 +368,8 @@ await page.waitForFunction(() =>
   )
 );
 await page.getByRole("option", { name: "メトロニダゾール" }).click();
-await page.locator("#med-add-dose-fraction .med-dose-btn", { hasText: /^1\/2錠$/ }).click();
+await page.locator("#med-add-dose-modes").getByRole("option", { name: "分数" }).click();
+await page.locator("#med-add-dose-fraction").getByRole("option", { name: "1/2錠" }).click();
 await page.screenshot({
   path: path.join(outDir, "05-dose-fraction-selected.png"),
   fullPage: false,
@@ -376,11 +377,9 @@ await page.screenshot({
 await page.click("#btn-med-add-save");
 await page.waitForFunction(() => document.getElementById("med-add-modal")?.hidden === true);
 await waitForDrugInList("メトロニダゾール");
-const fracSaved = await amountFor("メトロニダゾール");
-console.log("fracSaved", fracSaved);
-assert.equal(fracSaved, "1/2錠");
+assert.equal(await amountFor("メトロニダゾール"), "1/2錠");
 
 await browser.close();
 server.close();
-console.log("OK: med dose picker");
+console.log("OK: med dose linear picker");
 console.log("shots:", outDir);
