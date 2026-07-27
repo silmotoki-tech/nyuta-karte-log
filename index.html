@@ -1120,15 +1120,40 @@
           </div>
         </div>
       </div>
-      <div class="field">
-        <label class="label" for="med-add-dose">投与量（任意）</label>
-        <input
-          id="med-add-dose"
-          class="input"
-          type="text"
-          placeholder="例）1錠、0.5ml、1滴"
-          autocomplete="off"
-        />
+      <div class="field" id="med-add-dose">
+        <span class="label">投与量（任意）</span>
+        <div class="med-dose-picker" aria-label="投与量の選択">
+          <div class="med-dose-picker__group">
+            <div class="med-dose-picker__head">錠数</div>
+            <div
+              class="med-dose-picker__grid"
+              id="med-add-dose-integer"
+              role="listbox"
+              aria-label="錠数の選択肢"
+            ></div>
+          </div>
+          <div class="med-dose-picker__group">
+            <div class="med-dose-picker__head">分数</div>
+            <div
+              class="med-dose-picker__grid"
+              id="med-add-dose-fraction"
+              role="listbox"
+              aria-label="分数の選択肢"
+            ></div>
+          </div>
+          <label class="exam-other-check">
+            <input type="checkbox" id="med-add-dose-other" />
+            <span>その他（自由入力）</span>
+          </label>
+          <input
+            id="med-add-dose-other-input"
+            class="input"
+            type="text"
+            placeholder="例）0.5ml、1滴、朝1錠夕半錠"
+            autocomplete="off"
+            hidden
+          />
+        </div>
       </div>
       <div class="field med-add-meta">
         <div class="med-add-meta__row">

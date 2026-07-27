@@ -50,6 +50,30 @@ const AMOUNT_PRESETS = [
   "3倍に増やす",
 ];
 
+/** 薬剤追加: 投与量のプリセット（絶対量） */
+const DOSE_PRESETS_INTEGER = [
+  "1錠",
+  "2錠",
+  "3錠",
+  "4錠",
+  "5錠",
+  "6錠",
+  "7錠",
+  "8錠",
+  "9錠",
+  "10錠",
+];
+const DOSE_PRESETS_FRACTION = [
+  "1/2錠",
+  "1/3錠",
+  "1/4錠",
+  "1/6錠",
+  "1/8錠",
+  "2/3錠",
+  "3/4錠",
+  "2/6錠",
+];
+
 let deps = {
   showToast: () => {},
   showError: () => {},
@@ -82,6 +106,8 @@ const state = {
     name: "",
     category: "A",
     freq: createEmptyFreqDraft(null),
+    dosePreset: "",
+    doseOther: "",
   },
   /** 薬剤マスタ・リニアピッカー: 大分類 inject|oral|topical|eye|null、中項目 parentId（未選択は null） */
   medItemCategory: null,
@@ -123,6 +149,10 @@ const addDate = document.getElementById("med-add-date");
 const addExpiry = document.getElementById("med-add-expiry");
 const addNote = document.getElementById("med-add-note");
 const addDose = document.getElementById("med-add-dose");
+const addDoseInteger = document.getElementById("med-add-dose-integer");
+const addDoseFraction = document.getElementById("med-add-dose-fraction");
+const addDoseOtherCheck = document.getElementById("med-add-dose-other");
+const addDoseOtherInput = document.getElementById("med-add-dose-other-input");
 const addError = document.getElementById("med-add-error");
 const btnAddSave = document.getElementById("btn-med-add-save");
 const btnAddCancel = document.getElementById("btn-med-add-cancel");
@@ -1068,6 +1098,70 @@ function wireAddModal() {
       handleAddMedicationItemFromModal();
     }
   });
+  addDoseOtherCheck?.addEventListener("change", () => {
+    const useOther = Boolean(addDoseOtherCheck.checked);
+    if (useOther) {
+      state.addDraft.dosePreset = "";
+    } else {
+      state.addDraft.doseOther = "";
+      if (addDoseOtherInput) addDoseOtherInput.value = "";
+    }
+    if (addDoseOtherInput) {
+      addDoseOtherInput.hidden = !useOther;
+      if (useOther) {
+        queueMicrotask(() => addDoseOtherInput.focus({ preventScroll: true }));
+      }
+    }
+    renderAddDosePresets();
+  });
+  addDoseOtherInput?.addEventListener("input", () => {
+    state.addDraft.doseOther = addDoseOtherInput.value;
+  });
+  buildAddDosePresets();
+}
+
+function buildAddDosePresets() {
+  renderAddDosePresets();
+}
+
+function renderAddDosePresets() {
+  fillDosePresetGrid(addDoseInteger, DOSE_PRESETS_INTEGER, false);
+  fillDosePresetGrid(addDoseFraction, DOSE_PRESETS_FRACTION, true);
+}
+
+function fillDosePresetGrid(container, labels, isFraction) {
+  if (!container) return;
+  container.innerHTML = "";
+  container.classList.toggle("med-dose-picker__grid--fraction", Boolean(isFraction));
+  const selected = state.addDraft.dosePreset || "";
+  const useOther = Boolean(addDoseOtherCheck?.checked);
+  labels.forEach((label) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "med-dose-btn";
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", String(!useOther && selected === label));
+    btn.classList.toggle("is-selected", !useOther && selected === label);
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      if (addDoseOtherCheck) addDoseOtherCheck.checked = false;
+      if (addDoseOtherInput) {
+        addDoseOtherInput.hidden = true;
+        addDoseOtherInput.value = "";
+      }
+      state.addDraft.dosePreset = label;
+      state.addDraft.doseOther = "";
+      renderAddDosePresets();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function resolveAddDose() {
+  if (addDoseOtherCheck?.checked) {
+    return (addDoseOtherInput?.value || state.addDraft.doseOther || "").trim();
+  }
+  return (state.addDraft.dosePreset || "").trim();
 }
 
 function buildAddCategoryButtons() {
@@ -1312,6 +1406,8 @@ function openAddModal() {
     name: "",
     category: "A",
     freq: createEmptyFreqDraft(null),
+    dosePreset: "",
+    doseOther: "",
   };
   setMedItemAddFormOpen(false);
   state.medItemCategory = null;
@@ -1322,10 +1418,15 @@ function openAddModal() {
   if (addDate) addDate.value = todayStr();
   if (addExpiry) addExpiry.value = "";
   if (addNote) addNote.value = "";
-  if (addDose) addDose.value = "";
+  if (addDoseOtherCheck) addDoseOtherCheck.checked = false;
+  if (addDoseOtherInput) {
+    addDoseOtherInput.value = "";
+    addDoseOtherInput.hidden = true;
+  }
   deps.showError(addError, "");
   renderMedLinearPicker();
   renderAddCategorySelection();
+  renderAddDosePresets();
   addFreqPicker?.render();
   addModal.hidden = false;
 }
@@ -1361,7 +1462,7 @@ async function handleAddSave() {
     const eventDate = (addDate?.value || "").trim() || todayStr();
     const expiryEstimate = (addExpiry?.value || "").trim();
     const sideEffectNote = (addNote?.value || "").trim();
-    const amountChange = (addDose?.value || "").trim();
+    const amountChange = resolveAddDose();
     await addMedication(state.karteNumber, {
       name,
       category: state.addDraft.category,
