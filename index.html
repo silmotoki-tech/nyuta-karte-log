@@ -1071,36 +1071,6 @@
       <div class="field">
         <span class="label">重要度</span>
         <div class="med-category-buttons" id="med-add-category-buttons"></div>
-        <p class="field__note">A=治療の主力 / B=補助的 / C=過去に使った程度（マスタ階層とは別）</p>
-      </div>
-      <div class="field med-add-meta">
-        <div class="med-add-meta__row">
-          <div class="med-add-meta__cell">
-            <label class="label" for="med-add-date">開始日</label>
-            <input
-              id="med-add-date"
-              class="input input--date"
-              type="date"
-              aria-label="開始日（タップでカレンダー）"
-            />
-          </div>
-          <div class="med-add-meta__cell">
-            <label class="label" for="med-add-expiry">効果／処方の目安期限（任意）</label>
-            <input
-              id="med-add-expiry"
-              class="input input--date"
-              type="date"
-              aria-label="効果／処方の目安期限（タップでカレンダー）"
-            />
-          </div>
-        </div>
-        <label class="label" for="med-add-note">副作用・問題メモ（任意）</label>
-        <textarea
-          id="med-add-note"
-          class="textarea"
-          rows="2"
-          placeholder="例）食欲低下に注意"
-        ></textarea>
       </div>
       <div class="field">
         <span class="label">初期の投与頻度（任意）</span>
@@ -1148,6 +1118,47 @@
             </div>
           </div>
         </div>
+      </div>
+      <div class="field">
+        <label class="label" for="med-add-dose">投与量（任意）</label>
+        <input
+          id="med-add-dose"
+          class="input"
+          type="text"
+          placeholder="例）1錠、0.5ml、1滴"
+          autocomplete="off"
+        />
+      </div>
+      <div class="field med-add-meta">
+        <div class="med-add-meta__row">
+          <div class="med-add-meta__cell">
+            <label class="label" for="med-add-date">開始日</label>
+            <input
+              id="med-add-date"
+              class="input input--date"
+              type="date"
+              aria-label="開始日（タップでカレンダー）"
+            />
+          </div>
+          <div class="med-add-meta__cell">
+            <label class="label" for="med-add-expiry">期限（任意）</label>
+            <input
+              id="med-add-expiry"
+              class="input input--date"
+              type="date"
+              aria-label="期限（タップでカレンダー）"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="label" for="med-add-note">メモ（任意）</label>
+        <textarea
+          id="med-add-note"
+          class="textarea"
+          rows="2"
+          placeholder="例）食欲低下に注意"
+        ></textarea>
       </div>
       <p id="med-add-error" class="error-text" role="alert" hidden></p>
     </div>

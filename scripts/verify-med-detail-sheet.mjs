@@ -354,11 +354,20 @@ await sheetBody.waitFor();
 if (!(await sheetBody.locator("text=重要度").count())) {
   throw new Error("importance section missing");
 }
-if (!(await sheetBody.locator("text=副作用・問題メモ").count())) {
-  throw new Error("side effect section missing");
+if (!(await sheetBody.locator("text=メモ").count())) {
+  throw new Error("memo section missing");
 }
-if (!(await sheetBody.locator("text=効果／処方の目安期限").count())) {
+if (!(await sheetBody.locator("text=期限").count())) {
   throw new Error("expiry section missing");
+}
+if (!(await sheetBody.locator("text=開始日").count())) {
+  throw new Error("start date section missing");
+}
+if (await sheetBody.locator("text=副作用・問題メモ").count()) {
+  throw new Error("old memo label remains");
+}
+if (await sheetBody.locator("text=効果／処方の目安期限").count()) {
+  throw new Error("old expiry label remains");
 }
 if (!(await sheetBody.locator("text=出来事を記録").count())) {
   throw new Error("event quick section missing");
@@ -380,12 +389,15 @@ if (!(await sheetBody.locator("text=開始").count())) {
 }
 
 // 重要度を A に変更
-await sheetBody.locator(".med-cat-btn", { hasText: /^A$/ }).click();
+await sheetBody.locator(".med-cat-btn", { hasText: /^A（/ }).click();
 await page.waitForTimeout(200);
 const selectedA = await sheetBody
   .locator(".med-cat-btn.is-selected")
   .textContent();
-if (selectedA?.trim() !== "A") throw new Error("category A not selected");
+if (!selectedA?.trim().startsWith("A")) throw new Error("category A not selected");
+if (!(await sheetBody.locator(".med-cat-btn", { hasText: "C（過去に使用）" }).count())) {
+  throw new Error("C label not updated");
+}
 
 // メモ保存
 await sheetBody.locator("textarea").fill("胃腸障害に注意");

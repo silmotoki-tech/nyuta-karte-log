@@ -122,7 +122,7 @@ export async function addMedication(karte, payload) {
         detail: "開始／継続",
         frequencyChange: payload.frequencyChange || "",
         frequency: payload.frequency || null,
-        amountChange: "",
+        amountChange: payload.amountChange || "",
         changedBy: payload.changedBy || "",
       },
     },
@@ -254,10 +254,33 @@ await page.waitForTimeout(150);
 // --- 既存データが表示されること（詳細） ---
 await page.click("#meds-list .med-card__header");
 await page.waitForSelector("#med-detail-sheet:not([hidden])");
-await page.waitForSelector("#med-detail-sheet-body .med-detail-meta");
+await page.waitForSelector("#med-detail-sheet-body .med-detail-meta__dates");
 const detailText = await page.locator("#med-detail-sheet-body").innerText();
-if (!detailText.includes("副作用・問題メモ")) throw new Error("detail memo missing");
-if (!detailText.includes("効果／処方の目安期限")) throw new Error("detail expiry missing");
+if (!detailText.includes("メモ")) throw new Error("detail memo missing");
+if (!detailText.includes("期限")) throw new Error("detail expiry missing");
+if (!detailText.includes("開始日")) throw new Error("detail start date missing");
+if (detailText.includes("副作用・問題メモ")) throw new Error("old memo label remains");
+if (detailText.includes("効果／処方の目安期限")) throw new Error("old expiry label remains");
+if (detailText.includes("過去に使った程度")) throw new Error("old C label remains");
+// メモが最後にあること
+const memoLast = await page.evaluate(() => {
+  const body = document.querySelector("#med-detail-sheet-body .med-sheet__detail");
+  const children = [...(body?.children || [])];
+  const last = children[children.length - 1];
+  return last?.classList?.contains("med-detail-meta__note") && last?.textContent?.includes("メモ");
+});
+if (!memoLast) throw new Error("memo should be last in detail");
+// 開始日と期限が重なっていないこと
+const noOverlap = await page.evaluate(() => {
+  const start = document.querySelector(".med-detail-meta__start input");
+  const exp = document.querySelector(".med-detail-meta__expiry input");
+  if (!start || !exp) return false;
+  const a = start.getBoundingClientRect();
+  const b = exp.getBoundingClientRect();
+  const overlap = !(a.right <= b.left + 1 || b.right <= a.left + 1 || a.bottom <= b.top + 1 || b.bottom <= a.top + 1);
+  return !overlap;
+});
+if (!noOverlap) throw new Error("start date and expiry inputs overlap");
 const noteVal = await page
   .locator("#med-detail-sheet-body textarea")
   .inputValue();
@@ -275,9 +298,35 @@ await page.click("#btn-med-detail-sheet-close");
 // --- 追加モーダルに開始日・期限・メモがあること ---
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
-for (const id of ["#med-add-date", "#med-add-expiry", "#med-add-note"]) {
+for (const id of ["#med-add-date", "#med-add-expiry", "#med-add-note", "#med-add-dose"]) {
   if (!(await page.locator(id).count())) throw new Error("missing " + id);
 }
+const addBodyText = await page.locator("#med-add-modal .modal__body").innerText();
+if (addBodyText.includes("A=治療の主力")) throw new Error("importance explanation remains");
+if (addBodyText.includes("副作用・問題メモ")) throw new Error("old add memo label remains");
+if (addBodyText.includes("効果／処方")) throw new Error("old add expiry label remains");
+if (!addBodyText.includes("C（過去に使用）")) throw new Error("C label not updated");
+if (!addBodyText.includes("投与量")) throw new Error("dose field missing");
+// 投与量が頻度の後、メモが最後
+const addOrderOk = await page.evaluate(() => {
+  const body = document.querySelector("#med-add-modal .modal__body");
+  const freq = document.getElementById("med-add-freq-picker");
+  const dose = document.getElementById("med-add-dose");
+  const note = document.getElementById("med-add-note");
+  if (!freq || !dose || !note) return false;
+  const fields = [...body.querySelectorAll(":scope > .field, :scope > .error-text")];
+  const lastField = [...fields].reverse().find((el) => el.classList.contains("field"));
+  const noteIsLast = lastField?.contains(note);
+  return (
+    freq.getBoundingClientRect().bottom <= dose.getBoundingClientRect().top + 2 &&
+    dose.getBoundingClientRect().bottom <= note.getBoundingClientRect().top + 2 &&
+    noteIsLast
+  );
+});
+if (!addOrderOk) throw new Error("add modal field order incorrect");
+// リスト高さ
+const pickerH = await page.locator("#med-add-linear-picker").evaluate((el) => el.getBoundingClientRect().height);
+if (pickerH < 200) throw new Error("med picker too short: " + pickerH);
 const startDate = await page.locator("#med-add-date").inputValue();
 if (startDate !== T) throw new Error("add date not defaulted to today: " + startDate);
 
@@ -286,6 +335,7 @@ await page.getByRole("option", { name: "内服薬" }).click();
 await page.getByRole("option", { name: "抗菌薬" }).click();
 await page.getByRole("option", { name: "アモキシシリン" }).click();
 await page.locator("#med-add-expiry").fill(later);
+await page.locator("#med-add-dose").fill("1錠");
 await page.locator("#med-add-note").fill("胃腸障害に注意");
 await page.locator("#med-add-date").fill(addDays(T, -2));
 const selectedName = await page.evaluate(() => {

@@ -122,6 +122,7 @@ const addCategoryButtons = document.getElementById("med-add-category-buttons");
 const addDate = document.getElementById("med-add-date");
 const addExpiry = document.getElementById("med-add-expiry");
 const addNote = document.getElementById("med-add-note");
+const addDose = document.getElementById("med-add-dose");
 const addError = document.getElementById("med-add-error");
 const btnAddSave = document.getElementById("btn-med-add-save");
 const btnAddCancel = document.getElementById("btn-med-add-cancel");
@@ -638,18 +639,17 @@ function createDrugDetail(drug) {
   catLabel.textContent = "重要度";
   const catBtns = document.createElement("div");
   catBtns.className = "med-category-buttons";
-  ["A", "B", "C"].forEach((cat) => {
+  [
+    { id: "A", hint: "治療の主力" },
+    { id: "B", hint: "補助的" },
+    { id: "C", hint: "過去に使用" },
+  ].forEach(({ id: cat, hint }) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = `med-cat-btn med-cat--${cat}`;
-    btn.textContent = cat;
+    btn.textContent = `${cat}（${hint}）`;
     btn.classList.toggle("is-selected", drug.category === cat);
-    btn.title =
-      cat === "A"
-        ? "治療の主力"
-        : cat === "B"
-          ? "補助的"
-          : "過去に使った程度";
+    btn.title = hint;
     btn.addEventListener("click", async () => {
       try {
         await updateMedication(state.karteNumber, drug.id, { category: cat });
@@ -664,43 +664,50 @@ function createDrugDetail(drug) {
   catRow.append(catLabel, catBtns);
   detail.appendChild(catRow);
 
-  // 副作用メモ + 処方切れ目安（コンパクトに横並び）
-  const metaGrid = document.createElement("div");
-  metaGrid.className = "med-detail-meta";
+  // 開始日・期限（独立セル。狭い画面では縦積み）
+  const datesGrid = document.createElement("div");
+  datesGrid.className = "med-detail-meta__dates";
 
-  const seBlock = document.createElement("div");
-  seBlock.className = "field med-detail-meta__note";
-  const seLabel = document.createElement("label");
-  seLabel.className = "label";
-  seLabel.textContent = "副作用・問題メモ";
-  const seInput = document.createElement("textarea");
-  seInput.className = "textarea";
-  seInput.rows = 2;
-  seInput.placeholder = "任意";
-  seInput.value = drug.sideEffectNote || "";
-  const seSave = document.createElement("button");
-  seSave.type = "button";
-  seSave.className = "btn btn--small btn--outline";
-  seSave.textContent = "メモを保存";
-  seSave.addEventListener("click", async () => {
+  const startEvent = findStartEvent(drug);
+  const startBlock = document.createElement("div");
+  startBlock.className = "field med-detail-meta__start";
+  const startLabel = document.createElement("label");
+  startLabel.className = "label";
+  startLabel.textContent = "開始日";
+  const startInput = document.createElement("input");
+  startInput.type = "date";
+  startInput.className = "input input--date";
+  startInput.value = startEvent?.date || "";
+  startInput.addEventListener("change", async () => {
+    const next = startInput.value || "";
+    if (!next) {
+      startInput.value = startEvent?.date || "";
+      deps.showToast("開始日は必須です。", { isError: true });
+      return;
+    }
+    if (!startEvent?.id) {
+      deps.showToast("開始日を変更できる出来事がありません。", { isError: true });
+      return;
+    }
+    if (next === (startEvent.date || "")) return;
     try {
-      await updateMedication(state.karteNumber, drug.id, {
-        sideEffectNote: seInput.value.trim(),
+      await updateMedicationEvent(state.karteNumber, drug.id, startEvent.id, {
+        date: next,
       });
-      deps.showToast("メモを保存しました。");
+      deps.showToast("開始日を保存しました。");
     } catch (err) {
       console.error(err);
-      deps.showToast("保存に失敗しました。", { isError: true });
+      deps.showToast("開始日の保存に失敗しました。", { isError: true });
+      startInput.value = startEvent.date || "";
     }
   });
-  seBlock.append(seLabel, seInput, seSave);
+  startBlock.append(startLabel, startInput);
 
-  // 処方切れ目安（カレンダー確定＝即保存。クイック／保存ボタンなし）
   const expBlock = document.createElement("div");
   expBlock.className = "field med-detail-meta__expiry";
   const expLabel = document.createElement("label");
   expLabel.className = "label";
-  expLabel.textContent = "効果／処方の目安期限（任意）";
+  expLabel.textContent = "期限（任意）";
   const expRow = document.createElement("div");
   expRow.className = "med-expiry-row";
   const expInput = document.createElement("input");
@@ -718,7 +725,7 @@ function createDrugDetail(drug) {
         expiryEstimate: next,
       });
       deps.showToast(
-        cleared ? "処方切れ目安をクリアしました。" : "処方切れ目安を保存しました。"
+        cleared ? "期限をクリアしました。" : "期限を保存しました。"
       );
     } catch (err) {
       console.error(err);
@@ -731,7 +738,6 @@ function createDrugDetail(drug) {
       savingExpiry = false;
     }
   };
-  // ネイティブ日付ピッカーで日付を選び ✅ 確定したとき（change）に保存
   expInput.addEventListener("change", () => {
     void saveExpiryEstimate(expInput.value);
   });
@@ -754,14 +760,14 @@ function createDrugDetail(drug) {
     if (status === "overdue") extra = "（期限超過）";
     else if (daysLeft === 0) extra = "（本日まで）";
     else if (daysLeft != null) extra = `（あと${daysLeft}日）`;
-    note.textContent = `現在の目安: ${ymdFromStr(drug.expiryEstimate)}${extra}`;
+    note.textContent = `現在の期限: ${ymdFromStr(drug.expiryEstimate)}${extra}`;
     if (status === "overdue") note.classList.add("med-expiry-note--overdue");
     else if (status === "approaching") note.classList.add("med-expiry-note--near");
     expBlock.appendChild(note);
   }
 
-  metaGrid.append(expBlock, seBlock);
-  detail.appendChild(metaGrid);
+  datesGrid.append(startBlock, expBlock);
+  detail.appendChild(datesGrid);
 
   // 出来事の種類（詳細シート上で明示的に選ぶ）
   const eventQuick = document.createElement("div");
@@ -815,8 +821,55 @@ function createDrugDetail(drug) {
     detail.appendChild(ul);
   }
 
+  // メモは画面の一番下
+  const seBlock = document.createElement("div");
+  seBlock.className = "field med-detail-meta__note";
+  const seLabel = document.createElement("label");
+  seLabel.className = "label";
+  seLabel.textContent = "メモ";
+  const seInput = document.createElement("textarea");
+  seInput.className = "textarea";
+  seInput.rows = 2;
+  seInput.placeholder = "任意";
+  seInput.value = drug.sideEffectNote || "";
+  const seSave = document.createElement("button");
+  seSave.type = "button";
+  seSave.className = "btn btn--small btn--outline";
+  seSave.textContent = "メモを保存";
+  seSave.addEventListener("click", async () => {
+    try {
+      await updateMedication(state.karteNumber, drug.id, {
+        sideEffectNote: seInput.value.trim(),
+      });
+      deps.showToast("メモを保存しました。");
+    } catch (err) {
+      console.error(err);
+      deps.showToast("保存に失敗しました。", { isError: true });
+    }
+  });
+  seBlock.append(seLabel, seInput, seSave);
+  detail.appendChild(seBlock);
+
   return detail;
 }
+
+/** 開始日として扱う出来事（type=add の最古。なければ最古の出来事） */
+function findStartEvent(drug) {
+  const events = Object.entries(drug.events || {}).map(([id, e]) => ({
+    id,
+    ...e,
+  }));
+  if (!events.length) return null;
+  const adds = events.filter((e) => e.type === "add");
+  const pool = adds.length ? adds : events;
+  pool.sort((a, b) => {
+    const rd = (a.date || "").localeCompare(b.date || "");
+    if (rd !== 0) return rd;
+    return (a.id || "").localeCompare(b.id || "");
+  });
+  return pool[0];
+}
+
 
 function createEventItem(drug, ev) {
   const li = document.createElement("li");
@@ -1023,7 +1076,7 @@ function buildAddCategoryButtons() {
   [
     { id: "A", hint: "治療の主力" },
     { id: "B", hint: "補助的" },
-    { id: "C", hint: "過去に使った程度" },
+    { id: "C", hint: "過去に使用" },
   ].forEach(({ id, hint }) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -1269,6 +1322,7 @@ function openAddModal() {
   if (addDate) addDate.value = todayStr();
   if (addExpiry) addExpiry.value = "";
   if (addNote) addNote.value = "";
+  if (addDose) addDose.value = "";
   deps.showError(addError, "");
   renderMedLinearPicker();
   renderAddCategorySelection();
@@ -1307,6 +1361,7 @@ async function handleAddSave() {
     const eventDate = (addDate?.value || "").trim() || todayStr();
     const expiryEstimate = (addExpiry?.value || "").trim();
     const sideEffectNote = (addNote?.value || "").trim();
+    const amountChange = (addDose?.value || "").trim();
     await addMedication(state.karteNumber, {
       name,
       category: state.addDraft.category,
@@ -1316,6 +1371,7 @@ async function handleAddSave() {
       eventDate,
       frequencyChange: freqResolved.frequencyChange || "",
       frequency: freqResolved.frequency || null,
+      amountChange,
     });
     closeAddModal();
     deps.showToast("薬剤を追加しました。");

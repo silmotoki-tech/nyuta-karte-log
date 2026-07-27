@@ -1783,7 +1783,17 @@ export async function fetchMedicationsOnce(karteNumber) {
  */
 export async function addMedication(
   karteNumber,
-  { name, category, sideEffectNote, expiryEstimate, changedBy, eventDate, frequencyChange, frequency }
+  {
+    name,
+    category,
+    sideEffectNote,
+    expiryEstimate,
+    changedBy,
+    eventDate,
+    frequencyChange,
+    frequency,
+    amountChange,
+  }
 ) {
   await authReady;
   const newRef = push(medicationsRef(karteNumber));
@@ -1803,7 +1813,7 @@ export async function addMedication(
     detail: "開始／継続",
     frequencyChange: frequencyChange || "",
     frequency: frequency || null,
-    amountChange: "",
+    amountChange: amountChange || "",
     changedBy: changedBy || "",
   });
   return drugId;
