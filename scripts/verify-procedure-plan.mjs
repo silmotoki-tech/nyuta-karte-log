@@ -86,7 +86,7 @@ const harness = `<!DOCTYPE html>
 
 <div class="modal" id="procedure-plan-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel modal__panel--exam-plan">
+  <div class="modal__panel modal__panel--procedure-plan">
     <div class="modal__header">
       <h2 class="modal__title" id="procedure-plan-modal-title">処置予定を登録</h2>
       <button class="modal__close" id="btn-close-procedure-plan-modal" type="button">&times;</button>
@@ -104,12 +104,9 @@ const harness = `<!DOCTYPE html>
             <input id="procedure-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
           </div>
           <div class="exam-due-compact__relative">
-            <div class="exam-due-compact__units">
-              <div class="exam-due-compact__units-head">
-                <span class="label label--sub">相対指定</span>
-                <p class="interval-value-display interval-value-display--compact" id="procedure-plan-due-display">0日後</p>
-              </div>
-              <div class="interval-unit-buttons interval-unit-buttons--stack" id="procedure-plan-due-units"></div>
+            <div class="exam-due-compact__units" role="group" aria-label="相対日数の単位">
+              <p class="interval-value-display interval-value-display--compact" id="procedure-plan-due-display">0日後</p>
+              <div class="interval-unit-buttons interval-unit-buttons--stack" id="procedure-plan-due-units" role="group" aria-label="日・週・月"></div>
             </div>
             <div class="numpad numpad--compact" id="procedure-plan-due-numpad"></div>
           </div>

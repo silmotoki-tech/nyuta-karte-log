@@ -3121,6 +3121,21 @@ select.input {
   max-width: 760px;
 }
 
+/* 処置予定: 検査の「次回予定」枠と同程度の幅に抑え、テンキーの横伸びを防ぐ */
+.modal__panel--procedure-plan {
+  max-width: 440px;
+}
+
+.modal__panel--procedure-plan .modal__body {
+  gap: 10px;
+  padding: 12px 16px 14px;
+}
+
+.modal__panel--procedure-plan .exam-due-compact__relative {
+  /* 左単位＋右テンキーを検査セクション内と同じバランスに */
+  max-width: 22.5rem;
+}
+
 /* 薬剤追加・出来事: 項目リストは広め、頻度枠は少し抑える */
 .modal__panel--med-add .modal__body,
 .modal__panel--med-event .modal__body {
