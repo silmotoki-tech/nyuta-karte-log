@@ -1789,12 +1789,14 @@ function updateWindowNote() {
   const noteEls = [planWindowNote, sheetWindowNote].filter(Boolean);
   noteEls.forEach((el) => {
     if (!date) {
-      el.textContent = "予定日を選ぶと、残り日数が表示されます。";
+      el.textContent = "";
       el.className = "field__note";
+      el.hidden = true;
       return;
     }
     const baseline = state.draft.baselineDate || todayStr();
     const info = getDueCountdown(date, baseline);
+    el.hidden = false;
     el.textContent = `予定日: ${formatDueCountdown(info)}`;
     el.className = `field__note ${dueLevelClass(info?.level || "far")}`;
   });

@@ -883,12 +883,6 @@ html.is-unlocked .app {
   letter-spacing: 0.02em;
 }
 
-.exam-plan-section__lead {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
 .exam-due-compact {
   display: flex;
   flex-direction: column;
@@ -977,11 +971,6 @@ html.is-unlocked .app {
   justify-self: stretch;
   max-width: none;
   width: 100%;
-}
-
-.exam-due-compact__hint {
-  margin: 0;
-  font-size: 0.74rem;
 }
 
 .exam-plan-done-check {
@@ -1078,10 +1067,6 @@ html.is-unlocked .app {
     width: 100%;
     flex: 0 0 auto;
     padding: 7px 6px;
-  }
-
-  .exam-due-compact__hint {
-    display: none;
   }
 
   .modal__panel--exam-plan .med-linear-picker {
