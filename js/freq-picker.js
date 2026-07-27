@@ -20,11 +20,11 @@ export const FREQ_MODES = [
   { id: "other", label: "その他" },
 ];
 
-/** 1日N回のよくあるパターン（1〜8回） */
-export const FREQ_PRESETS_ABSOLUTE = Array.from(
-  { length: 8 },
-  (_, i) => `1日${i + 1}回`
-);
+/** 1日N回のよくあるパターン（頓服＋1〜8回） */
+export const FREQ_PRESETS_ABSOLUTE = [
+  "頓服",
+  ...Array.from({ length: 8 }, (_, i) => `1日${i + 1}回`),
+];
 
 /** @deprecated 矢印付き遷移表現は廃止。互換のため空配列を残す */
 export const FREQ_PRESETS_TRANSITION = [];

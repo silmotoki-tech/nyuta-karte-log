@@ -1073,6 +1073,35 @@
         <div class="med-category-buttons" id="med-add-category-buttons"></div>
         <p class="field__note">A=治療の主力 / B=補助的 / C=過去に使った程度（マスタ階層とは別）</p>
       </div>
+      <div class="field med-add-meta">
+        <div class="med-add-meta__row">
+          <div class="med-add-meta__cell">
+            <label class="label" for="med-add-date">開始日</label>
+            <input
+              id="med-add-date"
+              class="input input--date"
+              type="date"
+              aria-label="開始日（タップでカレンダー）"
+            />
+          </div>
+          <div class="med-add-meta__cell">
+            <label class="label" for="med-add-expiry">効果／処方の目安期限（任意）</label>
+            <input
+              id="med-add-expiry"
+              class="input input--date"
+              type="date"
+              aria-label="効果／処方の目安期限（タップでカレンダー）"
+            />
+          </div>
+        </div>
+        <label class="label" for="med-add-note">副作用・問題メモ（任意）</label>
+        <textarea
+          id="med-add-note"
+          class="textarea"
+          rows="2"
+          placeholder="例）食欲低下に注意"
+        ></textarea>
+      </div>
       <div class="field">
         <span class="label">初期の投与頻度（任意）</span>
         <div class="med-linear-picker med-linear-picker--freq" id="med-add-freq-picker" aria-label="投与頻度の選択">
@@ -1140,13 +1169,20 @@
       <button class="modal__close" id="btn-close-med-event" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">
-      <div class="field">
-        <span class="label">種類</span>
-        <div class="exam-item-buttons" id="med-event-type-buttons"></div>
-      </div>
-      <div class="field">
-        <label class="label" for="med-event-date">日付（必須）</label>
-        <input id="med-event-date" class="input input--date" type="date" />
+      <div class="field med-event-meta">
+        <div class="med-event-meta__type">
+          <span class="label">種類</span>
+          <div class="exam-item-buttons" id="med-event-type-buttons"></div>
+        </div>
+        <div class="med-event-meta__date">
+          <label class="label" for="med-event-date">日付（必須）</label>
+          <input
+            id="med-event-date"
+            class="input input--date"
+            type="date"
+            aria-label="出来事の日付（タップでカレンダー）"
+          />
+        </div>
       </div>
 
       <div class="field" id="med-event-change-options" hidden>

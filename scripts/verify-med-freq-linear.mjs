@@ -282,6 +282,7 @@ async function freqLabelForDrug(page, drugName) {
 
 const EXPECTED_MODES = ["よくある", "○日に○回", "週○回", "曜日指定", "その他"];
 const EXPECTED_PRESETS = [
+  "頓服",
   "1日1回",
   "1日2回",
   "1日3回",
@@ -330,7 +331,13 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const { port } = server.address();
 const base = `http://127.0.0.1:${port}`;
 
-const browser = await chromium.launch();
+const SYSTEM_CHROME =
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const browser = await chromium.launch(
+  fs.existsSync(SYSTEM_CHROME)
+    ? { executablePath: SYSTEM_CHROME, headless: true }
+    : { headless: true }
+);
 const page = await browser.newPage({ viewport: { width: 900, height: 1100 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));

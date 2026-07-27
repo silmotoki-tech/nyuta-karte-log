@@ -119,6 +119,9 @@ const addNewItemInput = document.getElementById("med-add-new-item");
 const btnAddNewItem = document.getElementById("btn-med-add-new-item");
 const addItemError = document.getElementById("med-add-item-error");
 const addCategoryButtons = document.getElementById("med-add-category-buttons");
+const addDate = document.getElementById("med-add-date");
+const addExpiry = document.getElementById("med-add-expiry");
+const addNote = document.getElementById("med-add-note");
 const addError = document.getElementById("med-add-error");
 const btnAddSave = document.getElementById("btn-med-add-save");
 const btnAddCancel = document.getElementById("btn-med-add-cancel");
@@ -276,8 +279,33 @@ function categoryOrder(cat) {
   return { A: 0, B: 1, C: 2 }[cat] ?? 9;
 }
 
+/** 使用状況の並び: 使用中 → 休薬中 → 中止 → 未設定 */
+function statusOrder(statusId) {
+  return { active: 0, hold: 1, stopped: 2, unknown: 3 }[statusId] ?? 9;
+}
+
+/**
+ * 最新の頻度指定を持つ出来事から、現在の投与頻度ラベルを取る。
+ */
+export function currentFrequencyText(drug) {
+  for (const ev of sortEvents(drug?.events)) {
+    const text = eventFrequencyText(ev);
+    if (text) return text;
+  }
+  return "";
+}
+
+/** 頓服指定かどうかを判定する。 */
+export function isPrnDrug(drug) {
+  const text = (currentFrequencyText(drug) || "").trim();
+  return text === "頓服" || text.includes("頓服");
+}
+
 function sortedDrugs(drugs) {
   return [...drugs].sort((a, b) => {
+    const sa = statusOrder(deriveStatus(a).id);
+    const sb = statusOrder(deriveStatus(b).id);
+    if (sa !== sb) return sa - sb;
     const c = categoryOrder(a.category) - categoryOrder(b.category);
     if (c !== 0) return c;
     return (a.name || "").localeCompare(b.name || "");
@@ -343,8 +371,7 @@ function renderMedsList() {
   const drugs = sortedDrugs(state.drugs);
   medsEmpty.hidden = drugs.length > 0;
 
-  // 並びは A→B→C のまま。カテゴリ見出し帯は出さずフラットに並べる
-  // （各行右の A/B/C バッジで十分）
+  // 並びは 使用状況（使用中→休薬中→中止）→ カテゴリA→B→C。見出し帯は出さずフラット。
   drugs.forEach((drug) => {
     medsList.appendChild(createDrugCard(drug));
   });
@@ -446,6 +473,14 @@ function createDrugCard(drug) {
     recentSign.textContent = "●";
     signs.appendChild(recentSign);
   }
+  if (isPrnDrug(drug)) {
+    const prnSign = document.createElement("span");
+    prnSign.className = "med-sign med-sign--prn";
+    prnSign.title = "頓服";
+    prnSign.setAttribute("aria-label", "頓服");
+    prnSign.textContent = "頓";
+    signs.appendChild(prnSign);
+  }
 
   const displayName = drug.name || "（名称未設定）";
   const nameEl = document.createElement("span");
@@ -467,7 +502,7 @@ function createDrugCard(drug) {
   header.append(signs, nameEl, statusEl, catEl, chevron);
   li.appendChild(header);
 
-  // 処方切れは行内の短いラベルで示す（詳細はシートへ）
+  // 処方切れは行内の短いラベルで示す（超過は「○日超過」）
   if (expiryStatus === "overdue" || expiryStatus === "approaching") {
     const inline = document.createElement("span");
     inline.className =
@@ -475,11 +510,21 @@ function createDrugCard(drug) {
         ? "med-inline-status med-inline-status--overdue"
         : "med-inline-status med-inline-status--near";
     if (expiryStatus === "overdue") {
-      inline.textContent = "期限超過";
+      const overdueDays = daysBetween(drug.expiryEstimate, todayStr());
+      inline.textContent =
+        overdueDays != null && overdueDays > 0
+          ? `${overdueDays}日超過`
+          : "期限超過";
+      inline.title = drug.expiryEstimate
+        ? `目安期限: ${ymdFromStr(drug.expiryEstimate)}`
+        : "期限超過";
     } else {
       const daysLeft = daysBetween(todayStr(), drug.expiryEstimate);
       inline.textContent =
         daysLeft === 0 ? "本日まで" : `あと${daysLeft}日`;
+      inline.title = drug.expiryEstimate
+        ? `目安期限: ${ymdFromStr(drug.expiryEstimate)}`
+        : "";
     }
     nameEl.after(inline);
   }
@@ -562,8 +607,15 @@ function renderMedDetailSheet(drug) {
   if (detailSheetStatus) {
     const expiryStatus = getExpiryStatus(drug.expiryEstimate);
     const bits = [`使用状況: ${status.label}`, `重要度: ${drug.category || "—"}`];
-    if (expiryStatus === "overdue") bits.push("期限超過");
-    else if (expiryStatus === "approaching") {
+    if (isPrnDrug(drug)) bits.push("頓服");
+    if (expiryStatus === "overdue") {
+      const overdueDays = daysBetween(drug.expiryEstimate, todayStr());
+      bits.push(
+        overdueDays != null && overdueDays > 0
+          ? `${overdueDays}日超過`
+          : "期限超過"
+      );
+    } else if (expiryStatus === "approaching") {
       const daysLeft = daysBetween(todayStr(), drug.expiryEstimate);
       bits.push(
         daysLeft === 0 ? "本日まで" : `あと${daysLeft}日`
@@ -612,9 +664,12 @@ function createDrugDetail(drug) {
   catRow.append(catLabel, catBtns);
   detail.appendChild(catRow);
 
-  // 副作用メモ
+  // 副作用メモ + 処方切れ目安（コンパクトに横並び）
+  const metaGrid = document.createElement("div");
+  metaGrid.className = "med-detail-meta";
+
   const seBlock = document.createElement("div");
-  seBlock.className = "field";
+  seBlock.className = "field med-detail-meta__note";
   const seLabel = document.createElement("label");
   seLabel.className = "label";
   seLabel.textContent = "副作用・問題メモ";
@@ -639,11 +694,10 @@ function createDrugDetail(drug) {
     }
   });
   seBlock.append(seLabel, seInput, seSave);
-  detail.appendChild(seBlock);
 
   // 処方切れ目安（カレンダー確定＝即保存。クイック／保存ボタンなし）
   const expBlock = document.createElement("div");
-  expBlock.className = "field";
+  expBlock.className = "field med-detail-meta__expiry";
   const expLabel = document.createElement("label");
   expLabel.className = "label";
   expLabel.textContent = "効果／処方の目安期限（任意）";
@@ -705,7 +759,9 @@ function createDrugDetail(drug) {
     else if (status === "approaching") note.classList.add("med-expiry-note--near");
     expBlock.appendChild(note);
   }
-  detail.appendChild(expBlock);
+
+  metaGrid.append(expBlock, seBlock);
+  detail.appendChild(metaGrid);
 
   // 出来事の種類（詳細シート上で明示的に選ぶ）
   const eventQuick = document.createElement("div");
@@ -1210,6 +1266,9 @@ function openAddModal() {
   if (addNewItemInput) addNewItemInput.value = "";
   deps.showError(addItemError, "");
   if (addFreqEls.otherInput) addFreqEls.otherInput.value = "";
+  if (addDate) addDate.value = todayStr();
+  if (addExpiry) addExpiry.value = "";
+  if (addNote) addNote.value = "";
   deps.showError(addError, "");
   renderMedLinearPicker();
   renderAddCategorySelection();
@@ -1245,11 +1304,16 @@ async function handleAddSave() {
   deps.showError(addError, "");
   deps.setBusy(btnAddSave, true, "保存中...", "追加する");
   try {
+    const eventDate = (addDate?.value || "").trim() || todayStr();
+    const expiryEstimate = (addExpiry?.value || "").trim();
+    const sideEffectNote = (addNote?.value || "").trim();
     await addMedication(state.karteNumber, {
       name,
       category: state.addDraft.category,
+      sideEffectNote,
+      expiryEstimate,
       changedBy: deps.getSelectedAuthor() || "",
-      eventDate: todayStr(),
+      eventDate,
       frequencyChange: freqResolved.frequencyChange || "",
       frequency: freqResolved.frequency || null,
     });

@@ -2277,15 +2277,34 @@ html.is-unlocked .app {
 
 .med-card__signs {
   display: inline-flex;
-  width: 14px;
+  min-width: 14px;
   flex-shrink: 0;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 2px;
 }
 
 .med-sign--recent {
   color: #3b82f6;
   font-size: 0.85rem;
   line-height: 1;
+}
+
+.med-sign--prn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 2px;
+  border-radius: 3px;
+  border: 1.5px solid var(--color-brown);
+  background-color: var(--color-cream);
+  color: var(--color-brown);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
 }
 
 .med-card__name {
@@ -2367,6 +2386,7 @@ html.is-unlocked .app {
 
 .med-inline-status--overdue {
   color: var(--due-overdue);
+  font-weight: 800;
 }
 
 .med-cat {
@@ -3056,6 +3076,96 @@ select.input {
 .modal__panel--med-event,
 .modal__panel--exam-plan {
   max-width: 760px;
+}
+
+/* 薬剤追加・出来事: 選択枠を抑え、日付／メモ入力を常に画面内へ */
+.modal__panel--med-add .modal__body,
+.modal__panel--med-event .modal__body {
+  gap: 10px;
+  padding: 12px 16px 14px;
+}
+
+.modal__panel--med-add .med-linear-picker {
+  height: min(28vh, 220px);
+  max-height: min(28vh, 220px);
+}
+
+.modal__panel--med-add .med-linear-picker--freq,
+.modal__panel--med-event .med-linear-picker--freq {
+  min-height: 160px;
+  height: min(28vh, 220px);
+  max-height: min(28vh, 220px);
+}
+
+.med-add-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.med-add-meta__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.med-add-meta__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.med-add-meta__cell .input--date,
+.med-event-meta__date .input--date {
+  width: 100%;
+  min-width: 0;
+}
+
+.med-add-meta .textarea {
+  min-height: 2.6rem;
+  resize: vertical;
+}
+
+.med-event-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 11rem);
+  gap: 10px 12px;
+  align-items: start;
+  margin: 0;
+}
+
+.med-event-meta__type,
+.med-event-meta__date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.med-detail-meta {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.9fr) minmax(0, 1.1fr);
+  gap: 10px 12px;
+  align-items: start;
+}
+
+.med-detail-meta__note .textarea {
+  min-height: 2.6rem;
+}
+
+.med-detail-meta__note .btn {
+  margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .med-add-meta__row,
+  .med-event-meta,
+  .med-detail-meta {
+    grid-template-columns: 1fr;
+  }
 }
 
 .med-linear-picker--freq {
