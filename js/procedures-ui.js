@@ -19,11 +19,6 @@ import {
 } from "./exam-plan-ui.js";
 import { enableRowGestures } from "./row-gestures.js";
 
-const AUTHORS = [
-  "院長", "大辻", "川邉", "齋藤", "横井", "德永",
-  "種田", "竹内", "神子島", "大澤", "川合", "嶋本", "道野",
-];
-
 const DAYS_PER_MONTH = 30;
 const DAYS_PER_WEEK = 7;
 const INTERVAL_UNITS = [
@@ -36,7 +31,6 @@ let deps = {
   showToast: () => {},
   showError: () => {},
   setBusy: () => {},
-  getSelectedAuthor: () => "",
 };
 
 const state = {
@@ -47,7 +41,6 @@ const state = {
   editingHistoryId: null,
   editingHistoryStore: "history",
   editingPlanId: null,
-  modalAuthor: "",
   syncingDueFromRelative: false,
   dueRelativeUnit: "day",
   dueRelativeValue: 0,
@@ -81,8 +74,6 @@ const histModalTitle = document.getElementById("procedure-modal-title");
 const histDate = document.getElementById("procedure-date");
 const histContent = document.getElementById("procedure-content");
 const histNote = document.getElementById("procedure-note");
-const histAuthorRow = document.getElementById("procedure-author-row");
-const histAuthorHint = document.getElementById("procedure-author-hint");
 const histError = document.getElementById("procedure-error");
 const btnHistSave = document.getElementById("btn-procedure-save");
 const btnHistCancel = document.getElementById("btn-procedure-cancel");
@@ -102,13 +93,6 @@ function ymdFromStr(dateStr) {
   const [y, m, d] = dateStr.split("-");
   if (!y || !m || !d) return dateStr;
   return `${y}/${Number(m)}/${Number(d)}`;
-}
-
-function mdhmFromIso(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${pad2(d.getMinutes())}`;
 }
 
 function parseDateStr(dateStr) {
@@ -144,7 +128,6 @@ function dueLevelClass(level) {
 
 export function initProceduresUI(helpers = {}) {
   deps = { ...deps, ...helpers };
-  buildAuthorButtons();
   buildPlanDueRelativeUI();
 
   btnPlanAdd?.addEventListener("click", () => openPlanModal("create"));
@@ -295,18 +278,6 @@ function createHistoryCard(item) {
     noteEl.textContent = item.note;
     li.appendChild(noteEl);
   }
-
-  const meta = document.createElement("p");
-  meta.className = "proc-card__meta";
-  const parts = [];
-  if (item.confirmedBy) parts.push(`記入: ${item.confirmedBy}`);
-  if (item.lastEditedAt) {
-    const when = mdhmFromIso(item.lastEditedAt);
-    const by = item.lastEditedBy ? `・${item.lastEditedBy}` : "";
-    parts.push(`最終編集 ${when}${by}`);
-  }
-  meta.textContent = parts.join("　／　");
-  li.appendChild(meta);
 
   enableRowGestures(li, {
     actions: [
@@ -619,13 +590,11 @@ async function handleCompletePlan(plan) {
     `「${label}」を完了として実施履歴に移しますか？\n実施日は本日（${ymdFromStr(todayStr())}）になります。`
   );
   if (!ok) return;
-  const author = deps.getSelectedAuthor() || plan.confirmedBy || "";
   try {
     await completeProcedurePlan(state.karteNumber, plan.id, {
       date: todayStr(),
       content: plan.content || "",
       note: plan.note || "",
-      confirmedBy: author,
     });
     deps.showToast("完了として実施履歴に移しました。");
     closePlanModal();
@@ -681,7 +650,6 @@ async function handleRevive(item) {
     const planId = await reviveProcedurePlan(state.karteNumber, {
       content: item.content || "",
       note: item.note || "",
-      confirmedBy: item.confirmedBy || "",
     });
     deps.showToast("予定に戻しました。予定日を入力してください。");
     // 購読反映後に編集を開く
@@ -702,35 +670,10 @@ async function handleRevive(item) {
 
 // --- 実施履歴モーダル ----------------------------------------------------
 
-function buildAuthorButtons() {
-  if (!histAuthorRow) return;
-  histAuthorRow.innerHTML = "";
-  AUTHORS.forEach((name) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "author-btn";
-    btn.textContent = name;
-    btn.dataset.author = name;
-    btn.addEventListener("click", () => {
-      state.modalAuthor = name;
-      renderAuthorSelection();
-      deps.showError(histError, "");
-    });
-    histAuthorRow.appendChild(btn);
-  });
-}
-
-function renderAuthorSelection() {
-  histAuthorRow?.querySelectorAll(".author-btn").forEach((btn) => {
-    btn.classList.toggle("is-selected", btn.dataset.author === state.modalAuthor);
-  });
-}
-
 function openHistModal(mode, item = null) {
   state.editingHistoryId = mode === "edit" && item ? item.id : null;
   state.editingHistoryStore =
     mode === "edit" && item ? item.store || "history" : "history";
-  const selected = deps.getSelectedAuthor() || "";
 
   if (histModalTitle) {
     histModalTitle.textContent =
@@ -740,21 +683,6 @@ function openHistModal(mode, item = null) {
   if (histContent) histContent.value = item?.content || "";
   if (histNote) histNote.value = item?.note || "";
 
-  if (mode === "edit") {
-    state.modalAuthor = selected || item?.lastEditedBy || item?.confirmedBy || "";
-    if (histAuthorHint) {
-      histAuthorHint.textContent = "この編集を行った人を選択してください。";
-    }
-  } else {
-    state.modalAuthor = selected;
-    if (histAuthorHint) {
-      histAuthorHint.textContent = selected
-        ? `中央カラムで選択中の記入者「${selected}」を初期値にしています。必要なら変更できます。`
-        : "記入者を選択してください（中央カラムで選択済みなら自動で入ります）。";
-    }
-  }
-
-  renderAuthorSelection();
   deps.showError(histError, "");
   if (btnHistSave) btnHistSave.textContent = mode === "edit" ? "保存する" : "追加する";
   if (histModal) histModal.hidden = false;
@@ -764,7 +692,6 @@ function openHistModal(mode, item = null) {
 function closeHistModal() {
   state.editingHistoryId = null;
   state.editingHistoryStore = "history";
-  state.modalAuthor = "";
   if (histModal) histModal.hidden = true;
   deps.showError(histError, "");
 }
@@ -773,7 +700,6 @@ async function handleHistSave() {
   const date = histDate?.value || "";
   const content = (histContent?.value || "").trim();
   const note = (histNote?.value || "").trim();
-  const author = state.modalAuthor || deps.getSelectedAuthor() || "";
 
   if (!date) {
     deps.showError(histError, "実施日を選択してください。");
@@ -781,10 +707,6 @@ async function handleHistSave() {
   }
   if (!content) {
     deps.showError(histError, "処置内容を入力してください。");
-    return;
-  }
-  if (!author) {
-    deps.showError(histError, "記入者（編集者）を選択してください。");
     return;
   }
   if (!state.karteNumber) {
@@ -801,7 +723,7 @@ async function handleHistSave() {
       await updateProcedure(
         state.karteNumber,
         state.editingHistoryId,
-        { date, content, note, editedBy: author },
+        { date, content, note },
         { store: state.editingHistoryStore }
       );
       closeHistModal();
@@ -811,7 +733,6 @@ async function handleHistSave() {
         date,
         content,
         note,
-        confirmedBy: author,
         source: "manual",
       });
       closeHistModal();

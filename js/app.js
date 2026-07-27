@@ -1510,7 +1510,6 @@ initProceduresUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
 });
 
 initSpecialNotesUI({

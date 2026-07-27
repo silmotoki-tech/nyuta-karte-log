@@ -1026,7 +1026,6 @@ async function applySuggestion(suggestion, data) {
     await addProcedureFromExternal(karte, {
       date: data.date || recordDate,
       content: data.content || suggestion.summary,
-      confirmedBy: author,
       source: "ai",
     });
     return;

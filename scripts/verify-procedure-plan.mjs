@@ -147,11 +147,6 @@ const harness = `<!DOCTYPE html>
         <label class="label" for="procedure-note">メモ（任意）</label>
         <input id="procedure-note" class="input" type="text" />
       </div>
-      <div class="field">
-        <span class="label">記入者 / 編集者</span>
-        <p class="field__note" id="procedure-author-hint"></p>
-        <div class="author-row" id="procedure-author-row"></div>
-      </div>
       <p id="procedure-error" class="error-text" hidden></p>
     </div>
     <div class="modal__footer">
@@ -167,7 +162,6 @@ initProceduresUI({
   showToast: (m) => console.log("toast", m),
   showError: (el, msg) => { if (el) { el.hidden = !msg; el.textContent = msg || ""; } },
   setBusy: (btn, busy, a, b) => { if (btn) { btn.disabled = busy; btn.textContent = busy ? a : b; } },
-  getSelectedAuthor: () => "院長",
 });
 enterProcedures("karte-proc");
 window.__ready = true;
@@ -296,7 +290,6 @@ await page.click("#btn-procedure-add");
 await page.waitForSelector("#procedure-modal:not([hidden])");
 await page.fill("#procedure-content", "皮下点滴 100ml");
 await page.fill("#procedure-note", "元気あり");
-await page.locator("#procedure-author-row .author-btn", { hasText: "院長" }).click();
 await page.click("#btn-procedure-save");
 await page.waitForTimeout(150);
 const afterAdd = await page.locator("#procedures-list .proc-card__content").allTextContents();

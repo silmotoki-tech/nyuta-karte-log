@@ -103,13 +103,12 @@ export async function reviveProcedurePlan(_karte, { content, note = "", confirme
 export async function completeProcedurePlan(
   karte,
   planId,
-  { date, note, confirmedBy, content }
+  { date, note, content }
 ) {
   const id = await addProcedure(karte, {
     date,
     content,
     note,
-    confirmedBy,
     source: "manual",
   });
   await deleteProcedurePlan(karte, planId);
@@ -118,7 +117,7 @@ export async function completeProcedurePlan(
 
 export async function addProcedure(
   _karte,
-  { date, content, confirmedBy, note = "", source = "manual" }
+  { date, content, note = "", source = "manual" }
 ) {
   const id = nextId("hist");
   store.history[id] = {
@@ -126,9 +125,7 @@ export async function addProcedure(
     date: date || "",
     content: content || "",
     note: note || "",
-    confirmedBy: confirmedBy || "",
     lastEditedAt: "",
-    lastEditedBy: "",
     source: source === "ai" ? "ai" : "manual",
   };
   emit();
@@ -138,7 +135,7 @@ export async function addProcedure(
 export async function updateProcedure(
   _karte,
   entryId,
-  { date, content, note, editedBy },
+  { date, content, note },
   { store: storeKind = "history" } = {}
 ) {
   const bag = storeKind === "legacy" ? store.legacy : store.history;
@@ -150,7 +147,6 @@ export async function updateProcedure(
     content: content || "",
     note: note !== undefined ? note || "" : cur.note || "",
     lastEditedAt: new Date().toISOString(),
-    lastEditedBy: editedBy || "",
   };
   emit();
 }

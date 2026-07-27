@@ -71,7 +71,7 @@
 //   procedures/{カルテ番号}/plans/{planId}               … 処置予定
 //     { content, dueDate, baselineDate, note, source?, confirmedBy? }
 //   procedures/{カルテ番号}/history/{entryId}            … 実施履歴
-//     { schemaVersion, date, content, note, confirmedBy, lastEditedAt?, lastEditedBy?, source }
+//     { schemaVersion, date, content, note, lastEditedAt?, source }
 //   procedures/{カルテ番号}/{entryId}                    … 旧形式の実施履歴（互換。history へは移さず読む）
 //
 //   specialNotes/{カルテ番号}/{entryId}/schemaVersion    … 特記事項（恒常的な注意）
@@ -2446,7 +2446,7 @@ export async function reviveProcedurePlan(
 export async function completeProcedurePlan(
   karteNumber,
   planId,
-  { date, note, confirmedBy, content }
+  { date, note, content }
 ) {
   await authReady;
   if (!planId) throw new Error("planId が必要です");
@@ -2454,7 +2454,6 @@ export async function completeProcedurePlan(
     date,
     content,
     note,
-    confirmedBy,
     source: "manual",
   });
   await deleteProcedurePlan(karteNumber, planId);
@@ -2466,7 +2465,7 @@ export async function completeProcedurePlan(
  */
 export async function addProcedure(
   karteNumber,
-  { date, content, confirmedBy, note = "", source = "manual" }
+  { date, content, note = "", source = "manual" }
 ) {
   await authReady;
   const newRef = push(procedureHistoryRef(karteNumber));
@@ -2475,9 +2474,7 @@ export async function addProcedure(
     date: date || "",
     content: content || "",
     note: note || "",
-    confirmedBy: confirmedBy || "",
     lastEditedAt: "",
-    lastEditedBy: "",
     source: source === "ai" ? "ai" : "manual",
   });
   return newRef.key;
@@ -2490,7 +2487,7 @@ export async function addProcedure(
 export async function updateProcedure(
   karteNumber,
   entryId,
-  { date, content, note, editedBy },
+  { date, content, note },
   { store = "history" } = {}
 ) {
   await authReady;
@@ -2503,7 +2500,6 @@ export async function updateProcedure(
     date: date || "",
     content: content || "",
     lastEditedAt: new Date().toISOString(),
-    lastEditedBy: editedBy || "",
   };
   if (note !== undefined) patch.note = note || "";
   await update(target, patch);
