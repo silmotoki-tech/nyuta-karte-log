@@ -226,6 +226,15 @@ await page.screenshot({
 
 await page.click("#btn-procedure-plan-add");
 await page.waitForSelector("#procedure-plan-modal:not([hidden])");
+
+const numpadCols = await page.evaluate(() => {
+  const el = document.getElementById("procedure-plan-due-numpad");
+  return getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length;
+});
+if (numpadCols !== 3) {
+  throw new Error("procedure numpad should be 3-column (3x4), got " + numpadCols);
+}
+
 await page.fill("#procedure-plan-content", "抜糸");
 await page.fill("#procedure-plan-note", "傷口きれい");
 
@@ -343,6 +352,35 @@ if (!histStill.some((t) => t.includes("抜糸"))) {
 await page.screenshot({
   path: path.join(root, "tools/proc-plan-06-revived.png"),
 });
+
+// 相対入力バッファ: 確定なしで保存してもカレンダーへ反映される
+await page.evaluate(() => {
+  const modal = document.getElementById("procedure-plan-modal");
+  if (modal) modal.hidden = true;
+});
+await page.click("#btn-procedure-plan-add");
+await page.waitForSelector("#procedure-plan-modal:not([hidden])");
+await page.fill("#procedure-plan-content", "バッファ確認");
+await page.fill("#procedure-plan-due-date", "");
+await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "日" }).click();
+await page.locator("#procedure-plan-due-numpad .numpad__btn", { hasText: /^7$/ }).click();
+// 確定を押さずに保存（7日後がカレンダーへ flush されること）
+await page.click("#btn-procedure-plan-save");
+await page.waitForFunction(() => document.getElementById("procedure-plan-modal")?.hidden === true);
+const bufferedDue = await page.evaluate(() => {
+  const item = [...document.querySelectorAll("#procedure-plan-list .exam-list-item")].find((li) =>
+    (li.querySelector(".exam-list-item__title")?.textContent || "").includes("バッファ確認")
+  );
+  return {
+    found: Boolean(item),
+    due: item?.querySelector(".exam-list-item__due")?.textContent?.trim() || "",
+  };
+});
+console.log("buffer flush", bufferedDue);
+if (!bufferedDue.found) throw new Error("buffer-flush save failed to list plan");
+if (!bufferedDue.due.includes("あと7日") && !bufferedDue.due.includes("7日")) {
+  throw new Error("relative buffer not flushed on save: " + JSON.stringify(bufferedDue));
+}
 
 await browser.close();
 server.close();

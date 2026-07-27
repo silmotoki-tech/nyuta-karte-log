@@ -1187,10 +1187,16 @@
 
       <div class="field" id="med-event-change-options" hidden>
         <span class="label">頻度・量（任意）</span>
-        <label class="exam-other-check">
-          <input type="checkbox" id="med-event-freq-check" />
-          <span>回数を変更</span>
-        </label>
+        <div class="med-event-change-toggles">
+          <label class="exam-other-check">
+            <input type="checkbox" id="med-event-freq-check" />
+            <span>回数を変更</span>
+          </label>
+          <label class="exam-other-check">
+            <input type="checkbox" id="med-event-amount-check" />
+            <span>量を変更</span>
+          </label>
+        </div>
         <div id="med-event-freq-block" hidden>
           <div class="med-linear-picker med-linear-picker--freq" id="med-event-freq-picker" aria-label="投与頻度の選択">
             <div class="med-linear-picker__col" data-col="mode">
@@ -1238,10 +1244,6 @@
           </div>
         </div>
 
-        <label class="exam-other-check">
-          <input type="checkbox" id="med-event-amount-check" />
-          <span>量を変更</span>
-        </label>
         <div id="med-event-amount-block" class="med-amount-block" hidden>
           <div class="med-linear-picker__list med-amount-presets" id="med-event-amount-presets" role="listbox" aria-label="量変更の選択肢"></div>
           <label class="exam-other-check">

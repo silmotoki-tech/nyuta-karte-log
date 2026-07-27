@@ -1004,7 +1004,7 @@ html.is-unlocked .app {
     grid-template-columns: 1fr;
   }
 
-  /* 縦積み時は実施記録を先に見せ、相対指定は横一列＋横長テンキーで高さを抑える */
+  /* 縦積み時は実施記録を先に見せ、単位は横並びにして高さを抑える（テンキーは3×4のまま） */
   .exam-plan-section--done {
     order: -1;
   }
@@ -2120,9 +2120,10 @@ html.is-unlocked .app {
   max-width: 280px;
 }
 
+/* コンパクト化はキーの余白だけ。3×4 グリッドは維持する */
 .numpad.numpad--compact {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  max-width: none;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 220px;
   gap: 4px;
 }
 
@@ -3134,6 +3135,17 @@ select.input {
   grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 11rem);
   gap: 10px 12px;
   align-items: start;
+  margin: 0;
+}
+
+.med-event-change-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 2px 0 8px;
+}
+
+.med-event-change-toggles .exam-other-check {
   margin: 0;
 }
 

@@ -571,6 +571,10 @@ function closePlanModal() {
 
 async function handlePlanSave() {
   const content = (planContent?.value || "").trim();
+  const dueBuffered = Number(state.dueRelativeBuffer);
+  if (state.dueRelativeBuffer !== "" && dueBuffered >= 1) {
+    applyDueRelativeToCalendar();
+  }
   const dueDate = planDueDate?.value || "";
   const note = (planNote?.value || "").trim();
 
@@ -640,6 +644,10 @@ async function handlePlanCompleteFromModal() {
   // モーダル上の最新入力を反映してから完了
   const content = (planContent?.value || "").trim();
   const note = (planNote?.value || "").trim();
+  const dueBuffered = Number(state.dueRelativeBuffer);
+  if (state.dueRelativeBuffer !== "" && dueBuffered >= 1) {
+    applyDueRelativeToCalendar();
+  }
   const dueDate = planDueDate?.value || "";
   if (!content) {
     deps.showError(planError, "処置内容を入力してください。");

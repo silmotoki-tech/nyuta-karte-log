@@ -359,6 +359,34 @@ await page.screenshot({
   path: path.join(root, "tools/med-fields-restore-after-event.png"),
 });
 
+// --- 量を変更（減量）が使えること ---
+await page.getByRole("button", { name: "減量" }).click();
+await page.waitForSelector("#med-event-modal:not([hidden])");
+const amountToggleVisible = await page.locator("#med-event-amount-check").isVisible();
+if (!amountToggleVisible) throw new Error("amount change toggle not visible");
+const toggleOrderOk = await page.evaluate(() => {
+  const toggles = document.querySelector(".med-event-change-toggles");
+  const picker = document.getElementById("med-event-freq-picker");
+  if (!toggles || !picker) return false;
+  return toggles.getBoundingClientRect().bottom <= picker.getBoundingClientRect().top + 2;
+});
+if (!toggleOrderOk) throw new Error("amount toggle should appear above frequency picker");
+await page.locator("#med-event-amount-check").check();
+await page.waitForSelector("#med-event-amount-block:not([hidden])");
+await page.getByRole("option", { name: "半分に減らす" }).click();
+await page.getByRole("option", { name: "よくある" }).click();
+await page.getByRole("option", { name: "1日1回" }).click();
+await page.locator("#med-event-date").fill(addDays(T, -2));
+await page.screenshot({
+  path: path.join(root, "tools/audit-med-event-amount.png"),
+});
+await page.click("#btn-med-event-save");
+await page.waitForFunction(() => document.getElementById("med-event-modal")?.hidden === true);
+const afterAmount = await page.locator("#med-detail-sheet-body").innerText();
+if (!afterAmount.includes("減量") || !afterAmount.includes("半分に減らす")) {
+  throw new Error("amount change not saved: " + afterAmount.slice(0, 400));
+}
+
 await browser.close();
 server.close();
-console.log("OK: med fields restored (add/detail/event)");
+console.log("OK: med fields restored (add/detail/event/amount)");

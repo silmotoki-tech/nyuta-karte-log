@@ -168,7 +168,9 @@ if (layout.hasCalendarBtn) throw new Error("calendar button should be removed");
 if (layout.planTitle !== "次回予定の登録") throw new Error("plan section title missing");
 if (layout.doneTitle !== "本日実施した内容の記録") throw new Error("done section title missing");
 if (!layout.displayIsCompact) throw new Error("due display should be compact");
-if (layout.numpadCols < 6) throw new Error("numpad should be 6-column compact");
+if (layout.numpadCols !== 3) {
+  throw new Error("numpad should stay 3-column (3x4), got " + layout.numpadCols);
+}
 if (layout.displayW > layout.dualW * 0.55) {
   throw new Error(
     `display box still too wide (${layout.displayW} vs dual ${layout.dualW})`
