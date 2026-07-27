@@ -938,7 +938,16 @@ function wirePlanModal() {
   });
 
   wireDueDateInput(planDueDate);
-  btnPlanDueCalendar?.addEventListener("click", () => openDueCalendarPicker(planDueDate));
+  planDueDate?.addEventListener("click", () => openDueCalendarPicker(planDueDate));
+  planDueDate?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDueCalendarPicker(planDueDate);
+    }
+  });
+  planDoneDate?.addEventListener("click", () => {
+    if (!planDoneDate.disabled) openDueCalendarPicker(planDoneDate);
+  });
   planDoneCheck?.addEventListener("change", syncPlanDoneBlockVisibility);
 }
 
@@ -956,11 +965,13 @@ function openDueCalendarPicker(inputEl) {
   } catch {
     // showPicker が拒否されても focus だけでネイティブ UI が出る端末がある
   }
-  // 予定日欄が見える位置までスクロール
-  inputEl.closest(".exam-due-field")?.scrollIntoView({
-    block: "nearest",
-    behavior: "smooth",
-  });
+  // 日付欄が見える位置までスクロール
+  inputEl
+    .closest(".exam-plan-section, .exam-due-field")
+    ?.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    });
 }
 
 /**
@@ -1826,7 +1837,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
       syncDraftItemFromSelection();
     }
   } else {
-    if (planModalTitle) planModalTitle.textContent = "予定を登録";
+    if (planModalTitle) planModalTitle.textContent = "検査を登録";
     state.draft.item = "";
     state.draft.customItem = "";
     state.draft.dueDate = "";
@@ -1882,7 +1893,13 @@ function resetPlanDoneFields(mode) {
 
 function syncPlanDoneBlockVisibility() {
   const on = Boolean(planDoneCheck?.checked);
-  if (planDoneBlock) planDoneBlock.hidden = !on;
+  // 実施日欄は常に見せ、チェックOFF時は無効化する（スクロールなしで到達できるように）
+  if (planDoneBlock) {
+    planDoneBlock.hidden = false;
+    planDoneBlock.classList.toggle("is-disabled", !on);
+  }
+  if (planDoneDate) planDoneDate.disabled = !on;
+  if (planDoneNote) planDoneNote.disabled = !on;
 }
 
 function closePlanModal() {

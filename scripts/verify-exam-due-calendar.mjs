@@ -150,37 +150,42 @@ const harness = `<!DOCTYPE html>
       <div class="field" id="exam-plan-fasting-field" hidden>
         <div id="exam-plan-fasting-buttons"></div>
       </div>
-      <div class="field exam-due-field">
-        <span class="label">予定日</span>
-        <div class="exam-due-calendar">
-          <span class="label label--sub exam-due-calendar__caption">カレンダーで直接選択</span>
-          <div class="exam-due-calendar__row">
-            <input id="exam-plan-due-date" class="input input--date exam-due-calendar__input" type="date" />
-            <button id="btn-exam-plan-due-calendar" class="btn btn--small btn--outline exam-due-calendar__btn" type="button">カレンダー</button>
+      <div class="exam-plan-dual" id="exam-plan-dual">
+        <section class="exam-plan-section exam-plan-section--plan exam-due-field">
+          <h3 class="exam-plan-section__title">次回予定の登録</h3>
+          <div class="exam-due-compact">
+            <div class="exam-due-compact__date-row">
+              <label class="label label--sub" for="exam-plan-due-date">予定日</label>
+              <input id="exam-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
+            </div>
+            <div class="exam-due-compact__relative">
+              <div class="exam-due-compact__units">
+                <div class="interval-unit-buttons interval-unit-buttons--stack" id="exam-plan-due-units"></div>
+                <p class="interval-value-display interval-value-display--compact" id="exam-plan-due-display">0日後</p>
+              </div>
+              <div class="numpad numpad--compact" id="exam-plan-due-numpad"></div>
+            </div>
+            <p class="field__note" id="exam-plan-window-note"></p>
+            <input id="exam-plan-note" type="text" />
           </div>
-        </div>
-        <span class="label label--sub">今日からの相対指定</span>
-        <div class="interval-unit-buttons" id="exam-plan-due-units"></div>
-        <p class="interval-value-display" id="exam-plan-due-display">0日後</p>
-        <div class="numpad" id="exam-plan-due-numpad"></div>
-        <p class="field__note">カレンダーで選ぶか、テンキーで相対日数を指定してください（どちらも連動します）。</p>
-        <p class="field__note" id="exam-plan-window-note"></p>
+        </section>
+        <section class="exam-plan-section exam-plan-section--done exam-plan-done-field" id="exam-plan-done-field">
+          <h3 class="exam-plan-section__title">本日実施した内容の記録</h3>
+          <label class="exam-other-check">
+            <input type="checkbox" id="exam-plan-done-check" />
+            <span>実施履歴に登録する</span>
+          </label>
+          <div class="exam-plan-done-block" id="exam-plan-done-block">
+            <label class="label label--sub" for="exam-plan-done-date">実施日</label>
+            <input id="exam-plan-done-date" class="input input--date" type="date" disabled />
+            <label class="label label--sub" for="exam-plan-done-note">実施メモ（任意）</label>
+            <input id="exam-plan-done-note" class="input" type="text" disabled />
+          </div>
+        </section>
       </div>
-      <div class="field exam-plan-done-field" id="exam-plan-done-field">
-        <span class="label">当日のやった内容（任意）</span>
-        <label class="exam-other-check">
-          <input type="checkbox" id="exam-plan-done-check" />
-          <span>選択した検査を実施履歴に登録する</span>
-        </label>
-        <div class="exam-plan-done-block" id="exam-plan-done-block" hidden>
-          <label class="label label--sub" for="exam-plan-done-date">実施日</label>
-          <input id="exam-plan-done-date" class="input input--date" type="date" />
-          <label class="label label--sub" for="exam-plan-done-note">実施メモ（任意）</label>
-          <input id="exam-plan-done-note" class="input" type="text" />
-        </div>
-      </div>
-      <input id="exam-plan-note" type="text" />
       <p id="exam-plan-error" hidden></p>
+    </div>
+    <div class="modal__footer">
       <button id="btn-exam-plan-save" type="button">保存する</button>
       <button id="btn-exam-plan-cancel" type="button">キャンセル</button>
     </div>
@@ -269,14 +274,12 @@ await page.click("#btn-exam-new");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
 await page.waitForTimeout(100);
 
-// カレンダーUIが表示されていること
+// 日付欄があり、重複カレンダーボタンは無いこと
 const planModal = page.locator("#exam-plan-modal");
-const calendarVisible = await planModal.locator(".exam-due-calendar").isVisible();
 const dateVisible = await page.locator("#exam-plan-due-date").isVisible();
-const btnVisible = await page.locator("#btn-exam-plan-due-calendar").isVisible();
-if (!calendarVisible || !dateVisible || !btnVisible) {
-  throw new Error("calendar UI missing");
-}
+const btnCount = await page.locator("#btn-exam-plan-due-calendar").count();
+if (!dateVisible) throw new Error("date input missing");
+if (btnCount !== 0) throw new Error("calendar button should be removed");
 await planModal.locator(".exam-due-field").scrollIntoViewIfNeeded();
 await page.screenshot({
   path: path.join(root, "tools/exam-due-calendar-01-ui.png"),
@@ -340,28 +343,29 @@ await page.screenshot({
   path: path.join(root, "tools/exam-due-calendar-03-from-numpad.png"),
 });
 
-// カレンダーボタンが showPicker / focus を呼べること
+// 日付欄タップで showPicker / focus されること
 const pickerOk = await page.evaluate(() => {
   const input = document.getElementById("exam-plan-due-date");
-  const btn = document.getElementById("btn-exam-plan-due-calendar");
-  if (!input || !btn) return false;
+  if (!input) return false;
   let called = false;
   const orig = input.showPicker;
   input.showPicker = () => {
     called = true;
   };
-  btn.click();
+  input.click();
   input.showPicker = orig;
   return called || document.activeElement === input;
 });
-if (!pickerOk) throw new Error("calendar button did not open/focus picker");
+if (!pickerOk) throw new Error("date input did not open/focus picker");
 
 // 当日実施チェック → 保存で予定＋履歴（絶食不要の「その他」を使う）
 await page.locator("#exam-plan-col-category-list [role='option']", { hasText: "その他" }).click();
 await page.waitForTimeout(80);
 await page.locator("#exam-plan-col-leaf-list [role='option']").first().click();
 await page.check("#exam-plan-done-check");
-await page.waitForSelector("#exam-plan-done-block:not([hidden])");
+await page.waitForFunction(
+  () => document.getElementById("exam-plan-done-date")?.disabled === false
+);
 await page.fill("#exam-plan-done-note", "当日実施メモ");
 await page.click("#btn-exam-plan-save");
 await page.waitForTimeout(200);
