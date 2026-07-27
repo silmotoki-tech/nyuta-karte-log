@@ -872,6 +872,7 @@ html.is-unlocked .app {
   border-radius: var(--radius-md);
   background: var(--color-cream);
   scroll-margin-top: 8px;
+  overflow-x: hidden;
 }
 
 .exam-plan-section__title {
@@ -892,70 +893,90 @@ html.is-unlocked .app {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .exam-due-compact__date-row {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .exam-due-compact__date-row .label--sub,
-.exam-due-compact__units-label,
 .exam-plan-section .label--sub {
   margin-top: 0;
   margin-bottom: 0;
 }
 
-.exam-due-compact__date {
+.exam-due-compact__date,
+.exam-plan-section .input--date,
+.exam-plan-done-block .input--date {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   background-color: var(--color-white);
 }
 
 .exam-due-compact__relative {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: minmax(4.75rem, 5.5rem) minmax(0, 1fr);
+  gap: 10px;
   align-items: start;
+  min-width: 0;
 }
 
+/* 「0日後／日／週／月」を1列に揃え、テンキーと明確に分離 */
 .exam-due-compact__units {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 5.25rem;
-}
-
-.exam-due-compact__units-head {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
   gap: 4px;
+  min-width: 0;
+  width: 100%;
 }
 
-.interval-unit-buttons--stack {
+.exam-due-compact__units .interval-unit-buttons--stack {
+  display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
   gap: 4px;
   margin-top: 0;
 }
 
-.interval-unit-buttons--stack .interval-unit-btn {
+.exam-due-compact__units .interval-unit-buttons--stack .interval-unit-btn,
+.exam-due-compact__units .interval-value-display--compact {
   width: 100%;
-  padding: 7px 8px;
-  text-align: center;
-}
-
-.interval-value-display--compact {
+  box-sizing: border-box;
   margin: 0;
-  padding: 5px 6px;
+  padding: 7px 6px;
+  text-align: center;
   font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: 0.02em;
-  text-align: center;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border);
+}
+
+.exam-due-compact__units .interval-value-display--compact {
   background-color: var(--color-white);
+  color: var(--color-text);
+}
+
+.exam-due-compact__units .interval-unit-buttons--stack .interval-unit-btn {
+  background-color: var(--color-cream);
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.exam-due-compact__relative .numpad.numpad--compact {
+  justify-self: stretch;
+  max-width: none;
+  width: 100%;
 }
 
 .exam-due-compact__hint {
@@ -1044,35 +1065,19 @@ html.is-unlocked .app {
   }
 
   .exam-due-compact__relative {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .exam-due-compact__units {
-    min-width: 0;
-    gap: 6px;
-  }
-
-  .exam-due-compact__units-head {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+    grid-template-columns: minmax(4.75rem, 5.5rem) minmax(0, 1fr);
     gap: 8px;
   }
 
-  .interval-unit-buttons--stack {
-    flex-direction: row;
+  .exam-due-compact__units,
+  .exam-due-compact__units .interval-unit-buttons--stack {
+    flex-direction: column;
   }
 
-  .interval-unit-buttons--stack .interval-unit-btn {
-    width: auto;
-    flex: 1 1 0;
-    padding: 6px 8px;
-  }
-
-  .interval-value-display--compact {
-    min-width: 4.25rem;
-    padding: 6px 8px;
+  .exam-due-compact__units .interval-unit-buttons--stack .interval-unit-btn {
+    width: 100%;
+    flex: 0 0 auto;
+    padding: 7px 6px;
   }
 
   .exam-due-compact__hint {
