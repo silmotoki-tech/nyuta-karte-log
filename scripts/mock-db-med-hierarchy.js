@@ -9,6 +9,8 @@ export const MEDICATION_ITEM_CATEGORIES = [
 
 export const MED_ORAL_OTHER_GROUP_ID = "seed-med-oral-other";
 export const MED_ORAL_ANTIBIOTIC_GROUP_ID = "seed-med-oral-antibiotic";
+export const MED_ORAL_ANTIINFLAM_GROUP_ID = "seed-med-oral-antiinflam";
+export const MED_ORAL_STEROID_ANTIHIST_GROUP_ID = "seed-med-oral-steroid-antihist";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
@@ -56,9 +58,9 @@ function medGroupLeaves(category, parentId, children) {
 
 const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, "抗生剤", 10),
-  medGroupSeed("oral", "seed-med-oral-antiinflam", "消炎剤", 20),
+  medGroupSeed("oral", MED_ORAL_ANTIINFLAM_GROUP_ID, "消炎・鎮痛", 20),
   medGroupSeed("oral", "seed-med-oral-analgesic", "鎮痛剤", 30),
-  medGroupSeed("oral", "seed-med-oral-steroid-antihist", "ステロイド・抗ヒス", 40),
+  medGroupSeed("oral", MED_ORAL_STEROID_ANTIHIST_GROUP_ID, "ステロイド・抗ヒス", 40),
   medGroupSeed("oral", "seed-med-oral-gi-stomach", "消化器（胃）", 50),
   medGroupSeed("oral", "seed-med-oral-gi-intestine", "消化器（腸）", 60),
   medGroupSeed("oral", "seed-med-oral-liver-kidney", "肝臓・腎臓・泌尿器", 70),
@@ -100,6 +102,24 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-abx-famciclovir", label: "ファムシクロビル" },
     { id: "seed-med-oral-abx-chloramphenicol", label: "クロラムフェニコール" },
     { id: "seed-med-oral-abx-metronidazole", label: "メトロニダゾール" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_ANTIINFLAM_GROUP_ID, [
+    { id: "seed-med-oral-nsaid-onsior", label: "オンシオール" },
+    { id: "seed-med-oral-nsaid-previcox", label: "プレビコックス" },
+    { id: "seed-med-oral-nsaid-galliprant", label: "ガリプラント" },
+    { id: "seed-med-oral-nsaid-trocoxil", label: "トロコキシル" },
+    { id: "seed-med-oral-nsaid-panoquell", label: "パノクエル" },
+    { id: "seed-med-oral-nsaid-tramadol", label: "トラマドール" },
+    { id: "seed-med-oral-nsaid-pregabalin", label: "プレガバリン" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_STEROID_ANTIHIST_GROUP_ID, [
+    { id: "seed-med-oral-steroid-prednisolone", label: "プレドニゾロン" },
+    { id: "seed-med-oral-steroid-ledercort", label: "レダコート" },
+    { id: "seed-med-oral-steroid-zentacort", label: "ゼンタコート" },
+    { id: "seed-med-oral-steroid-cortef", label: "コートリル" },
+    { id: "seed-med-oral-antihist-restamin", label: "レスタミン" },
+    { id: "seed-med-oral-antihist-cetirizine", label: "セチリジン" },
+    { id: "seed-med-oral-antihist-periactin", label: "ペリアクチン" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },

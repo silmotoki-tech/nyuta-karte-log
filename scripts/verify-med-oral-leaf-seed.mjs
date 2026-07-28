@@ -1,11 +1,13 @@
 /**
- * 内服薬の抗生剤・血液シード（順序・同名上書き）のロジック検証
+ * 内服薬の葉シード（順序・同名上書き）のロジック検証
  */
 import assert from "node:assert/strict";
 import {
   ensureMedicationItemDefaults,
   MED_ORAL_OTHER_GROUP_ID,
   MED_ORAL_ANTIBIOTIC_GROUP_ID,
+  MED_ORAL_ANTIINFLAM_GROUP_ID,
+  MED_ORAL_STEROID_ANTIHIST_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -34,6 +36,26 @@ const ANTIBIOTIC_LABELS = [
   "メトロニダゾール",
 ];
 
+const ANTIINFLAM_LABELS = [
+  "オンシオール",
+  "プレビコックス",
+  "ガリプラント",
+  "トロコキシル",
+  "パノクエル",
+  "トラマドール",
+  "プレガバリン",
+];
+
+const STEROID_ANTIHIST_LABELS = [
+  "プレドニゾロン",
+  "レダコート",
+  "ゼンタコート",
+  "コートリル",
+  "レスタミン",
+  "セチリジン",
+  "ペリアクチン",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -45,6 +67,8 @@ __resetStore();
 await ensureMedicationItemDefaults();
 const store = __getStore();
 const items = store.medicationItems;
+
+assert.equal(items[MED_ORAL_ANTIINFLAM_GROUP_ID]?.label, "消炎・鎮痛");
 
 // 同名の既存アモキシシリンは削除せず、抗生剤へ上書き移動
 assert.ok(items.legacy1, "legacy1 must remain (no delete)");
@@ -77,13 +101,25 @@ function labelsUnder(parentId) {
 }
 
 const antibiotic = labelsUnder(MED_ORAL_ANTIBIOTIC_GROUP_ID);
+const antiinflam = labelsUnder(MED_ORAL_ANTIINFLAM_GROUP_ID);
+const steroid = labelsUnder(MED_ORAL_STEROID_ANTIHIST_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
+console.log("antiinflam order:", antiinflam);
+console.log("steroid-antihist order:", steroid);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
+assert.deepEqual(antiinflam, ANTIINFLAM_LABELS);
+assert.deepEqual(steroid, STEROID_ANTIHIST_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
-assert.equal(MEDICATION_ITEM_LEAF_SEED.length, ANTIBIOTIC_LABELS.length + BLOOD_LABELS.length);
+assert.equal(
+  MEDICATION_ITEM_LEAF_SEED.length,
+  ANTIBIOTIC_LABELS.length +
+    ANTIINFLAM_LABELS.length +
+    STEROID_ANTIHIST_LABELS.length +
+    BLOOD_LABELS.length
+);
 
 // 表記ゆれの同名上書き（既存IDを維持）
 __resetStore();
@@ -94,14 +130,24 @@ store.medicationItems.userClav = {
   parentId: MED_ORAL_OTHER_GROUP_ID,
   order: 999,
 };
+store.medicationItems.userPred = {
+  label: "プレドニゾロン",
+  category: "oral",
+  kind: "leaf",
+  parentId: MED_ORAL_OTHER_GROUP_ID,
+  order: 888,
+};
 await ensureMedicationItemDefaults();
 assert.ok(store.medicationItems.userClav);
 assert.equal(store.medicationItems.userClav.parentId, MED_ORAL_ANTIBIOTIC_GROUP_ID);
 assert.equal(store.medicationItems.userClav.order, 20);
-assert.equal(store.medicationItems.userClav.label, "クラブラン酸/アモキシシリン");
+assert.ok(store.medicationItems.userPred);
+assert.equal(store.medicationItems.userPred.parentId, MED_ORAL_STEROID_ANTIHIST_GROUP_ID);
+assert.equal(store.medicationItems.userPred.order, 10);
+assert.equal(store.medicationItems.userPred.label, "プレドニゾロン");
 assert.equal(
-  store.medicationItems["seed-med-oral-abx-amox-clav"],
+  store.medicationItems["seed-med-oral-steroid-prednisolone"],
   undefined
 );
 
-console.log("OK: oral antibiotic/blood leaf seed + same-name overwrite");
+console.log("OK: oral leaf seeds + same-name overwrite");

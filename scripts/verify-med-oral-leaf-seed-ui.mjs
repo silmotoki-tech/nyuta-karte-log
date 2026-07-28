@@ -33,6 +33,27 @@ const ANTIBIOTIC_LABELS = [
   "メトロニダゾール",
 ];
 
+
+const ANTIINFLAM_LABELS = [
+  "オンシオール",
+  "プレビコックス",
+  "ガリプラント",
+  "トロコキシル",
+  "パノクエル",
+  "トラマドール",
+  "プレガバリン",
+];
+
+const STEROID_ANTIHIST_LABELS = [
+  "プレドニゾロン",
+  "レダコート",
+  "ゼンタコート",
+  "コートリル",
+  "レスタミン",
+  "セチリジン",
+  "ペリアクチン",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -294,6 +315,36 @@ assert.equal(
 const shotDir = path.join(root, "tools/med-oral-leaf-seed");
 fs.mkdirSync(shotDir, { recursive: true });
 await page.screenshot({ path: path.join(shotDir, "01-antibiotic.png") });
+
+await clickItem(page, "#med-add-col-group-list", "消炎・鎮痛");
+await page.waitForTimeout(120);
+const antiinflam = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI antiinflam:", antiinflam);
+assert.deepEqual(antiinflam, ANTIINFLAM_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "プレガバリン");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "プレガバリン"
+);
+await page.screenshot({ path: path.join(shotDir, "04-antiinflam.png") });
+
+await clickItem(page, "#med-add-col-group-list", "ステロイド・抗ヒス");
+await page.waitForTimeout(120);
+const steroid = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI steroid-antihist:", steroid);
+assert.deepEqual(steroid, STEROID_ANTIHIST_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ペリアクチン");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ペリアクチン"
+);
+await page.screenshot({ path: path.join(shotDir, "05-steroid-antihist.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);
