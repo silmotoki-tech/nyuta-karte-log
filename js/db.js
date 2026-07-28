@@ -1469,6 +1469,7 @@ export const MED_ORAL_STEROID_ANTIHIST_GROUP_ID = "seed-med-oral-steroid-antihis
 export const MED_ORAL_GI_STOMACH_GROUP_ID = "seed-med-oral-gi-stomach";
 export const MED_ORAL_GI_INTESTINE_GROUP_ID = "seed-med-oral-gi-intestine";
 export const MED_ORAL_LIVER_KIDNEY_GROUP_ID = "seed-med-oral-liver-kidney";
+export const MED_ORAL_CARDIO_GROUP_ID = "seed-med-oral-cardio";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 /** 中項目シード */
@@ -1481,7 +1482,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_GI_STOMACH_GROUP_ID, "消化器（胃）", 50),
   medGroupSeed("oral", MED_ORAL_GI_INTESTINE_GROUP_ID, "消化器（腸）", 60),
   medGroupSeed("oral", MED_ORAL_LIVER_KIDNEY_GROUP_ID, "肝・腎・泌尿", 70),
-  medGroupSeed("oral", "seed-med-oral-cardio", "循環器", 80),
+  medGroupSeed("oral", MED_ORAL_CARDIO_GROUP_ID, "循環器", 80),
   medGroupSeed("oral", "seed-med-oral-respiratory", "呼吸器", 90),
   medGroupSeed("oral", "seed-med-oral-neuro", "神経・行動", 100),
   medGroupSeed("oral", "seed-med-oral-antifungal", "抗真菌・駆虫・抗ウイルス", 110),
@@ -1588,6 +1589,24 @@ const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-lk-propalin", label: "プロパリン" },
     { id: "seed-med-oral-lk-welldeli", label: "ウエルデリ" },
     { id: "seed-med-oral-lk-tamsulosin", label: "タムスロシン塩酸塩" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_CARDIO_GROUP_ID, [
+    { id: "seed-med-oral-cardio-pimobendan", label: "ピモベハート" },
+    { id: "seed-med-oral-cardio-upinac", label: "アピナック" },
+    { id: "seed-med-oral-cardio-amlodipine", label: "アムロジピン" },
+    { id: "seed-med-oral-cardio-diltiazem", label: "ジルチアゼム" },
+    { id: "seed-med-oral-cardio-itrol", label: "アイトロール" },
+    { id: "seed-med-oral-cardio-sildenafil", label: "シルデナフィル" },
+    { id: "seed-med-oral-cardio-tadalafil", label: "タダラフィル" },
+    { id: "seed-med-oral-cardio-carvedilol", label: "カルベジロール" },
+    { id: "seed-med-oral-cardio-atenolol", label: "アテノロール" },
+    { id: "seed-med-oral-cardio-sotalol", label: "ソタコール" },
+    { id: "seed-med-oral-cardio-cilostazol", label: "シロスタゾール" },
+    { id: "seed-med-oral-cardio-beraprost", label: "ベラプロスト" },
+    { id: "seed-med-oral-cardio-spironolactone", label: "スピロノラクトン" },
+    { id: "seed-med-oral-cardio-hctz", label: "ヒドロクロロチアジド" },
+    { id: "seed-med-oral-cardio-furosemide", label: "フロセミド" },
+    { id: "seed-med-oral-cardio-torasemide", label: "トラセミド" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },

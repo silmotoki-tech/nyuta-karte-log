@@ -11,6 +11,7 @@ import {
   MED_ORAL_GI_STOMACH_GROUP_ID,
   MED_ORAL_GI_INTESTINE_GROUP_ID,
   MED_ORAL_LIVER_KIDNEY_GROUP_ID,
+  MED_ORAL_CARDIO_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -112,6 +113,26 @@ const LIVER_KIDNEY_LABELS = [
   "タムスロシン塩酸塩",
 ];
 
+
+const CARDIO_LABELS = [
+  "ピモベハート",
+  "アピナック",
+  "アムロジピン",
+  "ジルチアゼム",
+  "アイトロール",
+  "シルデナフィル",
+  "タダラフィル",
+  "カルベジロール",
+  "アテノロール",
+  "ソタコール",
+  "シロスタゾール",
+  "ベラプロスト",
+  "スピロノラクトン",
+  "ヒドロクロロチアジド",
+  "フロセミド",
+  "トラセミド",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -163,6 +184,7 @@ const steroid = labelsUnder(MED_ORAL_STEROID_ANTIHIST_GROUP_ID);
 const giStomach = labelsUnder(MED_ORAL_GI_STOMACH_GROUP_ID);
 const giIntestine = labelsUnder(MED_ORAL_GI_INTESTINE_GROUP_ID);
 const liverKidney = labelsUnder(MED_ORAL_LIVER_KIDNEY_GROUP_ID);
+const cardio = labelsUnder(MED_ORAL_CARDIO_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
@@ -170,6 +192,7 @@ console.log("steroid-antihist order:", steroid);
 console.log("gi stomach order:", giStomach);
 console.log("gi intestine order:", giIntestine);
 console.log("liver-kidney order:", liverKidney);
+console.log("cardio order:", cardio);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
@@ -178,6 +201,7 @@ assert.deepEqual(steroid, STEROID_ANTIHIST_LABELS);
 assert.deepEqual(giStomach, GI_STOMACH_LABELS);
 assert.deepEqual(giIntestine, GI_INTESTINE_LABELS);
 assert.deepEqual(liverKidney, LIVER_KIDNEY_LABELS);
+assert.deepEqual(cardio, CARDIO_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.equal(
   MEDICATION_ITEM_LEAF_SEED.length,
@@ -187,6 +211,7 @@ assert.equal(
     GI_STOMACH_LABELS.length +
     GI_INTESTINE_LABELS.length +
     LIVER_KIDNEY_LABELS.length +
+    CARDIO_LABELS.length +
     BLOOD_LABELS.length
 );
 

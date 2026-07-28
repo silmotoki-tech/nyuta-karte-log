@@ -107,6 +107,26 @@ const LIVER_KIDNEY_LABELS = [
   "タムスロシン塩酸塩",
 ];
 
+
+const CARDIO_LABELS = [
+  "ピモベハート",
+  "アピナック",
+  "アムロジピン",
+  "ジルチアゼム",
+  "アイトロール",
+  "シルデナフィル",
+  "タダラフィル",
+  "カルベジロール",
+  "アテノロール",
+  "ソタコール",
+  "シロスタゾール",
+  "ベラプロスト",
+  "スピロノラクトン",
+  "ヒドロクロロチアジド",
+  "フロセミド",
+  "トラセミド",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -459,6 +479,29 @@ assert.equal(
   "タムスロシン塩酸塩"
 );
 await page.screenshot({ path: path.join(shotDir, "08-liver-kidney.png") });
+
+await clickItem(page, "#med-add-col-group-list", "循環器");
+await page.waitForTimeout(120);
+const cardio = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI cardio:", cardio);
+assert.deepEqual(cardio, CARDIO_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ピモベハート");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ピモベハート"
+);
+await clickItem(page, "#med-add-col-leaf-list", "トラセミド");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "トラセミド"
+);
+await page.screenshot({ path: path.join(shotDir, "09-cardio.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);
