@@ -228,7 +228,7 @@ const categoryLabels = await page
 console.log("categories:", categoryLabels);
 if (
   JSON.stringify(categoryLabels) !==
-  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬"])
+  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品"])
 ) {
   throw new Error("category list mismatch");
 }
@@ -336,7 +336,7 @@ buttons = await page
   .locator("#med-add-col-group-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("topical groups:", buttons);
-if (JSON.stringify(buttons) !== JSON.stringify(["皮膚", "消毒", "耳"])) {
+if (JSON.stringify(buttons) !== JSON.stringify(["皮膚", "消毒", "耳", "シャンプー・スキンケア"])) {
   throw new Error("topical groups mismatch");
 }
 await page.locator("#med-add-col-group-list .med-linear-picker__item", { hasText: "皮膚" }).click();
@@ -363,7 +363,7 @@ buttons = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("eye leaves:", buttons);
-if (buttons.some((b) => ["皮膚", "消毒", "耳", "抗生剤"].includes(b))) {
+if (buttons.some((b) => ["皮膚", "消毒", "耳", "シャンプー・スキンケア", "抗生剤"].includes(b))) {
   throw new Error("eye leaf should not show other category groups");
 }
 await page.click("#btn-med-add-toggle");

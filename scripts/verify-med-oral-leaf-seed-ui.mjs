@@ -280,6 +280,129 @@ const TOPICAL_SKIN_LABELS = [
   "モメタオティック",
 ];
 
+const TOPICAL_EAR_LABELS = [
+  "ビクタスMTクリーム",
+  "モメタオティック",
+  "イズオティック",
+  "ミミピュア",
+  "ベルベゾロン",
+  "シルピナ",
+  "エピオティック",
+  "EDTAイヤークリーナー",
+  "Mal-A-Ket Plus",
+  "MalAcetic",
+  "イベルメクチン（耳用）",
+  "Pet Ear&Skincare Liquid",
+];
+
+const TOPICAL_SHAMPOO_LABELS = [
+  "マラセキュア",
+  "ヒノケア泡",
+  "ナノベイジングプロモイスチャライズ",
+  "クレンジングオイル",
+  "クロルヘキシジンシャンプー",
+  "ダーマモイストバス",
+  "ホスケアスプレー",
+  "QUANPOWペットシャンプー",
+  "QUANPOW Pet Body Care Bath Milk",
+];
+
+const EYE_LABELS = [
+  "ワンクリーン点眼液",
+  "ヒアルロン酸点眼液",
+  "ヒアレインミニ",
+  "レボフロキサシン点眼液",
+  "ベストロン点眼液",
+  "ゲンタマイシン点眼液",
+  "オフロキサシン眼軟膏",
+  "エコリシン眼軟膏",
+  "ガチフロキサシン点眼液",
+  "FVR Mix",
+  "ヒア・プラノプロフェン点眼液",
+  "ヒアGM",
+  "ヒアGM＋インターキャット",
+  "パノクエル加ベストロン",
+  "パノクエル加アズレン",
+  "プラノプロフェン点眼液",
+  "ジクロスター点眼液",
+  "ステロップ点眼液",
+  "デキサメサゾン点眼液",
+  "ネオメドロール眼軟膏",
+  "IDU点眼液",
+  "アシクロビル眼軟膏",
+  "オプティミューン眼軟膏",
+  "ピレノキシン点眼液",
+  "血清点眼液",
+  "アズレン点眼液",
+  "ラタノプロスト点眼液",
+  "アゾルガ点眼液",
+  "エイジプト点眼液",
+  "タプロス点眼液",
+  "チモロール点眼液",
+  "ネオシネジンコーワ",
+  "トロピカミド",
+  "デスモプレシン",
+  "ブレンダ点眼",
+  "アセチルシステイン点眼液",
+  "ブリンゾラミド懸濁性点眼液",
+];
+
+const SUPPL_JOINT_LABELS = ["アンチノールプラス（犬猫用）", "アンチノール（猫用）"];
+const SUPPL_ORAL_LABELS = [
+  "オーラルガードV",
+  "Vi001デンタルジェル",
+  "スカロー",
+  "スカローデンタルジェル",
+  "ビルバックデンタルブラシミニ",
+  "ビルバックペリエイドデンタルブラシ",
+  "ビルバックデンタルブラシダブル",
+  "ライオンハブラシ",
+  "Ciシュワワハブラシ",
+  "泡雪（ハブラシ小）",
+  "泡雪（ハブラシ極小）",
+  "アニサポ_歯磨きグローブ",
+  "カイトベールオーラルケア",
+];
+const SUPPL_GI_LABELS = [
+  "フローラケア",
+  "エネアラ",
+  "ラキサトーン",
+  "CAT LUX",
+  "PE_MCTパウダープラス",
+  "50%ブドウ糖注射液",
+];
+const SUPPL_URINARY_LABELS = [
+  "ウロアクトプラス",
+  "UTclean",
+  "UTclean_Ca",
+  "Calmurofel",
+  "ウエルデリ",
+  "UTスティック",
+];
+const SUPPL_OTHER_LABELS = [
+  "ソルトールワン",
+  "アイアクト",
+  "バイラリスプラス",
+  "オリザロース",
+  "インスラクト",
+  "ハートアクト",
+  "Hydra Care",
+  "Carming Care",
+  "アニミューン",
+  "アイリッドラッシュ",
+  "Pet Mybo shampoo",
+];
+const SUPPL_MID_GROUPS = [
+  "関節・炎症",
+  "口腔",
+  "消化器・代謝",
+  "腎臓",
+  "泌尿器",
+  "行動・神経",
+  "皮膚",
+  "その他",
+];
+
 function contentType(filePath) {
   if (filePath.endsWith(".html")) return "text/html; charset=utf-8";
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
@@ -898,6 +1021,149 @@ assert.equal(
 );
 await page.screenshot({ path: path.join(topicalShotDir, "02-skin.png") });
 
+await clickItem(page, "#med-add-col-group-list", "耳");
+await page.waitForTimeout(120);
+const topicalEar = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI topical ear:", topicalEar);
+assert.deepEqual(topicalEar, TOPICAL_EAR_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ビクタスMTクリーム");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ビクタスMTクリーム"
+);
+await clickItem(page, "#med-add-col-leaf-list", "Pet Ear&Skincare Liquid");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "Pet Ear&Skincare Liquid"
+);
+await page.screenshot({ path: path.join(topicalShotDir, "03-ear.png") });
+
+await clickItem(page, "#med-add-col-group-list", "シャンプー・スキンケア");
+await page.waitForTimeout(120);
+const topicalShampoo = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI topical shampoo:", topicalShampoo);
+assert.deepEqual(topicalShampoo, TOPICAL_SHAMPOO_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "マラセキュア");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "マラセキュア"
+);
+await clickItem(page, "#med-add-col-leaf-list", "QUANPOW Pet Body Care Bath Milk");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "QUANPOW Pet Body Care Bath Milk"
+);
+await page.screenshot({ path: path.join(topicalShotDir, "05-shampoo.png") });
+
+await clickItem(page, "#med-add-col-category-list", "点眼薬");
+await page.waitForTimeout(120);
+const eye = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI eye:", eye);
+assert.deepEqual(eye, EYE_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ワンクリーン点眼液");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ワンクリーン点眼液"
+);
+await clickItem(page, "#med-add-col-leaf-list", "ブリンゾラミド懸濁性点眼液");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ブリンゾラミド懸濁性点眼液"
+);
+await page.screenshot({ path: path.join(topicalShotDir, "04-eye.png") });
+
+await clickItem(page, "#med-add-col-category-list", "サプリメント・商品");
+await page.waitForTimeout(100);
+const supplGroups = await itemLabels(page, "#med-add-col-group-list");
+console.log("UI suppl groups:", supplGroups);
+assert.deepEqual(supplGroups, SUPPL_MID_GROUPS);
+await clickItem(page, "#med-add-col-group-list", "関節・炎症");
+await page.waitForTimeout(120);
+const supplJoint = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI suppl joint:", supplJoint);
+assert.deepEqual(supplJoint, SUPPL_JOINT_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "アンチノールプラス（犬猫用）");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "アンチノールプラス（犬猫用）"
+);
+await clickItem(page, "#med-add-col-group-list", "口腔");
+await page.waitForTimeout(120);
+const supplOral = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI suppl oral:", supplOral);
+assert.deepEqual(supplOral, SUPPL_ORAL_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "カイトベールオーラルケア");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "カイトベールオーラルケア"
+);
+await clickItem(page, "#med-add-col-group-list", "消化器・代謝");
+await page.waitForTimeout(120);
+const supplGi = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI suppl gi:", supplGi);
+assert.deepEqual(supplGi, SUPPL_GI_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "50%ブドウ糖注射液");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "50%ブドウ糖注射液"
+);
+await clickItem(page, "#med-add-col-group-list", "泌尿器");
+await page.waitForTimeout(120);
+const supplUrinary = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI suppl urinary:", supplUrinary);
+assert.deepEqual(supplUrinary, SUPPL_URINARY_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "UTスティック");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "UTスティック"
+);
+await clickItem(page, "#med-add-col-group-list", "その他");
+await page.waitForTimeout(120);
+const supplOther = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI suppl other:", supplOther);
+assert.deepEqual(supplOther, SUPPL_OTHER_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "Pet Mybo shampoo");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "Pet Mybo shampoo"
+);
+const supplShotDir = path.join(root, "tools/med-supplement-leaf-seed");
+fs.mkdirSync(supplShotDir, { recursive: true });
+await page.screenshot({ path: path.join(supplShotDir, "02-added.png") });
+
 await clickItem(page, "#med-add-col-category-list", "内服薬");
 await page.waitForTimeout(80);
 await clickItem(page, "#med-add-col-group-list", "血液");
@@ -931,6 +1197,6 @@ if (pageErrors.length) {
   throw new Error("page errors");
 }
 
-console.log("OK: oral/topical leaf seed order + selectable in UI");
+console.log("OK: oral/topical/eye/supplement leaf seed order + selectable in UI");
 await browser.close();
 server.close();

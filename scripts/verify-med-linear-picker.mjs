@@ -263,7 +263,7 @@ const cats = await itemLabels(page, "#med-add-col-category-list");
 console.log("categories:", cats);
 if (
   JSON.stringify(cats) !==
-  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬"])
+  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品"])
 ) {
   throw new Error("category list mismatch");
 }
@@ -512,6 +512,58 @@ if (!(await page.locator("#btn-med-add-toggle").isVisible())) {
 if (!(await page.locator("#med-add-item-add").isHidden())) {
   throw new Error("eye add form should stay collapsed");
 }
+const eyeSeedLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+const expectedEye = [
+  "ワンクリーン点眼液",
+  "ヒアルロン酸点眼液",
+  "ヒアレインミニ",
+  "レボフロキサシン点眼液",
+  "ベストロン点眼液",
+  "ゲンタマイシン点眼液",
+  "オフロキサシン眼軟膏",
+  "エコリシン眼軟膏",
+  "ガチフロキサシン点眼液",
+  "FVR Mix",
+  "ヒア・プラノプロフェン点眼液",
+  "ヒアGM",
+  "ヒアGM＋インターキャット",
+  "パノクエル加ベストロン",
+  "パノクエル加アズレン",
+  "プラノプロフェン点眼液",
+  "ジクロスター点眼液",
+  "ステロップ点眼液",
+  "デキサメサゾン点眼液",
+  "ネオメドロール眼軟膏",
+  "IDU点眼液",
+  "アシクロビル眼軟膏",
+  "オプティミューン眼軟膏",
+  "ピレノキシン点眼液",
+  "血清点眼液",
+  "アズレン点眼液",
+  "ラタノプロスト点眼液",
+  "アゾルガ点眼液",
+  "エイジプト点眼液",
+  "タプロス点眼液",
+  "チモロール点眼液",
+  "ネオシネジンコーワ",
+  "トロピカミド",
+  "デスモプレシン",
+  "ブレンダ点眼",
+  "アセチルシステイン点眼液",
+  "ブリンゾラミド懸濁性点眼液",
+];
+if (eyeSeedLeaves.join(",") !== expectedEye.join(",")) {
+  throw new Error("点眼薬 leaf order mismatch: " + eyeSeedLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "ブリンゾラミド懸濁性点眼液");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "ブリンゾラミド懸濁性点眼液"
+) {
+  throw new Error("点眼薬 leaf not selected");
+}
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-05-eye.png"),
 });
@@ -537,7 +589,7 @@ await clickItem(page, "#med-add-col-category-list", "外用薬");
 await page.waitForTimeout(80);
 const topical = await itemLabels(page, "#med-add-col-group-list");
 console.log("topical groups:", topical);
-if (JSON.stringify(topical) !== JSON.stringify(["皮膚", "消毒", "耳"])) {
+if (JSON.stringify(topical) !== JSON.stringify(["皮膚", "消毒", "耳", "シャンプー・スキンケア"])) {
   throw new Error("topical groups mismatch");
 }
 await clickItem(page, "#med-add-col-group-list", "消毒");
@@ -590,6 +642,109 @@ if (
 ) {
   throw new Error("皮膚 leaf not selected");
 }
+
+await clickItem(page, "#med-add-col-group-list", "耳");
+await page.waitForTimeout(100);
+const earLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+const expectedEar = [
+  "ビクタスMTクリーム",
+  "モメタオティック",
+  "イズオティック",
+  "ミミピュア",
+  "ベルベゾロン",
+  "シルピナ",
+  "エピオティック",
+  "EDTAイヤークリーナー",
+  "Mal-A-Ket Plus",
+  "MalAcetic",
+  "イベルメクチン（耳用）",
+  "Pet Ear&Skincare Liquid",
+];
+if (earLeaves.join(",") !== expectedEar.join(",")) {
+  throw new Error("耳 leaf order mismatch: " + earLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "モメタオティック");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "モメタオティック"
+) {
+  throw new Error("耳 leaf not selected");
+}
+
+await clickItem(page, "#med-add-col-group-list", "シャンプー・スキンケア");
+await page.waitForTimeout(100);
+const shampooLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+const expectedShampoo = [
+  "マラセキュア",
+  "ヒノケア泡",
+  "ナノベイジングプロモイスチャライズ",
+  "クレンジングオイル",
+  "クロルヘキシジンシャンプー",
+  "ダーマモイストバス",
+  "ホスケアスプレー",
+  "QUANPOWペットシャンプー",
+  "QUANPOW Pet Body Care Bath Milk",
+];
+if (shampooLeaves.join(",") !== expectedShampoo.join(",")) {
+  throw new Error("シャンプー・スキンケア leaf order mismatch: " + shampooLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "QUANPOW Pet Body Care Bath Milk");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "QUANPOW Pet Body Care Bath Milk"
+) {
+  throw new Error("シャンプー・スキンケア leaf not selected");
+}
+
+await clickItem(page, "#med-add-col-category-list", "サプリメント・商品");
+await page.waitForTimeout(100);
+const supplGroups = await itemLabels(page, "#med-add-col-group-list");
+console.log("supplement groups:", supplGroups);
+if (
+  JSON.stringify(supplGroups) !==
+  JSON.stringify([
+    "関節・炎症",
+    "口腔",
+    "消化器・代謝",
+    "腎臓",
+    "泌尿器",
+    "行動・神経",
+    "皮膚",
+    "その他",
+  ])
+) {
+  throw new Error("supplement groups mismatch");
+}
+await clickItem(page, "#med-add-col-group-list", "関節・炎症");
+await page.waitForTimeout(100);
+const jointLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+if (
+  jointLeaves.join(",") !==
+  ["アンチノールプラス（犬猫用）", "アンチノール（猫用）"].join(",")
+) {
+  throw new Error("関節・炎症 leaf order mismatch: " + jointLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "アンチノール（猫用）");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "アンチノール（猫用）"
+) {
+  throw new Error("サプリメント leaf not selected");
+}
+await page.screenshot({
+  path: path.join(root, "tools/med-linear-picker-08-supplement.png"),
+});
+
+await clickItem(page, "#med-add-col-category-list", "外用薬");
+await page.waitForTimeout(80);
+await clickItem(page, "#med-add-col-group-list", "皮膚");
+await page.waitForTimeout(80);
 await page.click("#btn-med-add-toggle");
 await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "イソジンゲル");

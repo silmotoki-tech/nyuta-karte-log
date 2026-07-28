@@ -23,6 +23,16 @@ import {
   MED_ORAL_BLOOD_GROUP_ID,
   MED_TOPICAL_DISINFECT_GROUP_ID,
   MED_TOPICAL_SKIN_GROUP_ID,
+  MED_TOPICAL_EAR_GROUP_ID,
+  MED_TOPICAL_SHAMPOO_GROUP_ID,
+  MED_SUPPL_JOINT_GROUP_ID,
+  MED_SUPPL_ORAL_GROUP_ID,
+  MED_SUPPL_GI_GROUP_ID,
+  MED_SUPPL_KIDNEY_GROUP_ID,
+  MED_SUPPL_URINARY_GROUP_ID,
+  MED_SUPPL_NEURO_GROUP_ID,
+  MED_SUPPL_SKIN_GROUP_ID,
+  MED_SUPPL_OTHER_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
   __resetStore,
@@ -296,6 +306,135 @@ const TOPICAL_SKIN_LABELS = [
   "モメタオティック",
 ];
 
+const TOPICAL_EAR_LABELS = [
+  "ビクタスMTクリーム",
+  "モメタオティック",
+  "イズオティック",
+  "ミミピュア",
+  "ベルベゾロン",
+  "シルピナ",
+  "エピオティック",
+  "EDTAイヤークリーナー",
+  "Mal-A-Ket Plus",
+  "MalAcetic",
+  "イベルメクチン（耳用）",
+  "Pet Ear&Skincare Liquid",
+];
+
+const TOPICAL_SHAMPOO_LABELS = [
+  "マラセキュア",
+  "ヒノケア泡",
+  "ナノベイジングプロモイスチャライズ",
+  "クレンジングオイル",
+  "クロルヘキシジンシャンプー",
+  "ダーマモイストバス",
+  "ホスケアスプレー",
+  "QUANPOWペットシャンプー",
+  "QUANPOW Pet Body Care Bath Milk",
+];
+
+const EYE_LABELS = [
+  "ワンクリーン点眼液",
+  "ヒアルロン酸点眼液",
+  "ヒアレインミニ",
+  "レボフロキサシン点眼液",
+  "ベストロン点眼液",
+  "ゲンタマイシン点眼液",
+  "オフロキサシン眼軟膏",
+  "エコリシン眼軟膏",
+  "ガチフロキサシン点眼液",
+  "FVR Mix",
+  "ヒア・プラノプロフェン点眼液",
+  "ヒアGM",
+  "ヒアGM＋インターキャット",
+  "パノクエル加ベストロン",
+  "パノクエル加アズレン",
+  "プラノプロフェン点眼液",
+  "ジクロスター点眼液",
+  "ステロップ点眼液",
+  "デキサメサゾン点眼液",
+  "ネオメドロール眼軟膏",
+  "IDU点眼液",
+  "アシクロビル眼軟膏",
+  "オプティミューン眼軟膏",
+  "ピレノキシン点眼液",
+  "血清点眼液",
+  "アズレン点眼液",
+  "ラタノプロスト点眼液",
+  "アゾルガ点眼液",
+  "エイジプト点眼液",
+  "タプロス点眼液",
+  "チモロール点眼液",
+  "ネオシネジンコーワ",
+  "トロピカミド",
+  "デスモプレシン",
+  "ブレンダ点眼",
+  "アセチルシステイン点眼液",
+  "ブリンゾラミド懸濁性点眼液",
+];
+
+const SUPPL_JOINT_LABELS = ["アンチノールプラス（犬猫用）", "アンチノール（猫用）"];
+const SUPPL_ORAL_LABELS = [
+  "オーラルガードV",
+  "Vi001デンタルジェル",
+  "スカロー",
+  "スカローデンタルジェル",
+  "ビルバックデンタルブラシミニ",
+  "ビルバックペリエイドデンタルブラシ",
+  "ビルバックデンタルブラシダブル",
+  "ライオンハブラシ",
+  "Ciシュワワハブラシ",
+  "泡雪（ハブラシ小）",
+  "泡雪（ハブラシ極小）",
+  "アニサポ_歯磨きグローブ",
+  "カイトベールオーラルケア",
+];
+const SUPPL_GI_LABELS = [
+  "フローラケア",
+  "エネアラ",
+  "ラキサトーン",
+  "CAT LUX",
+  "PE_MCTパウダープラス",
+  "50%ブドウ糖注射液",
+];
+const SUPPL_KIDNEY_LABELS = [
+  "カリナールコンボ",
+  "プロネフラ",
+  "フィトケア",
+  "リーナルK",
+  "アジデイル",
+  "リンケア",
+];
+const SUPPL_URINARY_LABELS = [
+  "ウロアクトプラス",
+  "UTclean",
+  "UTclean_Ca",
+  "Calmurofel",
+  "ウエルデリ",
+  "UTスティック",
+];
+const SUPPL_NEURO_LABELS = [
+  "ジルケーン",
+  "AKTIVAIT",
+  "CBDカゼインタブ",
+  "ニューロアクトプラス",
+  "小型犬・猫３％CBDオイル",
+];
+const SUPPL_SKIN_LABELS = ["ダーマクト", "オメガサンシャイン"];
+const SUPPL_OTHER_LABELS = [
+  "ソルトールワン",
+  "アイアクト",
+  "バイラリスプラス",
+  "オリザロース",
+  "インスラクト",
+  "ハートアクト",
+  "Hydra Care",
+  "Carming Care",
+  "アニミューン",
+  "アイリッドラッシュ",
+  "Pet Mybo shampoo",
+];
+
 __resetStore();
 await ensureMedicationItemDefaults();
 const store = __getStore();
@@ -359,6 +498,26 @@ const kampo = labelsUnder(MED_ORAL_KAMPO_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 const topicalDisinfect = labelsUnder(MED_TOPICAL_DISINFECT_GROUP_ID);
 const topicalSkin = labelsUnder(MED_TOPICAL_SKIN_GROUP_ID);
+const topicalEar = labelsUnder(MED_TOPICAL_EAR_GROUP_ID);
+const topicalShampoo = labelsUnder(MED_TOPICAL_SHAMPOO_GROUP_ID);
+const eye = Object.values(items)
+  .filter(
+    (r) =>
+      r &&
+      r.kind === "leaf" &&
+      r.category === "eye" &&
+      String(r.parentId || "") === ""
+  )
+  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.label.localeCompare(b.label, "ja"))
+  .map((r) => r.label);
+const supplJoint = labelsUnder(MED_SUPPL_JOINT_GROUP_ID);
+const supplOral = labelsUnder(MED_SUPPL_ORAL_GROUP_ID);
+const supplGi = labelsUnder(MED_SUPPL_GI_GROUP_ID);
+const supplKidney = labelsUnder(MED_SUPPL_KIDNEY_GROUP_ID);
+const supplUrinary = labelsUnder(MED_SUPPL_URINARY_GROUP_ID);
+const supplNeuro = labelsUnder(MED_SUPPL_NEURO_GROUP_ID);
+const supplSkin = labelsUnder(MED_SUPPL_SKIN_GROUP_ID);
+const supplOther = labelsUnder(MED_SUPPL_OTHER_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
 console.log("steroid-antihist order:", steroid);
@@ -377,6 +536,17 @@ console.log("kampo order:", kampo);
 console.log("blood order:", blood);
 console.log("topical disinfect order:", topicalDisinfect);
 console.log("topical skin order:", topicalSkin);
+console.log("topical ear order:", topicalEar);
+console.log("topical shampoo order:", topicalShampoo);
+console.log("eye order:", eye);
+console.log("suppl joint:", supplJoint);
+console.log("suppl oral:", supplOral);
+console.log("suppl gi:", supplGi);
+console.log("suppl kidney:", supplKidney);
+console.log("suppl urinary:", supplUrinary);
+console.log("suppl neuro:", supplNeuro);
+console.log("suppl skin:", supplSkin);
+console.log("suppl other:", supplOther);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
 assert.deepEqual(antiinflam, ANTIINFLAM_LABELS);
@@ -401,6 +571,36 @@ assert.deepEqual(kampo, KAMPO_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.deepEqual(topicalDisinfect, TOPICAL_DISINFECT_LABELS);
 assert.deepEqual(topicalSkin, TOPICAL_SKIN_LABELS);
+assert.deepEqual(topicalEar, TOPICAL_EAR_LABELS);
+assert.deepEqual(topicalShampoo, TOPICAL_SHAMPOO_LABELS);
+assert.deepEqual(eye, EYE_LABELS);
+assert.deepEqual(supplJoint, SUPPL_JOINT_LABELS);
+assert.deepEqual(supplOral, SUPPL_ORAL_LABELS);
+assert.deepEqual(supplGi, SUPPL_GI_LABELS);
+assert.deepEqual(supplKidney, SUPPL_KIDNEY_LABELS);
+assert.deepEqual(supplUrinary, SUPPL_URINARY_LABELS);
+assert.deepEqual(supplNeuro, SUPPL_NEURO_LABELS);
+assert.deepEqual(supplSkin, SUPPL_SKIN_LABELS);
+assert.deepEqual(supplOther, SUPPL_OTHER_LABELS);
+assert.equal(items[MED_SUPPL_JOINT_GROUP_ID]?.category, "supplement");
+assert.equal(items[MED_SUPPL_JOINT_GROUP_ID]?.label, "関節・炎症");
+assert.equal(
+  items["seed-med-oral-lk-welldeli"]?.parentId,
+  MED_ORAL_LIVER_KIDNEY_GROUP_ID
+);
+assert.equal(
+  items["seed-med-suppl-urinary-welldeli"]?.parentId,
+  MED_SUPPL_URINARY_GROUP_ID
+);
+assert.equal(items[MED_TOPICAL_SHAMPOO_GROUP_ID]?.label, "シャンプー・スキンケア");
+assert.equal(
+  items["seed-med-topical-skin-mometotic"]?.parentId,
+  MED_TOPICAL_SKIN_GROUP_ID
+);
+assert.equal(
+  items["seed-med-topical-ear-mometotic"]?.parentId,
+  MED_TOPICAL_EAR_GROUP_ID
+);
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
 assert.ok(!respiratory.includes("マロピタント"));
@@ -423,7 +623,18 @@ assert.equal(
     KAMPO_LABELS.length +
     BLOOD_LABELS.length +
     TOPICAL_DISINFECT_LABELS.length +
-    TOPICAL_SKIN_LABELS.length
+    TOPICAL_SKIN_LABELS.length +
+    TOPICAL_EAR_LABELS.length +
+    TOPICAL_SHAMPOO_LABELS.length +
+    EYE_LABELS.length +
+    SUPPL_JOINT_LABELS.length +
+    SUPPL_ORAL_LABELS.length +
+    SUPPL_GI_LABELS.length +
+    SUPPL_KIDNEY_LABELS.length +
+    SUPPL_URINARY_LABELS.length +
+    SUPPL_NEURO_LABELS.length +
+    SUPPL_SKIN_LABELS.length +
+    SUPPL_OTHER_LABELS.length
 );
 
 // 表記ゆれの同名上書き（既存IDを維持）

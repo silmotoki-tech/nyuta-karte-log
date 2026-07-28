@@ -24,23 +24,30 @@ const eyeGroups = Object.entries(items).filter(
 const injectGroups = Object.entries(items).filter(
   ([, r]) => r.category === "inject" && r.kind === "group"
 );
+const supplementGroups = Object.entries(items).filter(
+  ([, r]) => r.category === "supplement" && r.kind === "group"
+);
 
 console.log("oral groups:", oralGroups.length);
 console.log("topical groups:", topicalGroups.length);
 console.log("eye groups:", eyeGroups.length);
 console.log("inject groups:", injectGroups.length);
+console.log("supplement groups:", supplementGroups.length);
 
 if (oralGroups.length !== 19) {
   throw new Error(`expected 19 oral groups, got ${oralGroups.length}`);
 }
-if (topicalGroups.length !== 3) {
-  throw new Error(`expected 3 topical groups, got ${topicalGroups.length}`);
+if (topicalGroups.length !== 4) {
+  throw new Error(`expected 4 topical groups, got ${topicalGroups.length}`);
 }
 if (eyeGroups.length !== 0) {
   throw new Error("eye must have no mid groups");
 }
 if (injectGroups.length !== 0) {
   throw new Error("inject must have no mid groups");
+}
+if (supplementGroups.length !== 8) {
+  throw new Error(`expected 8 supplement groups, got ${supplementGroups.length}`);
 }
 if (!items[MED_ORAL_OTHER_GROUP_ID]) {
   throw new Error("その他 group missing");

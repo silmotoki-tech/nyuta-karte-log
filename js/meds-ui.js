@@ -117,7 +117,7 @@ const state = {
     freq: createEmptyFreqDraft(null),
     dose: createEmptyDoseDraft(),
   },
-  /** 薬剤マスタ・リニアピッカー: 大分類 inject|oral|topical|eye|null、中項目 parentId（未選択は null） */
+  /** 薬剤マスタ・リニアピッカー: 大分類 inject|oral|topical|eye|supplement|null、中項目 parentId（未選択は null） */
   medItemCategory: null,
   medItemParentId: null,
 };
@@ -1005,7 +1005,7 @@ function isMedGroup(item) {
 }
 
 function categorySupportsMedMidGroups(category) {
-  return category === "oral" || category === "topical";
+  return category === "oral" || category === "topical" || category === "supplement";
 }
 
 function activeMedCategoryId() {
@@ -1275,7 +1275,9 @@ function updateMedLeafAddUI() {
           ? "例）イソジン"
           : category === "inject"
             ? "例）セファゾリン"
-            : "例）アモキシシリン";
+            : category === "supplement"
+              ? "例）アンチノール"
+              : "例）アモキシシリン";
   }
   if (addItemsEmpty) {
     addItemsEmpty.textContent =

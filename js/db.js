@@ -33,7 +33,7 @@
 //     { item, date, note }
 //
 //   medicationItems/{itemId}/label                      … 薬剤マスタの表示名
-//   medicationItems/{itemId}/category                   … "inject"|"oral"|"topical"|"eye"（注射薬／内服薬／外用薬／点眼薬）
+//   medicationItems/{itemId}/category                   … "inject"|"oral"|"topical"|"eye"|"supplement"（注射薬／内服薬／外用薬／点眼薬／サプリメント・商品）
 //   medicationItems/{itemId}/kind                       … "group"|"leaf"（中項目／薬剤名）
 //   medicationItems/{itemId}/parentId                   … 中項目の親ID（トップ／点眼の葉は空）
 //   medicationItems/{itemId}/order                      … 並び順
@@ -1395,6 +1395,7 @@ export const MEDICATION_ITEM_CATEGORIES = [
   { id: "oral", label: "内服薬" },
   { id: "topical", label: "外用薬" },
   { id: "eye", label: "点眼薬" },
+  { id: "supplement", label: "サプリメント・商品" },
 ];
 const MEDICATION_ITEM_CATEGORY_IDS = new Set(
   MEDICATION_ITEM_CATEGORIES.map((c) => c.id)
@@ -1482,6 +1483,15 @@ export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 export const MED_TOPICAL_SKIN_GROUP_ID = "seed-med-topical-skin";
 export const MED_TOPICAL_DISINFECT_GROUP_ID = "seed-med-topical-disinfect";
 export const MED_TOPICAL_EAR_GROUP_ID = "seed-med-topical-ear";
+export const MED_TOPICAL_SHAMPOO_GROUP_ID = "seed-med-topical-shampoo";
+export const MED_SUPPL_JOINT_GROUP_ID = "seed-med-suppl-joint";
+export const MED_SUPPL_ORAL_GROUP_ID = "seed-med-suppl-oral";
+export const MED_SUPPL_GI_GROUP_ID = "seed-med-suppl-gi";
+export const MED_SUPPL_KIDNEY_GROUP_ID = "seed-med-suppl-kidney";
+export const MED_SUPPL_URINARY_GROUP_ID = "seed-med-suppl-urinary";
+export const MED_SUPPL_NEURO_GROUP_ID = "seed-med-suppl-neuro";
+export const MED_SUPPL_SKIN_GROUP_ID = "seed-med-suppl-skin";
+export const MED_SUPPL_OTHER_GROUP_ID = "seed-med-suppl-other";
 
 /** 中項目シード */
 const MEDICATION_ITEM_GROUP_SEED = [
@@ -1509,6 +1519,16 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("topical", MED_TOPICAL_SKIN_GROUP_ID, "皮膚", 10),
   medGroupSeed("topical", MED_TOPICAL_DISINFECT_GROUP_ID, "消毒", 20),
   medGroupSeed("topical", MED_TOPICAL_EAR_GROUP_ID, "耳", 30),
+  medGroupSeed("topical", MED_TOPICAL_SHAMPOO_GROUP_ID, "シャンプー・スキンケア", 40),
+  // サプリメント・商品
+  medGroupSeed("supplement", MED_SUPPL_JOINT_GROUP_ID, "関節・炎症", 10),
+  medGroupSeed("supplement", MED_SUPPL_ORAL_GROUP_ID, "口腔", 20),
+  medGroupSeed("supplement", MED_SUPPL_GI_GROUP_ID, "消化器・代謝", 30),
+  medGroupSeed("supplement", MED_SUPPL_KIDNEY_GROUP_ID, "腎臓", 40),
+  medGroupSeed("supplement", MED_SUPPL_URINARY_GROUP_ID, "泌尿器", 50),
+  medGroupSeed("supplement", MED_SUPPL_NEURO_GROUP_ID, "行動・神経", 60),
+  medGroupSeed("supplement", MED_SUPPL_SKIN_GROUP_ID, "皮膚", 70),
+  medGroupSeed("supplement", MED_SUPPL_OTHER_GROUP_ID, "その他", 80),
 ];
 
 /** 内服・外用の葉シード（中項目直下のフラット一覧・指定順） */
@@ -1761,6 +1781,137 @@ const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-topical-skin-ozone-gel", label: "オゾンジェル" },
     { id: "seed-med-topical-skin-mometotic", label: "モメタオティック" },
   ]),
+  ...medGroupLeaves("topical", MED_TOPICAL_EAR_GROUP_ID, [
+    { id: "seed-med-topical-ear-victas-mt", label: "ビクタスMTクリーム" },
+    { id: "seed-med-topical-ear-mometotic", label: "モメタオティック" },
+    { id: "seed-med-topical-ear-izotic", label: "イズオティック" },
+    { id: "seed-med-topical-ear-mimipure", label: "ミミピュア" },
+    { id: "seed-med-topical-ear-berbezolon", label: "ベルベゾロン" },
+    { id: "seed-med-topical-ear-silpina", label: "シルピナ" },
+    { id: "seed-med-topical-ear-epiotic", label: "エピオティック" },
+    { id: "seed-med-topical-ear-edta", label: "EDTAイヤークリーナー" },
+    { id: "seed-med-topical-ear-mal-a-ket-plus", label: "Mal-A-Ket Plus" },
+    { id: "seed-med-topical-ear-malacetic", label: "MalAcetic" },
+    { id: "seed-med-topical-ear-ivermectin", label: "イベルメクチン（耳用）" },
+    { id: "seed-med-topical-ear-pet-liquid", label: "Pet Ear&Skincare Liquid" },
+  ]),
+  ...medGroupLeaves("topical", MED_TOPICAL_SHAMPOO_GROUP_ID, [
+    { id: "seed-med-topical-shampoo-malasecure", label: "マラセキュア" },
+    { id: "seed-med-topical-shampoo-hinocare", label: "ヒノケア泡" },
+    { id: "seed-med-topical-shampoo-nano-basing", label: "ナノベイジングプロモイスチャライズ" },
+    { id: "seed-med-topical-shampoo-cleansing-oil", label: "クレンジングオイル" },
+    { id: "seed-med-topical-shampoo-chlorhexidine", label: "クロルヘキシジンシャンプー" },
+    { id: "seed-med-topical-shampoo-derma-moist", label: "ダーマモイストバス" },
+    { id: "seed-med-topical-shampoo-hoscare", label: "ホスケアスプレー" },
+    { id: "seed-med-topical-shampoo-quanpow", label: "QUANPOWペットシャンプー" },
+    { id: "seed-med-topical-shampoo-quanpow-bath-milk", label: "QUANPOW Pet Body Care Bath Milk" },
+  ]),
+  ...medGroupLeaves("eye", "", [
+    { id: "seed-med-eye-oneclean", label: "ワンクリーン点眼液" },
+    { id: "seed-med-eye-hyaluronate", label: "ヒアルロン酸点眼液" },
+    { id: "seed-med-eye-hyalein-mini", label: "ヒアレインミニ" },
+    { id: "seed-med-eye-levofloxacin", label: "レボフロキサシン点眼液" },
+    { id: "seed-med-eye-bestron", label: "ベストロン点眼液" },
+    { id: "seed-med-eye-gentamicin", label: "ゲンタマイシン点眼液" },
+    { id: "seed-med-eye-ofloxacin-oint", label: "オフロキサシン眼軟膏" },
+    { id: "seed-med-eye-ecolysin-oint", label: "エコリシン眼軟膏" },
+    { id: "seed-med-eye-gatifloxacin", label: "ガチフロキサシン点眼液" },
+    { id: "seed-med-eye-fvr-mix", label: "FVR Mix" },
+    { id: "seed-med-eye-hya-pranoprofen", label: "ヒア・プラノプロフェン点眼液" },
+    { id: "seed-med-eye-hya-gm", label: "ヒアGM" },
+    { id: "seed-med-eye-hya-gm-intercat", label: "ヒアGM＋インターキャット" },
+    { id: "seed-med-eye-panoquell-bestron", label: "パノクエル加ベストロン" },
+    { id: "seed-med-eye-panoquell-azulene", label: "パノクエル加アズレン" },
+    { id: "seed-med-eye-pranoprofen", label: "プラノプロフェン点眼液" },
+    { id: "seed-med-eye-diclo-star", label: "ジクロスター点眼液" },
+    { id: "seed-med-eye-sterop", label: "ステロップ点眼液" },
+    { id: "seed-med-eye-dexamethasone", label: "デキサメサゾン点眼液" },
+    { id: "seed-med-eye-neomedrol-oint", label: "ネオメドロール眼軟膏" },
+    { id: "seed-med-eye-idu", label: "IDU点眼液" },
+    { id: "seed-med-eye-acyclovir-oint", label: "アシクロビル眼軟膏" },
+    { id: "seed-med-eye-optimune-oint", label: "オプティミューン眼軟膏" },
+    { id: "seed-med-eye-pirenoxine", label: "ピレノキシン点眼液" },
+    { id: "seed-med-eye-serum", label: "血清点眼液" },
+    { id: "seed-med-eye-azulene", label: "アズレン点眼液" },
+    { id: "seed-med-eye-latanoprost", label: "ラタノプロスト点眼液" },
+    { id: "seed-med-eye-azorga", label: "アゾルガ点眼液" },
+    { id: "seed-med-eye-egypt", label: "エイジプト点眼液" },
+    { id: "seed-med-eye-tapros", label: "タプロス点眼液" },
+    { id: "seed-med-eye-timolol", label: "チモロール点眼液" },
+    { id: "seed-med-eye-neosynesin-kowa", label: "ネオシネジンコーワ" },
+    { id: "seed-med-eye-tropicamide", label: "トロピカミド" },
+    { id: "seed-med-eye-desmopressin", label: "デスモプレシン" },
+    { id: "seed-med-eye-brenda", label: "ブレンダ点眼" },
+    { id: "seed-med-eye-acetylcysteine", label: "アセチルシステイン点眼液" },
+    { id: "seed-med-eye-brinzolamide", label: "ブリンゾラミド懸濁性点眼液" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_JOINT_GROUP_ID, [
+    { id: "seed-med-suppl-joint-antinoll-plus", label: "アンチノールプラス（犬猫用）" },
+    { id: "seed-med-suppl-joint-antinoll-cat", label: "アンチノール（猫用）" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_ORAL_GROUP_ID, [
+    { id: "seed-med-suppl-oral-oralguard-v", label: "オーラルガードV" },
+    { id: "seed-med-suppl-oral-vi001", label: "Vi001デンタルジェル" },
+    { id: "seed-med-suppl-oral-scallo", label: "スカロー" },
+    { id: "seed-med-suppl-oral-scallo-dental-gel", label: "スカローデンタルジェル" },
+    { id: "seed-med-suppl-oral-virbac-brush-mini", label: "ビルバックデンタルブラシミニ" },
+    { id: "seed-med-suppl-oral-virbac-periaid", label: "ビルバックペリエイドデンタルブラシ" },
+    { id: "seed-med-suppl-oral-virbac-brush-double", label: "ビルバックデンタルブラシダブル" },
+    { id: "seed-med-suppl-oral-lion-brush", label: "ライオンハブラシ" },
+    { id: "seed-med-suppl-oral-ci-shuwawa", label: "Ciシュワワハブラシ" },
+    { id: "seed-med-suppl-oral-awayuki-small", label: "泡雪（ハブラシ小）" },
+    { id: "seed-med-suppl-oral-awayuki-xs", label: "泡雪（ハブラシ極小）" },
+    { id: "seed-med-suppl-oral-anisapo-glove", label: "アニサポ_歯磨きグローブ" },
+    { id: "seed-med-suppl-oral-kaito-veil", label: "カイトベールオーラルケア" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_GI_GROUP_ID, [
+    { id: "seed-med-suppl-gi-flora-care", label: "フローラケア" },
+    { id: "seed-med-suppl-gi-eneala", label: "エネアラ" },
+    { id: "seed-med-suppl-gi-laxatone", label: "ラキサトーン" },
+    { id: "seed-med-suppl-gi-cat-lux", label: "CAT LUX" },
+    { id: "seed-med-suppl-gi-pe-mct-powder-plus", label: "PE_MCTパウダープラス" },
+    { id: "seed-med-suppl-gi-glucose-50", label: "50%ブドウ糖注射液" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_KIDNEY_GROUP_ID, [
+    { id: "seed-med-suppl-kidney-carinal-combo", label: "カリナールコンボ" },
+    { id: "seed-med-suppl-kidney-pronefra", label: "プロネフラ" },
+    { id: "seed-med-suppl-kidney-phytocare", label: "フィトケア" },
+    { id: "seed-med-suppl-kidney-renal-k", label: "リーナルK" },
+    { id: "seed-med-suppl-kidney-azodyl", label: "アジデイル" },
+    { id: "seed-med-suppl-kidney-phos-care", label: "リンケア" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_URINARY_GROUP_ID, [
+    { id: "seed-med-suppl-urinary-uroact-plus", label: "ウロアクトプラス" },
+    { id: "seed-med-suppl-urinary-utclean", label: "UTclean" },
+    { id: "seed-med-suppl-urinary-utclean-ca", label: "UTclean_Ca" },
+    { id: "seed-med-suppl-urinary-calmurofel", label: "Calmurofel" },
+    { id: "seed-med-suppl-urinary-welldeli", label: "ウエルデリ" },
+    { id: "seed-med-suppl-urinary-ut-stick", label: "UTスティック" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_NEURO_GROUP_ID, [
+    { id: "seed-med-suppl-neuro-zylkene", label: "ジルケーン" },
+    { id: "seed-med-suppl-neuro-aktivait", label: "AKTIVAIT" },
+    { id: "seed-med-suppl-neuro-cbd-casein", label: "CBDカゼインタブ" },
+    { id: "seed-med-suppl-neuro-neuroact-plus", label: "ニューロアクトプラス" },
+    { id: "seed-med-suppl-neuro-cbd-oil-3", label: "小型犬・猫３％CBDオイル" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_SKIN_GROUP_ID, [
+    { id: "seed-med-suppl-skin-dermact", label: "ダーマクト" },
+    { id: "seed-med-suppl-skin-omega-sunshine", label: "オメガサンシャイン" },
+  ]),
+  ...medGroupLeaves("supplement", MED_SUPPL_OTHER_GROUP_ID, [
+    { id: "seed-med-suppl-other-soltol-one", label: "ソルトールワン" },
+    { id: "seed-med-suppl-other-eyeact", label: "アイアクト" },
+    { id: "seed-med-suppl-other-viralys-plus", label: "バイラリスプラス" },
+    { id: "seed-med-suppl-other-oryzarose", label: "オリザロース" },
+    { id: "seed-med-suppl-other-insulact", label: "インスラクト" },
+    { id: "seed-med-suppl-other-heartact", label: "ハートアクト" },
+    { id: "seed-med-suppl-other-hydra-care", label: "Hydra Care" },
+    { id: "seed-med-suppl-other-carming-care", label: "Carming Care" },
+    { id: "seed-med-suppl-other-animewn", label: "アニミューン" },
+    { id: "seed-med-suppl-other-eyelid-lash", label: "アイリッドラッシュ" },
+    { id: "seed-med-suppl-other-pet-mybo-shampoo", label: "Pet Mybo shampoo" },
+  ]),
 ];
 
 const MEDICATION_ITEM_GROUP_SEED_IDS = new Set(
@@ -1792,9 +1943,28 @@ function medicationItemSeedEquals(row, payload) {
   );
 }
 
+/** 同名葉の上書き対象。別中項目の現行葉シードは奪わず共存させる。 */
+function findSameNameLeafIdForSeed(next, payload) {
+  const seedParent = String(payload.parentId || "").trim();
+  return Object.entries(next).find(([id, row]) => {
+    if (!row || typeof row !== "object") return false;
+    if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return false;
+    if (normalizeMedicationItemKind(row.kind) === "group") return false;
+    if (String(row.label || "").trim() !== payload.label) return false;
+    const rowParent = String(row.parentId || "").trim();
+    if (rowParent === seedParent) return true;
+    // 別中項目／別大分類の現行葉シードは残す
+    if (MEDICATION_ITEM_LEAF_SEED_IDS.has(id)) {
+      return false;
+    }
+    return true;
+  })?.[0];
+}
+
 /**
  * 中項目・葉シードを補完し、旧フラット薬剤を内服→その他へ移す。
  * 葉は固定IDを優先し、同名の既存葉があれば削除せず上書き（表記・所属を統一）。
+ * ただし別中項目の現行葉シード同名は上書きせず、新規IDで共存する。
  */
 export async function ensureMedicationItemDefaults() {
   await authReady;
@@ -1852,12 +2022,7 @@ export async function ensureMedicationItemDefaults() {
     }
 
     // 同名の既存葉は削除せず、今回の内容で上書き（表記・所属を統一）
-    const sameNameId = Object.entries(next).find(([id, row]) => {
-      if (!row || typeof row !== "object") return false;
-      if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return false;
-      if (normalizeMedicationItemKind(row.kind) === "group") return false;
-      return String(row.label || "").trim() === payload.label;
-    })?.[0];
+    const sameNameId = findSameNameLeafIdForSeed(next, payload);
 
     if (sameNameId) {
       next[sameNameId] = payload;
