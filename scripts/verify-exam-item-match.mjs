@@ -154,7 +154,12 @@ const server = http.createServer((req, res) => {
 
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const { port } = server.address();
-const browser = await chromium.launch({ headless: true });
+const SYSTEM_CHROME =
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const browser = await chromium.launch({
+  executablePath: fs.existsSync(SYSTEM_CHROME) ? SYSTEM_CHROME : undefined,
+  headless: true,
+});
 const page = await browser.newPage({ viewport: { width: 720, height: 640 } });
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 
@@ -166,8 +171,12 @@ assert.ok(
   `ボタンに ACTH通常 がない: ${buttonTexts.join(" / ")}`
 );
 assert.ok(
-  buttonTexts.some((t) => t.includes("ホルモン")),
-  `内訳の親名表示がない: ${buttonTexts.join(" / ")}`
+  buttonTexts.some((t) => t.includes("血液 > ホルモン")),
+  `大分類+中項目パスがない: ${buttonTexts.join(" / ")}`
+);
+assert.ok(
+  buttonTexts.some((t) => t.includes("ACTH通常（血液 > ホルモン）")),
+  `ACTH通常の表示形式が想定と違う: ${buttonTexts.join(" / ")}`
 );
 
 await page.screenshot({ path: outPath });

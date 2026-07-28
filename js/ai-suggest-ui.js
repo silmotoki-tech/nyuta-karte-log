@@ -30,6 +30,10 @@ import {
   findExamItemCandidates,
   listExamMatchTargets,
 } from "./exam-item-match.js";
+import {
+  findMedicationItemCandidates,
+  listMedicationMatchTargets,
+} from "./med-item-match.js";
 import { ENABLE_AI_SUGGEST_AFTER_SAVE } from "./feature-flags.js";
 import { mountNumpad } from "./freq-picker.js";
 
@@ -59,6 +63,8 @@ const state = {
   dueRelativeById: {},
   /** 検査項目マスタ（AI確認時の候補照合用） */
   examMasterItems: [],
+  /** 薬剤マスタ（AI確認時の候補照合用） */
+  medMasterItems: [],
   /** 2段階目で開いている検査キーワード（localId） */
   selectedExamLocalId: null,
 };
@@ -121,8 +127,12 @@ export async function runAiSuggestAfterSave({
     let examMasterLabels = [];
     try {
       const items = await fetchMedicationItemsOnce();
-      masterLabels = items.map((i) => i.label).filter(Boolean);
+      state.medMasterItems = items;
+      masterLabels = listMedicationMatchTargets(items)
+        .map((i) => i.label)
+        .filter(Boolean);
     } catch (_) {
+      state.medMasterItems = [];
       masterLabels = [];
     }
     try {
@@ -543,14 +553,7 @@ function buildInlineFields(s) {
     hint.textContent =
       "薬剤名の検出のみです。増量・減量などの記録は、確定後に薬剤情報タブで手動操作してください。";
     wrap.appendChild(hint);
-    wrap.appendChild(
-      fieldText("薬剤名", d.name || "", (v) => {
-        d.name = v;
-        s.summary = v
-          ? `${v}について、薬剤情報タブで記録しますか？`
-          : "薬剤情報タブで記録しますか？";
-      })
-    );
+    wrap.appendChild(buildMedicationNameField(s, d));
     return wrap;
   }
 
@@ -672,6 +675,109 @@ function getExamMasterItemsForMatch() {
     return snap;
   }
   return current;
+}
+
+function getMedMasterItemsForMatch() {
+  const current = state.medMasterItems || [];
+  if (listMedicationMatchTargets(current).length > 0) return current;
+  return current;
+}
+
+/**
+ * 薬剤名: マスタに近そうな候補があればボタンで選べるようにする。
+ * 表示は「薬剤名（大分類 > 中項目）」。
+ */
+function buildMedicationNameField(s, d) {
+  const detected = String(d.detectedName || d.name || "").trim();
+  d.detectedName = detected;
+  if (!d.name) d.name = detected;
+
+  const masterItems = getMedMasterItemsForMatch();
+  const candidates = findMedicationItemCandidates(detected, masterItems);
+  const leafItems = listMedicationMatchTargets(masterItems);
+  const masterExact = leafItems.some((item) => item.label === detected);
+  const nearby = candidates.filter((c) => c.label !== detected);
+
+  const syncSummary = (name) => {
+    s.summary = name
+      ? `${name}について、薬剤情報タブで記録しますか？`
+      : "薬剤情報タブで記録しますか？";
+  };
+
+  if (!detected || (masterExact && nearby.length === 0) || nearby.length === 0) {
+    return fieldText("薬剤名", d.name || "", (v) => {
+      d.name = v;
+      syncSummary(v);
+    });
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "field";
+  const lab = document.createElement("span");
+  lab.className = "label";
+  lab.textContent = "薬剤名";
+
+  const note = document.createElement("p");
+  note.className = "field__note";
+  note.textContent = `AI検出「${detected}」に近いマスタ項目があります。登録に使う名称を選んでください。`;
+
+  const DETECTED_ID = "__detected__";
+  const options = [
+    ...nearby.map((c) => ({
+      id: c.label,
+      label: c.displayLabel || c.label,
+    })),
+    { id: DETECTED_ID, label: `検出どおり「${detected}」で登録` },
+  ];
+
+  const current = String(d.name || "").trim();
+  const selectedId = nearby.some((c) => c.label === current)
+    ? current
+    : current === detected || !current
+      ? DETECTED_ID
+      : nearby[0]?.label || DETECTED_ID;
+
+  if (selectedId === DETECTED_ID) {
+    d.name = detected;
+  } else {
+    d.name = selectedId;
+  }
+  syncSummary(d.name);
+
+  const row = document.createElement("div");
+  row.className = "exam-item-buttons ai-suggest-exam-candidates";
+  let customInput = null;
+  options.forEach((opt) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "exam-item-btn";
+    btn.textContent = opt.label;
+    btn.classList.toggle("is-selected", selectedId === opt.id);
+    btn.addEventListener("click", () => {
+      d.name = opt.id === DETECTED_ID ? detected : opt.id;
+      syncSummary(d.name);
+      row.querySelectorAll(".exam-item-btn").forEach((b) => b.classList.remove("is-selected"));
+      btn.classList.add("is-selected");
+      if (customInput) customInput.value = d.name;
+    });
+    row.appendChild(btn);
+  });
+
+  const customLab = document.createElement("label");
+  customLab.className = "label label--sub";
+  customLab.textContent = "手入力で上書き（任意）";
+  customInput = document.createElement("input");
+  customInput.className = "input";
+  customInput.type = "text";
+  customInput.value = d.name || "";
+  customInput.addEventListener("input", () => {
+    d.name = customInput.value;
+    syncSummary(d.name);
+    row.querySelectorAll(".exam-item-btn").forEach((b) => b.classList.remove("is-selected"));
+  });
+
+  wrap.append(lab, note, row, customLab, customInput);
+  return wrap;
 }
 
 /**

@@ -8,7 +8,39 @@
 // 照合対象:
 // - 血液の独立項目・大項目の内訳、画像・病理・その他の独立項目
 // - 大項目（group）自体は候補に出さない
+//
+// 表示:
+// - 小項目名（大分類 > 中項目）例: ACTH通常（血液 > ホルモン）
 
+const EXAM_CATEGORY_LABELS = {
+  blood: "血液",
+  imaging: "画像",
+  pathology: "病理",
+  other: "その他",
+};
+
+function examCategoryLabelFromId(category) {
+  const id = String(category || "").trim();
+  return EXAM_CATEGORY_LABELS[id] || id || "";
+}
+
+/**
+ * マスタ候補の表示ラベル。
+ * 例: アモキシシリン（内服薬 > 抗生剤） / CBC（血液）
+ */
+export function formatMasterItemDisplayLabel(
+  label,
+  { categoryLabel = "", parentLabel = "" } = {}
+) {
+  const name = String(label || "").trim();
+  if (!name) return "";
+  const cat = String(categoryLabel || "").trim();
+  const mid = String(parentLabel || "").trim();
+  if (cat && mid) return `${name}（${cat} > ${mid}）`;
+  if (cat) return `${name}（${cat}）`;
+  if (mid) return `${name}（${mid}）`;
+  return name;
+}
 /**
  * 比較用に正規化する（空白・括弧・中黒を除き、英数字は小文字）。
  */
@@ -119,7 +151,8 @@ export function listExamMatchTargets(items) {
       parentId,
       parentLabel: findParentLabel(list, parentId),
       nested: Boolean(parentId),
-      category: item.category || "",
+      category: String(item.category || "").trim() || "other",
+      categoryLabel: examCategoryLabelFromId(item.category || ""),
     });
   }
 
@@ -425,12 +458,16 @@ export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 
 
   const scored = targets.map((t) => {
     const score = scoreExamLabelMatch(q, t.label, t);
-    const displayLabel = t.parentLabel ? `${t.parentLabel} ＞ ${t.label}` : t.label;
+    const displayLabel = formatMasterItemDisplayLabel(t.label, {
+      categoryLabel: t.categoryLabel,
+      parentLabel: t.parentLabel,
+    });
     return {
       item: t.item,
       label: t.label,
       displayLabel,
       parentLabel: t.parentLabel,
+      categoryLabel: t.categoryLabel,
       nested: t.nested,
       score,
     };

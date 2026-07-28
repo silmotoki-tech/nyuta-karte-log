@@ -835,6 +835,11 @@ export function normalizeExamItemCategory(category) {
   return EXAM_ITEM_CATEGORY_IDS.has(id) ? id : "other";
 }
 
+export function examItemCategoryLabel(category) {
+  const id = normalizeExamItemCategory(category);
+  return EXAM_ITEM_CATEGORIES.find((c) => c.id === id)?.label || id;
+}
+
 export function normalizeExamItemKind(kind) {
   return String(kind || "").trim() === "group" ? "group" : "leaf";
 }
