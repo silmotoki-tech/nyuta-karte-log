@@ -846,9 +846,12 @@ html.is-unlocked .app {
 
 .input--date {
   width: auto;
-  min-width: 12.5rem;
+  /* 狭いコンテナでは 100% までに抑え、横並び時の溢れ・重なりを防ぐ */
+  min-width: min(12.5rem, 100%);
+  max-width: 100%;
   font-size: 0.95rem;
   padding: 9px 12px;
+  box-sizing: border-box;
 }
 
 /* 検査予定: 項目選択を広めに見せ、予定／実施の2セクションを対等に並べる */
@@ -3283,11 +3286,12 @@ select.input {
   margin: 0;
 }
 
+/* 開始日・期限は常に縦並び（iPad横向きでも横並び重なりを起こさない） */
 .med-add-meta__row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-items: end;
+  align-items: stretch;
 }
 
 .med-add-meta__cell {
@@ -3295,11 +3299,13 @@ select.input {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  width: 100%;
 }
 
 .med-add-meta__cell .input--date,
 .med-event-meta__date .input--date {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -3344,19 +3350,21 @@ select.input {
 }
 
 .med-detail-meta__dates {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 12px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
 }
 
 .med-detail-meta__dates .field {
   min-width: 0;
+  width: 100%;
   margin: 0;
 }
 
 .med-detail-meta__dates .input--date {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -3369,9 +3377,7 @@ select.input {
 }
 
 @media (max-width: 640px) {
-  .med-add-meta__row,
-  .med-event-meta,
-  .med-detail-meta__dates {
+  .med-event-meta {
     grid-template-columns: 1fr;
   }
 }
