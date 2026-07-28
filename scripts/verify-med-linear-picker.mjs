@@ -346,8 +346,11 @@ if (await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contai
 }
 const leaves = await itemLabels(page, "#med-add-col-leaf-list");
 console.log("oral/その他 leaves:", leaves);
-for (const name of ["アラバ", "パラディア"]) {
+for (const name of ["アラバ"]) {
   if (!leaves.includes(name)) throw new Error(`migrated leaf missing: ${name}`);
+}
+if (leaves.includes("パラディア")) {
+  throw new Error("パラディア should have moved from その他 to 抗がん");
 }
 if (leaves.includes("アモキシシリン")) {
   throw new Error("アモキシシリン should have moved from その他 to 抗生剤");

@@ -55,7 +55,7 @@ if (amo.parentId !== MED_ORAL_ANTIBIOTIC_GROUP_ID) {
 if (amo.order !== 10) throw new Error("アモキシシリン order should be 10");
 console.log("same-name overwrite:", "legacy1", "→", amo.label, "under", amo.parentId);
 
-for (const id of ["legacy2", "legacy3"]) {
+for (const id of ["legacy2"]) {
   const row = items[id];
   if (!row) throw new Error(`legacy ${id} lost`);
   if (row.category !== "oral" || row.kind !== "leaf") {
@@ -66,6 +66,13 @@ for (const id of ["legacy2", "legacy3"]) {
   }
   console.log("migrated", id, "→", row.label, "under", row.parentId);
 }
+const palladia = items.legacy3;
+if (!palladia) throw new Error("legacy3 lost");
+if (palladia.parentId !== "seed-med-oral-anticancer") {
+  throw new Error(`パラディア should move under anticancer, got ${palladia.parentId}`);
+}
+console.log("same-name overwrite:", "legacy3", "→", palladia.label, "under", palladia.parentId);
+
 
 const labels = ["アモキシシリン", "アラバ", "パラディア"];
 for (const label of labels) {

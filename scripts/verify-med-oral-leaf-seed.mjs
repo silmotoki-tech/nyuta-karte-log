@@ -15,6 +15,7 @@ import {
   MED_ORAL_RESPIRATORY_GROUP_ID,
   MED_ORAL_NEURO_GROUP_ID,
   MED_ORAL_ANTIFUNGAL_GROUP_ID,
+  MED_ORAL_ANTICANCER_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -195,6 +196,15 @@ const ANTIFUNGAL_LABELS = [
   "モルヌピラビル",
 ];
 
+
+const ANTICANCER_LABELS = [
+  "イマチニブ",
+  "パラディア",
+  "エンドキサン",
+  "チガソン",
+  "ロムスチン",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -210,6 +220,7 @@ const items = store.medicationItems;
 assert.equal(items[MED_ORAL_ANTIINFLAM_GROUP_ID]?.label, "消炎・鎮痛");
 assert.equal(items[MED_ORAL_LIVER_KIDNEY_GROUP_ID]?.label, "肝・腎・泌尿");
 assert.equal(items[MED_ORAL_ANTIFUNGAL_GROUP_ID]?.label, "抗真菌・駆虫薬・抗ウイルス薬");
+assert.equal(items[MED_ORAL_ANTICANCER_GROUP_ID]?.label, "抗がん");
 
 // 同名の既存アモキシシリンは削除せず、抗生剤へ上書き移動
 assert.ok(items.legacy1, "legacy1 must remain (no delete)");
@@ -224,10 +235,13 @@ assert.equal(
   "should reuse same-name id instead of creating seed id"
 );
 
-// その他に残る旧フラット
-for (const id of ["legacy2", "legacy3"]) {
+// その他に残る旧フラット（パラディアは抗がんへ同名上書き移動）
+for (const id of ["legacy2"]) {
   assert.equal(items[id].parentId, MED_ORAL_OTHER_GROUP_ID);
 }
+assert.equal(items.legacy3.parentId, MED_ORAL_ANTICANCER_GROUP_ID);
+assert.equal(items.legacy3.label, "パラディア");
+assert.equal(items.legacy3.order, 20);
 
 function labelsUnder(parentId) {
   return Object.values(items)
@@ -251,6 +265,7 @@ const cardio = labelsUnder(MED_ORAL_CARDIO_GROUP_ID);
 const respiratory = labelsUnder(MED_ORAL_RESPIRATORY_GROUP_ID);
 const neuro = labelsUnder(MED_ORAL_NEURO_GROUP_ID);
 const antifungal = labelsUnder(MED_ORAL_ANTIFUNGAL_GROUP_ID);
+const anticancer = labelsUnder(MED_ORAL_ANTICANCER_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
@@ -262,6 +277,7 @@ console.log("cardio order:", cardio);
 console.log("respiratory order:", respiratory);
 console.log("neuro order:", neuro);
 console.log("antifungal order:", antifungal);
+console.log("anticancer order:", anticancer);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
@@ -279,6 +295,7 @@ assert.equal(items["seed-med-oral-abx-famciclovir"]?.order, 100);
 
 assert.ok(!antibiotic.includes("ファムシクロビル"));
 assert.equal(antifungal.filter((x) => x === "ファムシクロビル").length, 1);
+assert.deepEqual(anticancer, ANTICANCER_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
@@ -295,6 +312,7 @@ assert.equal(
     RESPIRATORY_LABELS.length +
     NEURO_LABELS.length +
     ANTIFUNGAL_LABELS.length +
+    ANTICANCER_LABELS.length +
     BLOOD_LABELS.length
 );
 

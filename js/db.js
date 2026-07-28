@@ -1473,6 +1473,7 @@ export const MED_ORAL_CARDIO_GROUP_ID = "seed-med-oral-cardio";
 export const MED_ORAL_RESPIRATORY_GROUP_ID = "seed-med-oral-respiratory";
 export const MED_ORAL_NEURO_GROUP_ID = "seed-med-oral-neuro";
 export const MED_ORAL_ANTIFUNGAL_GROUP_ID = "seed-med-oral-antifungal";
+export const MED_ORAL_ANTICANCER_GROUP_ID = "seed-med-oral-anticancer";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 /** 中項目シード */
@@ -1493,7 +1494,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
   medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
   medGroupSeed("oral", MED_ORAL_BLOOD_GROUP_ID, "血液", 150),
-  medGroupSeed("oral", "seed-med-oral-anticancer", "抗がん剤", 160),
+  medGroupSeed("oral", MED_ORAL_ANTICANCER_GROUP_ID, "抗がん", 160),
   medGroupSeed("oral", "seed-med-oral-kampo", "漢方", 170),
   medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
   medGroupSeed("oral", "seed-med-oral-inject-suppository", "処方注射薬・座薬", 190),
@@ -1665,6 +1666,13 @@ const MEDICATION_ITEM_LEAF_SEED = [
     // 旧抗生剤シードIDを流用し、中項目をこちらへ確実に移動
     { id: "seed-med-oral-abx-famciclovir", label: "ファムシクロビル" },
     { id: "seed-med-oral-af-molnupiravir", label: "モルヌピラビル" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_ANTICANCER_GROUP_ID, [
+    { id: "seed-med-oral-ac-imatinib", label: "イマチニブ" },
+    { id: "seed-med-oral-ac-palladia", label: "パラディア" },
+    { id: "seed-med-oral-ac-endoxan", label: "エンドキサン" },
+    { id: "seed-med-oral-ac-tigason", label: "チガソン" },
+    { id: "seed-med-oral-ac-lomustine", label: "ロムスチン" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },

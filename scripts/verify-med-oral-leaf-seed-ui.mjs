@@ -186,6 +186,15 @@ const ANTIFUNGAL_LABELS = [
   "モルヌピラビル",
 ];
 
+
+const ANTICANCER_LABELS = [
+  "イマチニブ",
+  "パラディア",
+  "エンドキサン",
+  "チガソン",
+  "ロムスチン",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -645,6 +654,29 @@ await page.waitForTimeout(100);
 const abxAgain = await itemLabels(page, "#med-add-col-leaf-list");
 assert.ok(!abxAgain.includes("ファムシクロビル"));
 assert.deepEqual(abxAgain, ANTIBIOTIC_LABELS);
+
+await clickItem(page, "#med-add-col-group-list", "抗がん");
+await page.waitForTimeout(120);
+const anticancer = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI anticancer:", anticancer);
+assert.deepEqual(anticancer, ANTICANCER_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "パラディア");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "パラディア"
+);
+await clickItem(page, "#med-add-col-leaf-list", "ロムスチン");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ロムスチン"
+);
+await page.screenshot({ path: path.join(shotDir, "13-anticancer.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);
