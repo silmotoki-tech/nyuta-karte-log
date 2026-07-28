@@ -1581,11 +1581,6 @@ html.is-unlocked .app {
   overflow: hidden;
 }
 
-/* 2つ目以降のセクションは地色を変えて区切りを明確に */
-.right-panel > .exam-section:nth-of-type(n + 2) {
-  background-color: var(--color-surface-subtle);
-}
-
 .exam-section__head {
   display: flex;
   align-items: center;
@@ -1805,11 +1800,6 @@ html.is-unlocked .app {
   margin: 12px 0 4px;
   border-bottom: none;
   background: var(--color-white);
-}
-
-.right-panel > .exam-section:nth-of-type(n + 2) .exam-history-group-title.swipeable,
-.right-panel > .exam-section:nth-of-type(n + 2) .exam-history-group-title.swipeable .swipeable__front {
-  background: var(--color-surface-subtle);
 }
 
 .exam-history-group-title.swipeable .swipeable__front {
@@ -2925,12 +2915,6 @@ select.input {
   border: none;
   border-radius: 0;
   box-shadow: none;
-}
-
-/* 実施履歴セクション（地色が薄いグレー）では白ブロック＝カード枠に見えるため地色に合わせる */
-.right-panel > .exam-section:nth-of-type(n + 2) .exam-list-item.swipeable,
-.right-panel > .exam-section:nth-of-type(n + 2) .exam-list-item.swipeable .swipeable__front {
-  background: var(--color-surface-subtle);
 }
 
 .proc-card.swipeable,
