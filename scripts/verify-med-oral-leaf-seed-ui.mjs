@@ -127,6 +127,26 @@ const CARDIO_LABELS = [
   "トラセミド",
 ];
 
+
+const RESPIRATORY_LABELS = [
+  "テオロング",
+  "テオフィリン",
+  "ムコソルバン",
+  "モンテルカスト",
+  "ブトルファノール",
+  "ダンプロン",
+  "ブリカニール",
+  "デキストロメトルファン",
+  "マロピタント（鎮咳）",
+  "アルベール液",
+  "メプチン液",
+  "セファゾリン液",
+  "ボスミン液",
+  "ビソルボン液",
+  "ゲンタマイシン液",
+  "デキサメサゾン液",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -502,6 +522,37 @@ assert.equal(
   "トラセミド"
 );
 await page.screenshot({ path: path.join(shotDir, "09-cardio.png") });
+
+await clickItem(page, "#med-add-col-group-list", "呼吸器");
+await page.waitForTimeout(120);
+const respiratory = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI respiratory:", respiratory);
+assert.deepEqual(respiratory, RESPIRATORY_LABELS);
+assert.ok(respiratory.includes("マロピタント（鎮咳）"));
+assert.ok(!respiratory.includes("マロピタント"));
+await clickItem(page, "#med-add-col-leaf-list", "マロピタント（鎮咳）");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "マロピタント（鎮咳）"
+);
+await clickItem(page, "#med-add-col-leaf-list", "デキサメサゾン液");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "デキサメサゾン液"
+);
+await page.screenshot({ path: path.join(shotDir, "10-respiratory.png") });
+
+await clickItem(page, "#med-add-col-group-list", "消化器（胃）");
+await page.waitForTimeout(80);
+const giAgain = await itemLabels(page, "#med-add-col-leaf-list");
+assert.ok(giAgain.includes("マロピタント"));
+assert.ok(!giAgain.includes("マロピタント（鎮咳）"));
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);

@@ -15,6 +15,7 @@ export const MED_ORAL_GI_STOMACH_GROUP_ID = "seed-med-oral-gi-stomach";
 export const MED_ORAL_GI_INTESTINE_GROUP_ID = "seed-med-oral-gi-intestine";
 export const MED_ORAL_LIVER_KIDNEY_GROUP_ID = "seed-med-oral-liver-kidney";
 export const MED_ORAL_CARDIO_GROUP_ID = "seed-med-oral-cardio";
+export const MED_ORAL_RESPIRATORY_GROUP_ID = "seed-med-oral-respiratory";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
@@ -69,7 +70,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_GI_INTESTINE_GROUP_ID, "消化器（腸）", 60),
   medGroupSeed("oral", MED_ORAL_LIVER_KIDNEY_GROUP_ID, "肝・腎・泌尿", 70),
   medGroupSeed("oral", MED_ORAL_CARDIO_GROUP_ID, "循環器", 80),
-  medGroupSeed("oral", "seed-med-oral-respiratory", "呼吸器", 90),
+  medGroupSeed("oral", MED_ORAL_RESPIRATORY_GROUP_ID, "呼吸器", 90),
   medGroupSeed("oral", "seed-med-oral-neuro", "神経・行動", 100),
   medGroupSeed("oral", "seed-med-oral-antifungal", "抗真菌・駆虫・抗ウイルス", 110),
   medGroupSeed("oral", "seed-med-oral-immuno", "免疫抑制", 120),
@@ -190,6 +191,24 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-cardio-hctz", label: "ヒドロクロロチアジド" },
     { id: "seed-med-oral-cardio-furosemide", label: "フロセミド" },
     { id: "seed-med-oral-cardio-torasemide", label: "トラセミド" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_RESPIRATORY_GROUP_ID, [
+    { id: "seed-med-oral-resp-theolong", label: "テオロング" },
+    { id: "seed-med-oral-resp-theophylline", label: "テオフィリン" },
+    { id: "seed-med-oral-resp-mucosolvan", label: "ムコソルバン" },
+    { id: "seed-med-oral-resp-montelukast", label: "モンテルカスト" },
+    { id: "seed-med-oral-resp-butorphanol", label: "ブトルファノール" },
+    { id: "seed-med-oral-resp-danpron", label: "ダンプロン" },
+    { id: "seed-med-oral-resp-bricanyl", label: "ブリカニール" },
+    { id: "seed-med-oral-resp-dextromethorphan", label: "デキストロメトルファン" },
+    { id: "seed-med-oral-resp-maropitant-cough", label: "マロピタント（鎮咳）" },
+    { id: "seed-med-oral-resp-alber-liq", label: "アルベール液" },
+    { id: "seed-med-oral-resp-meptin-liq", label: "メプチン液" },
+    { id: "seed-med-oral-resp-cefazolin-liq", label: "セファゾリン液" },
+    { id: "seed-med-oral-resp-bosmin-liq", label: "ボスミン液" },
+    { id: "seed-med-oral-resp-bisolvon-liq", label: "ビソルボン液" },
+    { id: "seed-med-oral-resp-gentamicin-liq", label: "ゲンタマイシン液" },
+    { id: "seed-med-oral-resp-dexamethasone-liq", label: "デキサメサゾン液" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },
