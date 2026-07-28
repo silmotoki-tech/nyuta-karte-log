@@ -28,7 +28,6 @@ const ANTIBIOTIC_LABELS = [
   "モキシフロキサシン",
   "ベラフロックス",
   "ST合剤",
-  "ファムシクロビル",
   "クロラムフェニコール",
   "メトロニダゾール",
 ];
@@ -170,6 +169,21 @@ const NEURO_LABELS = [
   "ガバペンチン",
   "アセプロマジン",
   "イソバイドシロップ",
+];
+
+
+const ANTIFUNGAL_LABELS = [
+  "イトラコナゾール",
+  "ケトコナゾール",
+  "ドロンタール",
+  "ドロンタールプラス",
+  "プロコックス",
+  "フェンベンダゾール",
+  "チニダゾール",
+  "ロニダゾール",
+  "ドロンシット",
+  "ファムシクロビル",
+  "モルヌピラビル",
 ];
 
 const BLOOD_LABELS = [
@@ -601,6 +615,36 @@ assert.equal(
   "イソバイドシロップ"
 );
 await page.screenshot({ path: path.join(shotDir, "11-neuro.png") });
+
+await clickItem(page, "#med-add-col-group-list", "抗真菌・駆虫薬・抗ウイルス薬");
+await page.waitForTimeout(120);
+const antifungal = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI antifungal:", antifungal);
+assert.deepEqual(antifungal, ANTIFUNGAL_LABELS);
+assert.equal(antifungal.filter((x) => x === "ファムシクロビル").length, 1);
+await clickItem(page, "#med-add-col-leaf-list", "ファムシクロビル");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ファムシクロビル"
+);
+await clickItem(page, "#med-add-col-leaf-list", "モルヌピラビル");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "モルヌピラビル"
+);
+await page.screenshot({ path: path.join(shotDir, "12-antifungal.png") });
+
+await clickItem(page, "#med-add-col-group-list", "抗生剤");
+await page.waitForTimeout(100);
+const abxAgain = await itemLabels(page, "#med-add-col-leaf-list");
+assert.ok(!abxAgain.includes("ファムシクロビル"));
+assert.deepEqual(abxAgain, ANTIBIOTIC_LABELS);
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);

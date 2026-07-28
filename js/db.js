@@ -1472,6 +1472,7 @@ export const MED_ORAL_LIVER_KIDNEY_GROUP_ID = "seed-med-oral-liver-kidney";
 export const MED_ORAL_CARDIO_GROUP_ID = "seed-med-oral-cardio";
 export const MED_ORAL_RESPIRATORY_GROUP_ID = "seed-med-oral-respiratory";
 export const MED_ORAL_NEURO_GROUP_ID = "seed-med-oral-neuro";
+export const MED_ORAL_ANTIFUNGAL_GROUP_ID = "seed-med-oral-antifungal";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 /** 中項目シード */
@@ -1487,7 +1488,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_CARDIO_GROUP_ID, "循環器", 80),
   medGroupSeed("oral", MED_ORAL_RESPIRATORY_GROUP_ID, "呼吸器", 90),
   medGroupSeed("oral", MED_ORAL_NEURO_GROUP_ID, "神経・行動", 100),
-  medGroupSeed("oral", "seed-med-oral-antifungal", "抗真菌・駆虫・抗ウイルス", 110),
+  medGroupSeed("oral", MED_ORAL_ANTIFUNGAL_GROUP_ID, "抗真菌・駆虫薬・抗ウイルス薬", 110),
   medGroupSeed("oral", "seed-med-oral-immuno", "免疫抑制", 120),
   medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
   medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
@@ -1521,7 +1522,6 @@ const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-abx-moxifloxacin", label: "モキシフロキサシン" },
     { id: "seed-med-oral-abx-veraflox", label: "ベラフロックス" },
     { id: "seed-med-oral-abx-st", label: "ST合剤" },
-    { id: "seed-med-oral-abx-famciclovir", label: "ファムシクロビル" },
     { id: "seed-med-oral-abx-chloramphenicol", label: "クロラムフェニコール" },
     { id: "seed-med-oral-abx-metronidazole", label: "メトロニダゾール" },
   ]),
@@ -1651,6 +1651,20 @@ const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-neuro-gabapentin", label: "ガバペンチン" },
     { id: "seed-med-oral-neuro-acepromazine", label: "アセプロマジン" },
     { id: "seed-med-oral-neuro-isobide", label: "イソバイドシロップ" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_ANTIFUNGAL_GROUP_ID, [
+    { id: "seed-med-oral-af-itraconazole", label: "イトラコナゾール" },
+    { id: "seed-med-oral-af-ketoconazole", label: "ケトコナゾール" },
+    { id: "seed-med-oral-af-drontal", label: "ドロンタール" },
+    { id: "seed-med-oral-af-drontal-plus", label: "ドロンタールプラス" },
+    { id: "seed-med-oral-af-procox", label: "プロコックス" },
+    { id: "seed-med-oral-af-fenbendazole", label: "フェンベンダゾール" },
+    { id: "seed-med-oral-af-tinidazole", label: "チニダゾール" },
+    { id: "seed-med-oral-af-ronidazole", label: "ロニダゾール" },
+    { id: "seed-med-oral-af-droncit", label: "ドロンシット" },
+    // 旧抗生剤シードIDを流用し、中項目をこちらへ確実に移動
+    { id: "seed-med-oral-abx-famciclovir", label: "ファムシクロビル" },
+    { id: "seed-med-oral-af-molnupiravir", label: "モルヌピラビル" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },

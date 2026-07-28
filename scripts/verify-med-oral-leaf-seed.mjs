@@ -14,6 +14,7 @@ import {
   MED_ORAL_CARDIO_GROUP_ID,
   MED_ORAL_RESPIRATORY_GROUP_ID,
   MED_ORAL_NEURO_GROUP_ID,
+  MED_ORAL_ANTIFUNGAL_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -37,7 +38,6 @@ const ANTIBIOTIC_LABELS = [
   "モキシフロキサシン",
   "ベラフロックス",
   "ST合剤",
-  "ファムシクロビル",
   "クロラムフェニコール",
   "メトロニダゾール",
 ];
@@ -180,6 +180,21 @@ const NEURO_LABELS = [
   "イソバイドシロップ",
 ];
 
+
+const ANTIFUNGAL_LABELS = [
+  "イトラコナゾール",
+  "ケトコナゾール",
+  "ドロンタール",
+  "ドロンタールプラス",
+  "プロコックス",
+  "フェンベンダゾール",
+  "チニダゾール",
+  "ロニダゾール",
+  "ドロンシット",
+  "ファムシクロビル",
+  "モルヌピラビル",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -194,6 +209,7 @@ const items = store.medicationItems;
 
 assert.equal(items[MED_ORAL_ANTIINFLAM_GROUP_ID]?.label, "消炎・鎮痛");
 assert.equal(items[MED_ORAL_LIVER_KIDNEY_GROUP_ID]?.label, "肝・腎・泌尿");
+assert.equal(items[MED_ORAL_ANTIFUNGAL_GROUP_ID]?.label, "抗真菌・駆虫薬・抗ウイルス薬");
 
 // 同名の既存アモキシシリンは削除せず、抗生剤へ上書き移動
 assert.ok(items.legacy1, "legacy1 must remain (no delete)");
@@ -234,6 +250,7 @@ const liverKidney = labelsUnder(MED_ORAL_LIVER_KIDNEY_GROUP_ID);
 const cardio = labelsUnder(MED_ORAL_CARDIO_GROUP_ID);
 const respiratory = labelsUnder(MED_ORAL_RESPIRATORY_GROUP_ID);
 const neuro = labelsUnder(MED_ORAL_NEURO_GROUP_ID);
+const antifungal = labelsUnder(MED_ORAL_ANTIFUNGAL_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
@@ -244,6 +261,7 @@ console.log("liver-kidney order:", liverKidney);
 console.log("cardio order:", cardio);
 console.log("respiratory order:", respiratory);
 console.log("neuro order:", neuro);
+console.log("antifungal order:", antifungal);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
@@ -255,6 +273,12 @@ assert.deepEqual(liverKidney, LIVER_KIDNEY_LABELS);
 assert.deepEqual(cardio, CARDIO_LABELS);
 assert.deepEqual(respiratory, RESPIRATORY_LABELS);
 assert.deepEqual(neuro, NEURO_LABELS);
+assert.deepEqual(antifungal, ANTIFUNGAL_LABELS);
+assert.equal(items["seed-med-oral-abx-famciclovir"]?.parentId, MED_ORAL_ANTIFUNGAL_GROUP_ID);
+assert.equal(items["seed-med-oral-abx-famciclovir"]?.order, 100);
+
+assert.ok(!antibiotic.includes("ファムシクロビル"));
+assert.equal(antifungal.filter((x) => x === "ファムシクロビル").length, 1);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
@@ -270,6 +294,7 @@ assert.equal(
     CARDIO_LABELS.length +
     RESPIRATORY_LABELS.length +
     NEURO_LABELS.length +
+    ANTIFUNGAL_LABELS.length +
     BLOOD_LABELS.length
 );
 
