@@ -8,6 +8,8 @@ import {
   MED_ORAL_ANTIBIOTIC_GROUP_ID,
   MED_ORAL_ANTIINFLAM_GROUP_ID,
   MED_ORAL_STEROID_ANTIHIST_GROUP_ID,
+  MED_ORAL_GI_STOMACH_GROUP_ID,
+  MED_ORAL_GI_INTESTINE_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -54,6 +56,41 @@ const STEROID_ANTIHIST_LABELS = [
   "レスタミン",
   "セチリジン",
   "ペリアクチン",
+];
+
+
+const GI_STOMACH_LABELS = [
+  "マロピタント",
+  "プリンペラン",
+  "オンダンセトロン",
+  "コントミン",
+  "ファモチジン",
+  "ランソプラゾール",
+  "オメプラゾール",
+  "ディクアノン",
+];
+
+const GI_INTESTINE_LABELS = [
+  "モサプリド",
+  "メサラジン",
+  "サラゾピリン",
+  "デルクリアー",
+  "ディアバスター",
+  "FortiFlora",
+  "ブスコパン",
+  "ミヤBM",
+  "ゼンラーゼ",
+  "マイトマックス",
+  "ビオフェルミンR散剤",
+  "バガス",
+  "サイリウム",
+  "グアーガム",
+  "アドソルビン",
+  "パンクレアチン",
+  "ピアーレシロップ",
+  "ピコスルファート",
+  "モビコール",
+  "ワセリン軟膏",
 ];
 
 const BLOOD_LABELS = [
@@ -103,21 +140,29 @@ function labelsUnder(parentId) {
 const antibiotic = labelsUnder(MED_ORAL_ANTIBIOTIC_GROUP_ID);
 const antiinflam = labelsUnder(MED_ORAL_ANTIINFLAM_GROUP_ID);
 const steroid = labelsUnder(MED_ORAL_STEROID_ANTIHIST_GROUP_ID);
+const giStomach = labelsUnder(MED_ORAL_GI_STOMACH_GROUP_ID);
+const giIntestine = labelsUnder(MED_ORAL_GI_INTESTINE_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
 console.log("steroid-antihist order:", steroid);
+console.log("gi stomach order:", giStomach);
+console.log("gi intestine order:", giIntestine);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
 assert.deepEqual(antiinflam, ANTIINFLAM_LABELS);
 assert.deepEqual(steroid, STEROID_ANTIHIST_LABELS);
+assert.deepEqual(giStomach, GI_STOMACH_LABELS);
+assert.deepEqual(giIntestine, GI_INTESTINE_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.equal(
   MEDICATION_ITEM_LEAF_SEED.length,
   ANTIBIOTIC_LABELS.length +
     ANTIINFLAM_LABELS.length +
     STEROID_ANTIHIST_LABELS.length +
+    GI_STOMACH_LABELS.length +
+    GI_INTESTINE_LABELS.length +
     BLOOD_LABELS.length
 );
 

@@ -54,6 +54,41 @@ const STEROID_ANTIHIST_LABELS = [
   "ペリアクチン",
 ];
 
+
+const GI_STOMACH_LABELS = [
+  "マロピタント",
+  "プリンペラン",
+  "オンダンセトロン",
+  "コントミン",
+  "ファモチジン",
+  "ランソプラゾール",
+  "オメプラゾール",
+  "ディクアノン",
+];
+
+const GI_INTESTINE_LABELS = [
+  "モサプリド",
+  "メサラジン",
+  "サラゾピリン",
+  "デルクリアー",
+  "ディアバスター",
+  "FortiFlora",
+  "ブスコパン",
+  "ミヤBM",
+  "ゼンラーゼ",
+  "マイトマックス",
+  "ビオフェルミンR散剤",
+  "バガス",
+  "サイリウム",
+  "グアーガム",
+  "アドソルビン",
+  "パンクレアチン",
+  "ピアーレシロップ",
+  "ピコスルファート",
+  "モビコール",
+  "ワセリン軟膏",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -345,6 +380,44 @@ assert.equal(
   "ペリアクチン"
 );
 await page.screenshot({ path: path.join(shotDir, "05-steroid-antihist.png") });
+
+await clickItem(page, "#med-add-col-group-list", "消化器（胃）");
+await page.waitForTimeout(120);
+const giStomach = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI gi stomach:", giStomach);
+assert.deepEqual(giStomach, GI_STOMACH_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ディクアノン");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ディクアノン"
+);
+await page.screenshot({ path: path.join(shotDir, "06-gi-stomach.png") });
+
+await clickItem(page, "#med-add-col-group-list", "消化器（腸）");
+await page.waitForTimeout(120);
+const giIntestine = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI gi intestine:", giIntestine);
+assert.deepEqual(giIntestine, GI_INTESTINE_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "FortiFlora");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "FortiFlora"
+);
+await clickItem(page, "#med-add-col-leaf-list", "ワセリン軟膏");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ワセリン軟膏"
+);
+await page.screenshot({ path: path.join(shotDir, "07-gi-intestine.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);
