@@ -147,6 +147,31 @@ const RESPIRATORY_LABELS = [
   "デキサメサゾン液",
 ];
 
+
+const NEURO_LABELS = [
+  "ゾニサミド",
+  "臭化カリウム",
+  "ミダゾラム（鼻腔）",
+  "フェノバール",
+  "レベチラセタム",
+  "ダイアップ坐剤",
+  "エンタイス",
+  "エルーラ",
+  "レメロン",
+  "フルオキセチン",
+  "パロキセチン",
+  "トラゾドン",
+  "ダンドスピロン",
+  "ラボナ",
+  "クロミカルム",
+  "ランドセン",
+  "メンドン",
+  "アルプラゾラム",
+  "ガバペンチン",
+  "アセプロマジン",
+  "イソバイドシロップ",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -553,6 +578,29 @@ await page.waitForTimeout(80);
 const giAgain = await itemLabels(page, "#med-add-col-leaf-list");
 assert.ok(giAgain.includes("マロピタント"));
 assert.ok(!giAgain.includes("マロピタント（鎮咳）"));
+
+await clickItem(page, "#med-add-col-group-list", "神経・行動");
+await page.waitForTimeout(120);
+const neuro = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI neuro:", neuro);
+assert.deepEqual(neuro, NEURO_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ゾニサミド");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ゾニサミド"
+);
+await clickItem(page, "#med-add-col-leaf-list", "イソバイドシロップ");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "イソバイドシロップ"
+);
+await page.screenshot({ path: path.join(shotDir, "11-neuro.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);

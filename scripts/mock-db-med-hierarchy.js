@@ -16,6 +16,7 @@ export const MED_ORAL_GI_INTESTINE_GROUP_ID = "seed-med-oral-gi-intestine";
 export const MED_ORAL_LIVER_KIDNEY_GROUP_ID = "seed-med-oral-liver-kidney";
 export const MED_ORAL_CARDIO_GROUP_ID = "seed-med-oral-cardio";
 export const MED_ORAL_RESPIRATORY_GROUP_ID = "seed-med-oral-respiratory";
+export const MED_ORAL_NEURO_GROUP_ID = "seed-med-oral-neuro";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
@@ -71,7 +72,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_LIVER_KIDNEY_GROUP_ID, "肝・腎・泌尿", 70),
   medGroupSeed("oral", MED_ORAL_CARDIO_GROUP_ID, "循環器", 80),
   medGroupSeed("oral", MED_ORAL_RESPIRATORY_GROUP_ID, "呼吸器", 90),
-  medGroupSeed("oral", "seed-med-oral-neuro", "神経・行動", 100),
+  medGroupSeed("oral", MED_ORAL_NEURO_GROUP_ID, "神経・行動", 100),
   medGroupSeed("oral", "seed-med-oral-antifungal", "抗真菌・駆虫・抗ウイルス", 110),
   medGroupSeed("oral", "seed-med-oral-immuno", "免疫抑制", 120),
   medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
@@ -209,6 +210,29 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-resp-bisolvon-liq", label: "ビソルボン液" },
     { id: "seed-med-oral-resp-gentamicin-liq", label: "ゲンタマイシン液" },
     { id: "seed-med-oral-resp-dexamethasone-liq", label: "デキサメサゾン液" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_NEURO_GROUP_ID, [
+    { id: "seed-med-oral-neuro-zonisamide", label: "ゾニサミド" },
+    { id: "seed-med-oral-neuro-kbr", label: "臭化カリウム" },
+    { id: "seed-med-oral-neuro-midazolam-nasal", label: "ミダゾラム（鼻腔）" },
+    { id: "seed-med-oral-neuro-phenobal", label: "フェノバール" },
+    { id: "seed-med-oral-neuro-levetiracetam", label: "レベチラセタム" },
+    { id: "seed-med-oral-neuro-diup-suppository", label: "ダイアップ坐剤" },
+    { id: "seed-med-oral-neuro-entysce", label: "エンタイス" },
+    { id: "seed-med-oral-neuro-elura", label: "エルーラ" },
+    { id: "seed-med-oral-neuro-remeron", label: "レメロン" },
+    { id: "seed-med-oral-neuro-fluoxetine", label: "フルオキセチン" },
+    { id: "seed-med-oral-neuro-paroxetine", label: "パロキセチン" },
+    { id: "seed-med-oral-neuro-trazodone", label: "トラゾドン" },
+    { id: "seed-med-oral-neuro-tandospirone", label: "ダンドスピロン" },
+    { id: "seed-med-oral-neuro-ravona", label: "ラボナ" },
+    { id: "seed-med-oral-neuro-clomicalm", label: "クロミカルム" },
+    { id: "seed-med-oral-neuro-landsen", label: "ランドセン" },
+    { id: "seed-med-oral-neuro-mendon", label: "メンドン" },
+    { id: "seed-med-oral-neuro-alprazolam", label: "アルプラゾラム" },
+    { id: "seed-med-oral-neuro-gabapentin", label: "ガバペンチン" },
+    { id: "seed-med-oral-neuro-acepromazine", label: "アセプロマジン" },
+    { id: "seed-med-oral-neuro-isobide", label: "イソバイドシロップ" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },
