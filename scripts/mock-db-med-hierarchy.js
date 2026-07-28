@@ -22,6 +22,7 @@ export const MED_ORAL_ANTICANCER_GROUP_ID = "seed-med-oral-anticancer";
 export const MED_ORAL_IMMUNO_GROUP_ID = "seed-med-oral-immuno";
 export const MED_ORAL_VITAMIN_GROUP_ID = "seed-med-oral-vitamin";
 export const MED_ORAL_HORMONE_GROUP_ID = "seed-med-oral-hormone";
+export const MED_ORAL_KAMPO_GROUP_ID = "seed-med-oral-kampo";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
@@ -84,7 +85,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_HORMONE_GROUP_ID, "ホルモン", 140),
   medGroupSeed("oral", MED_ORAL_BLOOD_GROUP_ID, "血液", 150),
   medGroupSeed("oral", MED_ORAL_ANTICANCER_GROUP_ID, "抗がん", 160),
-  medGroupSeed("oral", "seed-med-oral-kampo", "漢方", 170),
+  medGroupSeed("oral", MED_ORAL_KAMPO_GROUP_ID, "漢方", 170),
   medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
   medGroupSeed("oral", "seed-med-oral-inject-suppository", "処方注射薬・座薬", 190),
   medGroupSeed("topical", "seed-med-topical-skin", "皮膚", 10),
@@ -279,6 +280,28 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-hormone-sakiozeal", label: "サキオジール" },
     { id: "seed-med-oral-hormone-melatonin", label: "メラトニン" },
     { id: "seed-med-oral-hormone-thiamazole", label: "チアマゾール" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_KAMPO_GROUP_ID, [
+    { id: "seed-med-oral-kampo-genki", label: "源気" },
+    { id: "seed-med-oral-kampo-sanshen", label: "三仙" },
+    { id: "seed-med-oral-kampo-seiki", label: "清肌" },
+    { id: "seed-med-oral-kampo-tsuraku", label: "通楽" },
+    { id: "seed-med-oral-kampo-roka", label: "露華" },
+    { id: "seed-med-oral-kampo-neishin", label: "寧心" },
+    { id: "seed-med-oral-kampo-junka", label: "潤華" },
+    { id: "seed-med-oral-kampo-kaigen", label: "快元" },
+    { id: "seed-med-oral-kampo-seiberia", label: "西伯利亜" },
+    { id: "seed-med-oral-kampo-tsurin", label: "通淋" },
+    { id: "seed-med-oral-kampo-seishin", label: "静心" },
+    { id: "seed-med-oral-kampo-jijun", label: "滋潤" },
+    { id: "seed-med-oral-kampo-sokufu", label: "熄風" },
+    { id: "seed-med-oral-kampo-chousoku", label: "調息" },
+    { id: "seed-med-oral-kampo-jinko", label: "腎固" },
+    { id: "seed-med-oral-kampo-soga", label: "爽牙" },
+    { id: "seed-med-oral-kampo-shigyaku-san", label: "四逆散" },
+    { id: "seed-med-oral-kampo-hachimi-jio", label: "八味地黄丸" },
+    { id: "seed-med-oral-kampo-hozen", label: "補全" },
+    { id: "seed-med-oral-kampo-unnan-hakuyaku", label: "雲南白薬" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_ANTICANCER_GROUP_ID, [
     { id: "seed-med-oral-ac-imatinib", label: "イマチニブ" },

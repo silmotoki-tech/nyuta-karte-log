@@ -432,6 +432,46 @@ if (
   throw new Error("ホルモン leaf not selected");
 }
 
+await clickItem(page, "#med-add-col-group-list", "漢方");
+await page.waitForTimeout(100);
+const kampoLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+if (
+  kampoLeaves.join(",") !==
+  [
+    "源気",
+    "三仙",
+    "清肌",
+    "通楽",
+    "露華",
+    "寧心",
+    "潤華",
+    "快元",
+    "西伯利亜",
+    "通淋",
+    "静心",
+    "滋潤",
+    "熄風",
+    "調息",
+    "腎固",
+    "爽牙",
+    "四逆散",
+    "八味地黄丸",
+    "補全",
+    "雲南白薬",
+  ].join(",")
+) {
+  throw new Error("漢方 leaf order mismatch: " + kampoLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "雲南白薬");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "雲南白薬"
+) {
+  throw new Error("漢方 leaf not selected");
+}
+
 // 選び直し: 中項目を抗生剤に変更 → 葉がクリアされシード順で表示
 await clickItem(page, "#med-add-col-group-list", "抗生剤");
 await page.waitForTimeout(80);

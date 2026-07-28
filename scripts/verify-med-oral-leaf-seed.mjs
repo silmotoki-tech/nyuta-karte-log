@@ -19,6 +19,7 @@ import {
   MED_ORAL_IMMUNO_GROUP_ID,
   MED_ORAL_VITAMIN_GROUP_ID,
   MED_ORAL_HORMONE_GROUP_ID,
+  MED_ORAL_KAMPO_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -241,6 +242,29 @@ const HORMONE_LABELS = [
   "チアマゾール",
 ];
 
+const KAMPO_LABELS = [
+  "源気",
+  "三仙",
+  "清肌",
+  "通楽",
+  "露華",
+  "寧心",
+  "潤華",
+  "快元",
+  "西伯利亜",
+  "通淋",
+  "静心",
+  "滋潤",
+  "熄風",
+  "調息",
+  "腎固",
+  "爽牙",
+  "四逆散",
+  "八味地黄丸",
+  "補全",
+  "雲南白薬",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -307,6 +331,7 @@ const anticancer = labelsUnder(MED_ORAL_ANTICANCER_GROUP_ID);
 const immuno = labelsUnder(MED_ORAL_IMMUNO_GROUP_ID);
 const vitamin = labelsUnder(MED_ORAL_VITAMIN_GROUP_ID);
 const hormone = labelsUnder(MED_ORAL_HORMONE_GROUP_ID);
+const kampo = labelsUnder(MED_ORAL_KAMPO_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
@@ -322,6 +347,7 @@ console.log("anticancer order:", anticancer);
 console.log("immuno order:", immuno);
 console.log("vitamin order:", vitamin);
 console.log("hormone order:", hormone);
+console.log("kampo order:", kampo);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
@@ -343,6 +369,7 @@ assert.deepEqual(anticancer, ANTICANCER_LABELS);
 assert.deepEqual(immuno, IMMUNO_LABELS);
 assert.deepEqual(vitamin, VITAMIN_LABELS);
 assert.deepEqual(hormone, HORMONE_LABELS);
+assert.deepEqual(kampo, KAMPO_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
@@ -363,6 +390,7 @@ assert.equal(
     IMMUNO_LABELS.length +
     VITAMIN_LABELS.length +
     HORMONE_LABELS.length +
+    KAMPO_LABELS.length +
     BLOOD_LABELS.length
 );
 

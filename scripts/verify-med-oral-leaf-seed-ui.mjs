@@ -228,6 +228,29 @@ const HORMONE_LABELS = [
   "チアマゾール",
 ];
 
+const KAMPO_LABELS = [
+  "源気",
+  "三仙",
+  "清肌",
+  "通楽",
+  "露華",
+  "寧心",
+  "潤華",
+  "快元",
+  "西伯利亜",
+  "通淋",
+  "静心",
+  "滋潤",
+  "熄風",
+  "調息",
+  "腎固",
+  "爽牙",
+  "四逆散",
+  "八味地黄丸",
+  "補全",
+  "雲南白薬",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -779,6 +802,29 @@ assert.equal(
   "チアマゾール"
 );
 await page.screenshot({ path: path.join(shotDir, "16-hormone.png") });
+
+await clickItem(page, "#med-add-col-group-list", "漢方");
+await page.waitForTimeout(120);
+const kampo = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI kampo:", kampo);
+assert.deepEqual(kampo, KAMPO_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "源気");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "源気"
+);
+await clickItem(page, "#med-add-col-leaf-list", "雲南白薬");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "雲南白薬"
+);
+await page.screenshot({ path: path.join(shotDir, "17-kampo.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);
