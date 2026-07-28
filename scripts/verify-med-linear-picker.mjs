@@ -404,6 +404,34 @@ if (
   throw new Error("ビタミン・代謝 leaf not selected");
 }
 
+await clickItem(page, "#med-add-col-group-list", "ホルモン");
+await page.waitForTimeout(100);
+const hormoneLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+if (
+  hormoneLeaves.join(",") !==
+  [
+    "アドレスタン",
+    "チラージン",
+    "チロブロック",
+    "トリロスタン",
+    "フロリネフ",
+    "サキオジール",
+    "メラトニン",
+    "チアマゾール",
+  ].join(",")
+) {
+  throw new Error("ホルモン leaf order mismatch: " + hormoneLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "チアマゾール");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "チアマゾール"
+) {
+  throw new Error("ホルモン leaf not selected");
+}
+
 // 選び直し: 中項目を抗生剤に変更 → 葉がクリアされシード順で表示
 await clickItem(page, "#med-add-col-group-list", "抗生剤");
 await page.waitForTimeout(80);

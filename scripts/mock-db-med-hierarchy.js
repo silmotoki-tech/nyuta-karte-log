@@ -21,6 +21,7 @@ export const MED_ORAL_ANTIFUNGAL_GROUP_ID = "seed-med-oral-antifungal";
 export const MED_ORAL_ANTICANCER_GROUP_ID = "seed-med-oral-anticancer";
 export const MED_ORAL_IMMUNO_GROUP_ID = "seed-med-oral-immuno";
 export const MED_ORAL_VITAMIN_GROUP_ID = "seed-med-oral-vitamin";
+export const MED_ORAL_HORMONE_GROUP_ID = "seed-med-oral-hormone";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
@@ -80,7 +81,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_ANTIFUNGAL_GROUP_ID, "抗真菌・駆虫薬・抗ウイルス薬", 110),
   medGroupSeed("oral", MED_ORAL_IMMUNO_GROUP_ID, "免疫抑制", 120),
   medGroupSeed("oral", MED_ORAL_VITAMIN_GROUP_ID, "ビタミン・代謝", 130),
-  medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
+  medGroupSeed("oral", MED_ORAL_HORMONE_GROUP_ID, "ホルモン", 140),
   medGroupSeed("oral", MED_ORAL_BLOOD_GROUP_ID, "血液", 150),
   medGroupSeed("oral", MED_ORAL_ANTICANCER_GROUP_ID, "抗がん", 160),
   medGroupSeed("oral", "seed-med-oral-kampo", "漢方", 170),
@@ -268,6 +269,16 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-vit-yuvela-n", label: "ユベラN" },
     { id: "seed-med-oral-vit-folic-acid", label: "葉酸" },
     { id: "seed-med-oral-vit-sembergo", label: "センベルゴ" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_HORMONE_GROUP_ID, [
+    { id: "seed-med-oral-hormone-adrestan", label: "アドレスタン" },
+    { id: "seed-med-oral-hormone-thyradin", label: "チラージン" },
+    { id: "seed-med-oral-hormone-thyroblock", label: "チロブロック" },
+    { id: "seed-med-oral-hormone-trilostane", label: "トリロスタン" },
+    { id: "seed-med-oral-hormone-florinef", label: "フロリネフ" },
+    { id: "seed-med-oral-hormone-sakiozeal", label: "サキオジール" },
+    { id: "seed-med-oral-hormone-melatonin", label: "メラトニン" },
+    { id: "seed-med-oral-hormone-thiamazole", label: "チアマゾール" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_ANTICANCER_GROUP_ID, [
     { id: "seed-med-oral-ac-imatinib", label: "イマチニブ" },

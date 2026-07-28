@@ -217,6 +217,17 @@ const VITAMIN_LABELS = [
   "センベルゴ",
 ];
 
+const HORMONE_LABELS = [
+  "アドレスタン",
+  "チラージン",
+  "チロブロック",
+  "トリロスタン",
+  "フロリネフ",
+  "サキオジール",
+  "メラトニン",
+  "チアマゾール",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -745,6 +756,29 @@ assert.equal(
   "センベルゴ"
 );
 await page.screenshot({ path: path.join(shotDir, "15-vitamin.png") });
+
+await clickItem(page, "#med-add-col-group-list", "ホルモン");
+await page.waitForTimeout(120);
+const hormone = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI hormone:", hormone);
+assert.deepEqual(hormone, HORMONE_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "アドレスタン");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "アドレスタン"
+);
+await clickItem(page, "#med-add-col-leaf-list", "チアマゾール");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "チアマゾール"
+);
+await page.screenshot({ path: path.join(shotDir, "16-hormone.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);
