@@ -83,10 +83,28 @@ const GI_INTESTINE_LABELS = [
   "グアーガム",
   "アドソルビン",
   "パンクレアチン",
-  "ピアーレシロップ",
   "ピコスルファート",
   "モビコール",
   "ワセリン軟膏",
+];
+
+
+const LIVER_KIDNEY_LABELS = [
+  "テルミサルタン",
+  "ラプロス",
+  "レナジェル",
+  "ネフガード",
+  "セミントラ",
+  "ウラリット",
+  "ウルソ",
+  "スパカール",
+  "ピアーレシロップ",
+  "リバガード",
+  "SAMYLIN",
+  "ウロカルン",
+  "プロパリン",
+  "ウエルデリ",
+  "タムスロシン塩酸塩",
 ];
 
 const BLOOD_LABELS = [
@@ -418,6 +436,29 @@ assert.equal(
   "ワセリン軟膏"
 );
 await page.screenshot({ path: path.join(shotDir, "07-gi-intestine.png") });
+
+await clickItem(page, "#med-add-col-group-list", "肝・腎・泌尿");
+await page.waitForTimeout(120);
+const liverKidney = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI liver-kidney:", liverKidney);
+assert.deepEqual(liverKidney, LIVER_KIDNEY_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ピアーレシロップ");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "ピアーレシロップ"
+);
+await clickItem(page, "#med-add-col-leaf-list", "タムスロシン塩酸塩");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "タムスロシン塩酸塩"
+);
+await page.screenshot({ path: path.join(shotDir, "08-liver-kidney.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);

@@ -1468,6 +1468,7 @@ export const MED_ORAL_ANTIINFLAM_GROUP_ID = "seed-med-oral-antiinflam";
 export const MED_ORAL_STEROID_ANTIHIST_GROUP_ID = "seed-med-oral-steroid-antihist";
 export const MED_ORAL_GI_STOMACH_GROUP_ID = "seed-med-oral-gi-stomach";
 export const MED_ORAL_GI_INTESTINE_GROUP_ID = "seed-med-oral-gi-intestine";
+export const MED_ORAL_LIVER_KIDNEY_GROUP_ID = "seed-med-oral-liver-kidney";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 /** 中項目シード */
@@ -1479,7 +1480,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_STEROID_ANTIHIST_GROUP_ID, "ステロイド・抗ヒス", 40),
   medGroupSeed("oral", MED_ORAL_GI_STOMACH_GROUP_ID, "消化器（胃）", 50),
   medGroupSeed("oral", MED_ORAL_GI_INTESTINE_GROUP_ID, "消化器（腸）", 60),
-  medGroupSeed("oral", "seed-med-oral-liver-kidney", "肝臓・腎臓・泌尿器", 70),
+  medGroupSeed("oral", MED_ORAL_LIVER_KIDNEY_GROUP_ID, "肝・腎・泌尿", 70),
   medGroupSeed("oral", "seed-med-oral-cardio", "循環器", 80),
   medGroupSeed("oral", "seed-med-oral-respiratory", "呼吸器", 90),
   medGroupSeed("oral", "seed-med-oral-neuro", "神経・行動", 100),
@@ -1566,10 +1567,27 @@ const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-gi-i-guar-gum", label: "グアーガム" },
     { id: "seed-med-oral-gi-i-adsorbin", label: "アドソルビン" },
     { id: "seed-med-oral-gi-i-pancreatin", label: "パンクレアチン" },
-    { id: "seed-med-oral-gi-i-piale", label: "ピアーレシロップ" },
     { id: "seed-med-oral-gi-i-picosulfate", label: "ピコスルファート" },
     { id: "seed-med-oral-gi-i-movicol", label: "モビコール" },
     { id: "seed-med-oral-gi-i-vaseline", label: "ワセリン軟膏" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_LIVER_KIDNEY_GROUP_ID, [
+    { id: "seed-med-oral-lk-telmisartan", label: "テルミサルタン" },
+    { id: "seed-med-oral-lk-rapros", label: "ラプロス" },
+    { id: "seed-med-oral-lk-renagel", label: "レナジェル" },
+    { id: "seed-med-oral-lk-nephguard", label: "ネフガード" },
+    { id: "seed-med-oral-lk-semintra", label: "セミントラ" },
+    { id: "seed-med-oral-lk-urarit", label: "ウラリット" },
+    { id: "seed-med-oral-lk-urso", label: "ウルソ" },
+    { id: "seed-med-oral-lk-spacor", label: "スパカール" },
+    // 消化器（腸）にあった同名は削除せずこちらへ上書き移動
+    { id: "seed-med-oral-lk-piale", label: "ピアーレシロップ" },
+    { id: "seed-med-oral-lk-rivaguard", label: "リバガード" },
+    { id: "seed-med-oral-lk-samylin", label: "SAMYLIN" },
+    { id: "seed-med-oral-lk-urocalun", label: "ウロカルン" },
+    { id: "seed-med-oral-lk-propalin", label: "プロパリン" },
+    { id: "seed-med-oral-lk-welldeli", label: "ウエルデリ" },
+    { id: "seed-med-oral-lk-tamsulosin", label: "タムスロシン塩酸塩" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },

@@ -10,6 +10,7 @@ import {
   MED_ORAL_STEROID_ANTIHIST_GROUP_ID,
   MED_ORAL_GI_STOMACH_GROUP_ID,
   MED_ORAL_GI_INTESTINE_GROUP_ID,
+  MED_ORAL_LIVER_KIDNEY_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -87,10 +88,28 @@ const GI_INTESTINE_LABELS = [
   "グアーガム",
   "アドソルビン",
   "パンクレアチン",
-  "ピアーレシロップ",
   "ピコスルファート",
   "モビコール",
   "ワセリン軟膏",
+];
+
+
+const LIVER_KIDNEY_LABELS = [
+  "テルミサルタン",
+  "ラプロス",
+  "レナジェル",
+  "ネフガード",
+  "セミントラ",
+  "ウラリット",
+  "ウルソ",
+  "スパカール",
+  "ピアーレシロップ",
+  "リバガード",
+  "SAMYLIN",
+  "ウロカルン",
+  "プロパリン",
+  "ウエルデリ",
+  "タムスロシン塩酸塩",
 ];
 
 const BLOOD_LABELS = [
@@ -106,6 +125,7 @@ const store = __getStore();
 const items = store.medicationItems;
 
 assert.equal(items[MED_ORAL_ANTIINFLAM_GROUP_ID]?.label, "消炎・鎮痛");
+assert.equal(items[MED_ORAL_LIVER_KIDNEY_GROUP_ID]?.label, "肝・腎・泌尿");
 
 // 同名の既存アモキシシリンは削除せず、抗生剤へ上書き移動
 assert.ok(items.legacy1, "legacy1 must remain (no delete)");
@@ -142,12 +162,14 @@ const antiinflam = labelsUnder(MED_ORAL_ANTIINFLAM_GROUP_ID);
 const steroid = labelsUnder(MED_ORAL_STEROID_ANTIHIST_GROUP_ID);
 const giStomach = labelsUnder(MED_ORAL_GI_STOMACH_GROUP_ID);
 const giIntestine = labelsUnder(MED_ORAL_GI_INTESTINE_GROUP_ID);
+const liverKidney = labelsUnder(MED_ORAL_LIVER_KIDNEY_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
 console.log("steroid-antihist order:", steroid);
 console.log("gi stomach order:", giStomach);
 console.log("gi intestine order:", giIntestine);
+console.log("liver-kidney order:", liverKidney);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
@@ -155,6 +177,7 @@ assert.deepEqual(antiinflam, ANTIINFLAM_LABELS);
 assert.deepEqual(steroid, STEROID_ANTIHIST_LABELS);
 assert.deepEqual(giStomach, GI_STOMACH_LABELS);
 assert.deepEqual(giIntestine, GI_INTESTINE_LABELS);
+assert.deepEqual(liverKidney, LIVER_KIDNEY_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.equal(
   MEDICATION_ITEM_LEAF_SEED.length,
@@ -163,6 +186,7 @@ assert.equal(
     STEROID_ANTIHIST_LABELS.length +
     GI_STOMACH_LABELS.length +
     GI_INTESTINE_LABELS.length +
+    LIVER_KIDNEY_LABELS.length +
     BLOOD_LABELS.length
 );
 
@@ -182,6 +206,13 @@ store.medicationItems.userPred = {
   parentId: MED_ORAL_OTHER_GROUP_ID,
   order: 888,
 };
+store.medicationItems["seed-med-oral-gi-i-piale"] = {
+  label: "ピアーレシロップ",
+  category: "oral",
+  kind: "leaf",
+  parentId: MED_ORAL_GI_INTESTINE_GROUP_ID,
+  order: 170,
+};
 await ensureMedicationItemDefaults();
 assert.ok(store.medicationItems.userClav);
 assert.equal(store.medicationItems.userClav.parentId, MED_ORAL_ANTIBIOTIC_GROUP_ID);
@@ -194,5 +225,9 @@ assert.equal(
   store.medicationItems["seed-med-oral-steroid-prednisolone"],
   undefined
 );
+assert.ok(store.medicationItems["seed-med-oral-gi-i-piale"]);
+assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].parentId, MED_ORAL_LIVER_KIDNEY_GROUP_ID);
+assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].order, 90);
+assert.equal(store.medicationItems["seed-med-oral-lk-piale"], undefined);
 
 console.log("OK: oral leaf seeds + same-name overwrite");
