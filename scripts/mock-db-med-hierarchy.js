@@ -8,6 +8,8 @@ export const MEDICATION_ITEM_CATEGORIES = [
 ];
 
 export const MED_ORAL_OTHER_GROUP_ID = "seed-med-oral-other";
+export const MED_ORAL_ANTIBIOTIC_GROUP_ID = "seed-med-oral-antibiotic";
+export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
 
@@ -42,8 +44,18 @@ function medGroupSeed(category, id, label, order) {
   return { id, label, category, kind: "group", parentId: "", order };
 }
 
+function medLeafSeed(category, parentId, id, label, order) {
+  return { id, label, category, kind: "leaf", parentId, order };
+}
+
+function medGroupLeaves(category, parentId, children) {
+  return children.map((child, index) =>
+    medLeafSeed(category, parentId, child.id, child.label, (index + 1) * 10)
+  );
+}
+
 const MEDICATION_ITEM_GROUP_SEED = [
-  medGroupSeed("oral", "seed-med-oral-antibiotic", "抗生剤", 10),
+  medGroupSeed("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, "抗生剤", 10),
   medGroupSeed("oral", "seed-med-oral-antiinflam", "消炎剤", 20),
   medGroupSeed("oral", "seed-med-oral-analgesic", "鎮痛剤", 30),
   medGroupSeed("oral", "seed-med-oral-steroid-antihist", "ステロイド・抗ヒス", 40),
@@ -57,7 +69,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", "seed-med-oral-immuno", "免疫抑制", 120),
   medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
   medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
-  medGroupSeed("oral", "seed-med-oral-blood", "血液", 150),
+  medGroupSeed("oral", MED_ORAL_BLOOD_GROUP_ID, "血液", 150),
   medGroupSeed("oral", "seed-med-oral-anticancer", "抗がん剤", 160),
   medGroupSeed("oral", "seed-med-oral-kampo", "漢方", 170),
   medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
@@ -67,13 +79,46 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("topical", "seed-med-topical-ear", "耳", 30),
 ];
 
+export const MEDICATION_ITEM_LEAF_SEED = [
+  ...medGroupLeaves("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, [
+    { id: "seed-med-oral-abx-amoxicillin", label: "アモキシシリン" },
+    { id: "seed-med-oral-abx-amox-clav", label: "クラブラン酸/アモキシシリン" },
+    { id: "seed-med-oral-abx-cephalexin", label: "セファレキシン" },
+    { id: "seed-med-oral-abx-cefpodoxime", label: "セフポドキシム" },
+    { id: "seed-med-oral-abx-faropenem", label: "ファロペネム" },
+    { id: "seed-med-oral-abx-azithromycin", label: "アジスロマイシン" },
+    { id: "seed-med-oral-abx-tylosin", label: "タイロシン" },
+    { id: "seed-med-oral-abx-clindamycin", label: "クリンダマイシン" },
+    { id: "seed-med-oral-abx-fosfomycin", label: "ホスホマイシン" },
+    { id: "seed-med-oral-abx-doxycycline", label: "ドキシサイクリン" },
+    { id: "seed-med-oral-abx-minocycline", label: "ミノサイクリン" },
+    { id: "seed-med-oral-abx-enrofloxacin", label: "エンロフロキサシン" },
+    { id: "seed-med-oral-abx-orbifloxacin", label: "オルビフロキサシン" },
+    { id: "seed-med-oral-abx-moxifloxacin", label: "モキシフロキサシン" },
+    { id: "seed-med-oral-abx-veraflox", label: "ベラフロックス" },
+    { id: "seed-med-oral-abx-st", label: "ST合剤" },
+    { id: "seed-med-oral-abx-famciclovir", label: "ファムシクロビル" },
+    { id: "seed-med-oral-abx-chloramphenicol", label: "クロラムフェニコール" },
+    { id: "seed-med-oral-abx-metronidazole", label: "メトロニダゾール" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
+    { id: "seed-med-oral-blood-domenan", label: "ドメナン" },
+    { id: "seed-med-oral-blood-clopidogrel", label: "クロピドグレル" },
+    { id: "seed-med-oral-blood-xarelto", label: "イグザレルト" },
+    { id: "seed-med-oral-blood-tranexamic", label: "トラネキサム酸" },
+  ]),
+];
+
 const MEDICATION_ITEM_GROUP_SEED_IDS = new Set(
   MEDICATION_ITEM_GROUP_SEED.map((s) => s.id)
+);
+const MEDICATION_ITEM_LEAF_SEED_IDS = new Set(
+  MEDICATION_ITEM_LEAF_SEED.map((s) => s.id)
 );
 
 const store = {
   medicationItems: {
-    // 旧フラット薬剤（移行対象）
+    // 旧フラット薬剤（移行対象）。アモキシシリンは葉シードと同名のため抗生剤へ上書き移動される
     legacy1: { label: "アモキシシリン", order: 1 },
     legacy2: { label: "アラバ", order: 2 },
     legacy3: { label: "パラディア", order: 3 },
@@ -117,32 +162,31 @@ function notifyMeds(k) {
   );
 }
 
+function medicationItemSeedPayload(seed) {
+  return {
+    label: seed.label,
+    category: normalizeMedicationItemCategory(seed.category),
+    kind: normalizeMedicationItemKind(seed.kind),
+    parentId: seed.parentId || "",
+    order: seed.order,
+  };
+}
+
 export async function ensureMedicationItemDefaults() {
   const existing = store.medicationItems;
-  MEDICATION_ITEM_GROUP_SEED.forEach((seed) => {
-    const row = existing[seed.id];
-    if (!row) {
-      existing[seed.id] = {
-        label: seed.label,
-        category: seed.category,
-        kind: "group",
-        parentId: "",
-        order: seed.order,
-      };
-      return;
-    }
-    existing[seed.id] = {
-      label: seed.label,
-      category: seed.category,
-      kind: "group",
-      parentId: "",
-      order: seed.order,
-    };
+  const next = {};
+  Object.entries(existing).forEach(([id, row]) => {
+    if (row && typeof row === "object") next[id] = { ...row };
   });
 
-  Object.entries(existing).forEach(([id, row]) => {
+  MEDICATION_ITEM_GROUP_SEED.forEach((seed) => {
+    next[seed.id] = medicationItemSeedPayload(seed);
+  });
+
+  Object.entries(next).forEach(([id, row]) => {
     if (!row || typeof row !== "object") return;
     if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return;
+    if (MEDICATION_ITEM_LEAF_SEED_IDS.has(id)) return;
 
     const hasCategory = Object.prototype.hasOwnProperty.call(row, "category");
     const hasKind = Object.prototype.hasOwnProperty.call(row, "kind");
@@ -159,7 +203,7 @@ export async function ensureMedicationItemDefaults() {
 
     if (!isLegacyFlat && !isOrphanLeaf) return;
 
-    existing[id] = {
+    next[id] = {
       label: row.label || "",
       category: "oral",
       kind: "leaf",
@@ -168,6 +212,29 @@ export async function ensureMedicationItemDefaults() {
     };
   });
 
+  MEDICATION_ITEM_LEAF_SEED.forEach((seed) => {
+    const payload = medicationItemSeedPayload(seed);
+    if (next[seed.id]) {
+      next[seed.id] = payload;
+      return;
+    }
+    const sameNameId = Object.entries(next).find(([id, row]) => {
+      if (!row || typeof row !== "object") return false;
+      if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return false;
+      if (normalizeMedicationItemKind(row.kind) === "group") return false;
+      return String(row.label || "").trim() === payload.label;
+    })?.[0];
+    if (sameNameId) {
+      next[sameNameId] = payload;
+      return;
+    }
+    next[seed.id] = payload;
+  });
+
+  Object.keys(existing).forEach((id) => {
+    delete existing[id];
+  });
+  Object.assign(existing, next);
   notifyItems();
 }
 
@@ -276,4 +343,14 @@ export async function fetchMedicationsOnce(karte) {
 /** 検証用 */
 export function __getStore() {
   return store;
+}
+
+export function __resetStore() {
+  store.medicationItems = {
+    legacy1: { label: "アモキシシリン", order: 1 },
+    legacy2: { label: "アラバ", order: 2 },
+    legacy3: { label: "パラディア", order: 3 },
+  };
+  store.medications = {};
+  seq = 0;
 }

@@ -4,6 +4,7 @@
 import {
   ensureMedicationItemDefaults,
   MED_ORAL_OTHER_GROUP_ID,
+  MED_ORAL_ANTIBIOTIC_GROUP_ID,
   __getStore,
 } from "./mock-db-med-hierarchy.js";
 
@@ -45,7 +46,16 @@ if (!items[MED_ORAL_OTHER_GROUP_ID]) {
   throw new Error("その他 group missing");
 }
 
-for (const id of ["legacy1", "legacy2", "legacy3"]) {
+// 同名アモキシシリンは削除せず抗生剤へ上書き移動
+const amo = items.legacy1;
+if (!amo) throw new Error("legacy1 lost (must not delete same-name item)");
+if (amo.parentId !== MED_ORAL_ANTIBIOTIC_GROUP_ID) {
+  throw new Error(`アモキシシリン should move under antibiotic, got ${amo.parentId}`);
+}
+if (amo.order !== 10) throw new Error("アモキシシリン order should be 10");
+console.log("same-name overwrite:", "legacy1", "→", amo.label, "under", amo.parentId);
+
+for (const id of ["legacy2", "legacy3"]) {
   const row = items[id];
   if (!row) throw new Error(`legacy ${id} lost`);
   if (row.category !== "oral" || row.kind !== "leaf") {
@@ -63,4 +73,4 @@ for (const label of labels) {
   if (!found) throw new Error(`label missing: ${label}`);
 }
 
-console.log("OK: hierarchy seed + legacy migration");
+console.log("OK: hierarchy seed + legacy migration + same-name leaf overwrite");

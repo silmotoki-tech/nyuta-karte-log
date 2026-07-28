@@ -1445,10 +1445,31 @@ function medGroupSeed(category, id, label, order) {
   };
 }
 
-/** 中項目シード（薬剤名の葉は空。ユーザーが各階層で追加する） */
+function medLeafSeed(category, parentId, id, label, order) {
+  return {
+    id,
+    label,
+    category,
+    kind: "leaf",
+    parentId,
+    order,
+  };
+}
+
+/** 中項目内の葉を指定順（10刻み）でシードする */
+function medGroupLeaves(category, parentId, children) {
+  return children.map((child, index) =>
+    medLeafSeed(category, parentId, child.id, child.label, (index + 1) * 10)
+  );
+}
+
+export const MED_ORAL_ANTIBIOTIC_GROUP_ID = "seed-med-oral-antibiotic";
+export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
+
+/** 中項目シード */
 const MEDICATION_ITEM_GROUP_SEED = [
   // 内服
-  medGroupSeed("oral", "seed-med-oral-antibiotic", "抗生剤", 10),
+  medGroupSeed("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, "抗生剤", 10),
   medGroupSeed("oral", "seed-med-oral-antiinflam", "消炎剤", 20),
   medGroupSeed("oral", "seed-med-oral-analgesic", "鎮痛剤", 30),
   medGroupSeed("oral", "seed-med-oral-steroid-antihist", "ステロイド・抗ヒス", 40),
@@ -1462,7 +1483,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", "seed-med-oral-immuno", "免疫抑制", 120),
   medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
   medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
-  medGroupSeed("oral", "seed-med-oral-blood", "血液", 150),
+  medGroupSeed("oral", MED_ORAL_BLOOD_GROUP_ID, "血液", 150),
   medGroupSeed("oral", "seed-med-oral-anticancer", "抗がん剤", 160),
   medGroupSeed("oral", "seed-med-oral-kampo", "漢方", 170),
   medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
@@ -1473,8 +1494,42 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("topical", "seed-med-topical-ear", "耳", 30),
 ];
 
+/** 内服薬の葉シード（中項目直下のフラット一覧・指定順） */
+const MEDICATION_ITEM_LEAF_SEED = [
+  ...medGroupLeaves("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, [
+    { id: "seed-med-oral-abx-amoxicillin", label: "アモキシシリン" },
+    { id: "seed-med-oral-abx-amox-clav", label: "クラブラン酸/アモキシシリン" },
+    { id: "seed-med-oral-abx-cephalexin", label: "セファレキシン" },
+    { id: "seed-med-oral-abx-cefpodoxime", label: "セフポドキシム" },
+    { id: "seed-med-oral-abx-faropenem", label: "ファロペネム" },
+    { id: "seed-med-oral-abx-azithromycin", label: "アジスロマイシン" },
+    { id: "seed-med-oral-abx-tylosin", label: "タイロシン" },
+    { id: "seed-med-oral-abx-clindamycin", label: "クリンダマイシン" },
+    { id: "seed-med-oral-abx-fosfomycin", label: "ホスホマイシン" },
+    { id: "seed-med-oral-abx-doxycycline", label: "ドキシサイクリン" },
+    { id: "seed-med-oral-abx-minocycline", label: "ミノサイクリン" },
+    { id: "seed-med-oral-abx-enrofloxacin", label: "エンロフロキサシン" },
+    { id: "seed-med-oral-abx-orbifloxacin", label: "オルビフロキサシン" },
+    { id: "seed-med-oral-abx-moxifloxacin", label: "モキシフロキサシン" },
+    { id: "seed-med-oral-abx-veraflox", label: "ベラフロックス" },
+    { id: "seed-med-oral-abx-st", label: "ST合剤" },
+    { id: "seed-med-oral-abx-famciclovir", label: "ファムシクロビル" },
+    { id: "seed-med-oral-abx-chloramphenicol", label: "クロラムフェニコール" },
+    { id: "seed-med-oral-abx-metronidazole", label: "メトロニダゾール" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
+    { id: "seed-med-oral-blood-domenan", label: "ドメナン" },
+    { id: "seed-med-oral-blood-clopidogrel", label: "クロピドグレル" },
+    { id: "seed-med-oral-blood-xarelto", label: "イグザレルト" },
+    { id: "seed-med-oral-blood-tranexamic", label: "トラネキサム酸" },
+  ]),
+];
+
 const MEDICATION_ITEM_GROUP_SEED_IDS = new Set(
   MEDICATION_ITEM_GROUP_SEED.map((s) => s.id)
+);
+const MEDICATION_ITEM_LEAF_SEED_IDS = new Set(
+  MEDICATION_ITEM_LEAF_SEED.map((s) => s.id)
 );
 
 function medicationItemSeedPayload(seed) {
@@ -1487,43 +1542,42 @@ function medicationItemSeedPayload(seed) {
   };
 }
 
+function medicationItemSeedEquals(row, payload) {
+  if (!row || typeof row !== "object") return false;
+  return (
+    (row.label || "") === payload.label &&
+    normalizeMedicationItemCategory(row.category) === payload.category &&
+    normalizeMedicationItemKind(row.kind) === payload.kind &&
+    String(row.parentId || "").trim() === String(payload.parentId || "").trim() &&
+    typeof row.order === "number" &&
+    row.order === payload.order
+  );
+}
+
 /**
- * 中項目シードを補完し、旧フラット薬剤を内服→その他へ移す。
+ * 中項目・葉シードを補完し、旧フラット薬剤を内服→その他へ移す。
+ * 葉は固定IDを優先し、同名の既存葉があれば削除せず上書き（表記・所属を統一）。
  */
 export async function ensureMedicationItemDefaults() {
   await authReady;
   const snap = await get(medicationItemsRef());
   const existing =
     snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
-  const writes = {};
-
-  MEDICATION_ITEM_GROUP_SEED.forEach((seed) => {
-    const payload = medicationItemSeedPayload(seed);
-    const row = existing[seed.id];
-    if (!row) {
-      writes[seed.id] = payload;
-      return;
-    }
-    if ((row.label || "") !== payload.label) {
-      writes[`${seed.id}/label`] = payload.label;
-    }
-    if (normalizeMedicationItemCategory(row.category) !== payload.category) {
-      writes[`${seed.id}/category`] = payload.category;
-    }
-    if (normalizeMedicationItemKind(row.kind) !== payload.kind) {
-      writes[`${seed.id}/kind`] = payload.kind;
-    }
-    if (String(row.parentId || "").trim() !== "") {
-      writes[`${seed.id}/parentId`] = "";
-    }
-    if (typeof row.order !== "number" || row.order !== payload.order) {
-      writes[`${seed.id}/order`] = payload.order;
+  const next = {};
+  Object.entries(existing).forEach(([id, row]) => {
+    if (row && typeof row === "object") {
+      next[id] = { ...row };
     }
   });
 
-  Object.entries(existing).forEach(([id, row]) => {
+  MEDICATION_ITEM_GROUP_SEED.forEach((seed) => {
+    next[seed.id] = medicationItemSeedPayload(seed);
+  });
+
+  Object.entries(next).forEach(([id, row]) => {
     if (!row || typeof row !== "object") return;
     if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return;
+    if (MEDICATION_ITEM_LEAF_SEED_IDS.has(id)) return;
 
     const hasCategory = Object.prototype.hasOwnProperty.call(row, "category");
     const hasKind = Object.prototype.hasOwnProperty.call(row, "kind");
@@ -1543,13 +1597,54 @@ export async function ensureMedicationItemDefaults() {
 
     if (!isLegacyFlat && !isOrphanLeaf) return;
 
-    writes[id] = {
+    next[id] = {
       label: row.label || "",
       category: "oral",
       kind: "leaf",
       parentId: MED_ORAL_OTHER_GROUP_ID,
       order: typeof row.order === "number" ? row.order : Date.now(),
     };
+  });
+
+  MEDICATION_ITEM_LEAF_SEED.forEach((seed) => {
+    const payload = medicationItemSeedPayload(seed);
+    if (next[seed.id]) {
+      next[seed.id] = payload;
+      return;
+    }
+
+    // 同名の既存葉は削除せず、今回の内容で上書き（表記・所属を統一）
+    const sameNameId = Object.entries(next).find(([id, row]) => {
+      if (!row || typeof row !== "object") return false;
+      if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return false;
+      if (normalizeMedicationItemKind(row.kind) === "group") return false;
+      return String(row.label || "").trim() === payload.label;
+    })?.[0];
+
+    if (sameNameId) {
+      next[sameNameId] = payload;
+      return;
+    }
+
+    next[seed.id] = payload;
+  });
+
+  const writes = {};
+  Object.entries(next).forEach(([id, row]) => {
+    const prev = existing[id];
+    if (!prev || !medicationItemSeedEquals(prev, medicationItemSeedPayload(row))) {
+      // row はすでに payload 形。正規化して書く
+      writes[id] = {
+        label: row.label || "",
+        category: normalizeMedicationItemCategory(row.category),
+        kind: normalizeMedicationItemKind(row.kind),
+        parentId:
+          normalizeMedicationItemKind(row.kind) === "group"
+            ? ""
+            : String(row.parentId || "").trim(),
+        order: typeof row.order === "number" ? row.order : 0,
+      };
+    }
   });
 
   if (Object.keys(writes).length) {

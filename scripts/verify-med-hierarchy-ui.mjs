@@ -188,7 +188,23 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const { port } = server.address();
 const base = `http://127.0.0.1:${port}`;
 
-const browser = await chromium.launch();
+async function launchBrowser() {
+  for (const executablePath of [
+    undefined,
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ]) {
+    try {
+      return await chromium.launch(
+        executablePath ? { executablePath } : undefined
+      );
+    } catch (err) {
+      console.warn("launch failed", executablePath || "playwright", err.message);
+    }
+  }
+  throw new Error("Unable to launch browser");
+}
+
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 420, height: 980 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
@@ -239,11 +255,15 @@ if (!buttons.includes("抗生剤") || !buttons.includes("その他")) {
 if (buttons.includes("アモキシシリン")) {
   throw new Error("legacy leaf should not show in mid column");
 }
-if (!(await page.locator("#med-add-col-leaf").isHidden())) {
-  throw new Error("leaf col should be hidden until mid selected");
+if (
+  !(await page
+    .locator("#med-add-col-leaf")
+    .evaluate((el) => el.classList.contains("is-placeholder")))
+) {
+  throw new Error("leaf col should stay placeholder until mid selected");
 }
 
-// その他 → 既存3件
+// その他 → 同名シード以外の旧フラット
 await page.locator("#med-add-col-group-list .med-linear-picker__item", {
   hasText: "その他",
 }).click();
@@ -252,16 +272,34 @@ buttons = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("oral/その他 leaves:", buttons);
-for (const name of ["アモキシシリン", "アラバ", "パラディア"]) {
+for (const name of ["アラバ", "パラディア"]) {
   if (!buttons.includes(name)) throw new Error(`migrated leaf missing: ${name}`);
+}
+if (buttons.includes("アモキシシリン")) {
+  throw new Error("アモキシシリン should be under 抗生剤, not その他");
 }
 const addToggleVisible = await page.locator("#btn-med-add-toggle").isVisible();
 if (!addToggleVisible) throw new Error("add toggle should show in leaf col");
 const addCollapsed = await page.locator("#med-add-item-add").isHidden();
 if (!addCollapsed) throw new Error("add field should stay collapsed until +");
 
-await page.locator("#med-add-col-leaf-list .med-linear-picker__item", {
-  hasText: "アモキシシリン",
+// 抗生剤 → シード先頭を選択して追加
+await page.locator("#med-add-col-group-list .med-linear-picker__item", {
+  hasText: "抗生剤",
+}).click();
+await page.waitForTimeout(120);
+buttons = await page
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .allTextContents();
+console.log("oral/抗生剤 leaves sample:", buttons.slice(0, 3), "...", buttons.length);
+if (buttons[0] !== "アモキシシリン") {
+  throw new Error("抗生剤 should start with アモキシシリン");
+}
+
+await page.locator("#med-add-col-leaf-list .med-linear-picker__item").filter({
+  has: page.locator(".med-linear-picker__item-label", {
+    hasText: /^アモキシシリン$/,
+  }),
 }).click();
 const selected = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
