@@ -195,6 +195,21 @@ const ANTICANCER_LABELS = [
   "ロムスチン",
 ];
 
+
+const IMMUNO_LABELS = [
+  "イムラン",
+  "クロラムブシル",
+  "シクラバンス",
+  "シクロスポリン（ネオーラル）",
+  "モフェチル",
+  "ボンゾール",
+  "アラバ",
+  "ゼンレリア",
+  "アポキル",
+  "ジアゾキシド",
+  "メスチノン",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -677,6 +692,29 @@ assert.equal(
   "ロムスチン"
 );
 await page.screenshot({ path: path.join(shotDir, "13-anticancer.png") });
+
+await clickItem(page, "#med-add-col-group-list", "免疫抑制");
+await page.waitForTimeout(120);
+const immuno = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI immuno:", immuno);
+assert.deepEqual(immuno, IMMUNO_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "アラバ");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "アラバ"
+);
+await clickItem(page, "#med-add-col-leaf-list", "メスチノン");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "メスチノン"
+);
+await page.screenshot({ path: path.join(shotDir, "14-immuno.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);

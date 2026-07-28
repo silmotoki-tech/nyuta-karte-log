@@ -1474,6 +1474,7 @@ export const MED_ORAL_RESPIRATORY_GROUP_ID = "seed-med-oral-respiratory";
 export const MED_ORAL_NEURO_GROUP_ID = "seed-med-oral-neuro";
 export const MED_ORAL_ANTIFUNGAL_GROUP_ID = "seed-med-oral-antifungal";
 export const MED_ORAL_ANTICANCER_GROUP_ID = "seed-med-oral-anticancer";
+export const MED_ORAL_IMMUNO_GROUP_ID = "seed-med-oral-immuno";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 /** 中項目シード */
@@ -1490,7 +1491,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_RESPIRATORY_GROUP_ID, "呼吸器", 90),
   medGroupSeed("oral", MED_ORAL_NEURO_GROUP_ID, "神経・行動", 100),
   medGroupSeed("oral", MED_ORAL_ANTIFUNGAL_GROUP_ID, "抗真菌・駆虫薬・抗ウイルス薬", 110),
-  medGroupSeed("oral", "seed-med-oral-immuno", "免疫抑制", 120),
+  medGroupSeed("oral", MED_ORAL_IMMUNO_GROUP_ID, "免疫抑制", 120),
   medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
   medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
   medGroupSeed("oral", MED_ORAL_BLOOD_GROUP_ID, "血液", 150),
@@ -1666,6 +1667,19 @@ const MEDICATION_ITEM_LEAF_SEED = [
     // 旧抗生剤シードIDを流用し、中項目をこちらへ確実に移動
     { id: "seed-med-oral-abx-famciclovir", label: "ファムシクロビル" },
     { id: "seed-med-oral-af-molnupiravir", label: "モルヌピラビル" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_IMMUNO_GROUP_ID, [
+    { id: "seed-med-oral-im-imuran", label: "イムラン" },
+    { id: "seed-med-oral-im-chlorambucil", label: "クロラムブシル" },
+    { id: "seed-med-oral-im-ciclavance", label: "シクラバンス" },
+    { id: "seed-med-oral-im-cyclosporine-neoral", label: "シクロスポリン（ネオーラル）" },
+    { id: "seed-med-oral-im-mofetil", label: "モフェチル" },
+    { id: "seed-med-oral-im-bonzol", label: "ボンゾール" },
+    { id: "seed-med-oral-im-arava", label: "アラバ" },
+    { id: "seed-med-oral-im-zenrelia", label: "ゼンレリア" },
+    { id: "seed-med-oral-im-apoquel", label: "アポキル" },
+    { id: "seed-med-oral-im-diazoxide", label: "ジアゾキシド" },
+    { id: "seed-med-oral-im-mestinon", label: "メスチノン" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_ANTICANCER_GROUP_ID, [
     { id: "seed-med-oral-ac-imatinib", label: "イマチニブ" },

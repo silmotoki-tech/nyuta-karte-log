@@ -272,14 +272,8 @@ buttons = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("oral/その他 leaves:", buttons);
-for (const name of ["アラバ"]) {
-  if (!buttons.includes(name)) throw new Error(`migrated leaf missing: ${name}`);
-}
-if (buttons.includes("パラディア")) {
-  throw new Error("パラディア should be under 抗がん, not その他");
-}
-if (buttons.includes("アモキシシリン")) {
-  throw new Error("アモキシシリン should be under 抗生剤, not その他");
+for (const name of ["アラバ", "パラディア", "アモキシシリン"]) {
+  if (buttons.includes(name)) throw new Error(`${name} should have moved out of その他`);
 }
 const addToggleVisible = await page.locator("#btn-med-add-toggle").isVisible();
 if (!addToggleVisible) throw new Error("add toggle should show in leaf col");

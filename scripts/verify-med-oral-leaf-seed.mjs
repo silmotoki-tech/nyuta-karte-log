@@ -16,6 +16,7 @@ import {
   MED_ORAL_NEURO_GROUP_ID,
   MED_ORAL_ANTIFUNGAL_GROUP_ID,
   MED_ORAL_ANTICANCER_GROUP_ID,
+  MED_ORAL_IMMUNO_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -205,6 +206,21 @@ const ANTICANCER_LABELS = [
   "ロムスチン",
 ];
 
+
+const IMMUNO_LABELS = [
+  "イムラン",
+  "クロラムブシル",
+  "シクラバンス",
+  "シクロスポリン（ネオーラル）",
+  "モフェチル",
+  "ボンゾール",
+  "アラバ",
+  "ゼンレリア",
+  "アポキル",
+  "ジアゾキシド",
+  "メスチノン",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -235,13 +251,14 @@ assert.equal(
   "should reuse same-name id instead of creating seed id"
 );
 
-// その他に残る旧フラット（パラディアは抗がんへ同名上書き移動）
-for (const id of ["legacy2"]) {
-  assert.equal(items[id].parentId, MED_ORAL_OTHER_GROUP_ID);
-}
+// 旧フラット同名は各中項目へ上書き移動（その他は空）
+assert.equal(items.legacy2.parentId, MED_ORAL_IMMUNO_GROUP_ID);
+assert.equal(items.legacy2.label, "アラバ");
+assert.equal(items.legacy2.order, 70);
 assert.equal(items.legacy3.parentId, MED_ORAL_ANTICANCER_GROUP_ID);
 assert.equal(items.legacy3.label, "パラディア");
 assert.equal(items.legacy3.order, 20);
+
 
 function labelsUnder(parentId) {
   return Object.values(items)
@@ -266,6 +283,7 @@ const respiratory = labelsUnder(MED_ORAL_RESPIRATORY_GROUP_ID);
 const neuro = labelsUnder(MED_ORAL_NEURO_GROUP_ID);
 const antifungal = labelsUnder(MED_ORAL_ANTIFUNGAL_GROUP_ID);
 const anticancer = labelsUnder(MED_ORAL_ANTICANCER_GROUP_ID);
+const immuno = labelsUnder(MED_ORAL_IMMUNO_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
@@ -278,6 +296,7 @@ console.log("respiratory order:", respiratory);
 console.log("neuro order:", neuro);
 console.log("antifungal order:", antifungal);
 console.log("anticancer order:", anticancer);
+console.log("immuno order:", immuno);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
@@ -296,6 +315,7 @@ assert.equal(items["seed-med-oral-abx-famciclovir"]?.order, 100);
 assert.ok(!antibiotic.includes("ファムシクロビル"));
 assert.equal(antifungal.filter((x) => x === "ファムシクロビル").length, 1);
 assert.deepEqual(anticancer, ANTICANCER_LABELS);
+assert.deepEqual(immuno, IMMUNO_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
@@ -313,6 +333,7 @@ assert.equal(
     NEURO_LABELS.length +
     ANTIFUNGAL_LABELS.length +
     ANTICANCER_LABELS.length +
+    IMMUNO_LABELS.length +
     BLOOD_LABELS.length
 );
 

@@ -346,14 +346,8 @@ if (await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contai
 }
 const leaves = await itemLabels(page, "#med-add-col-leaf-list");
 console.log("oral/その他 leaves:", leaves);
-for (const name of ["アラバ"]) {
-  if (!leaves.includes(name)) throw new Error(`migrated leaf missing: ${name}`);
-}
-if (leaves.includes("パラディア")) {
-  throw new Error("パラディア should have moved from その他 to 抗がん");
-}
-if (leaves.includes("アモキシシリン")) {
-  throw new Error("アモキシシリン should have moved from その他 to 抗生剤");
+for (const name of ["アラバ", "パラディア", "アモキシシリン"]) {
+  if (leaves.includes(name)) throw new Error(`${name} should have moved out of その他`);
 }
 if (!(await page.locator("#btn-med-add-toggle").isVisible())) {
   throw new Error("add toggle should be visible in leaf col");
@@ -371,6 +365,12 @@ await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-03-oral-leaf.png"),
 });
 
+await clickItem(page, "#med-add-col-group-list", "免疫抑制");
+await page.waitForTimeout(100);
+const immunoLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+if (!immunoLeaves.includes("アラバ") || immunoLeaves[0] !== "イムラン") {
+  throw new Error("免疫抑制 leaf order mismatch");
+}
 await clickItem(page, "#med-add-col-leaf-list", "アラバ");
 await page.waitForTimeout(80);
 const leafSelected = await page
