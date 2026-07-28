@@ -210,6 +210,13 @@ const IMMUNO_LABELS = [
   "メスチノン",
 ];
 
+const VITAMIN_LABELS = [
+  "メコバラミン",
+  "ユベラN",
+  "葉酸",
+  "センベルゴ",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -715,6 +722,29 @@ assert.equal(
   "メスチノン"
 );
 await page.screenshot({ path: path.join(shotDir, "14-immuno.png") });
+
+await clickItem(page, "#med-add-col-group-list", "ビタミン・代謝");
+await page.waitForTimeout(120);
+const vitamin = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI vitamin:", vitamin);
+assert.deepEqual(vitamin, VITAMIN_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "メコバラミン");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "メコバラミン"
+);
+await clickItem(page, "#med-add-col-leaf-list", "センベルゴ");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "センベルゴ"
+);
+await page.screenshot({ path: path.join(shotDir, "15-vitamin.png") });
 
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);

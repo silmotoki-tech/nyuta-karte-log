@@ -17,6 +17,7 @@ import {
   MED_ORAL_ANTIFUNGAL_GROUP_ID,
   MED_ORAL_ANTICANCER_GROUP_ID,
   MED_ORAL_IMMUNO_GROUP_ID,
+  MED_ORAL_VITAMIN_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
@@ -221,6 +222,13 @@ const IMMUNO_LABELS = [
   "メスチノン",
 ];
 
+const VITAMIN_LABELS = [
+  "メコバラミン",
+  "ユベラN",
+  "葉酸",
+  "センベルゴ",
+];
+
 const BLOOD_LABELS = [
   "ドメナン",
   "クロピドグレル",
@@ -237,6 +245,7 @@ assert.equal(items[MED_ORAL_ANTIINFLAM_GROUP_ID]?.label, "消炎・鎮痛");
 assert.equal(items[MED_ORAL_LIVER_KIDNEY_GROUP_ID]?.label, "肝・腎・泌尿");
 assert.equal(items[MED_ORAL_ANTIFUNGAL_GROUP_ID]?.label, "抗真菌・駆虫薬・抗ウイルス薬");
 assert.equal(items[MED_ORAL_ANTICANCER_GROUP_ID]?.label, "抗がん");
+assert.equal(items[MED_ORAL_VITAMIN_GROUP_ID]?.label, "ビタミン・代謝");
 
 // 同名の既存アモキシシリンは削除せず、抗生剤へ上書き移動
 assert.ok(items.legacy1, "legacy1 must remain (no delete)");
@@ -284,6 +293,7 @@ const neuro = labelsUnder(MED_ORAL_NEURO_GROUP_ID);
 const antifungal = labelsUnder(MED_ORAL_ANTIFUNGAL_GROUP_ID);
 const anticancer = labelsUnder(MED_ORAL_ANTICANCER_GROUP_ID);
 const immuno = labelsUnder(MED_ORAL_IMMUNO_GROUP_ID);
+const vitamin = labelsUnder(MED_ORAL_VITAMIN_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
@@ -297,6 +307,7 @@ console.log("neuro order:", neuro);
 console.log("antifungal order:", antifungal);
 console.log("anticancer order:", anticancer);
 console.log("immuno order:", immuno);
+console.log("vitamin order:", vitamin);
 console.log("blood order:", blood);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
@@ -316,6 +327,7 @@ assert.ok(!antibiotic.includes("ファムシクロビル"));
 assert.equal(antifungal.filter((x) => x === "ファムシクロビル").length, 1);
 assert.deepEqual(anticancer, ANTICANCER_LABELS);
 assert.deepEqual(immuno, IMMUNO_LABELS);
+assert.deepEqual(vitamin, VITAMIN_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
@@ -334,6 +346,7 @@ assert.equal(
     ANTIFUNGAL_LABELS.length +
     ANTICANCER_LABELS.length +
     IMMUNO_LABELS.length +
+    VITAMIN_LABELS.length +
     BLOOD_LABELS.length
 );
 

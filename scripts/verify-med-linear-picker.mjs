@@ -385,6 +385,25 @@ await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-04-oral-selected.png"),
 });
 
+await clickItem(page, "#med-add-col-group-list", "ビタミン・代謝");
+await page.waitForTimeout(100);
+const vitaminLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+if (
+  vitaminLeaves.join(",") !==
+  ["メコバラミン", "ユベラN", "葉酸", "センベルゴ"].join(",")
+) {
+  throw new Error("ビタミン・代謝 leaf order mismatch: " + vitaminLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "センベルゴ");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "センベルゴ"
+) {
+  throw new Error("ビタミン・代謝 leaf not selected");
+}
+
 // 選び直し: 中項目を抗生剤に変更 → 葉がクリアされシード順で表示
 await clickItem(page, "#med-add-col-group-list", "抗生剤");
 await page.waitForTimeout(80);

@@ -20,6 +20,7 @@ export const MED_ORAL_NEURO_GROUP_ID = "seed-med-oral-neuro";
 export const MED_ORAL_ANTIFUNGAL_GROUP_ID = "seed-med-oral-antifungal";
 export const MED_ORAL_ANTICANCER_GROUP_ID = "seed-med-oral-anticancer";
 export const MED_ORAL_IMMUNO_GROUP_ID = "seed-med-oral-immuno";
+export const MED_ORAL_VITAMIN_GROUP_ID = "seed-med-oral-vitamin";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
@@ -78,7 +79,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_NEURO_GROUP_ID, "神経・行動", 100),
   medGroupSeed("oral", MED_ORAL_ANTIFUNGAL_GROUP_ID, "抗真菌・駆虫薬・抗ウイルス薬", 110),
   medGroupSeed("oral", MED_ORAL_IMMUNO_GROUP_ID, "免疫抑制", 120),
-  medGroupSeed("oral", "seed-med-oral-vitamin", "ビタミン代謝", 130),
+  medGroupSeed("oral", MED_ORAL_VITAMIN_GROUP_ID, "ビタミン・代謝", 130),
   medGroupSeed("oral", "seed-med-oral-hormone", "ホルモン", 140),
   medGroupSeed("oral", MED_ORAL_BLOOD_GROUP_ID, "血液", 150),
   medGroupSeed("oral", MED_ORAL_ANTICANCER_GROUP_ID, "抗がん", 160),
@@ -261,6 +262,12 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-im-apoquel", label: "アポキル" },
     { id: "seed-med-oral-im-diazoxide", label: "ジアゾキシド" },
     { id: "seed-med-oral-im-mestinon", label: "メスチノン" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_VITAMIN_GROUP_ID, [
+    { id: "seed-med-oral-vit-mecobalamin", label: "メコバラミン" },
+    { id: "seed-med-oral-vit-yuvela-n", label: "ユベラN" },
+    { id: "seed-med-oral-vit-folic-acid", label: "葉酸" },
+    { id: "seed-med-oral-vit-sembergo", label: "センベルゴ" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_ANTICANCER_GROUP_ID, [
     { id: "seed-med-oral-ac-imatinib", label: "イマチニブ" },
