@@ -8,6 +8,7 @@ import {
   deleteSpecialNote,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { setRightTabNoteHighAlert } from "./right-tab-alerts.js";
 
 const AUTHORS = [
   "院長", "大辻", "川邉", "齋藤", "横井", "德永",
@@ -95,6 +96,7 @@ export function leaveSpecialNotes() {
   }
   state.karteNumber = null;
   state.items = [];
+  setRightTabNoteHighAlert(false);
   closeModal();
   if (noteList) noteList.innerHTML = "";
 }
@@ -107,6 +109,14 @@ function renderList() {
   items.forEach((item) => {
     noteList.appendChild(createCard(item));
   });
+  updateNotesTabAlert();
+}
+
+function updateNotesTabAlert() {
+  const hasHigh = (state.items || []).some(
+    (item) => String(item?.importance || "").trim() === "high"
+  );
+  setRightTabNoteHighAlert(hasHigh);
 }
 
 function createCard(item) {

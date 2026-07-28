@@ -1468,6 +1468,28 @@ html.is-unlocked .app {
   opacity: 0.5;
 }
 
+/* 期限・特記の注意色（アクティブ／ホバーでも優先） */
+.right-tab.right-tab--due-near,
+.right-tab.right-tab--due-near.is-active,
+.right-tab.right-tab--due-near:hover:not(:disabled) {
+  color: var(--due-near);
+}
+
+.right-tab.right-tab--due-close,
+.right-tab.right-tab--due-close.is-active,
+.right-tab.right-tab--due-close:hover:not(:disabled) {
+  color: var(--due-close);
+}
+
+.right-tab.right-tab--due-overdue,
+.right-tab.right-tab--due-overdue.is-active,
+.right-tab.right-tab--due-overdue:hover:not(:disabled),
+.right-tab.right-tab--note-high,
+.right-tab.right-tab--note-high.is-active,
+.right-tab.right-tab--note-high:hover:not(:disabled) {
+  color: var(--due-overdue);
+}
+
 .right-empty {
   flex: 1;
   display: flex;
@@ -3552,6 +3574,23 @@ select.input {
 
 .med-linear-picker__col--leaf {
   background-color: var(--color-white);
+}
+
+.med-linear-picker__search {
+  flex-shrink: 0;
+  padding: 6px 8px 4px;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-white);
+}
+
+.med-linear-picker__search-input {
+  width: 100%;
+  min-height: 34px;
+  font-size: 0.92rem;
+}
+
+.med-linear-picker__col.is-placeholder .med-linear-picker__search {
+  display: none !important;
 }
 
 .med-linear-picker__head {

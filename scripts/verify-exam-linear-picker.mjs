@@ -257,7 +257,7 @@ await page.waitForTimeout(200);
 // 初期: 3列枠を確保し、中・葉はプレースホルダー
 const cats = await itemLabels(page, "#exam-plan-col-category-list");
 console.log("categories:", cats);
-if (JSON.stringify(cats) !== JSON.stringify(["血液", "画像", "病理", "その他"])) {
+if (JSON.stringify(cats) !== JSON.stringify(["血液", "画像", "病理", "その他", "検索"])) {
   throw new Error("category list mismatch");
 }
 if (
@@ -414,10 +414,10 @@ if (!(await page.locator("#exam-plan-col-group").isHidden())) {
 }
 const other = await itemLabels(page, "#exam-plan-col-leaf-list");
 console.log("other:", other);
-for (const label of ["尿検査(UPCなし)", "便検査", "下痢パネル"]) {
+for (const label of ["尿検査(UPCなし)", "便検査", "下痢パネル", "循環器診療"]) {
   if (!other.includes(label)) throw new Error(`other missing ${label}`);
 }
-await clickItem(page, "#exam-plan-col-leaf-list", "便検査");
+await clickItem(page, "#exam-plan-col-leaf-list", "循環器診療");
 await shot(page, "exam-linear-picker-09-other.png");
 
 // チェックマークが各列に出ていること（大項目＋検査項目）
@@ -427,6 +427,13 @@ const checks = await page
   )
   .count();
 if (checks < 2) throw new Error(`expected checkmarks on selected columns, got ${checks}`);
+
+const selectedOther = await page
+  .locator("#exam-plan-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+  .innerText();
+if (selectedOther !== "循環器診療") {
+  throw new Error(`expected 循環器診療 selected, got ${selectedOther}`);
+}
 
 if (errors.length) {
   console.log("ERRORS", errors);

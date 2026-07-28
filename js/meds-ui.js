@@ -27,6 +27,9 @@ import {
   eventFrequencyText,
   bindFrequencyPicker,
 } from "./freq-picker.js";
+import { filterMedicationLeavesByQuery } from "./med-item-match.js";
+import { getDueCountdown } from "./exam-plan-ui.js";
+import { maxDueAlertLevel, setRightTabDueAlert } from "./right-tab-alerts.js";
 
 const APPROACHING_DAYS = 7;
 const RECENT_DAYS = 30;
@@ -120,6 +123,9 @@ const state = {
   /** 薬剤マスタ・リニアピッカー: 大分類 inject|oral|topical|eye|supplement|null、中項目 parentId（未選択は null） */
   medItemCategory: null,
   medItemParentId: null,
+  /** 大分類末尾の「検索」モード */
+  medItemSearchMode: false,
+  medItemSearchQuery: "",
 };
 
 let addFreqPicker = null;
@@ -145,6 +151,7 @@ const addColGroup = document.getElementById("med-add-col-group");
 const addColGroupList = document.getElementById("med-add-col-group-list");
 const addColLeaf = document.getElementById("med-add-col-leaf");
 const addColLeafList = document.getElementById("med-add-col-leaf-list");
+const addColLeafHeadLabel = document.getElementById("med-add-col-leaf-head-label");
 const addItemsEmpty = document.getElementById("med-add-items-empty");
 const addItemAdd = document.getElementById("med-add-item-add");
 const btnAddToggle = document.getElementById("btn-med-add-toggle");
@@ -152,6 +159,8 @@ const addNewItemLabel = document.getElementById("med-add-new-item-label");
 const addNewItemInput = document.getElementById("med-add-new-item");
 const btnAddNewItem = document.getElementById("btn-med-add-new-item");
 const addItemError = document.getElementById("med-add-item-error");
+const addSearchWrap = document.getElementById("med-add-search");
+const addSearchInput = document.getElementById("med-add-search-input");
 const addCategoryButtons = document.getElementById("med-add-category-buttons");
 const addDate = document.getElementById("med-add-date");
 const addExpiry = document.getElementById("med-add-expiry");
@@ -401,6 +410,7 @@ export function leaveMeds() {
   state.karteNumber = null;
   state.drugs = [];
   state.detailDrugId = null;
+  setRightTabDueAlert("meds", null);
   closeMedDetailSheet();
   closeAddModal();
   closeEventModal();
@@ -419,6 +429,18 @@ function renderMedsList() {
   drugs.forEach((drug) => {
     medsList.appendChild(createDrugCard(drug));
   });
+  updateMedsTabDueAlert();
+}
+
+function updateMedsTabDueAlert() {
+  const levels = (state.drugs || [])
+    .map((drug) => {
+      const expiry = String(drug?.expiryEstimate || "").trim();
+      if (!expiry) return null;
+      return getDueCountdown(expiry, null)?.level || null;
+    })
+    .filter(Boolean);
+  setRightTabDueAlert("meds", maxDueAlertLevel(levels));
 }
 
 /**
@@ -1111,6 +1133,10 @@ function wireAddModal() {
       handleAddMedicationItemFromModal();
     }
   });
+  addSearchInput?.addEventListener("input", () => {
+    state.medItemSearchQuery = addSearchInput.value || "";
+    renderMedLinearPicker();
+  });
   addDoseOtherInput?.addEventListener("input", () => {
     state.addDraft.dose.other = addDoseOtherInput.value;
   });
@@ -1248,8 +1274,9 @@ function setMedItemAddFormOpen(open) {
 }
 
 function updateMedLeafAddUI() {
-  const category = activeMedCategoryId();
-  const showLeaf = canAddMedicationLeaf();
+  const searching = Boolean(state.medItemSearchMode);
+  const category = searching ? null : activeMedCategoryId();
+  const showLeaf = !searching && canAddMedicationLeaf();
   const parent = state.medItemParentId
     ? state.medicationItems.find((item) => item.id === state.medItemParentId)
     : null;
@@ -1285,20 +1312,95 @@ function updateMedLeafAddUI() {
   }
 }
 
+function enterMedSearchMode() {
+  state.medItemSearchMode = true;
+  state.medItemCategory = null;
+  state.medItemParentId = null;
+  setMedItemAddFormOpen(false);
+  renderMedLinearPicker();
+  queueMicrotask(() => addSearchInput?.focus({ preventScroll: true }));
+}
+
+function exitMedSearchMode({ clearQuery = true } = {}) {
+  state.medItemSearchMode = false;
+  if (clearQuery) {
+    state.medItemSearchQuery = "";
+    if (addSearchInput) addSearchInput.value = "";
+  }
+}
+
+function selectMedicationFromSearch(row) {
+  const item = row?.item;
+  if (!item) return;
+  const label = String(item.label || row.label || "").trim();
+  if (!label) return;
+  state.addDraft.name = label;
+  state.medItemCategory = normalizeMedicationItemCategory(item.category);
+  state.medItemParentId = String(item.parentId || "").trim() || null;
+  renderMedLinearPicker();
+}
+
+function renderMedSearchResults() {
+  if (!addColLeafList) return;
+  addColLeafList.innerHTML = "";
+  const query = String(state.medItemSearchQuery || "").trim();
+  if (!query) {
+    fillMedLinearPlaceholder(addColLeafList, "薬剤名の一部を入力すると候補が表示されます");
+    if (addItemsEmpty) addItemsEmpty.hidden = true;
+    return;
+  }
+  const rows = filterMedicationLeavesByQuery(query, state.medicationItems);
+  if (addItemsEmpty) addItemsEmpty.hidden = rows.length > 0;
+  if (!rows.length) {
+    fillMedLinearPlaceholder(addColLeafList, "一致する薬剤がありません");
+    if (addItemsEmpty) addItemsEmpty.hidden = true;
+    return;
+  }
+  rows.forEach((row) => {
+    addColLeafList.appendChild(
+      createMedLinearItemButton({
+        label: row.displayLabel || row.label,
+        selected: state.addDraft.name === row.label,
+        onClick: () => selectMedicationFromSearch(row),
+      })
+    );
+  });
+}
+
 function renderMedLinearPicker() {
-  const category = activeMedCategoryId();
+  const searching = Boolean(state.medItemSearchMode);
+  const category = searching ? null : activeMedCategoryId();
   const usesMid = Boolean(category && categorySupportsMedMidGroups(category));
-  const midState = !category ? "placeholder" : usesMid ? "active" : "absent";
-  const leafState = !category
-    ? "placeholder"
-    : usesMid && !state.medItemParentId
+  const midState = searching
+    ? "absent"
+    : !category
       ? "placeholder"
-      : "active";
+      : usesMid
+        ? "active"
+        : "absent";
+  const leafState = searching
+    ? "active"
+    : !category
+      ? "placeholder"
+      : usesMid && !state.medItemParentId
+        ? "placeholder"
+        : "active";
   const colCount = midState === "absent" ? "2" : "3";
 
   if (addLinearPicker) addLinearPicker.dataset.cols = colCount;
   setMedLinearColState(addColGroup, midState);
   setMedLinearColState(addColLeaf, leafState);
+
+  if (addSearchWrap) addSearchWrap.hidden = !searching;
+  if (addColLeafHeadLabel) {
+    addColLeafHeadLabel.textContent = searching ? "検索結果" : "薬剤名";
+  }
+  if (addColLeafList) {
+    addColLeafList.setAttribute("aria-label", searching ? "検索結果" : "薬剤名");
+  }
+  if (searching && addSearchInput && addSearchInput.value !== state.medItemSearchQuery) {
+    addSearchInput.value = state.medItemSearchQuery || "";
+  }
 
   if (addColCategoryList) {
     addColCategoryList.innerHTML = "";
@@ -1306,9 +1408,11 @@ function renderMedLinearPicker() {
       addColCategoryList.appendChild(
         createMedLinearItemButton({
           label: cat.label,
-          selected: category === cat.id,
+          selected: !searching && category === cat.id,
           onClick: () => {
-            const changed = state.medItemCategory !== cat.id;
+            const changed =
+              state.medItemSearchMode || state.medItemCategory !== cat.id;
+            exitMedSearchMode();
             state.medItemCategory = cat.id;
             if (changed) {
               state.medItemParentId = null;
@@ -1319,6 +1423,19 @@ function renderMedLinearPicker() {
         })
       );
     });
+    addColCategoryList.appendChild(
+      createMedLinearItemButton({
+        label: "検索",
+        selected: searching,
+        onClick: () => {
+          if (searching) {
+            queueMicrotask(() => addSearchInput?.focus({ preventScroll: true }));
+            return;
+          }
+          enterMedSearchMode();
+        },
+      })
+    );
   }
 
   if (addColGroupList) {
@@ -1346,7 +1463,9 @@ function renderMedLinearPicker() {
   }
 
   if (addColLeafList) {
-    if (leafState === "placeholder") {
+    if (searching) {
+      renderMedSearchResults();
+    } else if (leafState === "placeholder") {
       fillMedLinearPlaceholder(
         addColLeafList,
         category ? "中項目を選ぶと表示されます" : "大項目を選ぶと表示されます"
@@ -1450,6 +1569,7 @@ function openAddModal() {
   setMedItemAddFormOpen(false);
   state.medItemCategory = null;
   state.medItemParentId = null;
+  exitMedSearchMode();
   if (addNewItemInput) addNewItemInput.value = "";
   deps.showError(addItemError, "");
   if (addFreqEls.otherInput) addFreqEls.otherInput.value = "";

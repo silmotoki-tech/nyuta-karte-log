@@ -11,6 +11,7 @@ const MED_CATEGORY_LABELS = {
   oral: "内服薬",
   topical: "外用薬",
   eye: "点眼薬",
+  supplement: "サプリメント・商品",
 };
 
 function medCategoryLabelFromId(category) {
@@ -77,6 +78,52 @@ function scoreMedicationLabelMatch(query, candidate) {
   return 0;
 }
 
+function toMedicationCandidateRow(t, score = 0) {
+  return {
+    item: t.item,
+    label: t.label,
+    displayLabel: formatMasterItemDisplayLabel(t.label, {
+      categoryLabel: t.categoryLabel,
+      parentLabel: t.parentLabel,
+    }),
+    parentLabel: t.parentLabel,
+    categoryLabel: t.categoryLabel,
+    nested: t.nested,
+    score,
+  };
+}
+
+/**
+ * リニアピッカー用: 薬剤名の部分一致で横断検索する。
+ */
+export function filterMedicationLeavesByQuery(query, items, { limit = 100 } = {}) {
+  const q = normalizeMedQuery(query);
+  if (!q) return [];
+
+  const matched = listMedicationMatchTargets(items)
+    .filter((t) => normalizeMedQuery(t.label).includes(q))
+    .map((t) =>
+      toMedicationCandidateRow(t, scoreMedicationLabelMatch(query, t.label))
+    );
+
+  matched.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.label.localeCompare(b.label, "ja");
+  });
+
+  const seen = new Set();
+  const out = [];
+  for (const row of matched) {
+    const key =
+      row.item?.id || `${row.categoryLabel}::${row.parentLabel}::${row.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /**
  * 薬剤マスタから query に近い葉項目をスコア順で返す。
  */
@@ -89,22 +136,9 @@ export function findMedicationItemCandidates(
   if (!q) return [];
 
   const targets = listMedicationMatchTargets(items);
-  const scored = targets.map((t) => {
-    const score = scoreMedicationLabelMatch(q, t.label);
-    const displayLabel = formatMasterItemDisplayLabel(t.label, {
-      categoryLabel: t.categoryLabel,
-      parentLabel: t.parentLabel,
-    });
-    return {
-      item: t.item,
-      label: t.label,
-      displayLabel,
-      parentLabel: t.parentLabel,
-      categoryLabel: t.categoryLabel,
-      nested: t.nested,
-      score,
-    };
-  });
+  const scored = targets.map((t) =>
+    toMedicationCandidateRow(t, scoreMedicationLabelMatch(q, t.label))
+  );
 
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;

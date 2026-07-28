@@ -28,6 +28,7 @@ import {
   enterHistory,
   leaveHistory,
 } from "./history-ui.js";
+import { clearRightTabAlerts } from "./right-tab-alerts.js";
 import {
   initProceduresUI,
   enterProcedures,
@@ -1082,6 +1083,7 @@ function leaveMain() {
   leaveProcedures();
   leaveSpecialNotes();
   leaveFreeQa();
+  clearRightTabAlerts();
   closeCompose({ reset: true });
   closeEntryEdit();
   state.karteNumber = null;

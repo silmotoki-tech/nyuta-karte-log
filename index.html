@@ -683,7 +683,7 @@
             data-col="leaf"
           >
             <div class="med-linear-picker__head">
-              <span class="med-linear-picker__head-label">検査項目</span>
+              <span class="med-linear-picker__head-label" id="exam-plan-col-leaf-head-label">検査項目</span>
               <button
                 type="button"
                 class="exam-item-add__toggle"
@@ -696,6 +696,17 @@
               >
                 ＋
               </button>
+            </div>
+            <div class="med-linear-picker__search" id="exam-plan-search" hidden>
+              <label class="visually-hidden" for="exam-plan-search-input">検査項目を検索</label>
+              <input
+                id="exam-plan-search-input"
+                class="input med-linear-picker__search-input"
+                type="search"
+                placeholder="検査項目名の一部を入力"
+                autocomplete="off"
+                enterkeyhint="search"
+              />
             </div>
             <div
               class="med-linear-picker__list"
@@ -1019,7 +1030,7 @@
             data-col="leaf"
           >
             <div class="med-linear-picker__head">
-              <span class="med-linear-picker__head-label">薬剤名</span>
+              <span class="med-linear-picker__head-label" id="med-add-col-leaf-head-label">薬剤名</span>
               <button
                 type="button"
                 class="exam-item-add__toggle"
@@ -1032,6 +1043,17 @@
               >
                 ＋
               </button>
+            </div>
+            <div class="med-linear-picker__search" id="med-add-search" hidden>
+              <label class="visually-hidden" for="med-add-search-input">薬剤名を検索</label>
+              <input
+                id="med-add-search-input"
+                class="input med-linear-picker__search-input"
+                type="search"
+                placeholder="薬剤名の一部を入力"
+                autocomplete="off"
+                enterkeyhint="search"
+              />
             </div>
             <div
               class="med-linear-picker__list"

@@ -228,7 +228,7 @@ const categoryLabels = await page
 console.log("categories:", categoryLabels);
 if (
   JSON.stringify(categoryLabels) !==
-  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品"])
+  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品", "検索"])
 ) {
   throw new Error("category list mismatch");
 }

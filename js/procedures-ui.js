@@ -18,6 +18,7 @@ import {
   formatRelativeOffsetLabel,
 } from "./exam-plan-ui.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { maxDueAlertLevel, setRightTabDueAlert } from "./right-tab-alerts.js";
 
 const DAYS_PER_MONTH = 30;
 const DAYS_PER_WEEK = 7;
@@ -166,6 +167,7 @@ export function leaveProcedures() {
   state.karteNumber = null;
   state.plans = [];
   state.history = [];
+  setRightTabDueAlert("proc", null);
   closePlanModal();
   closeHistModal();
   if (planList) planList.innerHTML = "";
@@ -185,6 +187,17 @@ export async function addProcedureFromExternal(karteNumber, payload) {
 function renderAll() {
   renderPlanList();
   renderHistoryList();
+  updateProcTabDueAlert();
+}
+
+function updateProcTabDueAlert() {
+  const levels = (state.plans || [])
+    .map((plan) => {
+      if (!plan?.dueDate) return null;
+      return getDueCountdown(plan.dueDate, plan.baselineDate || null)?.level || null;
+    })
+    .filter(Boolean);
+  setRightTabDueAlert("proc", maxDueAlertLevel(levels));
 }
 
 function renderPlanList() {

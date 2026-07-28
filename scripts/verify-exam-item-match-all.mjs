@@ -280,6 +280,7 @@ export const FULL_EXAM_MASTER = [
   { id: "seed-other-upc-outlab", label: "UPC(外注)", category: "other", kind: "leaf", parentId: "" },
   { id: "seed-other-fecal", label: "便検査", category: "other", kind: "leaf", parentId: "" },
   { id: "seed-other-diarrhea-panel", label: "下痢パネル", category: "other", kind: "leaf", parentId: "" },
+  { id: "seed-other-cardio-clinic", label: "循環器診療", category: "other", kind: "leaf", parentId: "" },
 ];
 
 const cases = [

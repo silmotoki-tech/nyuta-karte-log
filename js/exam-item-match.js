@@ -447,6 +447,50 @@ export function scoreExamLabelMatch(query, candidate, targetMeta = null) {
   return Math.min(100, score);
 }
 
+function toExamCandidateRow(t, score = 0) {
+  return {
+    item: t.item,
+    label: t.label,
+    displayLabel: formatMasterItemDisplayLabel(t.label, {
+      categoryLabel: t.categoryLabel,
+      parentLabel: t.parentLabel,
+    }),
+    parentLabel: t.parentLabel,
+    categoryLabel: t.categoryLabel,
+    nested: t.nested,
+    score,
+  };
+}
+
+/**
+ * リニアピッカー用: 検査項目名の部分一致で横断検索する。
+ */
+export function filterExamLeavesByQuery(query, items, { limit = 100 } = {}) {
+  const q = normalizeExamLabel(query);
+  if (!q) return [];
+
+  const matched = listExamMatchTargets(items)
+    .filter((t) => normalizeExamLabel(t.label).includes(q))
+    .map((t) => toExamCandidateRow(t, scoreExamLabelMatch(query, t.label, t)));
+
+  matched.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.nested !== b.nested) return a.nested ? -1 : 1;
+    return a.label.localeCompare(b.label, "ja");
+  });
+
+  const seen = new Set();
+  const out = [];
+  for (const row of matched) {
+    const key = row.item?.id || `${row.parentLabel || ""}::${row.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /**
  * 検査項目マスタから、query に近そうな選択可能項目をスコア順で返す。
  */
@@ -456,22 +500,9 @@ export function findExamItemCandidates(query, items, { minScore = 48, limit = 8 
 
   const targets = listExamMatchTargets(items);
 
-  const scored = targets.map((t) => {
-    const score = scoreExamLabelMatch(q, t.label, t);
-    const displayLabel = formatMasterItemDisplayLabel(t.label, {
-      categoryLabel: t.categoryLabel,
-      parentLabel: t.parentLabel,
-    });
-    return {
-      item: t.item,
-      label: t.label,
-      displayLabel,
-      parentLabel: t.parentLabel,
-      categoryLabel: t.categoryLabel,
-      nested: t.nested,
-      score,
-    };
-  });
+  const scored = targets.map((t) =>
+    toExamCandidateRow(t, scoreExamLabelMatch(q, t.label, t))
+  );
 
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;

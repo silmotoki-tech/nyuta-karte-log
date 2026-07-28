@@ -17,6 +17,11 @@ import {
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
 import { isImeKey } from "./ime-keys.js";
+import { filterExamLeavesByQuery } from "./exam-item-match.js";
+import {
+  maxDueAlertLevel,
+  setRightTabDueAlert,
+} from "./right-tab-alerts.js";
 
 /**
  * 残り日数の色分け閾値（仮。後で調整可能）。
@@ -56,6 +61,9 @@ const state = {
   examItemCategory: null,
   /** 血液・画像の中項目ID（null=未選択） */
   examBloodParentId: null,
+  /** 大分類末尾の「検索」モード */
+  examItemSearchMode: false,
+  examItemSearchQuery: "",
   unsubscribePlan: null,
   unsubscribeItems: null,
   activeTab: "exam",
@@ -124,6 +132,7 @@ const planColGroup = document.getElementById("exam-plan-col-group");
 const planColGroupList = document.getElementById("exam-plan-col-group-list");
 const planColLeaf = document.getElementById("exam-plan-col-leaf");
 const planColLeafList = document.getElementById("exam-plan-col-leaf-list");
+const planColLeafHeadLabel = document.getElementById("exam-plan-col-leaf-head-label");
 const planItemsEmpty = document.getElementById("exam-plan-items-empty");
 const planSelectionSummary = document.getElementById("exam-plan-selection-summary");
 const planItemAddDefault = document.getElementById("exam-plan-item-add-default");
@@ -132,6 +141,8 @@ const planNewItemLabel = document.getElementById("exam-plan-new-item-label");
 const planNewItemInput = document.getElementById("exam-plan-new-item");
 const btnPlanAddItem = document.getElementById("btn-exam-plan-add-item");
 const planItemError = document.getElementById("exam-plan-item-error");
+const planSearchWrap = document.getElementById("exam-plan-search");
+const planSearchInput = document.getElementById("exam-plan-search-input");
 const planFastingField = document.getElementById("exam-plan-fasting-field");
 const planFastingButtons = document.getElementById("exam-plan-fasting-buttons");
 const planDueDate = document.getElementById("exam-plan-due-date");
@@ -469,6 +480,7 @@ export function leaveExamPlan() {
   state.plan = null;
   state.activePlanId = null;
   state.editingPlanId = null;
+  setRightTabDueAlert("exam", null);
   closeExamItemSheet();
   closePlanModal();
   closeCompleteModal();
@@ -539,6 +551,14 @@ function renderExamPlan() {
   if (!state.plan) return;
   renderUnifiedPlanList();
   renderHistory();
+  updateExamTabDueAlert();
+}
+
+function updateExamTabDueAlert() {
+  const levels = collectUnifiedPlanEntries()
+    .map((entry) => entry.countdown?.level)
+    .filter(Boolean);
+  setRightTabDueAlert("exam", maxDueAlertLevel(levels));
 }
 
 /**
@@ -929,6 +949,10 @@ function wirePlanModal() {
       e.preventDefault();
       handleAddExamItemFromPlanModal();
     }
+  });
+  planSearchInput?.addEventListener("input", () => {
+    state.examItemSearchQuery = planSearchInput.value || "";
+    renderExamLinearPicker();
   });
   wireFastingButtons(planFastingButtons, () => {
     renderPlanFastingButtons();
@@ -1558,8 +1582,9 @@ function setExamItemAddFormOpen(open) {
 }
 
 function updateExamItemAddUI() {
-  const category = activeExamCategoryId();
-  const showLeaf = isExamLeafColActive();
+  const searching = Boolean(state.examItemSearchMode);
+  const category = searching ? null : activeExamCategoryId();
+  const showLeaf = !searching && isExamLeafColActive();
   const canAdd = showLeaf && canAddExamLeaf();
   const inDrillGroup =
     Boolean(category) &&
@@ -1600,8 +1625,57 @@ function updateExamItemAddUI() {
   }
 }
 
+function enterExamSearchMode() {
+  state.examItemSearchMode = true;
+  state.examItemCategory = null;
+  state.examBloodParentId = null;
+  setExamItemAddFormOpen(false);
+  renderExamLinearPicker();
+  renderPlanSelectionSummary();
+  renderPlanFastingButtons();
+  queueMicrotask(() => planSearchInput?.focus({ preventScroll: true }));
+}
+
+function exitExamSearchMode({ clearQuery = true } = {}) {
+  state.examItemSearchMode = false;
+  if (clearQuery) {
+    state.examItemSearchQuery = "";
+    if (planSearchInput) planSearchInput.value = "";
+  }
+}
+
+function renderExamSearchResults() {
+  if (!planColLeafList) return;
+  planColLeafList.innerHTML = "";
+  const query = String(state.examItemSearchQuery || "").trim();
+  if (!query) {
+    fillExamLinearPlaceholder(
+      planColLeafList,
+      "検査項目名の一部を入力すると候補が表示されます"
+    );
+    if (planItemsEmpty) planItemsEmpty.hidden = true;
+    return;
+  }
+  const rows = filterExamLeavesByQuery(query, state.examItems);
+  if (planItemsEmpty) planItemsEmpty.hidden = true;
+  if (!rows.length) {
+    fillExamLinearPlaceholder(planColLeafList, "一致する検査項目がありません");
+    return;
+  }
+  rows.forEach((row) => {
+    planColLeafList.appendChild(
+      createExamLinearItemButton({
+        label: row.displayLabel || row.label,
+        selected: isExamLeafSelected(row.item),
+        onClick: () => toggleExamLeaf(row.item),
+      })
+    );
+  });
+}
+
 function renderExamLinearPicker() {
-  const category = activeExamCategoryId();
+  const searching = Boolean(state.examItemSearchMode);
+  const category = searching ? null : activeExamCategoryId();
   const usesMid = Boolean(category && categorySupportsExamDrilldown(category));
   const rootLeaves = usesMid ? examRootLeavesForCategory(category) : [];
   const leafReady = Boolean(
@@ -1611,17 +1685,36 @@ function renderExamLinearPicker() {
         rootLeaves.length > 0 ||
         category === "imaging")
   );
-  const midState = !category ? "placeholder" : usesMid ? "active" : "absent";
-  const leafState = !category
-    ? "placeholder"
-    : leafReady
-      ? "active"
-      : "placeholder";
+  const midState = searching
+    ? "absent"
+    : !category
+      ? "placeholder"
+      : usesMid
+        ? "active"
+        : "absent";
+  const leafState = searching
+    ? "active"
+    : !category
+      ? "placeholder"
+      : leafReady
+        ? "active"
+        : "placeholder";
   const colCount = midState === "absent" ? "2" : "3";
 
   if (planLinearPicker) planLinearPicker.dataset.cols = colCount;
   setExamLinearColState(planColGroup, midState);
   setExamLinearColState(planColLeaf, leafState);
+
+  if (planSearchWrap) planSearchWrap.hidden = !searching;
+  if (planColLeafHeadLabel) {
+    planColLeafHeadLabel.textContent = searching ? "検索結果" : "検査項目";
+  }
+  if (planColLeafList) {
+    planColLeafList.setAttribute("aria-label", searching ? "検索結果" : "検査項目");
+  }
+  if (searching && planSearchInput && planSearchInput.value !== state.examItemSearchQuery) {
+    planSearchInput.value = state.examItemSearchQuery || "";
+  }
 
   if (planColCategoryList) {
     planColCategoryList.innerHTML = "";
@@ -1629,8 +1722,9 @@ function renderExamLinearPicker() {
       planColCategoryList.appendChild(
         createExamLinearItemButton({
           label: cat.label,
-          selected: category === cat.id,
+          selected: !searching && category === cat.id,
           onClick: () => {
+            exitExamSearchMode();
             const changed = state.examItemCategory !== cat.id;
             state.examItemCategory = cat.id;
             if (changed) state.examBloodParentId = null;
@@ -1642,6 +1736,19 @@ function renderExamLinearPicker() {
         })
       );
     });
+    planColCategoryList.appendChild(
+      createExamLinearItemButton({
+        label: "検索",
+        selected: searching,
+        onClick: () => {
+          if (searching) {
+            queueMicrotask(() => planSearchInput?.focus({ preventScroll: true }));
+            return;
+          }
+          enterExamSearchMode();
+        },
+      })
+    );
   }
 
   if (planColGroupList) {
@@ -1669,7 +1776,9 @@ function renderExamLinearPicker() {
   }
 
   if (planColLeafList) {
-    if (leafState === "placeholder") {
+    if (searching) {
+      renderExamSearchResults();
+    } else if (leafState === "placeholder") {
       fillExamLinearPlaceholder(
         planColLeafList,
         category ? "中項目を選ぶと表示されます" : "大項目を選ぶと表示されます"
@@ -1824,6 +1933,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   state.editingPlanId = null;
   state.examBloodParentId = null;
   state.draft.selectedItems = [];
+  exitExamSearchMode();
 
   if (preset) {
     if (planModalTitle) planModalTitle.textContent = "次の予定を登録";

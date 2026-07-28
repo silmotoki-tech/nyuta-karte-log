@@ -295,6 +295,14 @@ const SEED = [
     parentId: "",
     order: 50,
   },
+  {
+    id: "seed-other-cardio-clinic",
+    label: "循環器診療",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 60,
+  },
 ];
 
 const store = {

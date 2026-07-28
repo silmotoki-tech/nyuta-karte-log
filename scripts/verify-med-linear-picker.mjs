@@ -263,7 +263,7 @@ const cats = await itemLabels(page, "#med-add-col-category-list");
 console.log("categories:", cats);
 if (
   JSON.stringify(cats) !==
-  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品"])
+  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品", "検索"])
 ) {
   throw new Error("category list mismatch");
 }

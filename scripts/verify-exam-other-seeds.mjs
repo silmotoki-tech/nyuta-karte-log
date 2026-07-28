@@ -1,5 +1,5 @@
 /**
- * 「その他」タブ用シード5項目が独立 leaf として定義されていることを検証する。
+ * 「その他」タブ用シード6項目が独立 leaf として定義されていることを検証する。
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -15,6 +15,7 @@ const expected = [
   { id: "seed-other-upc-outlab", label: "UPC(外注)", order: 30 },
   { id: "seed-other-fecal", label: "便検査", order: 40 },
   { id: "seed-other-diarrhea-panel", label: "下痢パネル", order: 50 },
+  { id: "seed-other-cardio-clinic", label: "循環器診療", order: 60 },
 ];
 
 for (const row of expected) {

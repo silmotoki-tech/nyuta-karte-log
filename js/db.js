@@ -694,6 +694,14 @@ const EXAM_ITEM_SEED = [
     parentId: "",
     order: 50,
   },
+  {
+    id: "seed-other-cardio-clinic",
+    label: "循環器診療",
+    category: "other",
+    kind: "leaf",
+    parentId: "",
+    order: 60,
+  },
 ];
 
 /** 一時的に作った重複シード（旧IDへ統合したため削除） */
