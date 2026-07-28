@@ -24,6 +24,9 @@ export const MED_ORAL_VITAMIN_GROUP_ID = "seed-med-oral-vitamin";
 export const MED_ORAL_HORMONE_GROUP_ID = "seed-med-oral-hormone";
 export const MED_ORAL_KAMPO_GROUP_ID = "seed-med-oral-kampo";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
+export const MED_TOPICAL_SKIN_GROUP_ID = "seed-med-topical-skin";
+export const MED_TOPICAL_DISINFECT_GROUP_ID = "seed-med-topical-disinfect";
+export const MED_TOPICAL_EAR_GROUP_ID = "seed-med-topical-ear";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
 
@@ -88,9 +91,9 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_KAMPO_GROUP_ID, "漢方", 170),
   medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
   medGroupSeed("oral", "seed-med-oral-inject-suppository", "処方注射薬・座薬", 190),
-  medGroupSeed("topical", "seed-med-topical-skin", "皮膚", 10),
-  medGroupSeed("topical", "seed-med-topical-disinfect", "消毒", 20),
-  medGroupSeed("topical", "seed-med-topical-ear", "耳", 30),
+  medGroupSeed("topical", MED_TOPICAL_SKIN_GROUP_ID, "皮膚", 10),
+  medGroupSeed("topical", MED_TOPICAL_DISINFECT_GROUP_ID, "消毒", 20),
+  medGroupSeed("topical", MED_TOPICAL_EAR_GROUP_ID, "耳", 30),
 ];
 
 export const MEDICATION_ITEM_LEAF_SEED = [
@@ -315,6 +318,29 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-blood-clopidogrel", label: "クロピドグレル" },
     { id: "seed-med-oral-blood-xarelto", label: "イグザレルト" },
     { id: "seed-med-oral-blood-tranexamic", label: "トラネキサム酸" },
+  ]),
+  ...medGroupLeaves("topical", MED_TOPICAL_DISINFECT_GROUP_ID, [
+    { id: "seed-med-topical-disinfect-ch-towel", label: "CHタオル" },
+    { id: "seed-med-topical-disinfect-ap-water", label: "AP水" },
+  ]),
+  ...medGroupLeaves("topical", MED_TOPICAL_SKIN_GROUP_ID, [
+    { id: "seed-med-topical-skin-spirazone", label: "スピラゾン軟膏" },
+    { id: "seed-med-topical-skin-mometasone", label: "モメタゾン軟膏" },
+    { id: "seed-med-topical-skin-gentamicin", label: "ゲンタマイシンクリーム" },
+    { id: "seed-med-topical-skin-heparin-cream", label: "ヘパリンクリーム" },
+    { id: "seed-med-topical-skin-heparin-foam", label: "ヘパリン泡スプレー" },
+    { id: "seed-med-topical-skin-geben", label: "ゲーベンクリーム" },
+    { id: "seed-med-topical-skin-ketoconazole", label: "ケトコナゾールクリーム" },
+    { id: "seed-med-topical-skin-horse-oil", label: "馬油" },
+    { id: "seed-med-topical-skin-tacrolimus", label: "タクロリムス軟膏" },
+    { id: "seed-med-topical-skin-chitosan", label: "キトサンパウダー" },
+    { id: "seed-med-topical-skin-chitosan-mnz", label: "キトサンMNZパウダー" },
+    { id: "seed-med-topical-skin-allerief", label: "アレリーフローション" },
+    { id: "seed-med-topical-skin-restamin-kowa", label: "レスタミンコーワ軟膏" },
+    { id: "seed-med-topical-skin-quick-stop", label: "クイックストップ" },
+    { id: "seed-med-topical-skin-antinoll", label: "アンチノールスキン" },
+    { id: "seed-med-topical-skin-ozone-gel", label: "オゾンジェル" },
+    { id: "seed-med-topical-skin-mometotic", label: "モメタオティック" },
   ]),
 ];
 

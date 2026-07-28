@@ -21,6 +21,8 @@ import {
   MED_ORAL_HORMONE_GROUP_ID,
   MED_ORAL_KAMPO_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
+  MED_TOPICAL_DISINFECT_GROUP_ID,
+  MED_TOPICAL_SKIN_GROUP_ID,
   MEDICATION_ITEM_LEAF_SEED,
   __getStore,
   __resetStore,
@@ -272,6 +274,28 @@ const BLOOD_LABELS = [
   "トラネキサム酸",
 ];
 
+const TOPICAL_DISINFECT_LABELS = ["CHタオル", "AP水"];
+
+const TOPICAL_SKIN_LABELS = [
+  "スピラゾン軟膏",
+  "モメタゾン軟膏",
+  "ゲンタマイシンクリーム",
+  "ヘパリンクリーム",
+  "ヘパリン泡スプレー",
+  "ゲーベンクリーム",
+  "ケトコナゾールクリーム",
+  "馬油",
+  "タクロリムス軟膏",
+  "キトサンパウダー",
+  "キトサンMNZパウダー",
+  "アレリーフローション",
+  "レスタミンコーワ軟膏",
+  "クイックストップ",
+  "アンチノールスキン",
+  "オゾンジェル",
+  "モメタオティック",
+];
+
 __resetStore();
 await ensureMedicationItemDefaults();
 const store = __getStore();
@@ -333,6 +357,8 @@ const vitamin = labelsUnder(MED_ORAL_VITAMIN_GROUP_ID);
 const hormone = labelsUnder(MED_ORAL_HORMONE_GROUP_ID);
 const kampo = labelsUnder(MED_ORAL_KAMPO_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
+const topicalDisinfect = labelsUnder(MED_TOPICAL_DISINFECT_GROUP_ID);
+const topicalSkin = labelsUnder(MED_TOPICAL_SKIN_GROUP_ID);
 console.log("antibiotic order:", antibiotic);
 console.log("antiinflam order:", antiinflam);
 console.log("steroid-antihist order:", steroid);
@@ -349,6 +375,8 @@ console.log("vitamin order:", vitamin);
 console.log("hormone order:", hormone);
 console.log("kampo order:", kampo);
 console.log("blood order:", blood);
+console.log("topical disinfect order:", topicalDisinfect);
+console.log("topical skin order:", topicalSkin);
 
 assert.deepEqual(antibiotic, ANTIBIOTIC_LABELS);
 assert.deepEqual(antiinflam, ANTIINFLAM_LABELS);
@@ -371,6 +399,8 @@ assert.deepEqual(vitamin, VITAMIN_LABELS);
 assert.deepEqual(hormone, HORMONE_LABELS);
 assert.deepEqual(kampo, KAMPO_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
+assert.deepEqual(topicalDisinfect, TOPICAL_DISINFECT_LABELS);
+assert.deepEqual(topicalSkin, TOPICAL_SKIN_LABELS);
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
 assert.ok(!respiratory.includes("マロピタント"));
@@ -391,7 +421,9 @@ assert.equal(
     VITAMIN_LABELS.length +
     HORMONE_LABELS.length +
     KAMPO_LABELS.length +
-    BLOOD_LABELS.length
+    BLOOD_LABELS.length +
+    TOPICAL_DISINFECT_LABELS.length +
+    TOPICAL_SKIN_LABELS.length
 );
 
 // 表記ゆれの同名上書き（既存IDを維持）

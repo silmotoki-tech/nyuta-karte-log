@@ -258,6 +258,28 @@ const BLOOD_LABELS = [
   "トラネキサム酸",
 ];
 
+const TOPICAL_DISINFECT_LABELS = ["CHタオル", "AP水"];
+
+const TOPICAL_SKIN_LABELS = [
+  "スピラゾン軟膏",
+  "モメタゾン軟膏",
+  "ゲンタマイシンクリーム",
+  "ヘパリンクリーム",
+  "ヘパリン泡スプレー",
+  "ゲーベンクリーム",
+  "ケトコナゾールクリーム",
+  "馬油",
+  "タクロリムス軟膏",
+  "キトサンパウダー",
+  "キトサンMNZパウダー",
+  "アレリーフローション",
+  "レスタミンコーワ軟膏",
+  "クイックストップ",
+  "アンチノールスキン",
+  "オゾンジェル",
+  "モメタオティック",
+];
+
 function contentType(filePath) {
   if (filePath.endsWith(".html")) return "text/html; charset=utf-8";
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
@@ -826,6 +848,58 @@ assert.equal(
 );
 await page.screenshot({ path: path.join(shotDir, "17-kampo.png") });
 
+await clickItem(page, "#med-add-col-category-list", "外用薬");
+await page.waitForTimeout(80);
+await clickItem(page, "#med-add-col-group-list", "消毒");
+await page.waitForTimeout(120);
+const topicalDisinfect = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI topical disinfect:", topicalDisinfect);
+assert.deepEqual(topicalDisinfect, TOPICAL_DISINFECT_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "CHタオル");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "CHタオル"
+);
+await clickItem(page, "#med-add-col-leaf-list", "AP水");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "AP水"
+);
+const topicalShotDir = path.join(root, "tools/med-topical-leaf-seed");
+fs.mkdirSync(topicalShotDir, { recursive: true });
+await page.screenshot({ path: path.join(topicalShotDir, "01-disinfect.png") });
+
+await clickItem(page, "#med-add-col-group-list", "皮膚");
+await page.waitForTimeout(120);
+const topicalSkin = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI topical skin:", topicalSkin);
+assert.deepEqual(topicalSkin, TOPICAL_SKIN_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "スピラゾン軟膏");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "スピラゾン軟膏"
+);
+await clickItem(page, "#med-add-col-leaf-list", "モメタオティック");
+await page.waitForTimeout(80);
+assert.equal(
+  await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent(),
+  "モメタオティック"
+);
+await page.screenshot({ path: path.join(topicalShotDir, "02-skin.png") });
+
+await clickItem(page, "#med-add-col-category-list", "内服薬");
+await page.waitForTimeout(80);
 await clickItem(page, "#med-add-col-group-list", "血液");
 await page.waitForTimeout(120);
 const blood = await itemLabels(page, "#med-add-col-leaf-list");
@@ -857,6 +931,6 @@ if (pageErrors.length) {
   throw new Error("page errors");
 }
 
-console.log("OK: oral leaf seed order + selectable in UI");
+console.log("OK: oral/topical leaf seed order + selectable in UI");
 await browser.close();
 server.close();

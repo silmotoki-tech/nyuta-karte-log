@@ -540,7 +540,56 @@ console.log("topical groups:", topical);
 if (JSON.stringify(topical) !== JSON.stringify(["皮膚", "消毒", "耳"])) {
   throw new Error("topical groups mismatch");
 }
+await clickItem(page, "#med-add-col-group-list", "消毒");
+await page.waitForTimeout(100);
+const disinfectLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+if (disinfectLeaves.join(",") !== ["CHタオル", "AP水"].join(",")) {
+  throw new Error("消毒 leaf order mismatch: " + disinfectLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "AP水");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "AP水"
+) {
+  throw new Error("消毒 leaf not selected");
+}
+
 await clickItem(page, "#med-add-col-group-list", "皮膚");
+await page.waitForTimeout(100);
+const skinLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+const expectedSkin = [
+  "スピラゾン軟膏",
+  "モメタゾン軟膏",
+  "ゲンタマイシンクリーム",
+  "ヘパリンクリーム",
+  "ヘパリン泡スプレー",
+  "ゲーベンクリーム",
+  "ケトコナゾールクリーム",
+  "馬油",
+  "タクロリムス軟膏",
+  "キトサンパウダー",
+  "キトサンMNZパウダー",
+  "アレリーフローション",
+  "レスタミンコーワ軟膏",
+  "クイックストップ",
+  "アンチノールスキン",
+  "オゾンジェル",
+  "モメタオティック",
+];
+if (skinLeaves.join(",") !== expectedSkin.join(",")) {
+  throw new Error("皮膚 leaf order mismatch: " + skinLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "モメタオティック");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "モメタオティック"
+) {
+  throw new Error("皮膚 leaf not selected");
+}
 await page.click("#btn-med-add-toggle");
 await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "イソジンゲル");
