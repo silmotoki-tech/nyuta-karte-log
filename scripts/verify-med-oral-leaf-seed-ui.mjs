@@ -258,53 +258,36 @@ const BLOOD_LABELS = [
   "トラネキサム酸",
 ];
 
-const TOPICAL_DISINFECT_LABELS = ["CHタオル", "AP水"];
-
-const TOPICAL_SKIN_LABELS = [
+const TOPICAL_SKIN_STEROID_ABX_LABELS = [
+  "ゲンタマイシンクリーム",
+  "ゲーベンクリーム",
+  "オゾンジェル",
+  "ケトコナゾールクリーム",
+  "ビクタスMTクリーム",
+  "アレリーフローション",
+  "モメタオティック",
+  "レスタミンコーワ軟膏",
   "スピラゾン軟膏",
   "モメタゾン軟膏",
-  "ゲンタマイシンクリーム",
+];
+
+const TOPICAL_SKIN_OTHER_LABELS = [
   "ヘパリンクリーム",
   "ヘパリン泡スプレー",
-  "ゲーベンクリーム",
-  "ケトコナゾールクリーム",
   "馬油",
-  "タクロリムス軟膏",
   "キトサンパウダー",
   "キトサンMNZパウダー",
-  "アレリーフローション",
-  "レスタミンコーワ軟膏",
-  "クイックストップ",
   "アンチノールスキン",
-  "オゾンジェル",
-  "モメタオティック",
+  "タクロリムス軟膏",
+  "クイックストップ",
 ];
 
 const TOPICAL_EAR_LABELS = [
-  "ビクタスMTクリーム",
-  "モメタオティック",
-  "イズオティック",
-  "ミミピュア",
-  "ベルベゾロン",
   "シルピナ",
-  "エピオティック",
+  "ミミピュア",
   "EDTAイヤークリーナー",
-  "Mal-A-Ket Plus",
-  "MalAcetic",
-  "イベルメクチン（耳用）",
   "Pet Ear&Skincare Liquid",
-];
-
-const TOPICAL_SHAMPOO_LABELS = [
-  "マラセキュア",
-  "ヒノケア泡",
-  "ナノベイジングプロモイスチャライズ",
-  "クレンジングオイル",
-  "クロルヘキシジンシャンプー",
-  "ダーマモイストバス",
-  "ホスケアスプレー",
-  "QUANPOWペットシャンプー",
-  "QUANPOW Pet Body Care Bath Milk",
+  "イベルメクチン（耳用）",
 ];
 
 const EYE_LABELS = [
@@ -973,99 +956,79 @@ await page.screenshot({ path: path.join(shotDir, "17-kampo.png") });
 
 await clickItem(page, "#med-add-col-category-list", "外用薬");
 await page.waitForTimeout(80);
-await clickItem(page, "#med-add-col-group-list", "消毒");
+const topicalGroups = await itemLabels(page, "#med-add-col-group-list");
+console.log("UI topical groups:", topicalGroups);
+assert.deepEqual(topicalGroups, ["皮膚ステロイド+抗菌", "皮膚その他", "耳"]);
+await clickItem(page, "#med-add-col-group-list", "皮膚ステロイド+抗菌");
 await page.waitForTimeout(120);
-const topicalDisinfect = await itemLabels(page, "#med-add-col-leaf-list");
-console.log("UI topical disinfect:", topicalDisinfect);
-assert.deepEqual(topicalDisinfect, TOPICAL_DISINFECT_LABELS);
-await clickItem(page, "#med-add-col-leaf-list", "CHタオル");
+const topicalSteroidAbx = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI topical steroid+abx:", topicalSteroidAbx);
+assert.deepEqual(topicalSteroidAbx, TOPICAL_SKIN_STEROID_ABX_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ゲンタマイシンクリーム");
 await page.waitForTimeout(80);
 assert.equal(
   await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
     .textContent(),
-  "CHタオル"
+  "ゲンタマイシンクリーム"
 );
-await clickItem(page, "#med-add-col-leaf-list", "AP水");
+await clickItem(page, "#med-add-col-leaf-list", "モメタゾン軟膏");
 await page.waitForTimeout(80);
 assert.equal(
   await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
     .textContent(),
-  "AP水"
+  "モメタゾン軟膏"
 );
 const topicalShotDir = path.join(root, "tools/med-topical-leaf-seed");
 fs.mkdirSync(topicalShotDir, { recursive: true });
-await page.screenshot({ path: path.join(topicalShotDir, "01-disinfect.png") });
+await page.screenshot({ path: path.join(topicalShotDir, "01-steroid-abx.png") });
 
-await clickItem(page, "#med-add-col-group-list", "皮膚");
+await clickItem(page, "#med-add-col-group-list", "皮膚その他");
 await page.waitForTimeout(120);
-const topicalSkin = await itemLabels(page, "#med-add-col-leaf-list");
-console.log("UI topical skin:", topicalSkin);
-assert.deepEqual(topicalSkin, TOPICAL_SKIN_LABELS);
-await clickItem(page, "#med-add-col-leaf-list", "スピラゾン軟膏");
+const topicalSkinOther = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI topical skin other:", topicalSkinOther);
+assert.deepEqual(topicalSkinOther, TOPICAL_SKIN_OTHER_LABELS);
+await clickItem(page, "#med-add-col-leaf-list", "ヘパリンクリーム");
 await page.waitForTimeout(80);
 assert.equal(
   await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
     .textContent(),
-  "スピラゾン軟膏"
+  "ヘパリンクリーム"
 );
-await clickItem(page, "#med-add-col-leaf-list", "モメタオティック");
+await clickItem(page, "#med-add-col-leaf-list", "クイックストップ");
 await page.waitForTimeout(80);
 assert.equal(
   await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
     .textContent(),
-  "モメタオティック"
+  "クイックストップ"
 );
-await page.screenshot({ path: path.join(topicalShotDir, "02-skin.png") });
+await page.screenshot({ path: path.join(topicalShotDir, "02-skin-other.png") });
 
 await clickItem(page, "#med-add-col-group-list", "耳");
 await page.waitForTimeout(120);
 const topicalEar = await itemLabels(page, "#med-add-col-leaf-list");
 console.log("UI topical ear:", topicalEar);
 assert.deepEqual(topicalEar, TOPICAL_EAR_LABELS);
-await clickItem(page, "#med-add-col-leaf-list", "ビクタスMTクリーム");
+await clickItem(page, "#med-add-col-leaf-list", "シルピナ");
 await page.waitForTimeout(80);
 assert.equal(
   await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
     .textContent(),
-  "ビクタスMTクリーム"
+  "シルピナ"
 );
-await clickItem(page, "#med-add-col-leaf-list", "Pet Ear&Skincare Liquid");
+await clickItem(page, "#med-add-col-leaf-list", "イベルメクチン（耳用）");
 await page.waitForTimeout(80);
 assert.equal(
   await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
     .textContent(),
-  "Pet Ear&Skincare Liquid"
+  "イベルメクチン（耳用）"
 );
 await page.screenshot({ path: path.join(topicalShotDir, "03-ear.png") });
-
-await clickItem(page, "#med-add-col-group-list", "シャンプー・スキンケア");
-await page.waitForTimeout(120);
-const topicalShampoo = await itemLabels(page, "#med-add-col-leaf-list");
-console.log("UI topical shampoo:", topicalShampoo);
-assert.deepEqual(topicalShampoo, TOPICAL_SHAMPOO_LABELS);
-await clickItem(page, "#med-add-col-leaf-list", "マラセキュア");
-await page.waitForTimeout(80);
-assert.equal(
-  await page
-    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
-    .textContent(),
-  "マラセキュア"
-);
-await clickItem(page, "#med-add-col-leaf-list", "QUANPOW Pet Body Care Bath Milk");
-await page.waitForTimeout(80);
-assert.equal(
-  await page
-    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
-    .textContent(),
-  "QUANPOW Pet Body Care Bath Milk"
-);
-await page.screenshot({ path: path.join(topicalShotDir, "05-shampoo.png") });
 
 await clickItem(page, "#med-add-col-category-list", "点眼薬");
 await page.waitForTimeout(120);

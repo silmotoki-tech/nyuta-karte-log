@@ -589,115 +589,87 @@ await clickItem(page, "#med-add-col-category-list", "外用薬");
 await page.waitForTimeout(80);
 const topical = await itemLabels(page, "#med-add-col-group-list");
 console.log("topical groups:", topical);
-if (JSON.stringify(topical) !== JSON.stringify(["皮膚", "消毒", "耳", "シャンプー・スキンケア"])) {
+if (
+  JSON.stringify(topical) !==
+  JSON.stringify(["皮膚ステロイド+抗菌", "皮膚その他", "耳"])
+) {
   throw new Error("topical groups mismatch");
 }
-await clickItem(page, "#med-add-col-group-list", "消毒");
+await clickItem(page, "#med-add-col-group-list", "皮膚ステロイド+抗菌");
 await page.waitForTimeout(100);
-const disinfectLeaves = await itemLabels(page, "#med-add-col-leaf-list");
-if (disinfectLeaves.join(",") !== ["CHタオル", "AP水"].join(",")) {
-  throw new Error("消毒 leaf order mismatch: " + disinfectLeaves.join(","));
-}
-await clickItem(page, "#med-add-col-leaf-list", "AP水");
-await page.waitForTimeout(80);
-if (
-  (await page
-    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
-    .textContent()) !== "AP水"
-) {
-  throw new Error("消毒 leaf not selected");
-}
-
-await clickItem(page, "#med-add-col-group-list", "皮膚");
-await page.waitForTimeout(100);
-const skinLeaves = await itemLabels(page, "#med-add-col-leaf-list");
-const expectedSkin = [
+const steroidAbxLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+const expectedSteroidAbx = [
+  "ゲンタマイシンクリーム",
+  "ゲーベンクリーム",
+  "オゾンジェル",
+  "ケトコナゾールクリーム",
+  "ビクタスMTクリーム",
+  "アレリーフローション",
+  "モメタオティック",
+  "レスタミンコーワ軟膏",
   "スピラゾン軟膏",
   "モメタゾン軟膏",
-  "ゲンタマイシンクリーム",
-  "ヘパリンクリーム",
-  "ヘパリン泡スプレー",
-  "ゲーベンクリーム",
-  "ケトコナゾールクリーム",
-  "馬油",
-  "タクロリムス軟膏",
-  "キトサンパウダー",
-  "キトサンMNZパウダー",
-  "アレリーフローション",
-  "レスタミンコーワ軟膏",
-  "クイックストップ",
-  "アンチノールスキン",
-  "オゾンジェル",
-  "モメタオティック",
 ];
-if (skinLeaves.join(",") !== expectedSkin.join(",")) {
-  throw new Error("皮膚 leaf order mismatch: " + skinLeaves.join(","));
+if (steroidAbxLeaves.join(",") !== expectedSteroidAbx.join(",")) {
+  throw new Error("皮膚ステロイド+抗菌 leaf order mismatch: " + steroidAbxLeaves.join(","));
 }
-await clickItem(page, "#med-add-col-leaf-list", "モメタオティック");
+await clickItem(page, "#med-add-col-leaf-list", "モメタゾン軟膏");
 await page.waitForTimeout(80);
 if (
   (await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
-    .textContent()) !== "モメタオティック"
+    .textContent()) !== "モメタゾン軟膏"
 ) {
-  throw new Error("皮膚 leaf not selected");
+  throw new Error("皮膚ステロイド+抗菌 leaf not selected");
+}
+
+await clickItem(page, "#med-add-col-group-list", "皮膚その他");
+await page.waitForTimeout(100);
+const skinOtherLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+const expectedSkinOther = [
+  "ヘパリンクリーム",
+  "ヘパリン泡スプレー",
+  "馬油",
+  "キトサンパウダー",
+  "キトサンMNZパウダー",
+  "アンチノールスキン",
+  "タクロリムス軟膏",
+  "クイックストップ",
+];
+if (skinOtherLeaves.join(",") !== expectedSkinOther.join(",")) {
+  throw new Error("皮膚その他 leaf order mismatch: " + skinOtherLeaves.join(","));
+}
+await clickItem(page, "#med-add-col-leaf-list", "クイックストップ");
+await page.waitForTimeout(80);
+if (
+  (await page
+    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+    .textContent()) !== "クイックストップ"
+) {
+  throw new Error("皮膚その他 leaf not selected");
 }
 
 await clickItem(page, "#med-add-col-group-list", "耳");
 await page.waitForTimeout(100);
 const earLeaves = await itemLabels(page, "#med-add-col-leaf-list");
 const expectedEar = [
-  "ビクタスMTクリーム",
-  "モメタオティック",
-  "イズオティック",
-  "ミミピュア",
-  "ベルベゾロン",
   "シルピナ",
-  "エピオティック",
+  "ミミピュア",
   "EDTAイヤークリーナー",
-  "Mal-A-Ket Plus",
-  "MalAcetic",
-  "イベルメクチン（耳用）",
   "Pet Ear&Skincare Liquid",
+  "イベルメクチン（耳用）",
 ];
 if (earLeaves.join(",") !== expectedEar.join(",")) {
   throw new Error("耳 leaf order mismatch: " + earLeaves.join(","));
 }
-await clickItem(page, "#med-add-col-leaf-list", "モメタオティック");
+await clickItem(page, "#med-add-col-leaf-list", "イベルメクチン（耳用）");
 await page.waitForTimeout(80);
 if (
   (await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
-    .textContent()) !== "モメタオティック"
+    .textContent()) !== "イベルメクチン（耳用）"
 ) {
   throw new Error("耳 leaf not selected");
-}
-
-await clickItem(page, "#med-add-col-group-list", "シャンプー・スキンケア");
-await page.waitForTimeout(100);
-const shampooLeaves = await itemLabels(page, "#med-add-col-leaf-list");
-const expectedShampoo = [
-  "マラセキュア",
-  "ヒノケア泡",
-  "ナノベイジングプロモイスチャライズ",
-  "クレンジングオイル",
-  "クロルヘキシジンシャンプー",
-  "ダーマモイストバス",
-  "ホスケアスプレー",
-  "QUANPOWペットシャンプー",
-  "QUANPOW Pet Body Care Bath Milk",
-];
-if (shampooLeaves.join(",") !== expectedShampoo.join(",")) {
-  throw new Error("シャンプー・スキンケア leaf order mismatch: " + shampooLeaves.join(","));
-}
-await clickItem(page, "#med-add-col-leaf-list", "QUANPOW Pet Body Care Bath Milk");
-await page.waitForTimeout(80);
-if (
-  (await page
-    .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
-    .textContent()) !== "QUANPOW Pet Body Care Bath Milk"
-) {
-  throw new Error("シャンプー・スキンケア leaf not selected");
 }
 
 await clickItem(page, "#med-add-col-category-list", "サプリメント・商品");
@@ -743,7 +715,7 @@ await page.screenshot({
 
 await clickItem(page, "#med-add-col-category-list", "外用薬");
 await page.waitForTimeout(80);
-await clickItem(page, "#med-add-col-group-list", "皮膚");
+await clickItem(page, "#med-add-col-group-list", "皮膚その他");
 await page.waitForTimeout(80);
 await page.click("#btn-med-add-toggle");
 await page.waitForSelector("#med-add-item-add:not([hidden])");

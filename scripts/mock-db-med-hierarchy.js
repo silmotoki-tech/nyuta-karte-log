@@ -25,9 +25,14 @@ export const MED_ORAL_VITAMIN_GROUP_ID = "seed-med-oral-vitamin";
 export const MED_ORAL_HORMONE_GROUP_ID = "seed-med-oral-hormone";
 export const MED_ORAL_KAMPO_GROUP_ID = "seed-med-oral-kampo";
 export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
-export const MED_TOPICAL_SKIN_GROUP_ID = "seed-med-topical-skin";
-export const MED_TOPICAL_DISINFECT_GROUP_ID = "seed-med-topical-disinfect";
+export const MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID = "seed-med-topical-skin-steroid-abx";
+export const MED_TOPICAL_SKIN_OTHER_GROUP_ID = "seed-med-topical-skin-other";
 export const MED_TOPICAL_EAR_GROUP_ID = "seed-med-topical-ear";
+/** @deprecated 旧「皮膚」中項目。シード退役対象 */
+export const MED_TOPICAL_SKIN_GROUP_ID = "seed-med-topical-skin";
+/** @deprecated 旧「消毒」中項目。シード退役対象 */
+export const MED_TOPICAL_DISINFECT_GROUP_ID = "seed-med-topical-disinfect";
+/** @deprecated 旧「シャンプー・スキンケア」中項目。シード退役対象 */
 export const MED_TOPICAL_SHAMPOO_GROUP_ID = "seed-med-topical-shampoo";
 export const MED_SUPPL_JOINT_GROUP_ID = "seed-med-suppl-joint";
 export const MED_SUPPL_ORAL_GROUP_ID = "seed-med-suppl-oral";
@@ -101,10 +106,9 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_KAMPO_GROUP_ID, "漢方", 170),
   medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
   medGroupSeed("oral", "seed-med-oral-inject-suppository", "処方注射薬・座薬", 190),
-  medGroupSeed("topical", MED_TOPICAL_SKIN_GROUP_ID, "皮膚", 10),
-  medGroupSeed("topical", MED_TOPICAL_DISINFECT_GROUP_ID, "消毒", 20),
+  medGroupSeed("topical", MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID, "皮膚ステロイド+抗菌", 10),
+  medGroupSeed("topical", MED_TOPICAL_SKIN_OTHER_GROUP_ID, "皮膚その他", 20),
   medGroupSeed("topical", MED_TOPICAL_EAR_GROUP_ID, "耳", 30),
-  medGroupSeed("topical", MED_TOPICAL_SHAMPOO_GROUP_ID, "シャンプー・スキンケア", 40),
   medGroupSeed("supplement", MED_SUPPL_JOINT_GROUP_ID, "関節・炎症", 10),
   medGroupSeed("supplement", MED_SUPPL_ORAL_GROUP_ID, "口腔", 20),
   medGroupSeed("supplement", MED_SUPPL_GI_GROUP_ID, "消化器・代謝", 30),
@@ -338,53 +342,34 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-blood-xarelto", label: "イグザレルト" },
     { id: "seed-med-oral-blood-tranexamic", label: "トラネキサム酸" },
   ]),
-  ...medGroupLeaves("topical", MED_TOPICAL_DISINFECT_GROUP_ID, [
-    { id: "seed-med-topical-disinfect-ch-towel", label: "CHタオル" },
-    { id: "seed-med-topical-disinfect-ap-water", label: "AP水" },
-  ]),
-  ...medGroupLeaves("topical", MED_TOPICAL_SKIN_GROUP_ID, [
+  ...medGroupLeaves("topical", MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID, [
+    { id: "seed-med-topical-skin-gentamicin", label: "ゲンタマイシンクリーム" },
+    { id: "seed-med-topical-skin-geben", label: "ゲーベンクリーム" },
+    { id: "seed-med-topical-skin-ozone-gel", label: "オゾンジェル" },
+    { id: "seed-med-topical-skin-ketoconazole", label: "ケトコナゾールクリーム" },
+    { id: "seed-med-topical-ear-victas-mt", label: "ビクタスMTクリーム" },
+    { id: "seed-med-topical-skin-allerief", label: "アレリーフローション" },
+    { id: "seed-med-topical-skin-mometotic", label: "モメタオティック" },
+    { id: "seed-med-topical-skin-restamin-kowa", label: "レスタミンコーワ軟膏" },
     { id: "seed-med-topical-skin-spirazone", label: "スピラゾン軟膏" },
     { id: "seed-med-topical-skin-mometasone", label: "モメタゾン軟膏" },
-    { id: "seed-med-topical-skin-gentamicin", label: "ゲンタマイシンクリーム" },
+  ]),
+  ...medGroupLeaves("topical", MED_TOPICAL_SKIN_OTHER_GROUP_ID, [
     { id: "seed-med-topical-skin-heparin-cream", label: "ヘパリンクリーム" },
     { id: "seed-med-topical-skin-heparin-foam", label: "ヘパリン泡スプレー" },
-    { id: "seed-med-topical-skin-geben", label: "ゲーベンクリーム" },
-    { id: "seed-med-topical-skin-ketoconazole", label: "ケトコナゾールクリーム" },
     { id: "seed-med-topical-skin-horse-oil", label: "馬油" },
-    { id: "seed-med-topical-skin-tacrolimus", label: "タクロリムス軟膏" },
     { id: "seed-med-topical-skin-chitosan", label: "キトサンパウダー" },
     { id: "seed-med-topical-skin-chitosan-mnz", label: "キトサンMNZパウダー" },
-    { id: "seed-med-topical-skin-allerief", label: "アレリーフローション" },
-    { id: "seed-med-topical-skin-restamin-kowa", label: "レスタミンコーワ軟膏" },
-    { id: "seed-med-topical-skin-quick-stop", label: "クイックストップ" },
     { id: "seed-med-topical-skin-antinoll", label: "アンチノールスキン" },
-    { id: "seed-med-topical-skin-ozone-gel", label: "オゾンジェル" },
-    { id: "seed-med-topical-skin-mometotic", label: "モメタオティック" },
+    { id: "seed-med-topical-skin-tacrolimus", label: "タクロリムス軟膏" },
+    { id: "seed-med-topical-skin-quick-stop", label: "クイックストップ" },
   ]),
   ...medGroupLeaves("topical", MED_TOPICAL_EAR_GROUP_ID, [
-    { id: "seed-med-topical-ear-victas-mt", label: "ビクタスMTクリーム" },
-    { id: "seed-med-topical-ear-mometotic", label: "モメタオティック" },
-    { id: "seed-med-topical-ear-izotic", label: "イズオティック" },
-    { id: "seed-med-topical-ear-mimipure", label: "ミミピュア" },
-    { id: "seed-med-topical-ear-berbezolon", label: "ベルベゾロン" },
     { id: "seed-med-topical-ear-silpina", label: "シルピナ" },
-    { id: "seed-med-topical-ear-epiotic", label: "エピオティック" },
+    { id: "seed-med-topical-ear-mimipure", label: "ミミピュア" },
     { id: "seed-med-topical-ear-edta", label: "EDTAイヤークリーナー" },
-    { id: "seed-med-topical-ear-mal-a-ket-plus", label: "Mal-A-Ket Plus" },
-    { id: "seed-med-topical-ear-malacetic", label: "MalAcetic" },
-    { id: "seed-med-topical-ear-ivermectin", label: "イベルメクチン（耳用）" },
     { id: "seed-med-topical-ear-pet-liquid", label: "Pet Ear&Skincare Liquid" },
-  ]),
-  ...medGroupLeaves("topical", MED_TOPICAL_SHAMPOO_GROUP_ID, [
-    { id: "seed-med-topical-shampoo-malasecure", label: "マラセキュア" },
-    { id: "seed-med-topical-shampoo-hinocare", label: "ヒノケア泡" },
-    { id: "seed-med-topical-shampoo-nano-basing", label: "ナノベイジングプロモイスチャライズ" },
-    { id: "seed-med-topical-shampoo-cleansing-oil", label: "クレンジングオイル" },
-    { id: "seed-med-topical-shampoo-chlorhexidine", label: "クロルヘキシジンシャンプー" },
-    { id: "seed-med-topical-shampoo-derma-moist", label: "ダーマモイストバス" },
-    { id: "seed-med-topical-shampoo-hoscare", label: "ホスケアスプレー" },
-    { id: "seed-med-topical-shampoo-quanpow", label: "QUANPOWペットシャンプー" },
-    { id: "seed-med-topical-shampoo-quanpow-bath-milk", label: "QUANPOW Pet Body Care Bath Milk" },
+    { id: "seed-med-topical-ear-ivermectin", label: "イベルメクチン（耳用）" },
   ]),
   ...medGroupLeaves("eye", "", [
     { id: "seed-med-eye-oneclean", label: "ワンクリーン点眼液" },
@@ -493,6 +478,32 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-suppl-other-pet-mybo-shampoo", label: "Pet Mybo shampoo" },
   ]),
 ];
+
+/** 外用再編で廃止する中項目・葉シード */
+const MEDICATION_ITEM_SEED_RETIRE = [
+  "seed-med-topical-skin",
+  "seed-med-topical-disinfect",
+  "seed-med-topical-shampoo",
+  "seed-med-topical-disinfect-ch-towel",
+  "seed-med-topical-disinfect-ap-water",
+  "seed-med-topical-ear-mometotic",
+  "seed-med-topical-ear-izotic",
+  "seed-med-topical-ear-berbezolon",
+  "seed-med-topical-ear-epiotic",
+  "seed-med-topical-ear-mal-a-ket-plus",
+  "seed-med-topical-ear-malacetic",
+  "seed-med-topical-shampoo-malasecure",
+  "seed-med-topical-shampoo-hinocare",
+  "seed-med-topical-shampoo-nano-basing",
+  "seed-med-topical-shampoo-cleansing-oil",
+  "seed-med-topical-shampoo-chlorhexidine",
+  "seed-med-topical-shampoo-derma-moist",
+  "seed-med-topical-shampoo-hoscare",
+  "seed-med-topical-shampoo-quanpow",
+  "seed-med-topical-shampoo-quanpow-bath-milk",
+];
+
+const MEDICATION_ITEM_LABEL_RETIRE = ["デルトピカローション", "エピオティック"];
 
 const MEDICATION_ITEM_GROUP_SEED_IDS = new Set(
   MEDICATION_ITEM_GROUP_SEED.map((s) => s.id)
@@ -628,6 +639,19 @@ export async function ensureMedicationItemDefaults() {
     next[seed.id] = payload;
   });
 
+  MEDICATION_ITEM_SEED_RETIRE.forEach((id) => {
+    delete next[id];
+  });
+  Object.entries(next).forEach(([id, row]) => {
+    if (!row || typeof row !== "object") return;
+    if (MEDICATION_ITEM_GROUP_SEED_IDS.has(id)) return;
+    if (MEDICATION_ITEM_LEAF_SEED_IDS.has(id)) return;
+    const label = String(row.label || "").trim();
+    if (MEDICATION_ITEM_LABEL_RETIRE.includes(label)) {
+      delete next[id];
+    }
+  });
+
   Object.keys(existing).forEach((id) => {
     delete existing[id];
   });
@@ -735,6 +759,47 @@ export async function fetchMedicationsOnce(karte) {
     ...d,
     events: d.events || {},
   }));
+}
+
+// exam-plan-ui 経由の import が壊れないよう検査マスタの最小スタブ
+export const EXAM_ITEM_CATEGORIES = [
+  { id: "blood", label: "血液" },
+  { id: "imaging", label: "画像" },
+  { id: "pathology", label: "病理" },
+  { id: "other", label: "その他" },
+];
+export const EXAM_FASTING = { REQUIRED: "required", NONE: "none" };
+export function normalizeExamItemCategory(category) {
+  return String(category || "").trim() || "blood";
+}
+export function normalizeExamFasting(value) {
+  const v = String(value || "").trim();
+  return v === EXAM_FASTING.REQUIRED || v === EXAM_FASTING.NONE ? v : "";
+}
+export function examFastingLabel() {
+  return "";
+}
+export function subscribeExamItems(cb) {
+  cb([]);
+  return () => {};
+}
+export function subscribeExamPlan(karte, cb) {
+  cb([]);
+  return () => {};
+}
+export async function addExamItem() {
+  return "x";
+}
+export async function saveExamScheduledPlan() {
+  return "p";
+}
+export async function deleteExamScheduledPlan() {}
+export async function endExamScheduledPlan() {}
+export async function reviveExamPlanByItem() {
+  return "p";
+}
+export async function addExamHistory() {
+  return "h";
 }
 
 /** 検証用 */

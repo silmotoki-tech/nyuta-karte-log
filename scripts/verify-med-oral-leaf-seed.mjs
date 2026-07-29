@@ -21,10 +21,9 @@ import {
   MED_ORAL_HORMONE_GROUP_ID,
   MED_ORAL_KAMPO_GROUP_ID,
   MED_ORAL_BLOOD_GROUP_ID,
-  MED_TOPICAL_DISINFECT_GROUP_ID,
-  MED_TOPICAL_SKIN_GROUP_ID,
+  MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID,
+  MED_TOPICAL_SKIN_OTHER_GROUP_ID,
   MED_TOPICAL_EAR_GROUP_ID,
-  MED_TOPICAL_SHAMPOO_GROUP_ID,
   MED_SUPPL_JOINT_GROUP_ID,
   MED_SUPPL_ORAL_GROUP_ID,
   MED_SUPPL_GI_GROUP_ID,
@@ -284,53 +283,36 @@ const BLOOD_LABELS = [
   "トラネキサム酸",
 ];
 
-const TOPICAL_DISINFECT_LABELS = ["CHタオル", "AP水"];
-
-const TOPICAL_SKIN_LABELS = [
+const TOPICAL_SKIN_STEROID_ABX_LABELS = [
+  "ゲンタマイシンクリーム",
+  "ゲーベンクリーム",
+  "オゾンジェル",
+  "ケトコナゾールクリーム",
+  "ビクタスMTクリーム",
+  "アレリーフローション",
+  "モメタオティック",
+  "レスタミンコーワ軟膏",
   "スピラゾン軟膏",
   "モメタゾン軟膏",
-  "ゲンタマイシンクリーム",
+];
+
+const TOPICAL_SKIN_OTHER_LABELS = [
   "ヘパリンクリーム",
   "ヘパリン泡スプレー",
-  "ゲーベンクリーム",
-  "ケトコナゾールクリーム",
   "馬油",
-  "タクロリムス軟膏",
   "キトサンパウダー",
   "キトサンMNZパウダー",
-  "アレリーフローション",
-  "レスタミンコーワ軟膏",
-  "クイックストップ",
   "アンチノールスキン",
-  "オゾンジェル",
-  "モメタオティック",
+  "タクロリムス軟膏",
+  "クイックストップ",
 ];
 
 const TOPICAL_EAR_LABELS = [
-  "ビクタスMTクリーム",
-  "モメタオティック",
-  "イズオティック",
-  "ミミピュア",
-  "ベルベゾロン",
   "シルピナ",
-  "エピオティック",
+  "ミミピュア",
   "EDTAイヤークリーナー",
-  "Mal-A-Ket Plus",
-  "MalAcetic",
-  "イベルメクチン（耳用）",
   "Pet Ear&Skincare Liquid",
-];
-
-const TOPICAL_SHAMPOO_LABELS = [
-  "マラセキュア",
-  "ヒノケア泡",
-  "ナノベイジングプロモイスチャライズ",
-  "クレンジングオイル",
-  "クロルヘキシジンシャンプー",
-  "ダーマモイストバス",
-  "ホスケアスプレー",
-  "QUANPOWペットシャンプー",
-  "QUANPOW Pet Body Care Bath Milk",
+  "イベルメクチン（耳用）",
 ];
 
 const EYE_LABELS = [
@@ -496,10 +478,9 @@ const vitamin = labelsUnder(MED_ORAL_VITAMIN_GROUP_ID);
 const hormone = labelsUnder(MED_ORAL_HORMONE_GROUP_ID);
 const kampo = labelsUnder(MED_ORAL_KAMPO_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
-const topicalDisinfect = labelsUnder(MED_TOPICAL_DISINFECT_GROUP_ID);
-const topicalSkin = labelsUnder(MED_TOPICAL_SKIN_GROUP_ID);
+const topicalSteroidAbx = labelsUnder(MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID);
+const topicalSkinOther = labelsUnder(MED_TOPICAL_SKIN_OTHER_GROUP_ID);
 const topicalEar = labelsUnder(MED_TOPICAL_EAR_GROUP_ID);
-const topicalShampoo = labelsUnder(MED_TOPICAL_SHAMPOO_GROUP_ID);
 const eye = Object.values(items)
   .filter(
     (r) =>
@@ -534,10 +515,9 @@ console.log("vitamin order:", vitamin);
 console.log("hormone order:", hormone);
 console.log("kampo order:", kampo);
 console.log("blood order:", blood);
-console.log("topical disinfect order:", topicalDisinfect);
-console.log("topical skin order:", topicalSkin);
+console.log("topical steroid+abx order:", topicalSteroidAbx);
+console.log("topical skin other order:", topicalSkinOther);
 console.log("topical ear order:", topicalEar);
-console.log("topical shampoo order:", topicalShampoo);
 console.log("eye order:", eye);
 console.log("suppl joint:", supplJoint);
 console.log("suppl oral:", supplOral);
@@ -569,10 +549,9 @@ assert.deepEqual(vitamin, VITAMIN_LABELS);
 assert.deepEqual(hormone, HORMONE_LABELS);
 assert.deepEqual(kampo, KAMPO_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
-assert.deepEqual(topicalDisinfect, TOPICAL_DISINFECT_LABELS);
-assert.deepEqual(topicalSkin, TOPICAL_SKIN_LABELS);
+assert.deepEqual(topicalSteroidAbx, TOPICAL_SKIN_STEROID_ABX_LABELS);
+assert.deepEqual(topicalSkinOther, TOPICAL_SKIN_OTHER_LABELS);
 assert.deepEqual(topicalEar, TOPICAL_EAR_LABELS);
-assert.deepEqual(topicalShampoo, TOPICAL_SHAMPOO_LABELS);
 assert.deepEqual(eye, EYE_LABELS);
 assert.deepEqual(supplJoint, SUPPL_JOINT_LABELS);
 assert.deepEqual(supplOral, SUPPL_ORAL_LABELS);
@@ -592,15 +571,24 @@ assert.equal(
   items["seed-med-suppl-urinary-welldeli"]?.parentId,
   MED_SUPPL_URINARY_GROUP_ID
 );
-assert.equal(items[MED_TOPICAL_SHAMPOO_GROUP_ID]?.label, "シャンプー・スキンケア");
+assert.equal(items[MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID]?.label, "皮膚ステロイド+抗菌");
+assert.equal(items[MED_TOPICAL_SKIN_OTHER_GROUP_ID]?.label, "皮膚その他");
+assert.equal(items[MED_TOPICAL_EAR_GROUP_ID]?.label, "耳");
 assert.equal(
   items["seed-med-topical-skin-mometotic"]?.parentId,
-  MED_TOPICAL_SKIN_GROUP_ID
+  MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID
 );
 assert.equal(
-  items["seed-med-topical-ear-mometotic"]?.parentId,
-  MED_TOPICAL_EAR_GROUP_ID
+  items["seed-med-topical-ear-victas-mt"]?.parentId,
+  MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID
 );
+assert.ok(!items["seed-med-topical-ear-mometotic"]);
+assert.ok(!items["seed-med-topical-ear-epiotic"]);
+assert.ok(!items["seed-med-topical-disinfect"]);
+assert.ok(!items["seed-med-topical-shampoo"]);
+assert.ok(!items["seed-med-topical-skin"]);
+assert.ok(!Object.values(items).some((r) => r?.label === "エピオティック"));
+assert.ok(!Object.values(items).some((r) => r?.label === "デルトピカローション"));
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
 assert.ok(!respiratory.includes("マロピタント"));
@@ -622,10 +610,9 @@ assert.equal(
     HORMONE_LABELS.length +
     KAMPO_LABELS.length +
     BLOOD_LABELS.length +
-    TOPICAL_DISINFECT_LABELS.length +
-    TOPICAL_SKIN_LABELS.length +
+    TOPICAL_SKIN_STEROID_ABX_LABELS.length +
+    TOPICAL_SKIN_OTHER_LABELS.length +
     TOPICAL_EAR_LABELS.length +
-    TOPICAL_SHAMPOO_LABELS.length +
     EYE_LABELS.length +
     SUPPL_JOINT_LABELS.length +
     SUPPL_ORAL_LABELS.length +

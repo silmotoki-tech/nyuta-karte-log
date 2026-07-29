@@ -336,10 +336,15 @@ buttons = await page
   .locator("#med-add-col-group-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("topical groups:", buttons);
-if (JSON.stringify(buttons) !== JSON.stringify(["皮膚", "消毒", "耳", "シャンプー・スキンケア"])) {
+if (
+  JSON.stringify(buttons) !==
+  JSON.stringify(["皮膚ステロイド+抗菌", "皮膚その他", "耳"])
+) {
   throw new Error("topical groups mismatch");
 }
-await page.locator("#med-add-col-group-list .med-linear-picker__item", { hasText: "皮膚" }).click();
+await page
+  .locator("#med-add-col-group-list .med-linear-picker__item", { hasText: "皮膚その他" })
+  .click();
 await page.click("#btn-med-add-toggle");
 await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "イソジンゲル");
@@ -363,7 +368,11 @@ buttons = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
   .allTextContents();
 console.log("eye leaves:", buttons);
-if (buttons.some((b) => ["皮膚", "消毒", "耳", "シャンプー・スキンケア", "抗生剤"].includes(b))) {
+if (
+  buttons.some((b) =>
+    ["皮膚ステロイド+抗菌", "皮膚その他", "耳", "抗生剤"].includes(b)
+  )
+) {
   throw new Error("eye leaf should not show other category groups");
 }
 await page.click("#btn-med-add-toggle");

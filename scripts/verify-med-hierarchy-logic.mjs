@@ -37,8 +37,8 @@ console.log("supplement groups:", supplementGroups.length);
 if (oralGroups.length !== 19) {
   throw new Error(`expected 19 oral groups, got ${oralGroups.length}`);
 }
-if (topicalGroups.length !== 4) {
-  throw new Error(`expected 4 topical groups, got ${topicalGroups.length}`);
+if (topicalGroups.length !== 3) {
+  throw new Error(`expected 3 topical groups, got ${topicalGroups.length}`);
 }
 if (eyeGroups.length !== 0) {
   throw new Error("eye must have no mid groups");
