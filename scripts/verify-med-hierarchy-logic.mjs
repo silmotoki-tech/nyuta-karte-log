@@ -38,8 +38,8 @@ console.log("inject groups:", injectGroups.length);
 console.log("supplement groups:", supplementGroups.length);
 console.log("food groups:", foodGroups.length);
 
-if (oralGroups.length !== 19) {
-  throw new Error(`expected 19 oral groups, got ${oralGroups.length}`);
+if (oralGroups.length !== 18) {
+  throw new Error(`expected 18 oral groups, got ${oralGroups.length}`);
 }
 if (topicalGroups.length !== 3) {
   throw new Error(`expected 3 topical groups, got ${topicalGroups.length}`);

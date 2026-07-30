@@ -1520,7 +1520,6 @@ const MEDICATION_ITEM_GROUP_SEED = [
   // 内服
   medGroupSeed("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, "抗生剤", 10),
   medGroupSeed("oral", MED_ORAL_ANTIINFLAM_GROUP_ID, "消炎・鎮痛", 20),
-  medGroupSeed("oral", "seed-med-oral-analgesic", "鎮痛剤", 30),
   medGroupSeed("oral", MED_ORAL_STEROID_ANTIHIST_GROUP_ID, "ステロイド・抗ヒス", 40),
   medGroupSeed("oral", MED_ORAL_GI_STOMACH_GROUP_ID, "消化器（胃）", 50),
   medGroupSeed("oral", MED_ORAL_GI_INTESTINE_GROUP_ID, "消化器（腸）", 60),
@@ -1926,6 +1925,8 @@ const MEDICATION_ITEM_LEAF_SEED = [
 
 /** 外用再編で廃止する中項目・葉シード（DBから削除） */
 const MEDICATION_ITEM_SEED_RETIRE = [
+  // 空の内服中項目
+  "seed-med-oral-analgesic",
   // 旧中項目
   "seed-med-topical-skin",
   "seed-med-topical-disinfect",
