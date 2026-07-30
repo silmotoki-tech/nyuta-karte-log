@@ -309,13 +309,18 @@ const info = await page.evaluate(() => {
     (el?.dataset.name || "").replace(/\u200B/g, "") ||
     (el?.textContent || "").replace(/\u200B/g, "");
   const cards = [...document.querySelectorAll("#meds-list .med-card")].map((li) => {
-    const headerKids = [...li.querySelector(".med-card__header")?.children || []].map(
-      (el) => el.className
-    );
+    const header = li.querySelector(".med-card__header");
+    const cats = [...header.querySelectorAll(".med-cat")].map((el) => ({
+      text: el.textContent?.trim() || "",
+      leading: el.classList.contains("med-cat--leading"),
+    }));
+    const headerKids = [...(header?.children || [])].map((el) => el.className);
     return {
       name: nameOf(li.querySelector(".med-card__name")),
       status: li.querySelector(".med-status")?.textContent?.trim() || "",
-      cat: li.querySelector(".med-cat")?.textContent?.trim() || "",
+      leftCat: cats.find((c) => c.leading)?.text || "",
+      rightCat: cats.filter((c) => !c.leading).at(-1)?.text || "",
+      recentDot: Boolean(li.querySelector(".med-sign--recent")),
       prn: Boolean(li.querySelector(".med-sign--prn")),
       expiry: li.querySelector(".med-inline-status")?.textContent?.trim() || "",
       overdueClass: Boolean(li.querySelector(".med-inline-status--overdue")),
@@ -349,18 +354,32 @@ if (
   throw new Error(`status order wrong: ${statuses.join("|")}`);
 }
 
+const cats = info.map((x) => x.leftCat);
+if (cats.join("|") !== "A|B|C|A|B|A|C") {
+  throw new Error(`category order within status wrong: ${cats.join("|")}`);
+}
+if (info.some((x) => x.recentDot)) {
+  throw new Error("blue recent dot should be removed from list");
+}
+if (info.some((x) => !x.leftCat || x.leftCat !== x.rightCat)) {
+  throw new Error("left/right category mismatch: " + JSON.stringify(info.map((x) => [x.leftCat, x.rightCat])));
+}
+
 const prnCard = info.find((x) => x.name === "使用中のA頓服");
 if (!prnCard?.prn) throw new Error("prn mark missing on 頓服 drug");
 if (!prnCard.overdueClass || prnCard.expiry !== "3日超過") {
   throw new Error(`overdue label wrong: ${JSON.stringify(prnCard)}`);
 }
-// 右から カテゴリ → 頓 → 使用状況（= DOM で status → prn → cat）
+// 左カテゴリ → 名前 → 使用状況 → 頓 → 右カテゴリ
+const leftIdx = prnCard.headerKids.findIndex((c) => c.includes("med-cat--leading"));
 const statusIdx = prnCard.headerKids.findIndex((c) => c.includes("med-status"));
 const prnIdx = prnCard.headerKids.findIndex((c) => c.includes("med-sign--prn"));
-const catIdx = prnCard.headerKids.findIndex((c) => c.includes("med-cat"));
-if (!(statusIdx < prnIdx && prnIdx < catIdx)) {
+const rightCatIdx = prnCard.headerKids.findIndex(
+  (c, i) => c.includes("med-cat") && !c.includes("med-cat--leading") && i > statusIdx
+);
+if (!(leftIdx === 0 && leftIdx < statusIdx && statusIdx < prnIdx && prnIdx < rightCatIdx)) {
   throw new Error(
-    `prn mark order wrong (want status→prn→cat): ${prnCard.headerKids.join(" | ")}`
+    `header order wrong (want leftCat→…→status→prn→rightCat): ${prnCard.headerKids.join(" | ")}`
   );
 }
 

@@ -517,7 +517,6 @@ function createDrugCard(drug) {
 
   const status = deriveStatus(drug);
   const expiryStatus = getExpiryStatus(drug.expiryEstimate);
-  const recent = hasRecentEvent(drug);
 
   if (expiryStatus === "overdue") li.classList.add("is-overdue");
   else if (expiryStatus === "approaching") li.classList.add("is-alert");
@@ -529,15 +528,12 @@ function createDrugCard(drug) {
   header.spellcheck = false;
   header.setAttribute("aria-haspopup", "dialog");
 
-  const signs = document.createElement("span");
-  signs.className = "med-card__signs";
-  if (recent) {
-    const recentSign = document.createElement("span");
-    recentSign.className = "med-sign med-sign--recent";
-    recentSign.title = "直近30日以内に出来事あり";
-    recentSign.textContent = "●";
-    signs.appendChild(recentSign);
-  }
+  // 左端: 重要度カテゴリ（旧・直近出来事の青丸の位置）
+  const leftCat = document.createElement("span");
+  leftCat.className = `med-cat med-cat--${drug.category} med-cat--leading`;
+  leftCat.textContent = drug.category;
+  leftCat.title = `重要度 ${drug.category}`;
+  leftCat.setAttribute("aria-label", `重要度 ${drug.category}`);
 
   const displayName = drug.name || "（名称未設定）";
   const nameEl = document.createElement("span");
@@ -557,7 +553,7 @@ function createDrugCard(drug) {
   chevron.className = "med-card__chevron";
   chevron.textContent = "▸";
 
-  header.append(signs, nameEl, statusEl);
+  header.append(leftCat, nameEl, statusEl);
   if (isPrnDrug(drug)) {
     const prnSign = document.createElement("span");
     prnSign.className = "med-sign med-sign--prn";

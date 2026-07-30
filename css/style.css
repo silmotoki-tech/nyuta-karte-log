@@ -2357,6 +2357,10 @@ html.is-unlocked .app {
   gap: 2px;
 }
 
+.med-cat--leading {
+  flex-shrink: 0;
+}
+
 .med-sign--recent {
   color: #3b82f6;
   font-size: 0.85rem;
