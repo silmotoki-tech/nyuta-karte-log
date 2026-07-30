@@ -528,7 +528,7 @@ function createDrugCard(drug) {
   header.spellcheck = false;
   header.setAttribute("aria-haspopup", "dialog");
 
-  // 左端: 重要度カテゴリ（旧・直近出来事の青丸の位置）
+  // 左端: 重要度カテゴリのみ（右側には出さない）
   const leftCat = document.createElement("span");
   leftCat.className = `med-cat med-cat--${drug.category} med-cat--leading`;
   leftCat.textContent = drug.category;
@@ -540,20 +540,16 @@ function createDrugCard(drug) {
   nameEl.className = "med-card__name";
   fillMedNameEl(nameEl, displayName);
 
-  // 右から: カテゴリ → 頓 → 使用状況（DOM上は status → 頓 → cat）
+  // 右側: 頓 → 使用状況（DOM順も同じ）
   const statusEl = document.createElement("span");
   statusEl.className = `med-status med-status--${status.id}`;
   statusEl.textContent = status.label;
-
-  const catEl = document.createElement("span");
-  catEl.className = `med-cat med-cat--${drug.category}`;
-  catEl.textContent = drug.category;
 
   const chevron = document.createElement("span");
   chevron.className = "med-card__chevron";
   chevron.textContent = "▸";
 
-  header.append(leftCat, nameEl, statusEl);
+  header.append(leftCat, nameEl);
   if (isPrnDrug(drug)) {
     const prnSign = document.createElement("span");
     prnSign.className = "med-sign med-sign--prn";
@@ -562,7 +558,7 @@ function createDrugCard(drug) {
     prnSign.textContent = "頓";
     header.appendChild(prnSign);
   }
-  header.append(catEl, chevron);
+  header.append(statusEl, chevron);
   li.appendChild(header);
 
   // 処方切れは行内の短いラベルで示す（超過は「○日超過」）

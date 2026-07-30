@@ -310,16 +310,13 @@ const info = await page.evaluate(() => {
     (el?.textContent || "").replace(/\u200B/g, "");
   const cards = [...document.querySelectorAll("#meds-list .med-card")].map((li) => {
     const header = li.querySelector(".med-card__header");
-    const cats = [...header.querySelectorAll(".med-cat")].map((el) => ({
-      text: el.textContent?.trim() || "",
-      leading: el.classList.contains("med-cat--leading"),
-    }));
+    const cats = [...header.querySelectorAll(".med-cat")];
     const headerKids = [...(header?.children || [])].map((el) => el.className);
     return {
       name: nameOf(li.querySelector(".med-card__name")),
       status: li.querySelector(".med-status")?.textContent?.trim() || "",
-      leftCat: cats.find((c) => c.leading)?.text || "",
-      rightCat: cats.filter((c) => !c.leading).at(-1)?.text || "",
+      leftCat: cats.find((c) => c.classList.contains("med-cat--leading"))?.textContent?.trim() || "",
+      catCount: cats.length,
       recentDot: Boolean(li.querySelector(".med-sign--recent")),
       prn: Boolean(li.querySelector(".med-sign--prn")),
       expiry: li.querySelector(".med-inline-status")?.textContent?.trim() || "",
@@ -361,8 +358,8 @@ if (cats.join("|") !== "A|B|C|A|B|A|C") {
 if (info.some((x) => x.recentDot)) {
   throw new Error("blue recent dot should be removed from list");
 }
-if (info.some((x) => !x.leftCat || x.leftCat !== x.rightCat)) {
-  throw new Error("left/right category mismatch: " + JSON.stringify(info.map((x) => [x.leftCat, x.rightCat])));
+if (info.some((x) => x.catCount !== 1 || !x.leftCat)) {
+  throw new Error("category must appear only once on the left: " + JSON.stringify(info.map((x) => [x.leftCat, x.catCount])));
 }
 
 const prnCard = info.find((x) => x.name === "使用中のA頓服");
@@ -370,16 +367,17 @@ if (!prnCard?.prn) throw new Error("prn mark missing on 頓服 drug");
 if (!prnCard.overdueClass || prnCard.expiry !== "3日超過") {
   throw new Error(`overdue label wrong: ${JSON.stringify(prnCard)}`);
 }
-// 左カテゴリ → 名前 → 使用状況 → 頓 → 右カテゴリ
+// 左カテゴリ → 名前 → 頓 → 使用状況
 const leftIdx = prnCard.headerKids.findIndex((c) => c.includes("med-cat--leading"));
 const statusIdx = prnCard.headerKids.findIndex((c) => c.includes("med-status"));
 const prnIdx = prnCard.headerKids.findIndex((c) => c.includes("med-sign--prn"));
-const rightCatIdx = prnCard.headerKids.findIndex(
-  (c, i) => c.includes("med-cat") && !c.includes("med-cat--leading") && i > statusIdx
+const trailingCat = prnCard.headerKids.some(
+  (c) => c.includes("med-cat") && !c.includes("med-cat--leading")
 );
-if (!(leftIdx === 0 && leftIdx < statusIdx && statusIdx < prnIdx && prnIdx < rightCatIdx)) {
+if (trailingCat) throw new Error("right-side category should be removed");
+if (!(leftIdx === 0 && prnIdx > leftIdx && prnIdx < statusIdx)) {
   throw new Error(
-    `header order wrong (want leftCat→…→status→prn→rightCat): ${prnCard.headerKids.join(" | ")}`
+    `header order wrong (want leftCat→…→prn→status): ${prnCard.headerKids.join(" | ")}`
   );
 }
 
