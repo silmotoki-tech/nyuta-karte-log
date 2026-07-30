@@ -348,10 +348,9 @@ export function currentFrequencyText(drug) {
   return "";
 }
 
-/** 頓服指定かどうかを判定する。 */
+/** 頓服指定かどうかを判定する（薬剤詳細の頓服チェック）。 */
 export function isPrnDrug(drug) {
-  const text = (currentFrequencyText(drug) || "").trim();
-  return text === "頓服" || text.includes("頓服");
+  return Boolean(drug?.prn);
 }
 
 function sortedDrugs(drugs) {
@@ -539,20 +538,13 @@ function createDrugCard(drug) {
     recentSign.textContent = "●";
     signs.appendChild(recentSign);
   }
-  if (isPrnDrug(drug)) {
-    const prnSign = document.createElement("span");
-    prnSign.className = "med-sign med-sign--prn";
-    prnSign.title = "頓服";
-    prnSign.setAttribute("aria-label", "頓服");
-    prnSign.textContent = "頓";
-    signs.appendChild(prnSign);
-  }
 
   const displayName = drug.name || "（名称未設定）";
   const nameEl = document.createElement("span");
   nameEl.className = "med-card__name";
   fillMedNameEl(nameEl, displayName);
 
+  // 右から: カテゴリ → 頓 → 使用状況（DOM上は status → 頓 → cat）
   const statusEl = document.createElement("span");
   statusEl.className = `med-status med-status--${status.id}`;
   statusEl.textContent = status.label;
@@ -565,7 +557,16 @@ function createDrugCard(drug) {
   chevron.className = "med-card__chevron";
   chevron.textContent = "▸";
 
-  header.append(signs, nameEl, statusEl, catEl, chevron);
+  header.append(signs, nameEl, statusEl);
+  if (isPrnDrug(drug)) {
+    const prnSign = document.createElement("span");
+    prnSign.className = "med-sign med-sign--prn";
+    prnSign.title = "頓服";
+    prnSign.setAttribute("aria-label", "頓服");
+    prnSign.textContent = "頓";
+    header.appendChild(prnSign);
+  }
+  header.append(catEl, chevron);
   li.appendChild(header);
 
   // 処方切れは行内の短いラベルで示す（超過は「○日超過」）
@@ -728,6 +729,33 @@ function createDrugDetail(drug) {
   });
   catRow.append(catLabel, catBtns);
   detail.appendChild(catRow);
+
+  // 頓服オン/オフ
+  const prnRow = document.createElement("div");
+  prnRow.className = "med-detail-row med-detail-row--prn";
+  const prnLabel = document.createElement("label");
+  prnLabel.className = "exam-other-check med-prn-check";
+  const prnInput = document.createElement("input");
+  prnInput.type = "checkbox";
+  prnInput.id = `med-detail-prn-${drug.id}`;
+  prnInput.checked = isPrnDrug(drug);
+  const prnText = document.createElement("span");
+  prnText.textContent = "頓服";
+  prnLabel.append(prnInput, prnText);
+  prnLabel.setAttribute("for", prnInput.id);
+  prnInput.addEventListener("change", async () => {
+    const next = Boolean(prnInput.checked);
+    try {
+      await updateMedication(state.karteNumber, drug.id, { prn: next });
+      deps.showToast(next ? "頓服に設定しました。" : "頓服を解除しました。");
+    } catch (err) {
+      console.error(err);
+      prnInput.checked = !next;
+      deps.showToast("頓服の更新に失敗しました。", { isError: true });
+    }
+  });
+  prnRow.appendChild(prnLabel);
+  detail.appendChild(prnRow);
 
   // 開始日・期限（独立セル。狭い画面では縦積み）
   const datesGrid = document.createElement("div");

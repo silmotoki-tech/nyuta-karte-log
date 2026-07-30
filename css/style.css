@@ -2520,6 +2520,18 @@ html.is-unlocked .app {
   flex-wrap: wrap;
 }
 
+.med-detail-row--prn {
+  margin-top: 2px;
+}
+
+.med-prn-check {
+  font-size: 0.9rem;
+}
+
+.med-card__header > .med-sign--prn {
+  flex-shrink: 0;
+}
+
 .med-event-quick {
   margin-top: 4px;
   padding: 10px 12px;

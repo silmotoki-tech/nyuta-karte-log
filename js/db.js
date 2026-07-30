@@ -42,6 +42,7 @@
 //   medications/{カルテ番号}/{drugId}/schemaVersion
 //   medications/{カルテ番号}/{drugId}/name
 //   medications/{カルテ番号}/{drugId}/category           … "A"|"B"|"C"（重要度。マスタ階層とは別軸）
+//   medications/{カルテ番号}/{drugId}/prn                … true|false（頓服フラグ。一覧に「頓」表示）
 //   medications/{カルテ番号}/{drugId}/sideEffectNote
 //   medications/{カルテ番号}/{drugId}/expiryEstimate     … 処方切れ目安日 "YYYY-MM-DD" or ""
 //   medications/{カルテ番号}/{drugId}/events/{eventId}
@@ -2268,6 +2269,7 @@ function normalizeMedication(id, raw) {
     schemaVersion: MEDICATION_SCHEMA_VERSION,
     name: "",
     category: "B",
+    prn: false,
     sideEffectNote: "",
     expiryEstimate: "",
     events: {},
@@ -2277,6 +2279,7 @@ function normalizeMedication(id, raw) {
   drug.schemaVersion = raw.schemaVersion || MEDICATION_SCHEMA_VERSION;
   drug.name = raw.name || "";
   drug.category = ["A", "B", "C"].includes(raw.category) ? raw.category : "B";
+  drug.prn = Boolean(raw.prn);
   drug.sideEffectNote = raw.sideEffectNote || "";
   drug.expiryEstimate = raw.expiryEstimate || "";
 
@@ -2359,6 +2362,7 @@ export async function addMedication(
     schemaVersion: MEDICATION_SCHEMA_VERSION,
     name: name || "",
     category: ["A", "B", "C"].includes(category) ? category : "A",
+    prn: false,
     sideEffectNote: sideEffectNote || "",
     expiryEstimate: expiryEstimate || "",
     events: {},
@@ -2376,7 +2380,7 @@ export async function addMedication(
 }
 
 /**
- * 薬剤の基本情報を更新する（名前・カテゴリ・副作用メモ・処方切れ目安）。
+ * 薬剤の基本情報を更新する（名前・カテゴリ・頓服・副作用メモ・処方切れ目安）。
  * 使用状況（使用中/休薬中/中止）は events の最新から導出するためここでは扱わない。
  */
 export async function updateMedication(karteNumber, drugId, fields) {
@@ -2388,6 +2392,7 @@ export async function updateMedication(karteNumber, drugId, fields) {
       ? fields.category
       : "B";
   }
+  if (fields.prn != null) payload.prn = Boolean(fields.prn);
   if (fields.sideEffectNote != null) payload.sideEffectNote = fields.sideEffectNote;
   if (fields.expiryEstimate != null) payload.expiryEstimate = fields.expiryEstimate;
   await update(medicationRef(karteNumber, drugId), payload);

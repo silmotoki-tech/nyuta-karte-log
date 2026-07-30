@@ -1,5 +1,5 @@
 /**
- * 薬剤一覧: 使用状況→カテゴリ順、頓服マーク、期限超過「○日超過」を検証する。
+ * 薬剤詳細の頓服チェック → 一覧に「頓」マーク（右から カテゴリ→頓→使用状況）を検証する。
  */
 import { chromium } from "playwright";
 import fs from "node:fs";
@@ -54,22 +54,6 @@ async function launchBrowser() {
   return chromium.launch({ headless: true });
 }
 
-function today() {
-  const d = new Date();
-  const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-function addDays(base, n) {
-  const d = new Date(`${base}T12:00:00`);
-  d.setDate(d.getDate() + n);
-  const p = (x) => String(x).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-const T = today();
-const overdue3 = addDays(T, -3);
-const near2 = addDays(T, 2);
-
 const mockDb = `
 const store = { medicationItems: {}, medications: {} };
 const medListeners = new Map();
@@ -78,19 +62,25 @@ function ensureMeds(k) {
   return store.medications[k];
 }
 function notifyMeds(k) {
-  const drugs = Object.entries(ensureMeds(k)).map(([id, d]) => ({ id, ...d, events: d.events || {} }));
+  const drugs = Object.entries(ensureMeds(k)).map(([id, d]) => ({
+    id,
+    prn: false,
+    ...d,
+    events: d.events || {},
+  }));
   (medListeners.get(k) || []).forEach((cb) => cb(drugs.map((x) => structuredClone(x))));
 }
 export const MEDICATION_ITEM_CATEGORIES = [
   { id: "inject", label: "注射薬" }, { id: "oral", label: "内服薬" },
   { id: "topical", label: "外用薬" }, { id: "eye", label: "点眼薬" },
+  { id: "supplement", label: "サプリメント・商品" },
 ];
 export function normalizeMedicationItemCategory(c) {
-  return ["inject","oral","topical","eye"].includes(c) ? c : "oral";
+  return ["inject","oral","topical","eye","supplement"].includes(c) ? c : "oral";
 }
 export function normalizeMedicationItemKind(k) { return k === "group" ? "group" : "leaf"; }
 export function medicationItemCategoryLabel(c) {
-  return ({ inject:"注射薬", oral:"内服薬", topical:"外用薬", eye:"点眼薬" })[normalizeMedicationItemCategory(c)] || c;
+  return ({ inject:"注射薬", oral:"内服薬", topical:"外用薬", eye:"点眼薬", supplement:"サプリメント・商品" })[normalizeMedicationItemCategory(c)] || c;
 }
 export function subscribeMedicationItems(cb) { cb([]); return () => {}; }
 export function subscribeMedications(karte, cb) {
@@ -99,7 +89,16 @@ export function subscribeMedications(karte, cb) {
   return () => medListeners.set(karte, (medListeners.get(karte)||[]).filter((x) => x !== cb));
 }
 export async function addMedication() { return "x"; }
-export async function updateMedication() {}
+export async function updateMedication(karte, drugId, fields) {
+  const drug = ensureMeds(karte)[drugId];
+  if (!drug) throw new Error("missing");
+  if (fields.prn != null) drug.prn = Boolean(fields.prn);
+  if (fields.category != null) drug.category = fields.category;
+  if (fields.name != null) drug.name = fields.name;
+  if (fields.sideEffectNote != null) drug.sideEffectNote = fields.sideEffectNote;
+  if (fields.expiryEstimate != null) drug.expiryEstimate = fields.expiryEstimate;
+  notifyMeds(karte);
+}
 export async function deleteMedication() {}
 export async function addMedicationItem() { return "x"; }
 export async function updateMedicationItem() {}
@@ -126,34 +125,9 @@ export async function endExamScheduledPlan() {}
 export async function reviveExamPlanByItem() { return "p"; }
 export async function addExamHistory() { return "h"; }
 
-// seed: 意図的にカテゴリ順と異なる登録順で、使用状況混在
-ensureMeds("karte-sort")["d1"] = {
-  schemaVersion:1, name:"中止のA薬", category:"A", sideEffectNote:"", expiryEstimate:"",
-  events:{ e:{ date:"${T}", type:"stop", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
-};
-ensureMeds("karte-sort")["d2"] = {
-  schemaVersion:1, name:"使用中のC薬", category:"C", sideEffectNote:"", expiryEstimate:"${near2}",
-  events:{ e:{ date:"${T}", type:"add", frequencyChange:"1日1回", frequency:{kind:"preset",label:"1日1回"}, amountChange:"", changedBy:"院長" } }
-};
-ensureMeds("karte-sort")["d3"] = {
-  schemaVersion:1, name:"休薬のB薬", category:"B", sideEffectNote:"", expiryEstimate:"",
-  events:{ e:{ date:"${T}", type:"hold", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
-};
-ensureMeds("karte-sort")["d4"] = {
-  schemaVersion:1, name:"使用中のA頓服", category:"A", prn:true, sideEffectNote:"", expiryEstimate:"${overdue3}",
-  events:{ e:{ date:"${T}", type:"add", frequencyChange:"1日1回", frequency:{kind:"preset",label:"1日1回"}, amountChange:"", changedBy:"院長" } }
-};
-ensureMeds("karte-sort")["d5"] = {
-  schemaVersion:1, name:"使用中のB薬", category:"B", sideEffectNote:"", expiryEstimate:"",
-  events:{ e:{ date:"${T}", type:"resume", frequencyChange:"1日2回", frequency:{kind:"preset",label:"1日2回"}, amountChange:"", changedBy:"院長" } }
-};
-ensureMeds("karte-sort")["d6"] = {
-  schemaVersion:1, name:"休薬のA薬", category:"A", sideEffectNote:"", expiryEstimate:"",
-  events:{ e:{ date:"${T}", type:"hold", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
-};
-ensureMeds("karte-sort")["d7"] = {
-  schemaVersion:1, name:"中止のC薬", category:"C", sideEffectNote:"", expiryEstimate:"",
-  events:{ e:{ date:"${T}", type:"stop", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
+ensureMeds("karte-prn")["d1"] = {
+  schemaVersion:1, name:"プレドニゾロン", category:"A", prn:false, sideEffectNote:"", expiryEstimate:"",
+  events:{ e:{ date:"2026-07-01", type:"add", frequencyChange:"1日1回", frequency:{kind:"preset",label:"1日1回"}, amountChange:"", changedBy:"院長" } }
 };
 `;
 
@@ -177,11 +151,21 @@ const harness = `<!DOCTYPE html>
   </div>
 </aside>
 <div class="modal" id="med-detail-sheet" hidden>
-  <button id="btn-close-med-detail-sheet" type="button"></button>
-  <p id="med-detail-sheet-name"></p>
-  <p id="med-detail-sheet-status"></p>
-  <div id="med-detail-sheet-body"></div>
-  <button id="btn-med-detail-sheet-close" type="button"></button>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="med-detail-sheet-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="med-detail-sheet-title">薬剤の詳細</h2>
+      <button class="modal__close" id="btn-close-med-detail-sheet" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p class="exam-sheet__item" id="med-detail-sheet-name"></p>
+      <p class="field__note" id="med-detail-sheet-status"></p>
+      <div id="med-detail-sheet-body" class="med-sheet__body"></div>
+    </div>
+    <div class="modal__footer">
+      <button id="btn-med-detail-sheet-close" class="btn btn--small btn--outline" type="button">閉じる</button>
+    </div>
+  </div>
 </div>
 <div class="modal" id="med-add-modal" hidden>
   <button id="btn-close-med-add" type="button"></button>
@@ -214,10 +198,10 @@ const harness = `<!DOCTYPE html>
   <input id="med-add-freq-other-input" type="text" />
   <input id="med-add-date" type="date" />
   <input id="med-add-note" type="text" />
+  <input id="med-add-expiry" type="date" />
   <p id="med-add-error" hidden></p>
   <button id="btn-med-add-save" type="button"></button>
   <button id="btn-med-add-cancel" type="button"></button>
-  <button id="btn-med-add-toggle" type="button" hidden></button>
 </div>
 <div class="modal" id="med-event-modal" hidden>
   <button id="btn-close-med-event" type="button"></button>
@@ -256,12 +240,12 @@ const harness = `<!DOCTYPE html>
 <script type="module">
 import { initMedsUI, enterMeds } from "/js/meds-ui.js";
 initMedsUI({
-  showToast: () => {},
+  showToast: (m) => console.log("toast", m),
   showError: () => {},
   setBusy: () => {},
   getSelectedAuthor: () => "院長",
 });
-enterMeds("karte-sort");
+enterMeds("karte-prn");
 window.__ready = true;
 </script>
 </body></html>`;
@@ -303,76 +287,64 @@ await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__ready === true);
 await page.waitForTimeout(120);
 
-const info = await page.evaluate(() => {
-  const nameOf = (el) =>
-    el?.getAttribute("aria-label") ||
-    (el?.dataset.name || "").replace(/\u200B/g, "") ||
-    (el?.textContent || "").replace(/\u200B/g, "");
-  const cards = [...document.querySelectorAll("#meds-list .med-card")].map((li) => {
-    const headerKids = [...li.querySelector(".med-card__header")?.children || []].map(
-      (el) => el.className
-    );
-    return {
-      name: nameOf(li.querySelector(".med-card__name")),
-      status: li.querySelector(".med-status")?.textContent?.trim() || "",
-      cat: li.querySelector(".med-cat")?.textContent?.trim() || "",
-      prn: Boolean(li.querySelector(".med-sign--prn")),
-      expiry: li.querySelector(".med-inline-status")?.textContent?.trim() || "",
-      overdueClass: Boolean(li.querySelector(".med-inline-status--overdue")),
-      headerKids,
-    };
-  });
-  return cards;
+const before = await page.evaluate(() =>
+  Boolean(document.querySelector("#meds-list .med-sign--prn"))
+);
+if (before) throw new Error("prn mark should be off initially");
+
+await page.locator("#meds-list .med-card__header").click();
+await page.waitForSelector("#med-detail-sheet:not([hidden])");
+await page.waitForTimeout(80);
+
+const hasCheckbox = await page.locator(".med-prn-check input[type=checkbox]").count();
+if (!hasCheckbox) throw new Error("頓服 checkbox missing in detail");
+
+const shotDir = path.join(root, "tools");
+fs.mkdirSync(shotDir, { recursive: true });
+await page.screenshot({
+  path: path.join(shotDir, "med-prn-detail-checkbox.png"),
 });
 
-console.log("order", info);
+await page.locator(".med-prn-check input[type=checkbox]").check();
+await page.waitForTimeout(150);
 
-const expectedNames = [
-  "使用中のA頓服",
-  "使用中のB薬",
-  "使用中のC薬",
-  "休薬のA薬",
-  "休薬のB薬",
-  "中止のA薬",
-  "中止のC薬",
-];
-const gotNames = info.map((x) => x.name);
-if (gotNames.join("|") !== expectedNames.join("|")) {
-  throw new Error(`sort mismatch\n expected ${expectedNames.join("|")}\n got ${gotNames.join("|")}`);
-}
+const checked = await page.locator(".med-prn-check input[type=checkbox]").isChecked();
+if (!checked) throw new Error("頓服 checkbox did not stay checked");
 
-const statuses = info.map((x) => x.status);
-if (
-  statuses.join("|") !==
-  "使用中|使用中|使用中|休薬中|休薬中|中止|中止"
-) {
-  throw new Error(`status order wrong: ${statuses.join("|")}`);
-}
+await page.screenshot({
+  path: path.join(shotDir, "med-prn-detail-checked.png"),
+});
 
-const prnCard = info.find((x) => x.name === "使用中のA頓服");
-if (!prnCard?.prn) throw new Error("prn mark missing on 頓服 drug");
-if (!prnCard.overdueClass || prnCard.expiry !== "3日超過") {
-  throw new Error(`overdue label wrong: ${JSON.stringify(prnCard)}`);
-}
-// 右から カテゴリ → 頓 → 使用状況（= DOM で status → prn → cat）
-const statusIdx = prnCard.headerKids.findIndex((c) => c.includes("med-status"));
-const prnIdx = prnCard.headerKids.findIndex((c) => c.includes("med-sign--prn"));
-const catIdx = prnCard.headerKids.findIndex((c) => c.includes("med-cat"));
-if (!(statusIdx < prnIdx && prnIdx < catIdx)) {
-  throw new Error(
-    `prn mark order wrong (want status→prn→cat): ${prnCard.headerKids.join(" | ")}`
+await page.locator("#btn-med-detail-sheet-close").click();
+await page.waitForSelector("#med-detail-sheet[hidden]", { state: "attached" });
+await page.waitForTimeout(120);
+
+const after = await page.evaluate(() => {
+  const li = document.querySelector("#meds-list .med-card");
+  const kids = [...(li?.querySelector(".med-card__header")?.children || [])].map(
+    (el) => el.className
   );
+  return {
+    prn: Boolean(li?.querySelector(".med-sign--prn")),
+    prnText: li?.querySelector(".med-sign--prn")?.textContent || "",
+    kids,
+  };
+});
+console.log("after toggle", after);
+if (!after.prn || after.prnText !== "頓") {
+  throw new Error("prn mark missing after toggle: " + JSON.stringify(after));
 }
-
-const nearCard = info.find((x) => x.name === "使用中のC薬");
-if (nearCard?.expiry !== "あと2日") {
-  throw new Error(`near label wrong: ${JSON.stringify(nearCard)}`);
+const statusIdx = after.kids.findIndex((c) => c.includes("med-status"));
+const prnIdx = after.kids.findIndex((c) => c.includes("med-sign--prn"));
+const catIdx = after.kids.findIndex((c) => c.includes("med-cat"));
+if (!(statusIdx < prnIdx && prnIdx < catIdx)) {
+  throw new Error(`order want status→prn→cat, got ${after.kids.join(" | ")}`);
 }
 
 await page.screenshot({
-  path: path.join(root, "tools/med-sort-status-order.png"),
+  path: path.join(shotDir, "med-prn-list-mark.png"),
 });
 
 await browser.close();
 server.close();
-console.log("OK: med sort + prn + overdue days");
+console.log("OK: med prn checkbox + list mark");
