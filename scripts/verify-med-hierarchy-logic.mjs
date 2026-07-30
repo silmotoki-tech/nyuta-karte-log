@@ -27,12 +27,16 @@ const injectGroups = Object.entries(items).filter(
 const supplementGroups = Object.entries(items).filter(
   ([, r]) => r.category === "supplement" && r.kind === "group"
 );
+const foodGroups = Object.entries(items).filter(
+  ([, r]) => r.category === "food" && r.kind === "group"
+);
 
 console.log("oral groups:", oralGroups.length);
 console.log("topical groups:", topicalGroups.length);
 console.log("eye groups:", eyeGroups.length);
 console.log("inject groups:", injectGroups.length);
 console.log("supplement groups:", supplementGroups.length);
+console.log("food groups:", foodGroups.length);
 
 if (oralGroups.length !== 19) {
   throw new Error(`expected 19 oral groups, got ${oralGroups.length}`);
@@ -48,6 +52,26 @@ if (injectGroups.length !== 0) {
 }
 if (supplementGroups.length !== 8) {
   throw new Error(`expected 8 supplement groups, got ${supplementGroups.length}`);
+}
+if (foodGroups.length !== 7) {
+  throw new Error(`expected 7 food groups, got ${foodGroups.length}`);
+}
+const foodLabels = foodGroups
+  .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
+  .map(([, r]) => r.label);
+if (
+  JSON.stringify(foodLabels) !==
+  JSON.stringify([
+    "Hills",
+    "ドクターズ",
+    "ダイエティクス",
+    "ファルミナ",
+    "ピュリナ",
+    "ロイヤルカナン",
+    "その他",
+  ])
+) {
+  throw new Error("food group labels/order mismatch: " + foodLabels.join(","));
 }
 if (!items[MED_ORAL_OTHER_GROUP_ID]) {
   throw new Error("その他 group missing");

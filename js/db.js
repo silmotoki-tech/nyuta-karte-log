@@ -33,7 +33,7 @@
 //     { item, date, note }
 //
 //   medicationItems/{itemId}/label                      … 薬剤マスタの表示名
-//   medicationItems/{itemId}/category                   … "inject"|"oral"|"topical"|"eye"|"supplement"（注射薬／内服薬／外用薬／点眼薬／サプリメント・商品）
+//   medicationItems/{itemId}/category                   … "inject"|"oral"|"topical"|"eye"|"supplement"|"food"（注射薬／内服薬／外用薬／点眼薬／サプリメント・商品／フード）
 //   medicationItems/{itemId}/kind                       … "group"|"leaf"（中項目／薬剤名）
 //   medicationItems/{itemId}/parentId                   … 中項目の親ID（トップ／点眼の葉は空）
 //   medicationItems/{itemId}/order                      … 並び順
@@ -1405,6 +1405,7 @@ export const MEDICATION_ITEM_CATEGORIES = [
   { id: "topical", label: "外用薬" },
   { id: "eye", label: "点眼薬" },
   { id: "supplement", label: "サプリメント・商品" },
+  { id: "food", label: "フード" },
 ];
 const MEDICATION_ITEM_CATEGORY_IDS = new Set(
   MEDICATION_ITEM_CATEGORIES.map((c) => c.id)
@@ -1506,6 +1507,13 @@ export const MED_SUPPL_URINARY_GROUP_ID = "seed-med-suppl-urinary";
 export const MED_SUPPL_NEURO_GROUP_ID = "seed-med-suppl-neuro";
 export const MED_SUPPL_SKIN_GROUP_ID = "seed-med-suppl-skin";
 export const MED_SUPPL_OTHER_GROUP_ID = "seed-med-suppl-other";
+export const MED_FOOD_HILLS_GROUP_ID = "seed-med-food-hills";
+export const MED_FOOD_DOCTORS_GROUP_ID = "seed-med-food-doctors";
+export const MED_FOOD_DIETIX_GROUP_ID = "seed-med-food-dietix";
+export const MED_FOOD_FARMINA_GROUP_ID = "seed-med-food-farmina";
+export const MED_FOOD_PURINA_GROUP_ID = "seed-med-food-purina";
+export const MED_FOOD_ROYAL_CANIN_GROUP_ID = "seed-med-food-royal-canin";
+export const MED_FOOD_OTHER_GROUP_ID = "seed-med-food-other";
 
 /** 中項目シード */
 const MEDICATION_ITEM_GROUP_SEED = [
@@ -1542,6 +1550,14 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("supplement", MED_SUPPL_NEURO_GROUP_ID, "行動・神経", 60),
   medGroupSeed("supplement", MED_SUPPL_SKIN_GROUP_ID, "皮膚", 70),
   medGroupSeed("supplement", MED_SUPPL_OTHER_GROUP_ID, "その他", 80),
+  // フード（中身は追って追加）
+  medGroupSeed("food", MED_FOOD_HILLS_GROUP_ID, "Hills", 10),
+  medGroupSeed("food", MED_FOOD_DOCTORS_GROUP_ID, "ドクターズ", 20),
+  medGroupSeed("food", MED_FOOD_DIETIX_GROUP_ID, "ダイエティクス", 30),
+  medGroupSeed("food", MED_FOOD_FARMINA_GROUP_ID, "ファルミナ", 40),
+  medGroupSeed("food", MED_FOOD_PURINA_GROUP_ID, "ピュリナ", 50),
+  medGroupSeed("food", MED_FOOD_ROYAL_CANIN_GROUP_ID, "ロイヤルカナン", 60),
+  medGroupSeed("food", MED_FOOD_OTHER_GROUP_ID, "その他", 70),
 ];
 
 /** 内服・外用の葉シード（中項目直下のフラット一覧・指定順） */

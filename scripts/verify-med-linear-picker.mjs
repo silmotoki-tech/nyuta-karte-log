@@ -263,7 +263,7 @@ const cats = await itemLabels(page, "#med-add-col-category-list");
 console.log("categories:", cats);
 if (
   JSON.stringify(cats) !==
-  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品", "検索"])
+  JSON.stringify(["注射薬", "内服薬", "外用薬", "点眼薬", "サプリメント・商品", "フード", "検索"])
 ) {
   throw new Error("category list mismatch");
 }
@@ -711,6 +711,34 @@ if (
 }
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-08-supplement.png"),
+});
+
+await clickItem(page, "#med-add-col-category-list", "フード");
+await page.waitForTimeout(100);
+const foodGroups = await itemLabels(page, "#med-add-col-group-list");
+console.log("food groups:", foodGroups);
+if (
+  JSON.stringify(foodGroups) !==
+  JSON.stringify([
+    "Hills",
+    "ドクターズ",
+    "ダイエティクス",
+    "ファルミナ",
+    "ピュリナ",
+    "ロイヤルカナン",
+    "その他",
+  ])
+) {
+  throw new Error("food groups mismatch: " + foodGroups.join(","));
+}
+await clickItem(page, "#med-add-col-group-list", "Hills");
+await page.waitForTimeout(80);
+const foodLeaves = await itemLabels(page, "#med-add-col-leaf-list");
+if (foodLeaves.length !== 0) {
+  throw new Error("food mid groups should start empty, got: " + foodLeaves.join(","));
+}
+await page.screenshot({
+  path: path.join(root, "tools/med-linear-picker-09-food.png"),
 });
 
 await clickItem(page, "#med-add-col-category-list", "外用薬");

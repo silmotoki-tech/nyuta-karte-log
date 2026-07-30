@@ -1055,7 +1055,12 @@ function isMedGroup(item) {
 }
 
 function categorySupportsMedMidGroups(category) {
-  return category === "oral" || category === "topical" || category === "supplement";
+  return (
+    category === "oral" ||
+    category === "topical" ||
+    category === "supplement" ||
+    category === "food"
+  );
 }
 
 function activeMedCategoryId() {
@@ -1332,7 +1337,9 @@ function updateMedLeafAddUI() {
             ? "例）セファゾリン"
             : category === "supplement"
               ? "例）アンチノール"
-              : "例）アモキシシリン";
+              : category === "food"
+                ? "例）療法食"
+                : "例）アモキシシリン";
   }
   if (addItemsEmpty) {
     addItemsEmpty.textContent =

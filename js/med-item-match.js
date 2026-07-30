@@ -12,6 +12,7 @@ const MED_CATEGORY_LABELS = {
   topical: "外用薬",
   eye: "点眼薬",
   supplement: "サプリメント・商品",
+  food: "フード",
 };
 
 function medCategoryLabelFromId(category) {

@@ -6,6 +6,7 @@ export const MEDICATION_ITEM_CATEGORIES = [
   { id: "topical", label: "外用薬" },
   { id: "eye", label: "点眼薬" },
   { id: "supplement", label: "サプリメント・商品" },
+  { id: "food", label: "フード" },
 ];
 
 export const MED_ORAL_OTHER_GROUP_ID = "seed-med-oral-other";
@@ -42,6 +43,13 @@ export const MED_SUPPL_URINARY_GROUP_ID = "seed-med-suppl-urinary";
 export const MED_SUPPL_NEURO_GROUP_ID = "seed-med-suppl-neuro";
 export const MED_SUPPL_SKIN_GROUP_ID = "seed-med-suppl-skin";
 export const MED_SUPPL_OTHER_GROUP_ID = "seed-med-suppl-other";
+export const MED_FOOD_HILLS_GROUP_ID = "seed-med-food-hills";
+export const MED_FOOD_DOCTORS_GROUP_ID = "seed-med-food-doctors";
+export const MED_FOOD_DIETIX_GROUP_ID = "seed-med-food-dietix";
+export const MED_FOOD_FARMINA_GROUP_ID = "seed-med-food-farmina";
+export const MED_FOOD_PURINA_GROUP_ID = "seed-med-food-purina";
+export const MED_FOOD_ROYAL_CANIN_GROUP_ID = "seed-med-food-royal-canin";
+export const MED_FOOD_OTHER_GROUP_ID = "seed-med-food-other";
 
 const CATEGORY_IDS = new Set(MEDICATION_ITEM_CATEGORIES.map((c) => c.id));
 
@@ -117,6 +125,13 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("supplement", MED_SUPPL_NEURO_GROUP_ID, "行動・神経", 60),
   medGroupSeed("supplement", MED_SUPPL_SKIN_GROUP_ID, "皮膚", 70),
   medGroupSeed("supplement", MED_SUPPL_OTHER_GROUP_ID, "その他", 80),
+  medGroupSeed("food", MED_FOOD_HILLS_GROUP_ID, "Hills", 10),
+  medGroupSeed("food", MED_FOOD_DOCTORS_GROUP_ID, "ドクターズ", 20),
+  medGroupSeed("food", MED_FOOD_DIETIX_GROUP_ID, "ダイエティクス", 30),
+  medGroupSeed("food", MED_FOOD_FARMINA_GROUP_ID, "ファルミナ", 40),
+  medGroupSeed("food", MED_FOOD_PURINA_GROUP_ID, "ピュリナ", 50),
+  medGroupSeed("food", MED_FOOD_ROYAL_CANIN_GROUP_ID, "ロイヤルカナン", 60),
+  medGroupSeed("food", MED_FOOD_OTHER_GROUP_ID, "その他", 70),
 ];
 
 export const MEDICATION_ITEM_LEAF_SEED = [
