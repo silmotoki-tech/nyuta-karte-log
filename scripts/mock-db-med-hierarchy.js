@@ -10,6 +10,14 @@ export const MEDICATION_ITEM_CATEGORIES = [
 ];
 
 export const MED_ORAL_OTHER_GROUP_ID = "seed-med-oral-other";
+export const MED_INJECT_ANTIINFLAM_STEROID_GROUP_ID =
+  "seed-med-inject-antiinflam-steroid";
+export const MED_INJECT_ANTIBIOTIC_GROUP_ID = "seed-med-inject-antibiotic";
+export const MED_INJECT_GI_GROUP_ID = "seed-med-inject-gi";
+export const MED_INJECT_NEURO_GROUP_ID = "seed-med-inject-neuro";
+export const MED_INJECT_ANTICANCER_GROUP_ID = "seed-med-inject-anticancer";
+export const MED_INJECT_CARDIO_RESP_GROUP_ID = "seed-med-inject-cardio-resp";
+export const MED_INJECT_OTHER_GROUP_ID = "seed-med-inject-other";
 export const MED_ORAL_ANTIBIOTIC_GROUP_ID = "seed-med-oral-antibiotic";
 export const MED_ORAL_ANTIINFLAM_GROUP_ID = "seed-med-oral-antiinflam";
 export const MED_ORAL_STEROID_ANTIHIST_GROUP_ID = "seed-med-oral-steroid-antihist";
@@ -95,6 +103,18 @@ function medGroupLeaves(category, parentId, children) {
 }
 
 const MEDICATION_ITEM_GROUP_SEED = [
+  medGroupSeed(
+    "inject",
+    MED_INJECT_ANTIINFLAM_STEROID_GROUP_ID,
+    "消炎・ステロイド",
+    10
+  ),
+  medGroupSeed("inject", MED_INJECT_ANTIBIOTIC_GROUP_ID, "抗生剤", 20),
+  medGroupSeed("inject", MED_INJECT_GI_GROUP_ID, "消化器", 30),
+  medGroupSeed("inject", MED_INJECT_NEURO_GROUP_ID, "鎮痛・鎮静・神経", 40),
+  medGroupSeed("inject", MED_INJECT_ANTICANCER_GROUP_ID, "抗癌剤", 50),
+  medGroupSeed("inject", MED_INJECT_CARDIO_RESP_GROUP_ID, "循環器・呼吸器", 60),
+  medGroupSeed("inject", MED_INJECT_OTHER_GROUP_ID, "その他", 70),
   medGroupSeed("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, "抗生剤", 10),
   medGroupSeed("oral", MED_ORAL_ANTIINFLAM_GROUP_ID, "消炎・鎮痛", 20),
   medGroupSeed("oral", MED_ORAL_STEROID_ANTIHIST_GROUP_ID, "ステロイド・抗ヒス", 40),
@@ -134,6 +154,103 @@ const MEDICATION_ITEM_GROUP_SEED = [
 ];
 
 export const MEDICATION_ITEM_LEAF_SEED = [
+  ...medGroupLeaves("inject", MED_INJECT_ANTIINFLAM_STEROID_GROUP_ID, [
+    { id: "seed-med-inject-pred-susp", label: "プレドニゾロン懸濁液" },
+    { id: "seed-med-inject-onsior", label: "オンシオール" },
+    { id: "seed-med-inject-tranexamic", label: "トラネキサム酸" },
+    { id: "seed-med-inject-diphenhydramine", label: "ジフェンヒドラミン" },
+    { id: "seed-med-inject-polaramine", label: "ポララミン" },
+    { id: "seed-med-inject-panoquell", label: "パノクエル" },
+    { id: "seed-med-inject-docp", label: "DOCP" },
+    { id: "seed-med-inject-dexamethasone", label: "デキサメサゾン" },
+    { id: "seed-med-inject-cytopoint", label: "サイトポイント" },
+    { id: "seed-med-inject-cartrophen", label: "カルトロフェン" },
+    { id: "seed-med-inject-pre-vax", label: "ワクチン前投与" },
+  ]),
+  ...medGroupLeaves("inject", MED_INJECT_ANTIBIOTIC_GROUP_ID, [
+    { id: "seed-med-inject-convenia", label: "コンベニア" },
+    { id: "seed-med-inject-abpc", label: "ABPC" },
+    { id: "seed-med-inject-cez", label: "CEZ" },
+    { id: "seed-med-inject-ctx", label: "CTX" },
+    { id: "seed-med-inject-erfx", label: "ERFX" },
+    { id: "seed-med-inject-mpm", label: "MPM" },
+    { id: "seed-med-inject-fom-cat-contraindicated", label: "FOM(猫禁忌)" },
+    { id: "seed-med-inject-st", label: "ST合剤" },
+    { id: "seed-med-inject-amk", label: "AMK" },
+    { id: "seed-med-inject-cldm", label: "CLDM" },
+    { id: "seed-med-inject-vancomycin", label: "バンコマイシン" },
+    { id: "seed-med-inject-cp", label: "CP" },
+  ]),
+  ...medGroupLeaves("inject", MED_INJECT_GI_GROUP_ID, [
+    { id: "seed-med-inject-maropitant", label: "マロピタント" },
+    { id: "seed-med-inject-ondansetron", label: "オンダンセトロン" },
+    { id: "seed-med-inject-famotidine", label: "ファモチジン" },
+    { id: "seed-med-inject-omeprazole", label: "オメプラゾール" },
+    { id: "seed-med-inject-primperan", label: "プリンペラン" },
+    { id: "seed-med-inject-buscopan", label: "ブスコパン" },
+    { id: "seed-med-inject-diabuster", label: "ディアバスター" },
+  ]),
+  ...medGroupLeaves("inject", MED_INJECT_NEURO_GROUP_ID, [
+    { id: "seed-med-inject-libera-dog", label: "リブレラ（犬）" },
+    { id: "seed-med-inject-libera-camp-dog", label: "リブレラキャンペーン（犬）" },
+    { id: "seed-med-inject-solensia-cat", label: "ソレンシア（猫）" },
+    {
+      id: "seed-med-inject-solensia-camp-cat",
+      label: "ソレンシアキャンペーン（猫）",
+    },
+    { id: "seed-med-inject-butorphanol", label: "ブトルファノール" },
+    { id: "seed-med-inject-buprenorphine", label: "ブプレノルフィン" },
+    { id: "seed-med-inject-tramadol", label: "トラマドール" },
+    { id: "seed-med-inject-phenobarbital", label: "フェノバール" },
+    { id: "seed-med-inject-levetiracetam", label: "レベチラセタム" },
+    { id: "seed-med-inject-midazolam", label: "ミダゾラム" },
+    { id: "seed-med-inject-ketamine", label: "ケタミン" },
+    { id: "seed-med-inject-morphine", label: "モルヒネ" },
+    { id: "seed-med-inject-propofol", label: "プロポフォール" },
+    { id: "seed-med-inject-alphaxalone", label: "アルファキサロン" },
+    { id: "seed-med-inject-lidocaine", label: "リドカイン" },
+    { id: "seed-med-inject-flumazenil", label: "フルマゼニル" },
+  ]),
+  ...medGroupLeaves("inject", MED_INJECT_ANTICANCER_GROUP_ID, [
+    { id: "seed-med-inject-asparaginase", label: "L-アスパラギナーゼ" },
+    { id: "seed-med-inject-doxorubicin", label: "ドキソルビシン" },
+    { id: "seed-med-inject-vincristine", label: "ビンクリスチン" },
+    { id: "seed-med-inject-cyclophosphamide", label: "シクロホスファミド" },
+    { id: "seed-med-inject-carboplatin", label: "カルボプラチン" },
+    { id: "seed-med-inject-vinblastine", label: "ビンブラスチン" },
+    { id: "seed-med-inject-nimustine", label: "ニムスチン" },
+    { id: "seed-med-inject-zoledronic", label: "ゾレドロン酸" },
+  ]),
+  ...medGroupLeaves("inject", MED_INJECT_CARDIO_RESP_GROUP_ID, [
+    { id: "seed-med-inject-furosemide", label: "フロセミド" },
+    { id: "seed-med-inject-diprophylline", label: "ジプロフィリン" },
+    { id: "seed-med-inject-pimobendan", label: "ピモベンダン" },
+    { id: "seed-med-inject-atropine", label: "アトロピン" },
+    { id: "seed-med-inject-ephedrine", label: "エフェドリン" },
+    { id: "seed-med-inject-bosmin", label: "ボスミン" },
+    { id: "seed-med-inject-norepinephrine", label: "ノルエピネフリン" },
+    { id: "seed-med-inject-dobutamine", label: "ドブタミン" },
+    { id: "seed-med-inject-dopamine", label: "ドパミン" },
+    { id: "seed-med-inject-diltiazem", label: "ジルチアゼム" },
+    { id: "seed-med-inject-acepromazine", label: "アセプロマジン" },
+    { id: "seed-med-inject-danpron", label: "ダンプロン" },
+    { id: "seed-med-inject-cough-maropitant", label: "咳マロピタント" },
+  ]),
+  ...medGroupLeaves("inject", MED_INJECT_OTHER_GROUP_ID, [
+    { id: "seed-med-inject-dalteparin", label: "ダルテパリン" },
+    { id: "seed-med-inject-darbepoetin", label: "ダルベポエチン" },
+    { id: "seed-med-inject-epovet", label: "エポベット" },
+    { id: "seed-med-inject-iron-tonky", label: "鉄剤（トンキー）" },
+    { id: "seed-med-inject-intercat", label: "インターキャット" },
+    { id: "seed-med-inject-pegasys", label: "ペガシス" },
+    { id: "seed-med-inject-hepahica", label: "ヘパヒカ" },
+    { id: "seed-med-inject-mecobalamin", label: "メコバラミン" },
+    { id: "seed-med-inject-k2", label: "K2" },
+    { id: "seed-med-inject-vitamin-c", label: "ビタミンC" },
+    { id: "seed-med-inject-alinamin", label: "アリナミン" },
+    { id: "seed-med-inject-mercasol", label: "メルカゾール" },
+    { id: "seed-med-inject-cortrosyn", label: "コートロシン" },
+  ]),
   ...medGroupLeaves("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, [
     { id: "seed-med-oral-abx-amoxicillin", label: "アモキシシリン" },
     { id: "seed-med-oral-abx-amox-clav", label: "クラブラン酸/アモキシシリン" },

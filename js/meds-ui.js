@@ -1048,6 +1048,7 @@ function isMedGroup(item) {
 
 function categorySupportsMedMidGroups(category) {
   return (
+    category === "inject" ||
     category === "oral" ||
     category === "topical" ||
     category === "supplement" ||
@@ -1522,7 +1523,7 @@ function renderMedLinearPicker() {
 
 /**
  * 薬剤追加モーダル内でマスタへ新規追加し、その薬剤を選択する。
- * 内服薬・外用薬は中項目内、注射薬・点眼薬は大分類直下に追加する。
+ * 中項目ありの大分類（注射・内服・外用など）は中項目内、点眼薬は大分類直下に追加する。
  */
 async function handleAddMedicationItemFromModal() {
   const category = activeMedCategoryId();
@@ -1534,7 +1535,7 @@ async function handleAddMedicationItemFromModal() {
     return;
   }
 
-  // いま開いている階層へ追加（内服・外用で中項目選択中はその配下、注射・点眼は大分類直下）
+  // いま開いている階層へ追加（中項目選択中はその配下、点眼などは大分類直下）
   const parentId =
     categorySupportsMedMidGroups(category) && state.medItemParentId
       ? state.medItemParentId
