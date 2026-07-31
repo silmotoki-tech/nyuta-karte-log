@@ -446,3 +446,13 @@ export async function addExamHistory(karte, { item, date, note }) {
   return id;
 }
 export const EXAM_PLAN_SCHEMA_VERSION = 2;
+
+/** 検証用 */
+export function __getStore() {
+  return store;
+}
+
+export function __resetExamPlan(karte) {
+  store.examPlan[karte] = emptyPlan();
+  notifyPlan(karte);
+}

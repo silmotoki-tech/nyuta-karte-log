@@ -2040,16 +2040,21 @@ async function handlePlanSave() {
     !planDoneField.hidden;
   const doneDate = planDoneDate?.value || "";
   const doneNote = planDoneNote?.value.trim() || "";
+  // 次回予定と実施記録は独立。どちらか一方、または両方で保存できる。
+  const savePlan = Boolean(dueDate);
 
   if (!item) {
     deps.showError(planError, "検査項目を選ぶか、新しい項目を追加してください。");
     return;
   }
-  if (!dueDate) {
-    deps.showError(planError, "予定日を選択してください。");
+  if (!savePlan && !saveDoneHistory) {
+    deps.showError(
+      planError,
+      "次回予定日を入力するか、「実施履歴に登録する」にチェックしてください。"
+    );
     return;
   }
-  if (planNeedsFasting(item) && !fasting) {
+  if (savePlan && planNeedsFasting(item) && !fasting) {
     deps.showError(planError, "絶食の要不要を選んでください。");
     return;
   }
@@ -2062,15 +2067,17 @@ async function handlePlanSave() {
   deps.setBusy(btnPlanSave, true, "保存中...", "保存する");
 
   try {
-    const keepBaseline = state.draft.baselineDate || todayStr();
-    await saveExamScheduledPlan(state.karteNumber, {
-      planId: state.draft.mode === "edit" ? state.editingPlanId : null,
-      item,
-      dueDate,
-      note,
-      fasting,
-      baselineDate: keepBaseline,
-    });
+    if (savePlan) {
+      const keepBaseline = state.draft.baselineDate || todayStr();
+      await saveExamScheduledPlan(state.karteNumber, {
+        planId: state.draft.mode === "edit" ? state.editingPlanId : null,
+        item,
+        dueDate,
+        note,
+        fasting,
+        baselineDate: keepBaseline,
+      });
+    }
 
     if (saveDoneHistory) {
       await addExamHistory(state.karteNumber, {
@@ -2082,9 +2089,11 @@ async function handlePlanSave() {
 
     closePlanModal();
     deps.showToast(
-      saveDoneHistory
+      savePlan && saveDoneHistory
         ? "予定と当日の実施内容を保存しました。"
-        : "予定を保存しました。"
+        : saveDoneHistory
+          ? "実施内容を保存しました。"
+          : "予定を保存しました。"
     );
   } catch (err) {
     console.error(err);
