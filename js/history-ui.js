@@ -1,4 +1,5 @@
 // 右カラム「既往歴」タブのUIと操作ロジック。
+// 疾患・手術はマスタ階層（大→中→小）のリニア選択、紹介先はフラット選択。
 // 手動追加に加え、将来のAI提案フローからも db.addPatientHistoryEntry(..., { source: "ai" })
 // で同じデータ構造に登録できる想定。
 
@@ -10,9 +11,20 @@ import {
   appendPatientHistoryNote,
   deletePatientHistoryNote,
   deletePatientHistoryEntry,
+  subscribeHistoryDiseaseItems,
+  subscribeHistorySurgeryItems,
+  subscribeHistoryReferralItems,
+  addHistoryDiseaseItem,
+  addHistorySurgeryItem,
+  addHistoryReferralItem,
+  normalizeHistoryMasterKind,
 } from "./db.js";
+import {
+  filterHistoryTreeLeavesByQuery,
+  filterHistoryReferralByQuery,
+} from "./history-item-match.js";
 import { enableRowGestures } from "./row-gestures.js";
-import { canHandleShortcut } from "./ime-keys.js";
+import { canHandleShortcut, isImeKey } from "./ime-keys.js";
 
 const HISTORY_TYPES = [
   { id: "disease", label: "疾患" },
@@ -31,6 +43,12 @@ const state = {
   karteNumber: null,
   entries: [],
   unsubscribe: null,
+  unsubscribeDisease: null,
+  unsubscribeSurgery: null,
+  unsubscribeReferral: null,
+  diseaseItems: [],
+  surgeryItems: [],
+  referralItems: [],
   expandedIds: new Set(),
   addDraft: {
     title: "",
@@ -38,6 +56,12 @@ const state = {
     firstNoted: "",
     noteText: "",
   },
+  /** 階層選択: 大分類 id / 中分類 id（疾患・手術） */
+  pickTopId: null,
+  pickMidId: null,
+  searchMode: false,
+  searchQuery: "",
+  itemAddOpen: false,
 };
 
 // --- DOM -----------------------------------------------------------------
@@ -47,14 +71,33 @@ const historyEmpty = document.getElementById("patient-history-empty");
 const btnHistoryAdd = document.getElementById("btn-history-add");
 
 const addModal = document.getElementById("history-add-modal");
-const addTitle = document.getElementById("history-add-title");
+const addPickerLabel = document.getElementById("history-add-picker-label");
 const addTypeButtons = document.getElementById("history-add-type-buttons");
 const addFirstNoted = document.getElementById("history-add-first-noted");
 const addNote = document.getElementById("history-add-note");
 const addError = document.getElementById("history-add-error");
+const addSelectedNote = document.getElementById("history-add-selected");
 const btnAddSave = document.getElementById("btn-history-add-save");
 const btnAddCancel = document.getElementById("btn-history-add-cancel");
 const btnCloseAddModal = document.getElementById("btn-close-history-add");
+
+const addLinearPicker = document.getElementById("history-add-linear-picker");
+const addColCategory = document.getElementById("history-add-col-category");
+const addColCategoryList = document.getElementById("history-add-col-category-list");
+const addColGroup = document.getElementById("history-add-col-group");
+const addColGroupList = document.getElementById("history-add-col-group-list");
+const addColLeaf = document.getElementById("history-add-col-leaf");
+const addColLeafList = document.getElementById("history-add-col-leaf-list");
+const addColLeafHeadLabel = document.getElementById("history-add-col-leaf-head-label");
+const addSearchWrap = document.getElementById("history-add-search");
+const addSearchInput = document.getElementById("history-add-search-input");
+const addItemsEmpty = document.getElementById("history-add-items-empty");
+const btnAddToggle = document.getElementById("btn-history-add-toggle");
+const addItemAdd = document.getElementById("history-add-item-add");
+const addNewItemLabel = document.getElementById("history-add-new-item-label");
+const addNewItemInput = document.getElementById("history-add-new-item");
+const btnAddNewItem = document.getElementById("btn-history-add-new-item");
+const addItemError = document.getElementById("history-add-item-error");
 
 const noteModal = document.getElementById("history-note-modal");
 const noteModalTitle = document.getElementById("history-note-modal-title");
@@ -89,6 +132,10 @@ function typeLabel(type) {
   return HISTORY_TYPES.find((t) => t.id === type)?.label || type || "";
 }
 
+function isGroup(item) {
+  return normalizeHistoryMasterKind(item?.kind) === "group";
+}
+
 function sortNotes(notesObj) {
   return Object.entries(notesObj || {})
     .map(([id, n]) => ({ id, ...n }))
@@ -100,7 +147,6 @@ function sortNotes(notesObj) {
 }
 
 function sortedEntries(entries) {
-  // 進行中 → 終了。各グループ内は最終更新日の新しい順
   return [...entries].sort((a, b) => {
     const sa = a.status === "active" ? 0 : 1;
     const sb = b.status === "active" ? 0 : 1;
@@ -111,6 +157,23 @@ function sortedEntries(entries) {
   });
 }
 
+function treeItemsForType(type) {
+  if (type === "surgery") return state.surgeryItems;
+  return state.diseaseItems;
+}
+
+function topGroups(items) {
+  return items.filter((i) => isGroup(i) && !i.parentId);
+}
+
+function midGroups(items, topId) {
+  return items.filter((i) => isGroup(i) && i.parentId === topId);
+}
+
+function leavesUnder(items, midId) {
+  return items.filter((i) => !isGroup(i) && i.parentId === midId);
+}
+
 // --- 公開API --------------------------------------------------------------
 
 export function initHistoryUI(helpers = {}) {
@@ -119,6 +182,25 @@ export function initHistoryUI(helpers = {}) {
   wireAddModal();
   wireNoteModal();
   buildTypeButtons();
+
+  state.unsubscribeDisease = subscribeHistoryDiseaseItems((items) => {
+    state.diseaseItems = items;
+    if (addModal && !addModal.hidden && state.addDraft.type === "disease") {
+      renderHistoryLinearPicker();
+    }
+  });
+  state.unsubscribeSurgery = subscribeHistorySurgeryItems((items) => {
+    state.surgeryItems = items;
+    if (addModal && !addModal.hidden && state.addDraft.type === "surgery") {
+      renderHistoryLinearPicker();
+    }
+  });
+  state.unsubscribeReferral = subscribeHistoryReferralItems((items) => {
+    state.referralItems = items;
+    if (addModal && !addModal.hidden && state.addDraft.type === "referral") {
+      renderHistoryLinearPicker();
+    }
+  });
 }
 
 export function enterHistory(karteNumber) {
@@ -144,10 +226,6 @@ export function leaveHistory() {
   if (historyList) historyList.innerHTML = "";
 }
 
-/**
- * AI提案フローなど外部からの登録用フック。
- * UIを経由せず同じデータ構造へ書き込める。
- */
 export async function addHistoryFromExternal(karteNumber, payload) {
   return addPatientHistoryEntry(karteNumber, {
     ...payload,
@@ -231,7 +309,6 @@ function createHistoryCard(entry) {
   };
 
   header.addEventListener("keydown", (e) => {
-    // Space は IME 漢字変換の候補送りと衝突するため使わない（Enter のみ）。
     if (e.key !== "Enter") return;
     if (!canHandleShortcut(e)) return;
     e.preventDefault();
@@ -272,7 +349,6 @@ function createHistoryDetail(entry) {
   const detail = document.createElement("div");
   detail.className = "hist-card__detail";
 
-  // 状態トグル
   const statusRow = document.createElement("div");
   statusRow.className = "med-detail-row";
   const statusLabel = document.createElement("span");
@@ -299,7 +375,6 @@ function createHistoryDetail(entry) {
   statusRow.append(statusLabel, statusBtn);
   detail.appendChild(statusRow);
 
-  // 種別変更
   const typeRow = document.createElement("div");
   typeRow.className = "field";
   const typeLabelEl = document.createElement("span");
@@ -328,7 +403,6 @@ function createHistoryDetail(entry) {
   typeRow.append(typeLabelEl, typeBtns);
   detail.appendChild(typeRow);
 
-  // タイトル編集
   const titleBlock = document.createElement("div");
   titleBlock.className = "field";
   const titleLabel = document.createElement("label");
@@ -359,7 +433,6 @@ function createHistoryDetail(entry) {
   titleBlock.append(titleLabel, titleInput, titleSave);
   detail.appendChild(titleBlock);
 
-  // 日付情報
   const dates = document.createElement("p");
   dates.className = "field__note";
   dates.textContent = `初回記載日: ${ymdFromStr(entry.firstNoted) || "—"}　／　最終更新日: ${
@@ -367,7 +440,6 @@ function createHistoryDetail(entry) {
   }`;
   detail.appendChild(dates);
 
-  // メモ（追記型）
   const notesHead = document.createElement("div");
   notesHead.className = "exam-section__head";
   const notesTitle = document.createElement("h4");
@@ -438,6 +510,420 @@ function createNoteItem(entry, note) {
   return li;
 }
 
+// --- リニアピッカー -------------------------------------------------------
+
+function createLinearItemButton({ label, selected, onClick }) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "med-linear-picker__item";
+  if (selected) btn.classList.add("is-selected");
+  btn.setAttribute("role", "option");
+  btn.setAttribute("aria-selected", selected ? "true" : "false");
+  const text = document.createElement("span");
+  text.className = "med-linear-picker__item-label";
+  text.textContent = label;
+  btn.appendChild(text);
+  if (selected) {
+    const check = document.createElement("span");
+    check.className = "med-linear-picker__check";
+    check.textContent = "✓";
+    btn.appendChild(check);
+  }
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+function fillPlaceholder(listEl, message) {
+  if (!listEl) return;
+  listEl.innerHTML = "";
+  const hint = document.createElement("p");
+  hint.className = "med-linear-picker__hint";
+  hint.textContent = message;
+  listEl.appendChild(hint);
+}
+
+function setColState(colEl, stateName) {
+  if (!colEl) return;
+  colEl.classList.toggle("is-placeholder", stateName === "placeholder");
+  colEl.hidden = stateName === "absent";
+}
+
+function exitSearchMode() {
+  state.searchMode = false;
+  state.searchQuery = "";
+  if (addSearchInput) addSearchInput.value = "";
+}
+
+function enterSearchMode() {
+  state.searchMode = true;
+  state.pickTopId = null;
+  state.pickMidId = null;
+  state.addDraft.title = "";
+  setItemAddOpen(false);
+  renderHistoryLinearPicker();
+  queueMicrotask(() => addSearchInput?.focus({ preventScroll: true }));
+}
+
+function resetPickerSelection() {
+  state.pickTopId = null;
+  state.pickMidId = null;
+  state.addDraft.title = "";
+  exitSearchMode();
+  setItemAddOpen(false);
+}
+
+function setItemAddOpen(open) {
+  state.itemAddOpen = Boolean(open);
+  if (addItemAdd) addItemAdd.hidden = !state.itemAddOpen;
+  if (btnAddToggle) {
+    btnAddToggle.setAttribute("aria-expanded", state.itemAddOpen ? "true" : "false");
+  }
+  if (!state.itemAddOpen && addNewItemInput) addNewItemInput.value = "";
+  deps.showError(addItemError, "");
+}
+
+function canAddMasterItem() {
+  const type = state.addDraft.type;
+  if (state.searchMode) return false;
+  if (type === "referral") return true;
+  if (!state.pickTopId) return false;
+  return true;
+}
+
+function updateLeafAddUI() {
+  const show = canAddMasterItem();
+  if (btnAddToggle) btnAddToggle.hidden = !show;
+  if (!show) setItemAddOpen(false);
+
+  const type = state.addDraft.type;
+  if (addNewItemLabel) {
+    if (type === "referral") {
+      addNewItemLabel.textContent = "新しい紹介先を追加";
+    } else if (state.pickMidId) {
+      addNewItemLabel.textContent = "新しい小分類を追加";
+    } else {
+      addNewItemLabel.textContent = "新しい中分類を追加";
+    }
+  }
+  if (addNewItemInput) {
+    addNewItemInput.placeholder =
+      type === "referral"
+        ? "例）○○動物病院"
+        : state.pickMidId
+          ? "例）僧帽弁閉鎖不全症"
+          : "例）心疾患";
+  }
+}
+
+function updateSelectedNote() {
+  if (!addSelectedNote) return;
+  const title = (state.addDraft.title || "").trim();
+  if (!title) {
+    addSelectedNote.hidden = true;
+    addSelectedNote.textContent = "";
+    return;
+  }
+  addSelectedNote.hidden = false;
+  addSelectedNote.textContent = `選択中: ${title}`;
+}
+
+function renderHistoryLinearPicker() {
+  const type = state.addDraft.type;
+  const hierarchical = type === "disease" || type === "surgery";
+  const searching = Boolean(state.searchMode);
+
+  if (addPickerLabel) {
+    addPickerLabel.textContent =
+      type === "surgery" ? "手術名" : type === "referral" ? "紹介先" : "疾患名";
+  }
+
+  if (!hierarchical) {
+    // 紹介先: 2カラム（モード / 一覧）
+    if (addLinearPicker) addLinearPicker.dataset.cols = "2";
+    setColState(addColGroup, "absent");
+    setColState(addColLeaf, "active");
+    if (addColCategory?.querySelector(".med-linear-picker__head")) {
+      addColCategory.querySelector(".med-linear-picker__head").textContent = "選択";
+    }
+    if (addColLeafHeadLabel) {
+      addColLeafHeadLabel.textContent = searching ? "検索結果" : "紹介先";
+    }
+  } else {
+    if (addColCategory?.querySelector(".med-linear-picker__head")) {
+      addColCategory.querySelector(".med-linear-picker__head").textContent = "大分類";
+    }
+    const midState = searching
+      ? "absent"
+      : state.pickTopId
+        ? "active"
+        : "placeholder";
+    // 大分類選択後は小分類列を操作可能にし、＋で中分類／小分類を追加できるようにする
+    // （is-placeholder だと CSS で ＋ が display:none になる）
+    const leafState = searching || state.pickTopId ? "active" : "placeholder";
+    if (addLinearPicker) addLinearPicker.dataset.cols = midState === "absent" ? "2" : "3";
+    setColState(addColGroup, midState);
+    setColState(addColLeaf, leafState);
+    if (addColLeafHeadLabel) {
+      addColLeafHeadLabel.textContent = searching ? "検索結果" : "小分類";
+    }
+  }
+
+  if (addSearchWrap) addSearchWrap.hidden = !searching;
+  if (searching && addSearchInput && addSearchInput.value !== state.searchQuery) {
+    addSearchInput.value = state.searchQuery || "";
+  }
+
+  // 左列
+  if (addColCategoryList) {
+    addColCategoryList.innerHTML = "";
+    if (!hierarchical) {
+      addColCategoryList.appendChild(
+        createLinearItemButton({
+          label: "紹介先",
+          selected: !searching,
+          onClick: () => {
+            exitSearchMode();
+            state.addDraft.title = "";
+            renderHistoryLinearPicker();
+          },
+        })
+      );
+    } else {
+      const items = treeItemsForType(type);
+      topGroups(items).forEach((group) => {
+        addColCategoryList.appendChild(
+          createLinearItemButton({
+            label: group.label,
+            selected: !searching && state.pickTopId === group.id,
+            onClick: () => {
+              const changed = state.searchMode || state.pickTopId !== group.id;
+              exitSearchMode();
+              state.pickTopId = group.id;
+              if (changed) {
+                state.pickMidId = null;
+                state.addDraft.title = "";
+              }
+              renderHistoryLinearPicker();
+            },
+          })
+        );
+      });
+    }
+    addColCategoryList.appendChild(
+      createLinearItemButton({
+        label: "検索",
+        selected: searching,
+        onClick: () => {
+          if (searching) {
+            queueMicrotask(() => addSearchInput?.focus({ preventScroll: true }));
+            return;
+          }
+          enterSearchMode();
+        },
+      })
+    );
+  }
+
+  // 中列（疾患・手術）
+  if (hierarchical && addColGroupList) {
+    if (!state.pickTopId || searching) {
+      if (!searching) fillPlaceholder(addColGroupList, "大分類を選ぶと表示されます");
+      else addColGroupList.innerHTML = "";
+    } else {
+      addColGroupList.innerHTML = "";
+      const items = treeItemsForType(type);
+      midGroups(items, state.pickTopId).forEach((group) => {
+        addColGroupList.appendChild(
+          createLinearItemButton({
+            label: group.label,
+            selected: state.pickMidId === group.id,
+            onClick: () => {
+              const changed = state.pickMidId !== group.id;
+              state.pickMidId = group.id;
+              if (changed) state.addDraft.title = "";
+              renderHistoryLinearPicker();
+            },
+          })
+        );
+      });
+    }
+  }
+
+  // 右列（葉 / 紹介先 / 検索）
+  if (addColLeafList) {
+    if (searching) {
+      renderSearchResults();
+    } else if (!hierarchical) {
+      addColLeafList.innerHTML = "";
+      const list = state.referralItems;
+      if (addItemsEmpty) addItemsEmpty.hidden = list.length > 0;
+      list.forEach((item) => {
+        addColLeafList.appendChild(
+          createLinearItemButton({
+            label: item.label,
+            selected: state.addDraft.title === item.label,
+            onClick: () => {
+              state.addDraft.title = item.label;
+              renderHistoryLinearPicker();
+            },
+          })
+        );
+      });
+    } else if (!state.pickTopId) {
+      fillPlaceholder(addColLeafList, "大分類を選ぶと表示されます");
+      if (addItemsEmpty) addItemsEmpty.hidden = true;
+    } else if (!state.pickMidId) {
+      fillPlaceholder(addColLeafList, "中分類を選ぶと表示されます（＋で中分類を追加）");
+      if (addItemsEmpty) addItemsEmpty.hidden = true;
+    } else {
+      addColLeafList.innerHTML = "";
+      const items = treeItemsForType(type);
+      const leafs = leavesUnder(items, state.pickMidId);
+      if (addItemsEmpty) addItemsEmpty.hidden = leafs.length > 0;
+      leafs.forEach((item) => {
+        addColLeafList.appendChild(
+          createLinearItemButton({
+            label: item.label,
+            selected: state.addDraft.title === item.label,
+            onClick: () => {
+              state.addDraft.title = item.label;
+              renderHistoryLinearPicker();
+            },
+          })
+        );
+      });
+    }
+  }
+
+  updateLeafAddUI();
+  updateSelectedNote();
+}
+
+function renderSearchResults() {
+  if (!addColLeafList) return;
+  addColLeafList.innerHTML = "";
+  const type = state.addDraft.type;
+  let rows = [];
+  if (type === "referral") {
+    rows = filterHistoryReferralByQuery(state.referralItems, state.searchQuery);
+  } else {
+    rows = filterHistoryTreeLeavesByQuery(treeItemsForType(type), state.searchQuery);
+  }
+  if (addItemsEmpty) addItemsEmpty.hidden = true;
+  if (!state.searchQuery.trim()) {
+    fillPlaceholder(addColLeafList, "キーワードを入力してください");
+    return;
+  }
+  if (!rows.length) {
+    fillPlaceholder(addColLeafList, "一致する項目がありません");
+    return;
+  }
+  rows.forEach((row) => {
+    addColLeafList.appendChild(
+      createLinearItemButton({
+        label: row.displayLabel || row.label,
+        selected: state.addDraft.title === row.label,
+        onClick: () => {
+          state.addDraft.title = row.label;
+          if (type !== "referral") {
+            const items = treeItemsForType(type);
+            const leaf = items.find((i) => i.id === row.id);
+            const mid = leaf
+              ? items.find((i) => i.id === leaf.parentId)
+              : null;
+            state.pickMidId = mid?.id || null;
+            state.pickTopId = mid?.parentId || null;
+          }
+          renderHistoryLinearPicker();
+        },
+      })
+    );
+  });
+}
+
+async function handleAddMasterItem() {
+  if (!canAddMasterItem()) return;
+  const label = addNewItemInput?.value.trim() || "";
+  if (!label) {
+    deps.showError(addItemError, "名称を入力してください。");
+    return;
+  }
+  const type = state.addDraft.type;
+  deps.showError(addItemError, "");
+  deps.setBusy(btnAddNewItem, true, "追加中...", "追加");
+  try {
+    if (type === "referral") {
+      const exists = state.referralItems.find(
+        (i) => (i.label || "").trim() === label
+      );
+      if (exists) {
+        state.addDraft.title = label;
+        setItemAddOpen(false);
+        renderHistoryLinearPicker();
+        deps.showToast("既存の紹介先を選択しました。");
+        return;
+      }
+      await addHistoryReferralItem({ label });
+      state.addDraft.title = label;
+      deps.showToast(`「${label}」を紹介先に追加しました。`);
+    } else {
+      const items = treeItemsForType(type);
+      const addFn =
+        type === "surgery" ? addHistorySurgeryItem : addHistoryDiseaseItem;
+      if (state.pickMidId) {
+        // 小分類（葉）
+        const exists = items.find(
+          (i) =>
+            !isGroup(i) &&
+            (i.label || "").trim() === label &&
+            i.parentId === state.pickMidId
+        );
+        if (exists) {
+          state.addDraft.title = label;
+          setItemAddOpen(false);
+          renderHistoryLinearPicker();
+          deps.showToast("既存の項目を選択しました。");
+          return;
+        }
+        await addFn({ label, kind: "leaf", parentId: state.pickMidId });
+        state.addDraft.title = label;
+        deps.showToast(`「${label}」を小分類に追加しました。`);
+      } else {
+        // 中分類（グループ）
+        const exists = items.find(
+          (i) =>
+            isGroup(i) &&
+            (i.label || "").trim() === label &&
+            i.parentId === state.pickTopId
+        );
+        if (exists) {
+          state.pickMidId = exists.id;
+          state.addDraft.title = "";
+          setItemAddOpen(false);
+          renderHistoryLinearPicker();
+          deps.showToast("既存の中分類を選択しました。");
+          return;
+        }
+        const id = await addFn({
+          label,
+          kind: "group",
+          parentId: state.pickTopId,
+        });
+        state.pickMidId = id;
+        state.addDraft.title = "";
+        deps.showToast(`「${label}」を中分類に追加しました。`);
+      }
+    }
+    setItemAddOpen(false);
+    renderHistoryLinearPicker();
+  } catch (err) {
+    console.error(err);
+    deps.showError(addItemError, "追加に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnAddNewItem, false, "追加中...", "追加");
+  }
+}
+
 // --- ツールバー・モーダル -------------------------------------------------
 
 function wireToolbar() {
@@ -454,8 +940,11 @@ function buildTypeButtons() {
     btn.dataset.type = t.id;
     btn.textContent = t.label;
     btn.addEventListener("click", () => {
+      if (state.addDraft.type === t.id) return;
       state.addDraft.type = t.id;
+      resetPickerSelection();
       renderAddTypeSelection();
+      renderHistoryLinearPicker();
     });
     addTypeButtons.appendChild(btn);
   });
@@ -472,6 +961,28 @@ function wireAddModal() {
   btnAddCancel?.addEventListener("click", closeAddModal);
   addModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeAddModal);
   btnAddSave?.addEventListener("click", handleAddSave);
+
+  btnAddToggle?.addEventListener("click", () => {
+    if (!canAddMasterItem()) return;
+    setItemAddOpen(!state.itemAddOpen);
+    if (state.itemAddOpen) {
+      queueMicrotask(() => addNewItemInput?.focus({ preventScroll: true }));
+    }
+    updateLeafAddUI();
+  });
+  btnAddNewItem?.addEventListener("click", () => {
+    handleAddMasterItem();
+  });
+  addNewItemInput?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    if (isImeKey(e)) return;
+    e.preventDefault();
+    handleAddMasterItem();
+  });
+  addSearchInput?.addEventListener("input", () => {
+    state.searchQuery = addSearchInput.value || "";
+    renderHistoryLinearPicker();
+  });
 }
 
 function openAddModal() {
@@ -481,26 +992,27 @@ function openAddModal() {
     firstNoted: todayStr(),
     noteText: "",
   };
-  addTitle.value = "";
+  resetPickerSelection();
   addFirstNoted.value = todayStr();
   addNote.value = "";
   deps.showError(addError, "");
   renderAddTypeSelection();
+  renderHistoryLinearPicker();
   addModal.hidden = false;
-  setTimeout(() => addTitle.focus(), 0);
 }
 
 function closeAddModal() {
   if (addModal) addModal.hidden = true;
+  setItemAddOpen(false);
 }
 
 async function handleAddSave() {
-  const title = addTitle.value.trim();
+  const title = (state.addDraft.title || "").trim();
   const firstNoted = addFirstNoted.value;
   const noteText = addNote.value.trim();
 
   if (!title) {
-    deps.showError(addError, "タイトルを入力してください。");
+    deps.showError(addError, "マスタから項目を選択するか、＋で追加してください。");
     return;
   }
   if (!firstNoted) {

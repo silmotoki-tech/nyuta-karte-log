@@ -53,6 +53,13 @@
 //     lastEditedAt / lastEditedBy: 編集時のみ
 //     type: "add"(継続)|"increase"|"decrease"|"hold"(休薬中)|"stop"|"resume"
 //
+//   historyDiseaseItems/{itemId}                         … 疾患名マスタ（大→中→小）
+//     { label, kind:"group"|"leaf", parentId, order }
+//   historySurgeryItems/{itemId}                         … 手術名マスタ（大→中→小）
+//     { label, kind:"group"|"leaf", parentId, order }
+//   historyReferralItems/{itemId}                        … 紹介先マスタ（フラット）
+//     { label, order }
+//
 //   history/{カルテ番号}/{entryId}/schemaVersion         … 既往歴
 //   history/{カルテ番号}/{entryId}/title
 //   history/{カルテ番号}/{entryId}/type                  … "disease"|"surgery"|"referral"
@@ -2479,6 +2486,247 @@ export async function updateMedicationEvent(
 export async function deleteMedicationEvent(karteNumber, drugId, eventId) {
   await authReady;
   await remove(ref(db, `medications/${karteNumber}/${drugId}/events/${eventId}`));
+}
+
+// --- 既往歴マスタ（疾患／手術／紹介先） ------------------------------------
+// historyDiseaseItems/{id}: 大分類→中分類→小分類（group / leaf + parentId）
+// historySurgeryItems/{id}: 同上（診療科別の大分類）
+// historyReferralItems/{id}: フラットな紹介先リスト
+
+function historyDiseaseItemsRef() {
+  return ref(db, "historyDiseaseItems");
+}
+function historySurgeryItemsRef() {
+  return ref(db, "historySurgeryItems");
+}
+function historyReferralItemsRef() {
+  return ref(db, "historyReferralItems");
+}
+
+export function normalizeHistoryMasterKind(kind) {
+  return String(kind || "").trim() === "group" ? "group" : "leaf";
+}
+
+function normalizeHistoryTreeItem(id, raw) {
+  const row = raw && typeof raw === "object" ? raw : {};
+  const kind = normalizeHistoryMasterKind(row.kind);
+  return {
+    id,
+    label: row.label || "",
+    kind,
+    parentId: String(row.parentId || "").trim(),
+    order: typeof row.order === "number" ? row.order : 0,
+  };
+}
+
+function normalizeHistoryReferralItem(id, raw) {
+  const row = raw && typeof raw === "object" ? raw : {};
+  return {
+    id,
+    label: row.label || "",
+    order: typeof row.order === "number" ? row.order : 0,
+  };
+}
+
+function histTopGroupSeed(id, label, order) {
+  return { id, label, kind: "group", parentId: "", order };
+}
+
+/** 疾患名マスタ: 臓器別の大分類のみシード（中・小は空） */
+const HISTORY_DISEASE_GROUP_SEED = [
+  histTopGroupSeed("seed-hist-disease-cardio", "循環器", 10),
+  histTopGroupSeed("seed-hist-disease-gi", "消化器", 20),
+  histTopGroupSeed("seed-hist-disease-kidney", "腎臓・泌尿器", 30),
+  histTopGroupSeed("seed-hist-disease-resp", "呼吸器", 40),
+  histTopGroupSeed("seed-hist-disease-neuro", "神経・行動", 50),
+  histTopGroupSeed("seed-hist-disease-endo", "内分泌・代謝", 60),
+  histTopGroupSeed("seed-hist-disease-skin", "皮膚", 70),
+  histTopGroupSeed("seed-hist-disease-eye", "眼科", 80),
+  histTopGroupSeed("seed-hist-disease-ortho", "整形外科", 90),
+  histTopGroupSeed("seed-hist-disease-onco", "腫瘍", 100),
+  histTopGroupSeed("seed-hist-disease-infect", "感染症", 110),
+  histTopGroupSeed("seed-hist-disease-other", "その他", 120),
+];
+
+/** 手術名マスタ: 診療科別の大分類のみシード */
+const HISTORY_SURGERY_GROUP_SEED = [
+  histTopGroupSeed("seed-hist-surgery-ortho", "整形外科", 10),
+  histTopGroupSeed("seed-hist-surgery-soft", "軟部外科", 20),
+  histTopGroupSeed("seed-hist-surgery-dental", "歯科", 30),
+  histTopGroupSeed("seed-hist-surgery-eye", "眼科", 40),
+  histTopGroupSeed("seed-hist-surgery-ent", "耳鼻科", 50),
+  histTopGroupSeed("seed-hist-surgery-other", "その他", 60),
+];
+
+async function ensureHistoryTreeDefaults(itemsRef, seeds) {
+  await authReady;
+  const snapshot = await get(itemsRef);
+  const existing = snapshot.val() || {};
+  const writes = {};
+  seeds.forEach((seed) => {
+    const prev = existing[seed.id];
+    const payload = {
+      label: seed.label,
+      kind: "group",
+      parentId: "",
+      order: seed.order,
+    };
+    if (
+      !prev ||
+      prev.label !== payload.label ||
+      normalizeHistoryMasterKind(prev.kind) !== "group" ||
+      String(prev.parentId || "").trim() !== "" ||
+      Number(prev.order) !== payload.order
+    ) {
+      writes[seed.id] = payload;
+    }
+  });
+  if (Object.keys(writes).length) {
+    await update(itemsRef, writes);
+  }
+}
+
+export async function ensureHistoryDiseaseItemDefaults() {
+  await ensureHistoryTreeDefaults(
+    historyDiseaseItemsRef(),
+    HISTORY_DISEASE_GROUP_SEED
+  );
+}
+
+export async function ensureHistorySurgeryItemDefaults() {
+  await ensureHistoryTreeDefaults(
+    historySurgeryItemsRef(),
+    HISTORY_SURGERY_GROUP_SEED
+  );
+}
+
+function subscribeHistoryTreeItems(itemsRef, ensureDefaults, callback) {
+  let unsubscribed = false;
+  let listener = null;
+  authReady
+    .then(async () => {
+      if (unsubscribed) return;
+      try {
+        await ensureDefaults();
+      } catch (err) {
+        console.warn("既往歴マスタのシード補完に失敗しました", err);
+      }
+      if (unsubscribed) return;
+      listener = onValue(itemsRef, (snapshot) => {
+        const value = snapshot.val() || {};
+        const items = Object.entries(value)
+          .map(([id, raw]) => normalizeHistoryTreeItem(id, raw))
+          .sort((a, b) => {
+            const ord = (a.order ?? 0) - (b.order ?? 0);
+            if (ord !== 0) return ord;
+            return (a.label || "").localeCompare(b.label || "", "ja");
+          });
+        callback(items);
+      });
+    })
+    .catch((err) => {
+      console.error("既往歴マスタの監視開始に失敗しました", err);
+    });
+  return () => {
+    unsubscribed = true;
+    if (listener) {
+      off(itemsRef, "value", listener);
+      listener = null;
+    }
+  };
+}
+
+export function subscribeHistoryDiseaseItems(callback) {
+  return subscribeHistoryTreeItems(
+    historyDiseaseItemsRef(),
+    ensureHistoryDiseaseItemDefaults,
+    callback
+  );
+}
+
+export function subscribeHistorySurgeryItems(callback) {
+  return subscribeHistoryTreeItems(
+    historySurgeryItemsRef(),
+    ensureHistorySurgeryItemDefaults,
+    callback
+  );
+}
+
+export function subscribeHistoryReferralItems(callback) {
+  let unsubscribed = false;
+  let listener = null;
+  authReady
+    .then(() => {
+      if (unsubscribed) return;
+      listener = onValue(historyReferralItemsRef(), (snapshot) => {
+        const value = snapshot.val() || {};
+        const items = Object.entries(value)
+          .map(([id, raw]) => normalizeHistoryReferralItem(id, raw))
+          .sort((a, b) => {
+            const ord = (a.order ?? 0) - (b.order ?? 0);
+            if (ord !== 0) return ord;
+            return (a.label || "").localeCompare(b.label || "", "ja");
+          });
+        callback(items);
+      });
+    })
+    .catch((err) => {
+      console.error("紹介先マスタの監視開始に失敗しました", err);
+    });
+  return () => {
+    unsubscribed = true;
+    if (listener) {
+      off(historyReferralItemsRef(), "value", listener);
+      listener = null;
+    }
+  };
+}
+
+async function addHistoryTreeItem(itemsRef, { label, kind = "leaf", parentId = "", order }) {
+  await authReady;
+  const resolvedKind = normalizeHistoryMasterKind(kind);
+  const newRef = push(itemsRef);
+  const siblingsSnap = await get(itemsRef);
+  const siblings = Object.values(siblingsSnap.val() || {}).filter((row) => {
+    if (!row || typeof row !== "object") return false;
+    if (normalizeHistoryMasterKind(row.kind) !== resolvedKind) return false;
+    return String(row.parentId || "").trim() === String(parentId || "").trim();
+  });
+  const maxOrder = siblings.reduce(
+    (m, row) => Math.max(m, typeof row.order === "number" ? row.order : 0),
+    0
+  );
+  await set(newRef, {
+    label: label || "",
+    kind: resolvedKind,
+    parentId: String(parentId || "").trim(),
+    order: typeof order === "number" ? order : maxOrder + 10,
+  });
+  return newRef.key;
+}
+
+export async function addHistoryDiseaseItem(fields) {
+  return addHistoryTreeItem(historyDiseaseItemsRef(), fields);
+}
+
+export async function addHistorySurgeryItem(fields) {
+  return addHistoryTreeItem(historySurgeryItemsRef(), fields);
+}
+
+export async function addHistoryReferralItem({ label, order }) {
+  await authReady;
+  const newRef = push(historyReferralItemsRef());
+  const snap = await get(historyReferralItemsRef());
+  const siblings = Object.values(snap.val() || {});
+  const maxOrder = siblings.reduce(
+    (m, row) => Math.max(m, typeof row?.order === "number" ? row.order : 0),
+    0
+  );
+  await set(newRef, {
+    label: label || "",
+    order: typeof order === "number" ? order : maxOrder + 10,
+  });
+  return newRef.key;
 }
 
 // --- 既往歴（history） ----------------------------------------------------

@@ -901,27 +901,113 @@
 <!-- 既往歴: 追加モーダル -->
 <div class="modal" id="history-add-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
-  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="history-add-modal-title">
+  <div class="modal__panel modal__panel--med-add" role="dialog" aria-modal="true" aria-labelledby="history-add-modal-title">
     <div class="modal__header">
       <h2 class="modal__title" id="history-add-modal-title">既往歴を追加</h2>
       <button class="modal__close" id="btn-close-history-add" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">
       <div class="field">
-        <label class="label" for="history-add-title">タイトル</label>
-        <input id="history-add-title" class="input" type="text" placeholder="例）慢性腎臓病" />
-      </div>
-      <div class="field">
         <span class="label">種別</span>
         <div class="exam-item-buttons" id="history-add-type-buttons"></div>
+      </div>
+      <div class="field">
+        <span class="label" id="history-add-picker-label">疾患名</span>
+        <div
+          class="med-linear-picker"
+          id="history-add-linear-picker"
+          data-cols="3"
+          aria-label="既往歴マスタの階層選択"
+        >
+          <div class="med-linear-picker__col" id="history-add-col-category" data-col="category">
+            <div class="med-linear-picker__head">大分類</div>
+            <div
+              class="med-linear-picker__list"
+              id="history-add-col-category-list"
+              role="listbox"
+              aria-label="大分類"
+            ></div>
+          </div>
+          <div class="med-linear-picker__col is-placeholder" id="history-add-col-group" data-col="group">
+            <div class="med-linear-picker__head">中分類</div>
+            <div
+              class="med-linear-picker__list"
+              id="history-add-col-group-list"
+              role="listbox"
+              aria-label="中分類"
+            ></div>
+          </div>
+          <div
+            class="med-linear-picker__col med-linear-picker__col--leaf is-placeholder"
+            id="history-add-col-leaf"
+            data-col="leaf"
+          >
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label" id="history-add-col-leaf-head-label">小分類</span>
+              <button
+                type="button"
+                class="exam-item-add__toggle"
+                id="btn-history-add-toggle"
+                hidden
+                aria-expanded="false"
+                aria-controls="history-add-item-add"
+              >
+                ＋
+              </button>
+            </div>
+            <div class="med-linear-picker__search" id="history-add-search" hidden>
+              <label class="visually-hidden" for="history-add-search-input">マスタを検索</label>
+              <input
+                id="history-add-search-input"
+                class="input"
+                type="search"
+                placeholder="名称で検索"
+                autocomplete="off"
+              />
+            </div>
+            <div
+              class="med-linear-picker__list"
+              id="history-add-col-leaf-list"
+              role="listbox"
+              aria-label="小分類"
+            ></div>
+            <p class="field__note med-linear-picker__empty" id="history-add-items-empty" hidden>
+              まだ項目がありません。＋から追加できます。
+            </p>
+            <div class="exam-item-add" id="history-add-item-add" hidden>
+              <label class="label label--sub" for="history-add-new-item" id="history-add-new-item-label">
+                新しい項目を追加
+              </label>
+              <div class="exam-item-add__row">
+                <input
+                  id="history-add-new-item"
+                  class="input"
+                  type="text"
+                  placeholder="名称を入力"
+                  autocomplete="off"
+                />
+                <button id="btn-history-add-new-item" class="btn btn--small btn--outline" type="button">
+                  追加
+                </button>
+              </div>
+              <p id="history-add-item-error" class="error-text" role="alert" hidden></p>
+            </div>
+          </div>
+        </div>
+        <p class="field__note" id="history-add-selected" hidden></p>
       </div>
       <div class="field">
         <label class="label" for="history-add-first-noted">初回記載日</label>
         <input id="history-add-first-noted" class="input input--date" type="date" />
       </div>
       <div class="field">
-        <label class="label" for="history-add-note">初期メモ（任意）</label>
-        <textarea id="history-add-note" class="textarea" rows="3" placeholder="経過や詳細（あとから追記もできます）"></textarea>
+        <label class="label" for="history-add-note">補足・自由記述（任意）</label>
+        <textarea
+          id="history-add-note"
+          class="textarea"
+          rows="3"
+          placeholder="経過や詳細など、補足があれば記入（あとから追記もできます）"
+        ></textarea>
       </div>
       <p class="field__note">新規登録時の状態は「進行中」です。完治・完結したら詳細から終了に切り替えられます。</p>
       <p id="history-add-error" class="error-text" role="alert" hidden></p>
