@@ -270,9 +270,9 @@ await page.click("#btn-med-event-save");
 await page.waitForTimeout(200);
 status = await page.locator("#med-detail-sheet-status").textContent();
 console.log("status after increase:", status);
-if (!status?.includes("使用中")) throw new Error("status should be 使用中");
+if (!status?.includes("継続")) throw new Error("status should be 継続");
 hist = await page.locator("#med-detail-sheet-body").innerText();
-if (!hist.includes("増量") || !hist.includes("1日2回")) {
+if (!hist.includes("増量した") || !hist.includes("1日2回")) {
   throw new Error("history missing increase/freq");
 }
 await page.screenshot({

@@ -126,13 +126,13 @@ export async function endExamScheduledPlan() {}
 export async function reviveExamPlanByItem() { return "p"; }
 export async function addExamHistory() { return "h"; }
 
-// seed: 意図的にカテゴリ順と異なる登録順で、使用状況混在
+// seed: 意図的にカテゴリ順と異なる登録順で、使用状況5段階を混在
 ensureMeds("karte-sort")["d1"] = {
   schemaVersion:1, name:"中止のA薬", category:"A", sideEffectNote:"", expiryEstimate:"",
   events:{ e:{ date:"${T}", type:"stop", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
 };
 ensureMeds("karte-sort")["d2"] = {
-  schemaVersion:1, name:"使用中のC薬", category:"C", sideEffectNote:"", expiryEstimate:"${near2}",
+  schemaVersion:1, name:"継続のC薬", category:"C", sideEffectNote:"", expiryEstimate:"${near2}",
   events:{ e:{ date:"${T}", type:"add", frequencyChange:"1日1回", frequency:{kind:"preset",label:"1日1回"}, amountChange:"", changedBy:"院長" } }
 };
 ensureMeds("karte-sort")["d3"] = {
@@ -140,11 +140,11 @@ ensureMeds("karte-sort")["d3"] = {
   events:{ e:{ date:"${T}", type:"hold", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
 };
 ensureMeds("karte-sort")["d4"] = {
-  schemaVersion:1, name:"使用中のA頓服", category:"A", prn:true, sideEffectNote:"", expiryEstimate:"${overdue3}",
+  schemaVersion:1, name:"継続のA頓服", category:"A", prn:true, sideEffectNote:"", expiryEstimate:"${overdue3}",
   events:{ e:{ date:"${T}", type:"add", frequencyChange:"1日1回", frequency:{kind:"preset",label:"1日1回"}, amountChange:"", changedBy:"院長" } }
 };
 ensureMeds("karte-sort")["d5"] = {
-  schemaVersion:1, name:"使用中のB薬", category:"B", sideEffectNote:"", expiryEstimate:"",
+  schemaVersion:1, name:"継続のB薬", category:"B", sideEffectNote:"", expiryEstimate:"",
   events:{ e:{ date:"${T}", type:"resume", frequencyChange:"1日2回", frequency:{kind:"preset",label:"1日2回"}, amountChange:"", changedBy:"院長" } }
 };
 ensureMeds("karte-sort")["d6"] = {
@@ -154,6 +154,22 @@ ensureMeds("karte-sort")["d6"] = {
 ensureMeds("karte-sort")["d7"] = {
   schemaVersion:1, name:"中止のC薬", category:"C", sideEffectNote:"", expiryEstimate:"",
   events:{ e:{ date:"${T}", type:"stop", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
+};
+ensureMeds("karte-sort")["d8"] = {
+  schemaVersion:1, name:"一時的のB薬", category:"B", sideEffectNote:"", expiryEstimate:"",
+  events:{ e:{ date:"${T}", type:"temporary", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
+};
+ensureMeds("karte-sort")["d9"] = {
+  schemaVersion:1, name:"一時的のA薬", category:"A", sideEffectNote:"", expiryEstimate:"",
+  events:{ e:{ date:"${T}", type:"temporary", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
+};
+ensureMeds("karte-sort")["d10"] = {
+  schemaVersion:1, name:"投与難のC薬", category:"C", sideEffectNote:"", expiryEstimate:"",
+  events:{ e:{ date:"${T}", type:"hard", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
+};
+ensureMeds("karte-sort")["d11"] = {
+  schemaVersion:1, name:"投与難のA薬", category:"A", sideEffectNote:"", expiryEstimate:"",
+  events:{ e:{ date:"${T}", type:"hard", frequencyChange:"", frequency:null, amountChange:"", changedBy:"院長" } }
 };
 `;
 
@@ -330,9 +346,13 @@ const info = await page.evaluate(() => {
 console.log("order", info);
 
 const expectedNames = [
-  "使用中のA頓服",
-  "使用中のB薬",
-  "使用中のC薬",
+  "継続のA頓服",
+  "継続のB薬",
+  "継続のC薬",
+  "一時的のA薬",
+  "一時的のB薬",
+  "投与難のA薬",
+  "投与難のC薬",
   "休薬のA薬",
   "休薬のB薬",
   "中止のA薬",
@@ -346,13 +366,13 @@ if (gotNames.join("|") !== expectedNames.join("|")) {
 const statuses = info.map((x) => x.status);
 if (
   statuses.join("|") !==
-  "使用中|使用中|使用中|休薬中|休薬中|中止|中止"
+  "継続|継続|継続|一時的|一時的|投与難|投与難|休薬中|休薬中|中止|中止"
 ) {
   throw new Error(`status order wrong: ${statuses.join("|")}`);
 }
 
 const cats = info.map((x) => x.leftCat);
-if (cats.join("|") !== "A|B|C|A|B|A|C") {
+if (cats.join("|") !== "A|B|C|A|B|A|C|A|B|A|C") {
   throw new Error(`category order within status wrong: ${cats.join("|")}`);
 }
 if (info.some((x) => x.recentDot)) {
@@ -362,7 +382,7 @@ if (info.some((x) => x.catCount !== 1 || !x.leftCat)) {
   throw new Error("category must appear only once on the left: " + JSON.stringify(info.map((x) => [x.leftCat, x.catCount])));
 }
 
-const prnCard = info.find((x) => x.name === "使用中のA頓服");
+const prnCard = info.find((x) => x.name === "継続のA頓服");
 if (!prnCard?.prn) throw new Error("prn mark missing on 頓服 drug");
 if (!prnCard.overdueClass || prnCard.expiry !== "3日超過") {
   throw new Error(`overdue label wrong: ${JSON.stringify(prnCard)}`);
@@ -381,7 +401,7 @@ if (!(leftIdx === 0 && prnIdx > leftIdx && prnIdx < statusIdx)) {
   );
 }
 
-const nearCard = info.find((x) => x.name === "使用中のC薬");
+const nearCard = info.find((x) => x.name === "継続のC薬");
 if (nearCard?.expiry !== "あと2日") {
   throw new Error(`near label wrong: ${JSON.stringify(nearCard)}`);
 }

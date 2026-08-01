@@ -736,11 +736,13 @@ function renderHistoryLinearPicker() {
         addColGroupList.appendChild(
           createLinearItemButton({
             label: group.label,
-            selected: state.pickMidId === group.id,
+            // 中分類クリックでナビ＋その名前で確定（小分類を選べば上書き）
+            selected:
+              state.pickMidId === group.id ||
+              state.addDraft.title === group.label,
             onClick: () => {
-              const changed = state.pickMidId !== group.id;
               state.pickMidId = group.id;
-              if (changed) state.addDraft.title = "";
+              state.addDraft.title = group.label;
               renderHistoryLinearPicker();
             },
           })
@@ -773,7 +775,10 @@ function renderHistoryLinearPicker() {
       fillPlaceholder(addColLeafList, "大分類を選ぶと表示されます");
       if (addItemsEmpty) addItemsEmpty.hidden = true;
     } else if (!state.pickMidId) {
-      fillPlaceholder(addColLeafList, "中分類を選ぶと表示されます（＋で中分類を追加）");
+      fillPlaceholder(
+        addColLeafList,
+        "中分類を選ぶとその名前で確定できます（＋で中分類を追加／小分類も選べます）"
+      );
       if (addItemsEmpty) addItemsEmpty.hidden = true;
     } else {
       addColLeafList.innerHTML = "";
@@ -898,7 +903,7 @@ async function handleAddMasterItem() {
         );
         if (exists) {
           state.pickMidId = exists.id;
-          state.addDraft.title = "";
+          state.addDraft.title = label;
           setItemAddOpen(false);
           renderHistoryLinearPicker();
           deps.showToast("既存の中分類を選択しました。");
@@ -910,8 +915,8 @@ async function handleAddMasterItem() {
           parentId: state.pickTopId,
         });
         state.pickMidId = id;
-        state.addDraft.title = "";
-        deps.showToast(`「${label}」を中分類に追加しました。`);
+        state.addDraft.title = label;
+        deps.showToast(`「${label}」を中分類に追加・選択しました。`);
       }
     }
     setItemAddOpen(false);

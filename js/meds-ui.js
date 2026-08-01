@@ -34,14 +34,31 @@ import { maxDueAlertLevel, setRightTabDueAlert } from "./right-tab-alerts.js";
 const APPROACHING_DAYS = 7;
 const RECENT_DAYS = 30;
 
+/** 出来事の種類（ボタン表示用の短いラベル） */
 const EVENT_TYPES = [
   { id: "add", label: "継続" },
+  { id: "temporary", label: "一時的" },
+  { id: "hard", label: "投与難" },
   { id: "increase", label: "増量" },
   { id: "decrease", label: "減量" },
-  { id: "stop", label: "中止" },
-  { id: "resume", label: "再開" },
   { id: "hold", label: "休薬中" },
+  { id: "resume", label: "再開" },
+  { id: "stop", label: "中止" },
 ];
+
+/** 履歴一覧に出す文言（「〜にした／なった」） */
+const EVENT_HISTORY_LABELS = {
+  add: "継続にした",
+  temporary: "一時的にした",
+  hard: "投与難になった",
+  increase: "増量した",
+  decrease: "減量した",
+  hold: "休薬中にした",
+  resume: "再開した",
+  stop: "中止した",
+};
+
+const MED_EVENT_TYPE_IDS = EVENT_TYPES.map((t) => t.id);
 
 /** 量変更のよくあるパターン（増量・減量の両方で使う） */
 const AMOUNT_PRESETS = [
@@ -281,6 +298,11 @@ function eventTypeLabel(type) {
   return EVENT_TYPES.find((t) => t.id === type)?.label || type || "";
 }
 
+/** 履歴行に出す出来事ラベル */
+function eventHistoryLabel(type) {
+  return EVENT_HISTORY_LABELS[type] || eventTypeLabel(type) || type || "";
+}
+
 /**
  * 出来事一覧を日付降順（同日なら追加順の新しい方優先）で返す。
  */
@@ -296,7 +318,8 @@ export function sortEvents(eventsObj) {
 
 /**
  * 最新イベントから使用状況を導出する。
- * 使用中 / 休薬中 / 中止（イベントなしは未設定）
+ * 継続 / 一時的 / 投与難 / 休薬中 / 中止（イベントなしは未設定）
+ * 旧データの「使用中」（継続・増量・減量・再開）は「継続」として扱う。
  */
 export function deriveStatus(drug) {
   const events = sortEvents(drug.events);
@@ -304,8 +327,10 @@ export function deriveStatus(drug) {
   if (!latest) return { id: "unknown", label: "未設定" };
   if (latest.type === "stop") return { id: "stopped", label: "中止" };
   if (latest.type === "hold") return { id: "hold", label: "休薬中" };
-  // 継続・増量・減量・再開 など → 使用中
-  return { id: "active", label: "使用中" };
+  if (latest.type === "temporary") return { id: "temporary", label: "一時的" };
+  if (latest.type === "hard") return { id: "hard", label: "投与難" };
+  // add / increase / decrease / resume など → 継続（旧「使用中」）
+  return { id: "continue", label: "継続" };
 }
 
 /**
@@ -332,9 +357,19 @@ function categoryOrder(cat) {
   return { A: 0, B: 1, C: 2 }[cat] ?? 9;
 }
 
-/** 使用状況の並び: 使用中 → 休薬中 → 中止 → 未設定 */
+/** 使用状況の並び: 継続 → 一時的 → 投与難 → 休薬中 → 中止 → 未設定 */
 function statusOrder(statusId) {
-  return { active: 0, hold: 1, stopped: 2, unknown: 3 }[statusId] ?? 9;
+  return (
+    {
+      continue: 0,
+      active: 0, // 旧UI互換（使用中＝継続）
+      temporary: 1,
+      hard: 2,
+      hold: 3,
+      stopped: 4,
+      unknown: 5,
+    }[statusId] ?? 9
+  );
 }
 
 /**
@@ -424,7 +459,7 @@ function renderMedsList() {
   const drugs = sortedDrugs(state.drugs);
   medsEmpty.hidden = drugs.length > 0;
 
-  // 並びは 使用状況（使用中→休薬中→中止）→ カテゴリA→B→C。見出し帯は出さずフラット。
+  // 並びは 使用状況（継続→一時的→投与難→休薬中→中止）→ カテゴリA→B→C。見出し帯は出さずフラット。
   drugs.forEach((drug) => {
     medsList.appendChild(createDrugCard(drug));
   });
@@ -964,7 +999,7 @@ function createEventItem(drug, ev) {
   info.className = "exam-list-item__info";
   const title = document.createElement("div");
   title.className = "exam-list-item__title";
-  title.textContent = `${ymdFromStr(ev.date)}　${eventTypeLabel(ev.type)}`;
+  title.textContent = `${ymdFromStr(ev.date)}　${eventHistoryLabel(ev.type)}`;
   const meta = document.createElement("div");
   meta.className = "exam-list-item__meta";
   const parts = [];
@@ -1086,11 +1121,23 @@ function medLeavesForPicker() {
   );
 }
 
+/** 葉（薬剤名）を追加できるか */
 function canAddMedicationLeaf() {
   const cat = activeMedCategoryId();
   if (!cat) return false;
   if (!categorySupportsMedMidGroups(cat)) return true;
   return Boolean(state.medItemParentId);
+}
+
+/** 中項目を追加できるか（中項目あり大分類を選び、中未選択） */
+function canAddMedicationMidGroup() {
+  const cat = activeMedCategoryId();
+  if (!cat || !categorySupportsMedMidGroups(cat)) return false;
+  return !state.medItemParentId;
+}
+
+function canAddMedicationMasterItem() {
+  return canAddMedicationLeaf() || canAddMedicationMidGroup();
 }
 
 function createMedLinearItemButton({ label, selected, onClick }) {
@@ -1302,27 +1349,41 @@ function setMedItemAddFormOpen(open) {
 function updateMedLeafAddUI() {
   const searching = Boolean(state.medItemSearchMode);
   const category = searching ? null : activeMedCategoryId();
-  const showLeaf = !searching && canAddMedicationLeaf();
+  const canAdd = !searching && canAddMedicationMasterItem();
+  const addingMid = canAddMedicationMidGroup();
   const parent = state.medItemParentId
     ? state.medicationItems.find((item) => item.id === state.medItemParentId)
     : null;
   const label = category ? medicationItemCategoryLabel(category) : "";
 
-  if (btnAddToggle) btnAddToggle.hidden = !showLeaf;
-  if (!showLeaf) {
+  if (btnAddToggle) btnAddToggle.hidden = !canAdd;
+  if (!canAdd) {
     setMedItemAddFormOpen(false);
   }
 
   if (addNewItemLabel) {
-    addNewItemLabel.textContent = parent
-      ? `新しい薬剤を追加（${parent.label || label}）`
-      : label
-        ? `新しい薬剤を追加（${label}）`
-        : "新しい薬剤を追加";
+    addNewItemLabel.textContent = addingMid
+      ? `新しい中項目を追加（${label}）`
+      : parent
+        ? `新しい薬剤を追加（${parent.label || label}）`
+        : label
+          ? `新しい薬剤を追加（${label}）`
+          : "新しい薬剤を追加";
   }
   if (addNewItemInput) {
-    addNewItemInput.placeholder =
-      category === "eye"
+    addNewItemInput.placeholder = addingMid
+      ? category === "inject"
+        ? "例）抗生物質"
+        : category === "oral"
+          ? "例）循環器薬"
+          : category === "topical"
+            ? "例）消毒薬"
+            : category === "supplement"
+              ? "例）サプリ"
+              : category === "food"
+                ? "例）療法食"
+                : "例）新しい中項目"
+      : category === "eye"
         ? "例）ヒアレイン"
         : category === "topical"
           ? "例）イソジン"
@@ -1406,13 +1467,8 @@ function renderMedLinearPicker() {
       : usesMid
         ? "active"
         : "absent";
-  const leafState = searching
-    ? "active"
-    : !category
-      ? "placeholder"
-      : usesMid && !state.medItemParentId
-        ? "placeholder"
-        : "active";
+  // 大項目選択後は右列を操作可能にし、＋で中項目／薬剤を追加できるようにする
+  const leafState = searching || category ? "active" : "placeholder";
   const colCount = midState === "absent" ? "2" : "3";
 
   if (addLinearPicker) addLinearPicker.dataset.cols = colCount;
@@ -1475,11 +1531,13 @@ function renderMedLinearPicker() {
         addColGroupList.appendChild(
           createMedLinearItemButton({
             label: group.label,
-            selected: state.medItemParentId === group.id,
+            // 中項目クリックでナビ＋その名前で確定（薬剤名を選べば上書き）
+            selected:
+              state.medItemParentId === group.id ||
+              state.addDraft.name === group.label,
             onClick: () => {
-              const changed = state.medItemParentId !== group.id;
               state.medItemParentId = group.id;
-              if (changed) state.addDraft.name = "";
+              state.addDraft.name = group.label;
               renderMedLinearPicker();
             },
           })
@@ -1493,10 +1551,13 @@ function renderMedLinearPicker() {
   if (addColLeafList) {
     if (searching) {
       renderMedSearchResults();
-    } else if (leafState === "placeholder") {
+    } else if (!category) {
+      fillMedLinearPlaceholder(addColLeafList, "大項目を選ぶと表示されます");
+      if (addItemsEmpty) addItemsEmpty.hidden = true;
+    } else if (usesMid && !state.medItemParentId) {
       fillMedLinearPlaceholder(
         addColLeafList,
-        category ? "中項目を選ぶと表示されます" : "大項目を選ぶと表示されます"
+        "中項目を選ぶとその名前で確定できます（＋で中項目を追加／薬剤名も選べます）"
       );
       if (addItemsEmpty) addItemsEmpty.hidden = true;
     } else {
@@ -1527,57 +1588,75 @@ function renderMedLinearPicker() {
  */
 async function handleAddMedicationItemFromModal() {
   const category = activeMedCategoryId();
-  if (!category || !canAddMedicationLeaf()) return;
+  if (!category || !canAddMedicationMasterItem()) return;
 
   const label = addNewItemInput?.value.trim() || "";
   if (!label) {
-    deps.showError(addItemError, "薬剤名を入力してください。");
+    deps.showError(
+      addItemError,
+      canAddMedicationMidGroup()
+        ? "中項目名を入力してください。"
+        : "薬剤名を入力してください。"
+    );
     return;
   }
 
-  // いま開いている階層へ追加（中項目選択中はその配下、点眼などは大分類直下）
+  const addingMid = canAddMedicationMidGroup();
+  const kind = addingMid ? "group" : "leaf";
   const parentId =
-    categorySupportsMedMidGroups(category) && state.medItemParentId
+    !addingMid &&
+    categorySupportsMedMidGroups(category) &&
+    state.medItemParentId
       ? state.medItemParentId
       : "";
 
-  // 同名でも別中項目なら新規作成（現在の category + parentId のみ既存扱い）
   const exists = state.medicationItems.find(
     (item) =>
-      !isMedGroup(item) &&
+      (addingMid ? isMedGroup(item) : !isMedGroup(item)) &&
       (item.label || "").trim() === label &&
       normalizeMedicationItemCategory(item.category) === category &&
       String(item.parentId || "").trim() === String(parentId || "").trim()
   );
   if (exists) {
     state.medItemCategory = category;
-    state.medItemParentId = parentId || null;
+    if (addingMid) {
+      state.medItemParentId = exists.id;
+    } else {
+      state.medItemParentId = parentId || null;
+    }
     state.addDraft.name = label;
     setMedItemAddFormOpen(false);
     deps.showError(addItemError, "");
     renderMedLinearPicker();
-    deps.showToast("既存の薬剤を選択しました。");
+    deps.showToast(
+      addingMid ? "既存の中項目を選択しました。" : "既存の薬剤を選択しました。"
+    );
     return;
   }
 
   deps.showError(addItemError, "");
   deps.setBusy(btnAddNewItem, true, "追加中...", "追加");
   try {
-    await addMedicationItem({
+    const createdId = await addMedicationItem({
       label,
       category,
-      kind: "leaf",
+      kind,
       parentId,
     });
+    if (addingMid) {
+      state.medItemParentId = createdId || null;
+    }
     state.addDraft.name = label;
     setMedItemAddFormOpen(false);
     renderMedLinearPicker();
     const parent = parentId
       ? state.medicationItems.find((item) => item.id === parentId)
       : null;
-    const place = parent?.label
-      ? `${medicationItemCategoryLabel(category)}／${parent.label}`
-      : medicationItemCategoryLabel(category);
+    const place = addingMid
+      ? `${medicationItemCategoryLabel(category)}（中項目）`
+      : parent?.label
+        ? `${medicationItemCategoryLabel(category)}／${parent.label}`
+        : medicationItemCategoryLabel(category);
     deps.showToast(`「${label}」を${place}に追加しました。`);
   } catch (err) {
     console.error(err);
@@ -2094,11 +2173,7 @@ export async function applyMedicationSuggestionFromExternal(karteNumber, payload
     });
   }
 
-  const type = ["increase", "decrease", "hold", "stop", "resume", "add"].includes(
-    action
-  )
-    ? action
-    : "add";
+  const type = MED_EVENT_TYPE_IDS.includes(action) ? action : "add";
   await addMedicationEvent(karteNumber, existing.id, {
     date: eventDate,
     type,

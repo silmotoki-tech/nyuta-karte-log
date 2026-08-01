@@ -1,17 +1,56 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
+const SYSTEM_CHROME =
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 function contentType(filePath) {
   if (filePath.endsWith(".html")) return "text/html; charset=utf-8";
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
   if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8";
   return "application/octet-stream";
+}
+
+function findChromeHeadlessShell() {
+  const cacheRoot = path.join(os.tmpdir(), "cursor-sandbox-cache");
+  if (!fs.existsSync(cacheRoot)) return null;
+  for (const dir of fs.readdirSync(cacheRoot)) {
+    for (const arch of ["mac-arm64", "mac-x64"]) {
+      const c = path.join(
+        cacheRoot,
+        dir,
+        `playwright/chromium_headless_shell-1228/chrome-headless-shell-${arch}/chrome-headless-shell`
+      );
+      if (fs.existsSync(c)) return c;
+    }
+  }
+  return null;
+}
+
+async function launchBrowser() {
+  const candidates = [
+    findChromeHeadlessShell(),
+    fs.existsSync(SYSTEM_CHROME) ? SYSTEM_CHROME : null,
+  ].filter(Boolean);
+  for (const executablePath of candidates) {
+    try {
+      return await chromium.launch({ executablePath, headless: true, timeout: 30_000 });
+    } catch (err) {
+      console.warn("launch failed", executablePath, err.message);
+    }
+  }
+  try {
+    return await chromium.launch({ channel: "chrome", headless: true, timeout: 30_000 });
+  } catch (err) {
+    console.warn("launch failed (channel chrome):", err.message);
+  }
+  throw new Error("Could not launch Chromium");
 }
 
 const mockDb = fs.readFileSync(
@@ -65,10 +104,13 @@ const harness = `<!DOCTYPE html>
             <div class="med-linear-picker__list" id="med-add-col-group-list"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf" id="med-add-col-leaf" hidden>
-            <div class="med-linear-picker__head">薬剤名</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label" id="med-add-col-leaf-head-label">薬剤名</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-med-add-toggle" hidden>＋</button>
+            </div>
             <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
             <p class="field__note" id="med-add-items-empty" hidden></p>
-            <div class="exam-item-add" id="med-add-item-add">
+            <div class="exam-item-add" id="med-add-item-add" hidden>
               <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">新しい薬剤を追加</label>
               <div class="exam-item-add__row">
                 <input id="med-add-new-item" class="input" type="text" />
@@ -181,7 +223,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const { port } = server.address();
 const base = `http://127.0.0.1:${port}`;
 
-const browser = await chromium.launch();
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 420, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
@@ -203,6 +245,8 @@ await page.locator("#med-add-col-category-list .med-linear-picker__item", {
   hasText: "点眼薬",
 }).click();
 await page.waitForTimeout(100);
+await page.click("#btn-med-add-toggle");
+await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "点眼テスト薬");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(200);
@@ -262,10 +306,69 @@ if (await page.locator("#med-items-modal").count()) throw new Error("管理モ�
 if (await page.locator("#med-add-other").count()) throw new Error("その他チェック残存");
 
 await page.screenshot({ path: path.join(root, "tools/med-master-verify.png") });
+
+// 内服: 中項目クリックで確定、中項目の手入力追加、小項目追加
+await page.click("#btn-close-med-add").catch(() => {});
+await page.click("#btn-med-add");
+await page.waitForSelector("#med-add-modal:not([hidden])");
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
+  hasText: "内服薬",
+}).click();
+await page.waitForTimeout(120);
+await page
+  .locator("#med-add-col-group-list .med-linear-picker__item")
+  .filter({
+    has: page.locator(".med-linear-picker__item-label", { hasText: /^抗生剤$/ }),
+  })
+  .click();
+await page.waitForTimeout(80);
+const midSelectedName = await page.evaluate(() => {
+  const sel = document.querySelector(
+    "#med-add-col-group-list .med-linear-picker__item.is-selected .med-linear-picker__item-label"
+  );
+  return sel?.textContent?.trim() || "";
+});
+if (midSelectedName !== "抗生剤") throw new Error("mid not visually selected");
+// 中項目名で追加保存できること
+await page.click("#btn-med-add-save");
+await page.waitForTimeout(200);
+const listWithMid = await page.evaluate(() =>
+  [...document.querySelectorAll("#meds-list .med-card__name")].map(
+    (el) => el.getAttribute("aria-label") || (el.dataset.name || "").replace(/\u200B/g, "")
+  )
+);
+console.log("list with mid name:", listWithMid);
+if (!listWithMid.includes("抗生剤")) throw new Error("mid name not saved as medication");
+
+await page.click("#btn-med-add");
+await page.waitForSelector("#med-add-modal:not([hidden])");
+await page.locator("#med-add-col-category-list .med-linear-picker__item", {
+  hasText: "内服薬",
+}).click();
+await page.waitForTimeout(100);
+await page.click("#btn-med-add-toggle");
+await page.waitForSelector("#med-add-item-add:not([hidden])");
+await page.fill("#med-add-new-item", "検証用中項目");
+await page.click("#btn-med-add-new-item");
+await page.waitForTimeout(200);
+const customMids = await page
+  .locator("#med-add-col-group-list .med-linear-picker__item-label")
+  .allTextContents();
+if (!customMids.includes("検証用中項目")) throw new Error("custom mid not added");
+await page.click("#btn-med-add-toggle");
+await page.fill("#med-add-new-item", "検証用薬剤");
+await page.click("#btn-med-add-new-item");
+await page.waitForTimeout(200);
+const customLeaves = await page
+  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .allTextContents();
+if (!customLeaves.includes("検証用薬剤")) throw new Error("custom leaf not added");
+await page.screenshot({ path: path.join(root, "tools/med-mid-select-verify.png") });
+
 if (errors.length) {
   console.log("ERRORS", errors);
   throw new Error("page errors");
 }
-console.log("OK: add on karte A → selectable on karte B; management UI removed");
+console.log("OK: add on karte A → selectable on karte B; mid select/add works");
 await browser.close();
 server.close();

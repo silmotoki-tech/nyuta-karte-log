@@ -308,7 +308,9 @@ const unit = await page.evaluate(() => {
   const d = window.__deriveStatus;
   return [
     ["empty", d({ events: {} }).label, "未設定"],
-    ["add", d({ events: { a: { date: "2026-07-01", type: "add" } } }).label, "使用中"],
+    ["add", d({ events: { a: { date: "2026-07-01", type: "add" } } }).label, "継続"],
+    ["temporary", d({ events: { a: { date: "2026-07-01", type: "temporary" } } }).label, "一時的"],
+    ["hard", d({ events: { a: { date: "2026-07-01", type: "hard" } } }).label, "投与難"],
     ["hold", d({ events: { a: { date: "2026-07-02", type: "hold" } } }).label, "休薬中"],
     [
       "resume-after-hold",
@@ -318,7 +320,7 @@ const unit = await page.evaluate(() => {
           b: { date: "2026-07-03", type: "resume" },
         },
       }).label,
-      "使用中",
+      "継続",
     ],
     [
       "stop-latest",
@@ -385,7 +387,7 @@ async function addEvent(typeLabel) {
 
 let status = await headerStatus();
 console.log("after add:", status);
-if (status !== "使用中") throw new Error(`expected 使用中, got ${status}`);
+if (status !== "継続") throw new Error(`expected 継続, got ${status}`);
 
 // 詳細シート本文に重複の「使用状況」見出し行がないこと（ステータス要約はヘッダ側）
 await openDetailSheet();
@@ -396,6 +398,16 @@ if (detailText.includes("履歴から自動")) {
   throw new Error("detail should not show duplicate status helper");
 }
 
+await addEvent("一時的");
+status = await headerStatus();
+console.log("after temporary:", status);
+if (status !== "一時的") throw new Error(`expected 一時的, got ${status}`);
+
+await addEvent("投与難");
+status = await headerStatus();
+console.log("after hard:", status);
+if (status !== "投与難") throw new Error(`expected 投与難, got ${status}`);
+
 await addEvent("休薬中");
 status = await headerStatus();
 console.log("after hold:", status);
@@ -404,18 +416,24 @@ if (status !== "休薬中") throw new Error(`expected 休薬中, got ${status}`)
 await addEvent("再開");
 status = await headerStatus();
 console.log("after resume:", status);
-if (status !== "使用中") throw new Error(`expected 使用中 after resume, got ${status}`);
+if (status !== "継続") throw new Error(`expected 継続 after resume, got ${status}`);
 
 await addEvent("中止");
 status = await headerStatus();
 console.log("after stop:", status);
 if (status !== "中止") throw new Error(`expected 中止, got ${status}`);
 
-// 履歴に休薬中・再開・中止が並ぶこと
+// 履歴に新文言が並ぶこと
 await openDetailSheet();
 const hist = await page.locator("#med-detail-sheet-body .med-sheet__detail").innerText();
 console.log("HIST", hist);
-for (const label of ["休薬中", "再開", "中止"]) {
+for (const label of [
+  "一時的にした",
+  "投与難になった",
+  "休薬中にした",
+  "再開した",
+  "中止した",
+]) {
   if (!hist.includes(label)) throw new Error(`history missing ${label}`);
 }
 

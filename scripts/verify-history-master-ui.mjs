@@ -302,6 +302,11 @@ await page.waitForTimeout(150);
 const mids = await labels("#history-add-col-group-list");
 console.log("disease mids:", mids);
 assert.ok(mids.includes("心疾患"));
+// 中分類追加時点で中分類名が選択確定されていること
+assert.equal(
+  (await page.locator("#history-add-selected").textContent()).trim(),
+  "選択中: 心疾患"
+);
 
 await page.click("#btn-history-add-toggle");
 await page.fill("#history-add-new-item", "僧帽弁閉鎖不全症");
@@ -310,6 +315,18 @@ await page.waitForTimeout(150);
 const leaves = await labels("#history-add-col-leaf-list");
 console.log("disease leaves:", leaves);
 assert.ok(leaves.includes("僧帽弁閉鎖不全症"));
+assert.equal(
+  (await page.locator("#history-add-selected").textContent()).trim(),
+  "選択中: 僧帽弁閉鎖不全症"
+);
+
+// 中分類をクリックすると中分類名で再確定できること
+await clickLabel("#history-add-col-group-list", "心疾患");
+await page.waitForTimeout(80);
+assert.equal(
+  (await page.locator("#history-add-selected").textContent()).trim(),
+  "選択中: 心疾患"
+);
 
 fs.mkdirSync(path.join(root, "tools"), { recursive: true });
 await page.screenshot({ path: path.join(root, "tools/history-master-disease.png") });

@@ -51,7 +51,8 @@
 //     frequencyChange: 表示用ラベル（互換のため残す）
 //     frequency: { kind, label, periodDays?, times?, weekdays? } … 構造化（任意）
 //     lastEditedAt / lastEditedBy: 編集時のみ
-//     type: "add"(継続)|"increase"|"decrease"|"hold"(休薬中)|"stop"|"resume"
+//     type: "add"(継続)|"temporary"(一時的)|"hard"(投与難)|
+//           "increase"|"decrease"|"hold"(休薬中)|"stop"|"resume"
 //
 //   historyDiseaseItems/{itemId}                         … 疾患名マスタ（大→中→小）
 //     { label, kind:"group"|"leaf", parentId, order }
@@ -2523,7 +2524,7 @@ export async function addMedication(
 
 /**
  * 薬剤の基本情報を更新する（名前・カテゴリ・頓服・副作用メモ・処方切れ目安）。
- * 使用状況（使用中/休薬中/中止）は events の最新から導出するためここでは扱わない。
+ * 使用状況（継続/一時的/投与難/休薬中/中止）は events の最新から導出するためここでは扱わない。
  */
 export async function updateMedication(karteNumber, drugId, fields) {
   await authReady;

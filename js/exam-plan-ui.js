@@ -1241,7 +1241,7 @@ function examItemsShareSlot(a, b) {
   );
 }
 
-function isExamLeafSelected(item) {
+function isExamItemSelected(item) {
   if (!item) return false;
   return state.draft.selectedItems.some((sel) => {
     if (item.id && sel.id) return sel.id === item.id;
@@ -1249,6 +1249,11 @@ function isExamLeafSelected(item) {
       (sel.label || "") === (item.label || "").trim() && examItemsShareSlot(sel, item)
     );
   });
+}
+
+/** @deprecated 互換用エイリアス */
+function isExamLeafSelected(item) {
+  return isExamItemSelected(item);
 }
 
 const EXAM_CATEGORY_SORT = { blood: 0, imaging: 1, pathology: 2, other: 3 };
@@ -1432,13 +1437,23 @@ function examLeavesForPicker() {
   return examRootLeavesForCategory(cat);
 }
 
+/** 葉（小項目）を追加できるか */
 function canAddExamLeaf() {
   const cat = activeExamCategoryId();
   if (!cat) return false;
   if (!categorySupportsExamDrilldown(cat)) return true;
-  if (state.examBloodParentId) return true;
-  // 画像ルートでは従来どおり追加可。血液ルートは中項目選択後のみ
-  return cat === "imaging";
+  return Boolean(state.examBloodParentId);
+}
+
+/** 中項目を追加できるか（ドリルダウン大項目を選び、中未選択） */
+function canAddExamMidGroup() {
+  const cat = activeExamCategoryId();
+  if (!cat || !categorySupportsExamDrilldown(cat)) return false;
+  return !state.examBloodParentId;
+}
+
+function canAddExamMasterItem() {
+  return canAddExamLeaf() || canAddExamMidGroup();
 }
 
 function createExamLinearItemButton({ label, selected, onClick }) {
@@ -1531,8 +1546,12 @@ function syncSheetFastingUI() {
   paintFastingButtons(sheetFastingButtons, state.draft.fasting);
 }
 
-function toggleExamLeaf(item) {
-  if (!item || isExamGroup(item)) return;
+/**
+ * 検査項目（葉）または中項目（グループ）を選択トグルする。
+ * 中項目を選ぶとその名前で確定でき、配下の葉を選ぶと中項目選択は外れる。
+ */
+function toggleExamItem(item) {
+  if (!item) return;
   const ref = toSelectedExamRef(item);
   if (!ref.label) return;
 
@@ -1540,9 +1559,21 @@ function toggleExamLeaf(item) {
     if (ref.id && sel.id) return sel.id === ref.id;
     return sel.label === ref.label && examItemsShareSlot(sel, ref);
   });
+
   if (idx >= 0) {
     state.draft.selectedItems.splice(idx, 1);
   } else {
+    if (isExamGroup(item)) {
+      // 中項目を選ぶときは、その配下の葉選択を外す
+      state.draft.selectedItems = state.draft.selectedItems.filter(
+        (sel) => sel.parentId !== item.id
+      );
+    } else if (item.parentId) {
+      // 葉を選ぶときは、親の中項目選択を外す
+      state.draft.selectedItems = state.draft.selectedItems.filter(
+        (sel) => sel.id !== item.parentId
+      );
+    }
     state.draft.selectedItems.push(ref);
   }
 
@@ -1560,6 +1591,11 @@ function toggleExamLeaf(item) {
   renderExamLinearPicker();
   renderPlanSelectionSummary();
   renderPlanFastingButtons();
+}
+
+function toggleExamLeaf(item) {
+  if (!item || isExamGroup(item)) return;
+  toggleExamItem(item);
 }
 
 function setExamItemAddFormOpen(open) {
@@ -1584,8 +1620,8 @@ function setExamItemAddFormOpen(open) {
 function updateExamItemAddUI() {
   const searching = Boolean(state.examItemSearchMode);
   const category = searching ? null : activeExamCategoryId();
-  const showLeaf = !searching && isExamLeafColActive();
-  const canAdd = showLeaf && canAddExamLeaf();
+  const canAdd = !searching && canAddExamMasterItem();
+  const addingMid = canAddExamMidGroup();
   const inDrillGroup =
     Boolean(category) &&
     categorySupportsExamDrilldown(category) &&
@@ -1601,19 +1637,23 @@ function updateExamItemAddUI() {
   }
 
   if (planNewItemLabel) {
-    planNewItemLabel.textContent = inDrillGroup
-      ? `新しい内訳を追加（${parent?.label || label}）`
-      : label
-        ? `新しい項目を追加（${label}）`
-        : "新しい項目を追加";
+    planNewItemLabel.textContent = addingMid
+      ? `新しい中項目を追加（${label}）`
+      : inDrillGroup
+        ? `新しい検査項目を追加（${parent?.label || label}）`
+        : label
+          ? `新しい項目を追加（${label}）`
+          : "新しい項目を追加";
   }
   if (planNewItemInput) {
-    planNewItemInput.placeholder = inDrillGroup
+    planNewItemInput.placeholder = addingMid
       ? category === "imaging"
-        ? "例）流速あり"
-        : "例）ALT"
-      : category === "imaging"
         ? "例）レントゲン"
+        : "例）肝臓"
+      : inDrillGroup
+        ? category === "imaging"
+          ? "例）流速あり"
+          : "例）ALT"
         : category === "pathology"
           ? "例）病理追加項目"
           : "例）その他の検査";
@@ -1677,14 +1717,6 @@ function renderExamLinearPicker() {
   const searching = Boolean(state.examItemSearchMode);
   const category = searching ? null : activeExamCategoryId();
   const usesMid = Boolean(category && categorySupportsExamDrilldown(category));
-  const rootLeaves = usesMid ? examRootLeavesForCategory(category) : [];
-  const leafReady = Boolean(
-    category &&
-      (!usesMid ||
-        state.examBloodParentId ||
-        rootLeaves.length > 0 ||
-        category === "imaging")
-  );
   const midState = searching
     ? "absent"
     : !category
@@ -1692,13 +1724,9 @@ function renderExamLinearPicker() {
       : usesMid
         ? "active"
         : "absent";
-  const leafState = searching
-    ? "active"
-    : !category
-      ? "placeholder"
-      : leafReady
-        ? "active"
-        : "placeholder";
+  // 大項目選択後は右列を操作可能にし、＋で中項目／検査項目を追加できるようにする
+  // （is-placeholder だと CSS で ＋ が display:none になる）
+  const leafState = searching || category ? "active" : "placeholder";
   const colCount = midState === "absent" ? "2" : "3";
 
   if (planLinearPicker) planLinearPicker.dataset.cols = colCount;
@@ -1760,12 +1788,12 @@ function renderExamLinearPicker() {
         planColGroupList.appendChild(
           createExamLinearItemButton({
             label: group.label,
-            selected: state.examBloodParentId === group.id,
+            selected:
+              state.examBloodParentId === group.id || isExamItemSelected(group),
             onClick: () => {
               state.examBloodParentId = group.id;
-              renderExamLinearPicker();
-              renderPlanSelectionSummary();
-              renderPlanFastingButtons();
+              // 中項目クリックでその名前を選択確定（再クリックでトグル解除）
+              toggleExamItem(group);
             },
           })
         );
@@ -1778,10 +1806,17 @@ function renderExamLinearPicker() {
   if (planColLeafList) {
     if (searching) {
       renderExamSearchResults();
-    } else if (leafState === "placeholder") {
+    } else if (!category) {
+      fillExamLinearPlaceholder(planColLeafList, "大項目を選ぶと表示されます");
+      if (planItemsEmpty) planItemsEmpty.hidden = true;
+    } else if (
+      usesMid &&
+      !state.examBloodParentId &&
+      examRootLeavesForCategory(category).length === 0
+    ) {
       fillExamLinearPlaceholder(
         planColLeafList,
-        category ? "中項目を選ぶと表示されます" : "大項目を選ぶと表示されます"
+        "中項目を選ぶとその名前で確定できます（＋で中項目を追加／検査項目も選べます）"
       );
       if (planItemsEmpty) planItemsEmpty.hidden = true;
     } else {
@@ -1792,8 +1827,8 @@ function renderExamLinearPicker() {
         planColLeafList.appendChild(
           createExamLinearItemButton({
             label: item.label,
-            selected: isExamLeafSelected(item),
-            onClick: () => toggleExamLeaf(item),
+            selected: isExamItemSelected(item),
+            onClick: () => toggleExamItem(item),
           })
         );
       });
@@ -1818,43 +1853,48 @@ function collapseExamItemAddForm() {
  */
 async function handleAddExamItemFromPlanModal() {
   const category = activeExamCategoryId();
-  if (!category || !canAddExamLeaf()) return;
+  if (!category || !canAddExamMasterItem()) return;
 
   const label = planNewItemInput?.value.trim() || "";
-  const kind = "leaf";
-  // いま開いている階層へ追加（血液・画像で中項目選択中はその内訳、それ以外は大分類直下）
-  const parentId =
-    categorySupportsExamDrilldown(category) && state.examBloodParentId
-      ? state.examBloodParentId
-      : "";
-
   if (!label) {
     deps.showError(planItemError, "項目名を入力してください。");
     return;
   }
 
-  // 同名でも別階層なら新規作成する（現在の category + parentId のみ既存扱い）
+  const addingMid = canAddExamMidGroup();
+  const kind = addingMid ? "group" : "leaf";
+  const parentId =
+    !addingMid &&
+    categorySupportsExamDrilldown(category) &&
+    state.examBloodParentId
+      ? state.examBloodParentId
+      : "";
+
   const exists = state.examItems.find(
     (item) =>
-      !isExamGroup(item) &&
+      (addingMid ? isExamGroup(item) : !isExamGroup(item)) &&
       (item.label || "").trim() === label &&
       normalizeExamItemCategory(item.category) === category &&
       examItemParentKey(item) === String(parentId || "")
   );
   if (exists) {
     state.examItemCategory = category;
-    state.examBloodParentId = parentId || null;
-    if (!isExamLeafSelected(exists)) {
-      toggleExamLeaf(exists);
-      collapseExamItemAddForm();
-      deps.showError(planItemError, "");
-      deps.showToast("既存の項目を選択しました。");
-      return;
+    if (addingMid) {
+      state.examBloodParentId = exists.id;
+      if (!isExamItemSelected(exists)) toggleExamItem(exists);
+      else {
+        renderExamLinearPicker();
+      }
+    } else {
+      state.examBloodParentId = parentId || null;
+      if (!isExamItemSelected(exists)) toggleExamItem(exists);
+      else renderExamLinearPicker();
     }
     collapseExamItemAddForm();
     deps.showError(planItemError, "");
-    renderExamLinearPicker();
-    deps.showToast("既存の項目は選択済みです。");
+    deps.showToast(
+      addingMid ? "既存の中項目を選択しました。" : "既存の項目を選択しました。"
+    );
     return;
   }
 
@@ -1866,10 +1906,24 @@ async function handleAddExamItemFromPlanModal() {
       id: createdId || "",
       label,
       category,
+      kind,
       parentId,
       order: Date.now(),
     });
-    if (!isExamLeafSelected(createdRef)) {
+    if (addingMid) {
+      state.examBloodParentId = createdId || null;
+    }
+    if (!isExamItemSelected(createdRef)) {
+      if (addingMid) {
+        // 中項目追加時は配下葉を消して中項目自体を選択
+        state.draft.selectedItems = state.draft.selectedItems.filter(
+          (sel) => sel.parentId !== createdId
+        );
+      } else if (parentId) {
+        state.draft.selectedItems = state.draft.selectedItems.filter(
+          (sel) => sel.id !== parentId
+        );
+      }
       state.draft.selectedItems.push(createdRef);
       syncDraftItemFromSelection();
       if (!selectionNeedsFasting()) state.draft.fasting = "";
@@ -1879,9 +1933,11 @@ async function handleAddExamItemFromPlanModal() {
     const parent = parentId
       ? state.examItems.find((item) => item.id === parentId)
       : null;
-    const place = parent?.label
-      ? `${examItemCategoryLabel(category)}／${parent.label}`
-      : examItemCategoryLabel(category);
+    const place = addingMid
+      ? `${examItemCategoryLabel(category)}（中項目）`
+      : parent?.label
+        ? `${examItemCategoryLabel(category)}／${parent.label}`
+        : examItemCategoryLabel(category);
     deps.showToast(`「${label}」を${place}に追加しました。`);
   } catch (err) {
     console.error(err);

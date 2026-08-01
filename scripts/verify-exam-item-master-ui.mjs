@@ -1,17 +1,56 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
+const SYSTEM_CHROME =
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 function contentType(filePath) {
   if (filePath.endsWith(".html")) return "text/html; charset=utf-8";
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
   if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8";
   return "application/octet-stream";
+}
+
+function findChromeHeadlessShell() {
+  const cacheRoot = path.join(os.tmpdir(), "cursor-sandbox-cache");
+  if (!fs.existsSync(cacheRoot)) return null;
+  for (const dir of fs.readdirSync(cacheRoot)) {
+    for (const arch of ["mac-arm64", "mac-x64"]) {
+      const c = path.join(
+        cacheRoot,
+        dir,
+        `playwright/chromium_headless_shell-1228/chrome-headless-shell-${arch}/chrome-headless-shell`
+      );
+      if (fs.existsSync(c)) return c;
+    }
+  }
+  return null;
+}
+
+async function launchBrowser() {
+  const candidates = [
+    findChromeHeadlessShell(),
+    fs.existsSync(SYSTEM_CHROME) ? SYSTEM_CHROME : null,
+  ].filter(Boolean);
+  for (const executablePath of candidates) {
+    try {
+      return await chromium.launch({ executablePath, headless: true, timeout: 30_000 });
+    } catch (err) {
+      console.warn("launch failed", executablePath, err.message);
+    }
+  }
+  try {
+    return await chromium.launch({ channel: "chrome", headless: true, timeout: 30_000 });
+  } catch (err) {
+    console.warn("launch failed (channel chrome):", err.message);
+  }
+  throw new Error("Could not launch Chromium");
 }
 
 const mockDb = `
@@ -180,10 +219,13 @@ const harness = `<!DOCTYPE html>
             <div class="med-linear-picker__list" id="exam-plan-col-group-list" role="listbox"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf" id="exam-plan-col-leaf" hidden>
-            <div class="med-linear-picker__head">検査項目</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label" id="exam-plan-col-leaf-head-label">検査項目</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-exam-plan-add-toggle" hidden>＋</button>
+            </div>
             <div class="med-linear-picker__list" id="exam-plan-col-leaf-list" role="listbox"></div>
             <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden></p>
-            <div class="exam-item-add" id="exam-plan-item-add-default">
+            <div class="exam-item-add" id="exam-plan-item-add-default" hidden>
               <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">新しい項目を追加</label>
               <div class="exam-item-add__row">
                 <input id="exam-plan-new-item" class="input" type="text" placeholder="例）血液検査" />
@@ -192,6 +234,7 @@ const harness = `<!DOCTYPE html>
             </div>
           </div>
         </div>
+        <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
         <p id="exam-plan-item-error" class="error-text" role="alert" hidden></p>
       </div>
       <div class="field">
@@ -267,7 +310,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const { port } = server.address();
 const base = `http://127.0.0.1:${port}`;
 
-const browser = await chromium.launch();
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
@@ -307,6 +350,8 @@ let buttons = await leafLabels();
 console.log("KARTE A initial buttons:", buttons);
 if (buttons.length !== 0) throw new Error("expected empty master initially");
 
+await page.click("#btn-exam-plan-add-toggle");
+await page.waitForSelector("#exam-plan-item-add-default:not([hidden])");
 await page.fill("#exam-plan-new-item", "血液検査");
 await page.click("#btn-exam-plan-add-item");
 await page.waitForTimeout(200);
@@ -352,10 +397,44 @@ if (await page.locator("#exam-plan-other").count()) {
 
 await page.screenshot({ path: path.join(root, "tools/exam-item-master-verify.png") });
 
+// 血液: 中項目の追加・中項目での選択確定・小項目追加
+await page.click("#btn-close-exam-plan").catch(() => {});
+await page.click("#btn-exam-new");
+await page.waitForSelector("#exam-plan-modal:not([hidden])");
+await clickLinear("#exam-plan-col-category-list", "血液");
+await page.waitForTimeout(80);
+await page.click("#btn-exam-plan-add-toggle");
+await page.waitForSelector("#exam-plan-item-add-default:not([hidden])");
+await page.fill("#exam-plan-new-item", "肝臓パネル");
+await page.click("#btn-exam-plan-add-item");
+await page.waitForTimeout(200);
+const midLabels = await page
+  .locator("#exam-plan-col-group-list .med-linear-picker__item-label")
+  .allTextContents();
+console.log("blood mids:", midLabels);
+if (!midLabels.includes("肝臓パネル")) throw new Error("mid group not added");
+const midSummary = await page.locator("#exam-plan-selection-summary").textContent();
+console.log("mid summary:", midSummary);
+if (!midSummary.includes("肝臓パネル")) throw new Error("mid not selected as item");
+
+await page.click("#btn-exam-plan-add-toggle");
+await page.waitForSelector("#exam-plan-item-add-default:not([hidden])");
+await page.fill("#exam-plan-new-item", "ALT");
+await page.click("#btn-exam-plan-add-item");
+await page.waitForTimeout(200);
+const bloodLeaves = await leafLabels();
+console.log("blood leaves:", bloodLeaves);
+if (!bloodLeaves.includes("ALT")) throw new Error("leaf not added under mid");
+const leafSummary = await page.locator("#exam-plan-selection-summary").textContent();
+console.log("leaf summary:", leafSummary);
+if (!leafSummary.includes("ALT")) throw new Error("leaf not selected");
+
+await page.screenshot({ path: path.join(root, "tools/exam-mid-select-verify.png") });
+
 if (errors.length) {
   console.log("ERRORS", errors);
   throw new Error("page errors");
 }
-console.log("OK: add on karte A → selectable on karte B; management UI removed");
+console.log("OK: add on karte A → selectable on karte B; mid select/add works");
 await browser.close();
 server.close();

@@ -2427,9 +2427,20 @@ html.is-unlocked .app {
   background: none;
 }
 
+.med-status--continue,
 .med-status--active {
   background-color: transparent;
   color: var(--color-green-dark);
+}
+
+.med-status--temporary {
+  background-color: transparent;
+  color: #3d7ea6;
+}
+
+.med-status--hard {
+  background-color: transparent;
+  color: #c47a1a;
 }
 
 .med-status--hold {
