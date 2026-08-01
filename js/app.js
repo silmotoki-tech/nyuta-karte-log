@@ -40,6 +40,7 @@ import {
   leaveSpecialNotes,
 } from "./special-notes-ui.js";
 import { initSettingsUI } from "./settings-ui.js";
+import { initMasterDeleteUI } from "./master-delete-ui.js";
 import {
   initFreeQaUI,
   enterFreeQa,
@@ -1526,6 +1527,11 @@ initHistoryUI({
   showError,
   setBusy,
   getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+});
+
+initMasterDeleteUI({
+  showError,
+  setBusy,
 });
 
 initProceduresUI({

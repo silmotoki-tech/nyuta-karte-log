@@ -91,6 +91,9 @@
 //   specialNotes/{カルテ番号}/{entryId}/lastEditedAt     … 更新日時ISO（任意）
 //   specialNotes/{カルテ番号}/{entryId}/lastEditedBy     … 更新者（任意）
 //
+//   appSettings/adminPasscode                           … マスタ削除用管理者パスコード（全端末共通）
+//   appSettings/retiredMasterIds/{collection}/{itemId}  … 削除済みシードの再投入防止
+//
 // 方針: 参照用メモとしてエントリの直接編集（上書き）を許可する。
 //       最終編集日時・編集者のみ記録し、詳細な差分履歴は持たない。
 //       誤入力エントリの削除も許可する。
@@ -112,6 +115,86 @@ import { app } from "./firebase-app.js";
 import { authReady } from "./auth.js";
 
 const db = getDatabase(app);
+
+/** マスタ削除用の初期管理者パスコード（未設定時のみ Firebase に書き込む） */
+export const DEFAULT_ADMIN_PASSCODE = "oono";
+
+function adminPasscodeRef() {
+  return ref(db, "appSettings/adminPasscode");
+}
+
+function retiredMasterIdsRef(collection) {
+  return ref(db, `appSettings/retiredMasterIds/${collection}`);
+}
+
+/** Firebase に管理者パスコードが無ければ初期値を書き込む */
+export async function ensureAdminPasscodeDefault() {
+  await authReady;
+  const snap = await get(adminPasscodeRef());
+  if (!snap.exists() || String(snap.val() || "").trim() === "") {
+    await set(adminPasscodeRef(), DEFAULT_ADMIN_PASSCODE);
+  }
+}
+
+/**
+ * 入力が Firebase 上の管理者パスコードと一致するか。
+ * 削除のたびに呼び、クライアント側での有効期限キャッシュは持たない。
+ */
+export async function verifyAdminPasscode(input) {
+  await ensureAdminPasscodeDefault();
+  const snap = await get(adminPasscodeRef());
+  const expected = String(snap.val() ?? DEFAULT_ADMIN_PASSCODE);
+  return String(input ?? "") === expected;
+}
+
+async function loadRetiredMasterIdSet(collection) {
+  await authReady;
+  const snap = await get(retiredMasterIdsRef(collection));
+  const value = snap.val() || {};
+  return new Set(
+    Object.entries(value)
+      .filter(([, v]) => Boolean(v))
+      .map(([id]) => id)
+  );
+}
+
+async function markMasterItemsRetired(collection, ids) {
+  const list = [...new Set((ids || []).filter(Boolean))];
+  if (!list.length) return;
+  const patch = {};
+  list.forEach((id) => {
+    patch[id] = true;
+  });
+  await update(retiredMasterIdsRef(collection), patch);
+}
+
+function collectMasterDescendantIds(items, rootId) {
+  const ids = [];
+  const queue = [String(rootId || "")];
+  const seen = new Set();
+  while (queue.length) {
+    const id = queue.shift();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+    (items || []).forEach((item) => {
+      if (String(item.parentId || "") === id) queue.push(item.id);
+    });
+  }
+  return ids;
+}
+
+async function removeMasterItemsWithRetire(collectionPath, itemIds) {
+  await authReady;
+  const ids = [...new Set((itemIds || []).filter(Boolean))];
+  if (!ids.length) return;
+  const patch = {};
+  ids.forEach((id) => {
+    patch[`${collectionPath}/${id}`] = null;
+  });
+  await update(ref(db), patch);
+  await markMasterItemsRetired(collectionPath, ids);
+}
 
 function entriesRef(karteNumber) {
   return ref(db, `karte/${karteNumber}/entries`);
@@ -979,6 +1062,7 @@ export async function ensureExamItemDefaults() {
   await authReady;
   const snap = await get(examItemsRef());
   const existing = snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
+  const retired = await loadRetiredMasterIdSet("examItems");
   const writes = {};
   const forceRewriteIds = new Set([
     "seed-imaging-set",
@@ -1009,6 +1093,7 @@ export async function ensureExamItemDefaults() {
     "seed-imaging-xray-tooth",
   ]);
   EXAM_ITEM_SEED.forEach((seed) => {
+    if (retired.has(seed.id)) return;
     const payload = examItemSeedPayload(seed);
     const row = existing[seed.id];
     if (!row || forceRewriteIds.has(seed.id)) {
@@ -1145,9 +1230,21 @@ export async function updateExamItem(itemId, { label, category, kind, parentId }
   }
 }
 
+/**
+ * 検査項目マスタを削除する。中項目の場合は配下の小項目もまとめて削除する。
+ * シード項目は retired に記録し、ensure で復活しないようにする。
+ */
 export async function deleteExamItem(itemId) {
   await authReady;
-  await remove(ref(db, `examItems/${itemId}`));
+  const id = String(itemId || "").trim();
+  if (!id) return;
+  const snap = await get(examItemsRef());
+  const value = snap.val() || {};
+  const items = Object.entries(value).map(([itemKey, raw]) =>
+    normalizeExamItem(itemKey, raw)
+  );
+  const ids = collectMasterDescendantIds(items, id);
+  await removeMasterItemsWithRetire("examItems", ids);
 }
 
 // --- 検査予定（examPlan） ------------------------------------------------
@@ -2139,6 +2236,7 @@ export async function ensureMedicationItemDefaults() {
   const snap = await get(medicationItemsRef());
   const existing =
     snap.exists() && typeof snap.val() === "object" ? snap.val() : {};
+  const retired = await loadRetiredMasterIdSet("medicationItems");
   const next = {};
   Object.entries(existing).forEach(([id, row]) => {
     if (row && typeof row === "object") {
@@ -2147,6 +2245,7 @@ export async function ensureMedicationItemDefaults() {
   });
 
   MEDICATION_ITEM_GROUP_SEED.forEach((seed) => {
+    if (retired.has(seed.id)) return;
     next[seed.id] = medicationItemSeedPayload(seed);
   });
 
@@ -2183,6 +2282,7 @@ export async function ensureMedicationItemDefaults() {
   });
 
   MEDICATION_ITEM_LEAF_SEED.forEach((seed) => {
+    if (retired.has(seed.id)) return;
     const payload = medicationItemSeedPayload(seed);
     if (next[seed.id]) {
       next[seed.id] = payload;
@@ -2193,11 +2293,17 @@ export async function ensureMedicationItemDefaults() {
     const sameNameId = findSameNameLeafIdForSeed(next, payload);
 
     if (sameNameId) {
+      if (retired.has(sameNameId)) return;
       next[sameNameId] = payload;
       return;
     }
 
     next[seed.id] = payload;
+  });
+
+  // ユーザー削除済みシードは ensure で復活させない
+  retired.forEach((id) => {
+    delete next[id];
   });
 
   // 廃止シードを除去
@@ -2232,6 +2338,9 @@ export async function ensureMedicationItemDefaults() {
     }
   });
   MEDICATION_ITEM_SEED_RETIRE.forEach((id) => {
+    if (existing[id]) writes[id] = null;
+  });
+  retired.forEach((id) => {
     if (existing[id]) writes[id] = null;
   });
   Object.keys(existing).forEach((id) => {
@@ -2389,9 +2498,21 @@ export async function updateMedicationItem(
   }
 }
 
+/**
+ * 薬剤マスタを削除する。中項目の場合は配下の薬剤名もまとめて削除する。
+ * シード項目は retired に記録し、ensure で復活しないようにする。
+ */
 export async function deleteMedicationItem(itemId) {
   await authReady;
-  await remove(ref(db, `medicationItems/${itemId}`));
+  const id = String(itemId || "").trim();
+  if (!id) return;
+  const snap = await get(medicationItemsRef());
+  const value = snap.val() || {};
+  const items = Object.entries(value).map(([itemKey, raw]) =>
+    normalizeMedicationItem(itemKey, raw)
+  );
+  const ids = collectMasterDescendantIds(items, id);
+  await removeMasterItemsWithRetire("medicationItems", ids);
 }
 
 // --- 薬剤情報（medications） ----------------------------------------------
@@ -2677,12 +2798,24 @@ const HISTORY_SURGERY_GROUP_SEED = [
   histTopGroupSeed("seed-hist-surgery-other", "その他", 60),
 ];
 
-async function ensureHistoryTreeDefaults(itemsRef, seeds) {
+/** 紹介先マスタ: よく使う紹介先 */
+const HISTORY_REFERRAL_SEED = [
+  { id: "seed-hist-referral-petemo", label: "ペテモ", order: 10 },
+  { id: "seed-hist-referral-jarmec", label: "JARMeC", order: 20 },
+  { id: "seed-hist-referral-jasmine", label: "JASMINE", order: 30 },
+  { id: "seed-hist-referral-azabu", label: "麻布大学", order: 40 },
+  { id: "seed-hist-referral-nihon", label: "日本大学", order: 50 },
+  { id: "seed-hist-referral-nvlu", label: "日本獣医生命科学大学", order: 60 },
+];
+
+async function ensureHistoryTreeDefaults(itemsRef, collectionPath, seeds) {
   await authReady;
   const snapshot = await get(itemsRef);
   const existing = snapshot.val() || {};
+  const retired = await loadRetiredMasterIdSet(collectionPath);
   const writes = {};
   seeds.forEach((seed) => {
+    if (retired.has(seed.id)) return;
     const prev = existing[seed.id];
     const payload = {
       label: seed.label,
@@ -2708,6 +2841,7 @@ async function ensureHistoryTreeDefaults(itemsRef, seeds) {
 export async function ensureHistoryDiseaseItemDefaults() {
   await ensureHistoryTreeDefaults(
     historyDiseaseItemsRef(),
+    "historyDiseaseItems",
     HISTORY_DISEASE_GROUP_SEED
   );
 }
@@ -2715,8 +2849,73 @@ export async function ensureHistoryDiseaseItemDefaults() {
 export async function ensureHistorySurgeryItemDefaults() {
   await ensureHistoryTreeDefaults(
     historySurgeryItemsRef(),
+    "historySurgeryItems",
     HISTORY_SURGERY_GROUP_SEED
   );
+}
+
+/**
+ * 紹介先マスタの不足シードを書き込む。
+ * ユーザーが削除したシード（retired）は再投入しない。
+ */
+export async function ensureHistoryReferralItemDefaults() {
+  await authReady;
+  const itemsRef = historyReferralItemsRef();
+  const snapshot = await get(itemsRef);
+  const existing = snapshot.val() || {};
+  const retired = await loadRetiredMasterIdSet("historyReferralItems");
+  const writes = {};
+  HISTORY_REFERRAL_SEED.forEach((seed) => {
+    if (retired.has(seed.id)) return;
+    const prev = existing[seed.id];
+    const payload = { label: seed.label, order: seed.order };
+    if (
+      !prev ||
+      prev.label !== payload.label ||
+      Number(prev.order) !== payload.order
+    ) {
+      writes[seed.id] = payload;
+    }
+  });
+  if (Object.keys(writes).length) {
+    await update(itemsRef, writes);
+  }
+}
+
+async function deleteHistoryTreeItem(itemsRef, collectionPath, itemId) {
+  await authReady;
+  const id = String(itemId || "").trim();
+  if (!id) return;
+  const snap = await get(itemsRef);
+  const value = snap.val() || {};
+  const items = Object.entries(value).map(([itemKey, raw]) =>
+    normalizeHistoryTreeItem(itemKey, raw)
+  );
+  const ids = collectMasterDescendantIds(items, id);
+  await removeMasterItemsWithRetire(collectionPath, ids);
+}
+
+export async function deleteHistoryDiseaseItem(itemId) {
+  return deleteHistoryTreeItem(
+    historyDiseaseItemsRef(),
+    "historyDiseaseItems",
+    itemId
+  );
+}
+
+export async function deleteHistorySurgeryItem(itemId) {
+  return deleteHistoryTreeItem(
+    historySurgeryItemsRef(),
+    "historySurgeryItems",
+    itemId
+  );
+}
+
+export async function deleteHistoryReferralItem(itemId) {
+  await authReady;
+  const id = String(itemId || "").trim();
+  if (!id) return;
+  await removeMasterItemsWithRetire("historyReferralItems", [id]);
 }
 
 function subscribeHistoryTreeItems(itemsRef, ensureDefaults, callback) {
@@ -2775,7 +2974,13 @@ export function subscribeHistoryReferralItems(callback) {
   let unsubscribed = false;
   let listener = null;
   authReady
-    .then(() => {
+    .then(async () => {
+      if (unsubscribed) return;
+      try {
+        await ensureHistoryReferralItemDefaults();
+      } catch (err) {
+        console.warn("紹介先マスタのシード補完に失敗しました", err);
+      }
       if (unsubscribed) return;
       listener = onValue(historyReferralItemsRef(), (snapshot) => {
         const value = snapshot.val() || {};

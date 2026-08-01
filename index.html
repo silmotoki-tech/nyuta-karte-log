@@ -1585,6 +1585,36 @@
   </div>
 </div>
 
+<!-- マスタ削除（管理者パスコード） -->
+<div class="modal" id="master-delete-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="master-delete-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="master-delete-modal-title">マスタ項目を削除</h2>
+      <button class="modal__close" id="btn-close-master-delete" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p class="field__note" id="master-delete-label">この項目をマスタから削除します。</p>
+      <p class="field__note">誤削除防止のため、管理者パスコードを入力してください。</p>
+      <label class="label" for="master-delete-passcode">管理者パスコード</label>
+      <input
+        id="master-delete-passcode"
+        class="input"
+        type="password"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        enterkeyhint="done"
+      />
+      <p id="master-delete-error" class="error-text error-text--banner" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
+      <button id="btn-master-delete-confirm" class="btn btn--small btn--danger" type="button">削除する</button>
+      <button id="btn-master-delete-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <!-- 設定（APIキー） -->
 <div class="modal" id="settings-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>

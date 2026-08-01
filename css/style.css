@@ -3670,6 +3670,22 @@ select.input {
   color: var(--color-text-muted);
 }
 
+.med-linear-picker__row.swipeable {
+  width: 100%;
+  background: transparent;
+  border-radius: var(--radius-sm);
+}
+
+.med-linear-picker__row.swipeable .swipeable__front {
+  width: 100%;
+  background: inherit;
+  background-color: transparent;
+}
+
+.med-linear-picker__row.swipeable .med-linear-picker__item {
+  width: 100%;
+}
+
 .med-linear-picker__item {
   display: flex;
   align-items: center;
@@ -3688,6 +3704,12 @@ select.input {
   text-align: left;
   cursor: pointer;
   transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.btn--danger {
+  background: var(--color-danger, #a86b62);
+  border-color: var(--color-danger, #a86b62);
+  color: #fff;
 }
 
 .med-linear-picker__item:hover {

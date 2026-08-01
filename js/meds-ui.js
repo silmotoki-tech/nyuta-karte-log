@@ -11,6 +11,7 @@ import {
   updateMedicationEvent,
   deleteMedicationEvent,
   addMedicationItem,
+  deleteMedicationItem,
   fetchMedicationsOnce,
   MEDICATION_ITEM_CATEGORIES,
   normalizeMedicationItemCategory,
@@ -18,6 +19,10 @@ import {
   medicationItemCategoryLabel,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
+import {
+  createSwipeableMasterPickerItem,
+  requestMasterDelete,
+} from "./master-delete-ui.js";
 import { canHandleShortcut, isImeKey } from "./ime-keys.js";
 import {
   FREQ_PRESETS_ABSOLUTE,
@@ -1162,6 +1167,36 @@ function createMedLinearItemButton({ label, selected, onClick }) {
   return btn;
 }
 
+function askDeleteMedicationMasterItem(item) {
+  if (!item?.id) return;
+  const label = (item.label || "").trim() || "この項目";
+  requestMasterDelete({
+    label,
+    performDelete: async () => {
+      await deleteMedicationItem(item.id);
+      if (state.medItemParentId === item.id) {
+        state.medItemParentId = null;
+        state.addDraft.name = "";
+      } else if (state.addDraft.name === label) {
+        state.addDraft.name = "";
+      }
+      renderMedLinearPicker();
+      deps.showToast(`「${label}」をマスタから削除しました。`);
+    },
+  });
+}
+
+function appendMedMasterItem(listEl, item, { selected, onSelect }) {
+  listEl.appendChild(
+    createSwipeableMasterPickerItem({
+      label: item.label,
+      selected,
+      onSelect,
+      onDelete: () => askDeleteMedicationMasterItem(item),
+    })
+  );
+}
+
 /** active=操作可 / placeholder=枠だけ確保 / absent=列ごと非表示（2列レイアウト用） */
 function setMedLinearColState(col, mode) {
   if (!col) return;
@@ -1446,13 +1481,10 @@ function renderMedSearchResults() {
     return;
   }
   rows.forEach((row) => {
-    addColLeafList.appendChild(
-      createMedLinearItemButton({
-        label: row.displayLabel || row.label,
-        selected: state.addDraft.name === row.label,
-        onClick: () => selectMedicationFromSearch(row),
-      })
-    );
+    appendMedMasterItem(addColLeafList, row.item, {
+      selected: state.addDraft.name === row.label,
+      onSelect: () => selectMedicationFromSearch(row),
+    });
   });
 }
 
@@ -1528,20 +1560,16 @@ function renderMedLinearPicker() {
     } else if (midState === "active") {
       addColGroupList.innerHTML = "";
       medGroupsForCategory(category).forEach((group) => {
-        addColGroupList.appendChild(
-          createMedLinearItemButton({
-            label: group.label,
-            // 中項目クリックでナビ＋その名前で確定（薬剤名を選べば上書き）
-            selected:
-              state.medItemParentId === group.id ||
-              state.addDraft.name === group.label,
-            onClick: () => {
-              state.medItemParentId = group.id;
-              state.addDraft.name = group.label;
-              renderMedLinearPicker();
-            },
-          })
-        );
+        appendMedMasterItem(addColGroupList, group, {
+          selected:
+            state.medItemParentId === group.id ||
+            state.addDraft.name === group.label,
+          onSelect: () => {
+            state.medItemParentId = group.id;
+            state.addDraft.name = group.label;
+            renderMedLinearPicker();
+          },
+        });
       });
     } else {
       addColGroupList.innerHTML = "";
@@ -1565,16 +1593,13 @@ function renderMedLinearPicker() {
       const leaves = medLeavesForPicker();
       if (addItemsEmpty) addItemsEmpty.hidden = leaves.length > 0;
       leaves.forEach((item) => {
-        addColLeafList.appendChild(
-          createMedLinearItemButton({
-            label: item.label,
-            selected: state.addDraft.name === item.label,
-            onClick: () => {
-              state.addDraft.name = item.label;
-              renderMedLinearPicker();
-            },
-          })
-        );
+        appendMedMasterItem(addColLeafList, item, {
+          selected: state.addDraft.name === item.label,
+          onSelect: () => {
+            state.addDraft.name = item.label;
+            renderMedLinearPicker();
+          },
+        });
       });
     }
   }

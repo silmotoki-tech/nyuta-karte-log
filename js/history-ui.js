@@ -17,6 +17,9 @@ import {
   addHistoryDiseaseItem,
   addHistorySurgeryItem,
   addHistoryReferralItem,
+  deleteHistoryDiseaseItem,
+  deleteHistorySurgeryItem,
+  deleteHistoryReferralItem,
   normalizeHistoryMasterKind,
 } from "./db.js";
 import {
@@ -24,6 +27,10 @@ import {
   filterHistoryReferralByQuery,
 } from "./history-item-match.js";
 import { enableRowGestures } from "./row-gestures.js";
+import {
+  createSwipeableMasterPickerItem,
+  requestMasterDelete,
+} from "./master-delete-ui.js";
 import { canHandleShortcut, isImeKey } from "./ime-keys.js";
 
 const HISTORY_TYPES = [
@@ -533,6 +540,50 @@ function createLinearItemButton({ label, selected, onClick }) {
   return btn;
 }
 
+function historyMasterDeleteFn(type) {
+  if (type === "surgery") return deleteHistorySurgeryItem;
+  if (type === "referral") return deleteHistoryReferralItem;
+  return deleteHistoryDiseaseItem;
+}
+
+function askDeleteHistoryMasterItem(item, type) {
+  if (!item?.id) return;
+  const label = (item.label || "").trim() || "この項目";
+  requestMasterDelete({
+    label,
+    performDelete: async () => {
+      await historyMasterDeleteFn(type)(item.id);
+      if (type === "referral") {
+        if (state.addDraft.title === label) state.addDraft.title = "";
+      } else {
+        if (state.pickTopId === item.id) {
+          state.pickTopId = null;
+          state.pickMidId = null;
+          state.addDraft.title = "";
+        } else if (state.pickMidId === item.id) {
+          state.pickMidId = null;
+          state.addDraft.title = "";
+        } else if (state.addDraft.title === label) {
+          state.addDraft.title = "";
+        }
+      }
+      renderHistoryLinearPicker();
+      deps.showToast(`「${label}」をマスタから削除しました。`);
+    },
+  });
+}
+
+function appendHistoryMasterItem(listEl, item, { selected, onSelect, type }) {
+  listEl.appendChild(
+    createSwipeableMasterPickerItem({
+      label: item.label,
+      selected,
+      onSelect,
+      onDelete: () => askDeleteHistoryMasterItem(item, type),
+    })
+  );
+}
+
 function fillPlaceholder(listEl, message) {
   if (!listEl) return;
   listEl.innerHTML = "";
@@ -691,22 +742,20 @@ function renderHistoryLinearPicker() {
     } else {
       const items = treeItemsForType(type);
       topGroups(items).forEach((group) => {
-        addColCategoryList.appendChild(
-          createLinearItemButton({
-            label: group.label,
-            selected: !searching && state.pickTopId === group.id,
-            onClick: () => {
-              const changed = state.searchMode || state.pickTopId !== group.id;
-              exitSearchMode();
-              state.pickTopId = group.id;
-              if (changed) {
-                state.pickMidId = null;
-                state.addDraft.title = "";
-              }
-              renderHistoryLinearPicker();
-            },
-          })
-        );
+        appendHistoryMasterItem(addColCategoryList, group, {
+          type,
+          selected: !searching && state.pickTopId === group.id,
+          onSelect: () => {
+            const changed = state.searchMode || state.pickTopId !== group.id;
+            exitSearchMode();
+            state.pickTopId = group.id;
+            if (changed) {
+              state.pickMidId = null;
+              state.addDraft.title = "";
+            }
+            renderHistoryLinearPicker();
+          },
+        });
       });
     }
     addColCategoryList.appendChild(
@@ -733,20 +782,17 @@ function renderHistoryLinearPicker() {
       addColGroupList.innerHTML = "";
       const items = treeItemsForType(type);
       midGroups(items, state.pickTopId).forEach((group) => {
-        addColGroupList.appendChild(
-          createLinearItemButton({
-            label: group.label,
-            // 中分類クリックでナビ＋その名前で確定（小分類を選べば上書き）
-            selected:
-              state.pickMidId === group.id ||
-              state.addDraft.title === group.label,
-            onClick: () => {
-              state.pickMidId = group.id;
-              state.addDraft.title = group.label;
-              renderHistoryLinearPicker();
-            },
-          })
-        );
+        appendHistoryMasterItem(addColGroupList, group, {
+          type,
+          selected:
+            state.pickMidId === group.id ||
+            state.addDraft.title === group.label,
+          onSelect: () => {
+            state.pickMidId = group.id;
+            state.addDraft.title = group.label;
+            renderHistoryLinearPicker();
+          },
+        });
       });
     }
   }
@@ -760,16 +806,14 @@ function renderHistoryLinearPicker() {
       const list = state.referralItems;
       if (addItemsEmpty) addItemsEmpty.hidden = list.length > 0;
       list.forEach((item) => {
-        addColLeafList.appendChild(
-          createLinearItemButton({
-            label: item.label,
-            selected: state.addDraft.title === item.label,
-            onClick: () => {
-              state.addDraft.title = item.label;
-              renderHistoryLinearPicker();
-            },
-          })
-        );
+        appendHistoryMasterItem(addColLeafList, item, {
+          type: "referral",
+          selected: state.addDraft.title === item.label,
+          onSelect: () => {
+            state.addDraft.title = item.label;
+            renderHistoryLinearPicker();
+          },
+        });
       });
     } else if (!state.pickTopId) {
       fillPlaceholder(addColLeafList, "大分類を選ぶと表示されます");
@@ -786,16 +830,14 @@ function renderHistoryLinearPicker() {
       const leafs = leavesUnder(items, state.pickMidId);
       if (addItemsEmpty) addItemsEmpty.hidden = leafs.length > 0;
       leafs.forEach((item) => {
-        addColLeafList.appendChild(
-          createLinearItemButton({
-            label: item.label,
-            selected: state.addDraft.title === item.label,
-            onClick: () => {
-              state.addDraft.title = item.label;
-              renderHistoryLinearPicker();
-            },
-          })
-        );
+        appendHistoryMasterItem(addColLeafList, item, {
+          type,
+          selected: state.addDraft.title === item.label,
+          onSelect: () => {
+            state.addDraft.title = item.label;
+            renderHistoryLinearPicker();
+          },
+        });
       });
     }
   }
@@ -824,25 +866,33 @@ function renderSearchResults() {
     return;
   }
   rows.forEach((row) => {
-    addColLeafList.appendChild(
-      createLinearItemButton({
-        label: row.displayLabel || row.label,
-        selected: state.addDraft.title === row.label,
-        onClick: () => {
-          state.addDraft.title = row.label;
-          if (type !== "referral") {
-            const items = treeItemsForType(type);
-            const leaf = items.find((i) => i.id === row.id);
-            const mid = leaf
-              ? items.find((i) => i.id === leaf.parentId)
-              : null;
-            state.pickMidId = mid?.id || null;
-            state.pickTopId = mid?.parentId || null;
+    const item =
+      type === "referral"
+        ? state.referralItems.find((i) => i.id === row.id) || {
+            id: row.id,
+            label: row.label,
           }
-          renderHistoryLinearPicker();
-        },
-      })
-    );
+        : treeItemsForType(type).find((i) => i.id === row.id) || {
+            id: row.id,
+            label: row.label,
+          };
+    appendHistoryMasterItem(addColLeafList, item, {
+      type,
+      selected: state.addDraft.title === row.label,
+      onSelect: () => {
+        state.addDraft.title = row.label;
+        if (type !== "referral") {
+          const items = treeItemsForType(type);
+          const leaf = items.find((i) => i.id === row.id);
+          const mid = leaf
+            ? items.find((i) => i.id === leaf.parentId)
+            : null;
+          state.pickMidId = mid?.id || null;
+          state.pickTopId = mid?.parentId || null;
+        }
+        renderHistoryLinearPicker();
+      },
+    });
   });
 }
 

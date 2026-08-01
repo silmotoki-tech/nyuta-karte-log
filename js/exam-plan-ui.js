@@ -10,12 +10,17 @@ import {
   reviveExamPlanByItem,
   addExamHistory,
   addExamItem,
+  deleteExamItem,
   EXAM_ITEM_CATEGORIES,
   normalizeExamItemCategory,
   normalizeExamFasting,
   examFastingLabel,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
+import {
+  createSwipeableMasterPickerItem,
+  requestMasterDelete,
+} from "./master-delete-ui.js";
 import { isImeKey } from "./ime-keys.js";
 import { filterExamLeavesByQuery } from "./exam-item-match.js";
 import {
@@ -1478,6 +1483,47 @@ function createExamLinearItemButton({ label, selected, onClick }) {
   return btn;
 }
 
+function askDeleteExamMasterItem(item) {
+  if (!item?.id) return;
+  const label = (item.label || "").trim() || "この項目";
+  requestMasterDelete({
+    label,
+    performDelete: async () => {
+      await deleteExamItem(item.id);
+      const removedIds = new Set([item.id]);
+      state.examItems
+        .filter((row) => row.parentId === item.id)
+        .forEach((row) => removedIds.add(row.id));
+      state.draft.selectedItems = state.draft.selectedItems.filter(
+        (sel) => !removedIds.has(sel.id) && sel.label !== label
+      );
+      if (state.examBloodParentId === item.id) {
+        state.examBloodParentId = null;
+      }
+      syncDraftItemFromSelection();
+      if (!state.draft.selectedItems.length) {
+        state.draft.item = "";
+        state.draft.fasting = "";
+      }
+      renderExamLinearPicker();
+      renderPlanSelectionSummary();
+      renderPlanFastingButtons();
+      deps.showToast(`「${label}」をマスタから削除しました。`);
+    },
+  });
+}
+
+function appendExamMasterItem(listEl, item, { selected, onSelect }) {
+  listEl.appendChild(
+    createSwipeableMasterPickerItem({
+      label: item.label,
+      selected,
+      onSelect,
+      onDelete: () => askDeleteExamMasterItem(item),
+    })
+  );
+}
+
 /** active=操作可 / placeholder=枠だけ確保 / absent=列ごと非表示（2列レイアウト用） */
 function setExamLinearColState(col, mode) {
   if (!col) return;
@@ -1703,13 +1749,10 @@ function renderExamSearchResults() {
     return;
   }
   rows.forEach((row) => {
-    planColLeafList.appendChild(
-      createExamLinearItemButton({
-        label: row.displayLabel || row.label,
-        selected: isExamLeafSelected(row.item),
-        onClick: () => toggleExamLeaf(row.item),
-      })
-    );
+    appendExamMasterItem(planColLeafList, row.item, {
+      selected: isExamItemSelected(row.item),
+      onSelect: () => toggleExamItem(row.item),
+    });
   });
 }
 
@@ -1785,18 +1828,14 @@ function renderExamLinearPicker() {
     } else if (midState === "active") {
       planColGroupList.innerHTML = "";
       examGroupsForCategory(category).forEach((group) => {
-        planColGroupList.appendChild(
-          createExamLinearItemButton({
-            label: group.label,
-            selected:
-              state.examBloodParentId === group.id || isExamItemSelected(group),
-            onClick: () => {
-              state.examBloodParentId = group.id;
-              // 中項目クリックでその名前を選択確定（再クリックでトグル解除）
-              toggleExamItem(group);
-            },
-          })
-        );
+        appendExamMasterItem(planColGroupList, group, {
+          selected:
+            state.examBloodParentId === group.id || isExamItemSelected(group),
+          onSelect: () => {
+            state.examBloodParentId = group.id;
+            toggleExamItem(group);
+          },
+        });
       });
     } else {
       planColGroupList.innerHTML = "";
@@ -1824,13 +1863,10 @@ function renderExamLinearPicker() {
       const leaves = examLeavesForPicker();
       if (planItemsEmpty) planItemsEmpty.hidden = leaves.length > 0;
       leaves.forEach((item) => {
-        planColLeafList.appendChild(
-          createExamLinearItemButton({
-            label: item.label,
-            selected: isExamItemSelected(item),
-            onClick: () => toggleExamItem(item),
-          })
-        );
+        appendExamMasterItem(planColLeafList, item, {
+          selected: isExamItemSelected(item),
+          onSelect: () => toggleExamItem(item),
+        });
       });
     }
   }

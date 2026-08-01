@@ -138,6 +138,11 @@ function nextId(prefix) { return prefix + (nid++); }
 export function normalizeHistoryMasterKind(kind) {
   return String(kind || "").trim() === "group" ? "group" : "leaf";
 }
+export const DEFAULT_ADMIN_PASSCODE = "oono";
+export async function ensureAdminPasscodeDefault() {}
+export async function verifyAdminPasscode(input) {
+  return String(input ?? "") === "oono";
+}
 export async function ensureHistoryDiseaseItemDefaults() {}
 export async function ensureHistorySurgeryItemDefaults() {}
 export function subscribeHistoryDiseaseItems(cb) {
@@ -148,8 +153,23 @@ export function subscribeHistorySurgeryItems(cb) {
   listeners.surgery.push(cb); notifyTree("surgery");
   return () => { listeners.surgery = listeners.surgery.filter((x) => x !== cb); };
 }
+export async function ensureHistoryReferralItemDefaults() {
+  const seeds = [
+    { id: "seed-hist-referral-petemo", label: "ペテモ", order: 10 },
+    { id: "seed-hist-referral-jarmec", label: "JARMeC", order: 20 },
+    { id: "seed-hist-referral-jasmine", label: "JASMINE", order: 30 },
+    { id: "seed-hist-referral-azabu", label: "麻布大学", order: 40 },
+    { id: "seed-hist-referral-nihon", label: "日本大学", order: 50 },
+    { id: "seed-hist-referral-nvlu", label: "日本獣医生命科学大学", order: 60 },
+  ];
+  seeds.forEach((s) => {
+    store.referral[s.id] = { label: s.label, order: s.order };
+  });
+  notifyTree("referral");
+}
 export function subscribeHistoryReferralItems(cb) {
-  listeners.referral.push(cb); notifyTree("referral");
+  listeners.referral.push(cb);
+  ensureHistoryReferralItemDefaults().then(() => notifyTree("referral"));
   return () => { listeners.referral = listeners.referral.filter((x) => x !== cb); };
 }
 export async function addHistoryDiseaseItem({ label, kind = "leaf", parentId = "" }) {
@@ -169,6 +189,18 @@ export async function addHistoryReferralItem({ label }) {
   store.referral[id] = { label, order: 10 };
   notifyTree("referral");
   return id;
+}
+export async function deleteHistoryDiseaseItem(itemId) {
+  delete store.disease[itemId];
+  notifyTree("disease");
+}
+export async function deleteHistorySurgeryItem(itemId) {
+  delete store.surgery[itemId];
+  notifyTree("surgery");
+}
+export async function deleteHistoryReferralItem(itemId) {
+  delete store.referral[itemId];
+  notifyTree("referral");
 }
 export function subscribePatientHistory(karte, cb) {
   const list = listeners.history.get(karte) || [];
@@ -209,12 +241,15 @@ const app = document.getElementById("screen-app") || document.getElementById("ap
 if (app) app.hidden = false;
 
 import { initHistoryUI, enterHistory } from "/js/history-ui.js";
-initHistoryUI({
+import { initMasterDeleteUI } from "/js/master-delete-ui.js";
+const deps = {
   showToast: (m) => console.log("toast", m),
   showError: (el, msg) => { if (el) { el.hidden = !msg; el.textContent = msg || ""; } },
   setBusy: (btn, busy, a, b) => { if (!btn) return; btn.disabled = busy; btn.textContent = busy ? a : b; },
   getSelectedAuthor: () => "院長",
-});
+};
+initMasterDeleteUI(deps);
+initHistoryUI(deps);
 enterHistory("karte-hist");
 const panel = document.getElementById("panel-history");
 if (panel) panel.hidden = false;
@@ -270,13 +305,20 @@ async function labels(sel) {
   return page.locator(`${sel} .med-linear-picker__item-label`).allTextContents();
 }
 async function clickLabel(sel, text) {
+  const re = new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+  const row = page.locator(`${sel} .med-linear-picker__row`).filter({
+    has: page.locator(".med-linear-picker__item-label", { hasText: re }),
+  });
+  if ((await row.count()) > 0) {
+    await row.first().click();
+    return;
+  }
   await page
     .locator(`${sel} .med-linear-picker__item`)
     .filter({
-      has: page.locator(".med-linear-picker__item-label", {
-        hasText: new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`),
-      }),
+      has: page.locator(".med-linear-picker__item-label", { hasText: re }),
     })
+    .first()
     .click();
 }
 
@@ -359,11 +401,30 @@ await page.waitForTimeout(120);
 assert.ok((await labels("#history-add-col-leaf-list")).includes("脾摘出"));
 await page.screenshot({ path: path.join(root, "tools/history-master-surgery.png") });
 
-// referral flat
+// referral flat + seeds
 await page.locator("#history-add-type-buttons .exam-item-btn", { hasText: "紹介・専門治療歴" }).click();
-await page.waitForTimeout(100);
+await page.waitForTimeout(120);
 const refModes = await labels("#history-add-col-category-list");
 assert.deepEqual(refModes, ["紹介先", "検索"]);
+const referralSeeds = [
+  "ペテモ",
+  "JARMeC",
+  "JASMINE",
+  "麻布大学",
+  "日本大学",
+  "日本獣医生命科学大学",
+];
+const referralLabels = await labels("#history-add-col-leaf-list");
+console.log("referral seeds:", referralLabels);
+for (const name of referralSeeds) {
+  assert.ok(referralLabels.includes(name), `missing referral seed: ${name}`);
+}
+await clickLabel("#history-add-col-leaf-list", "JARMeC");
+await page.waitForTimeout(80);
+assert.equal(
+  (await page.locator("#history-add-selected").textContent()).trim(),
+  "選択中: JARMeC"
+);
 await page.click("#btn-history-add-toggle");
 await page.fill("#history-add-new-item", "サンプル動物病院");
 await page.click("#btn-history-add-new-item");
