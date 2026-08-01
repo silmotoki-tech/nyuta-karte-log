@@ -221,6 +221,7 @@ function buildAuthorButtons() {
     btn.addEventListener("click", () => {
       state.modalAuthor = name;
       renderAuthorSelection();
+      noteAuthorRow?.classList.remove("is-error-target");
       deps.showError(noteError, "");
     });
     noteAuthorRow.appendChild(btn);
@@ -271,6 +272,7 @@ function closeModal() {
   state.modalAuthor = "";
   state.modalImportance = "medium";
   if (noteModal) noteModal.hidden = true;
+  noteAuthorRow?.classList.remove("is-error-target");
   deps.showError(noteError, "");
 }
 
@@ -281,12 +283,16 @@ async function handleSave() {
 
   if (!content) {
     deps.showError(noteError, "特記内容を入力してください。");
+    noteContent?.focus();
     return;
   }
   if (!author) {
     deps.showError(noteError, "記入者（編集者）を選択してください。");
+    noteAuthorRow?.classList.add("is-error-target");
+    noteAuthorRow?.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
+  noteAuthorRow?.classList.remove("is-error-target");
   if (!state.karteNumber) {
     deps.showError(noteError, "カルテを開いてから操作してください。");
     return;

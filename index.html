@@ -72,7 +72,7 @@
         <button type="button" class="numpad__btn" data-pass-digit="0">0</button>
         <button type="button" class="numpad__btn numpad__btn--action numpad__btn--confirm" data-pass-action="confirm">確定</button>
       </div>
-      <p id="passcode-error" class="error-text" role="alert" hidden></p>
+      <p id="passcode-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="lock-api-key-row">
         <button
           id="btn-lock-api-key-settings"
@@ -168,7 +168,7 @@
             <button type="button" class="numpad__btn" data-karte-digit="0">0</button>
             <button type="button" class="numpad__btn numpad__btn--action numpad__btn--confirm" data-karte-action="confirm">確定</button>
           </div>
-          <p id="karte-error" class="error-text" role="alert" hidden></p>
+          <p id="karte-error" class="error-text error-text--banner" role="alert" hidden></p>
           <button id="btn-karte-next" class="btn btn--primary btn--block" type="button">
             次へ
           </button>
@@ -194,7 +194,7 @@
           <p id="animal-registered-hint" class="card__hint" hidden>
             登録済みの動物名です。番号の入力ミスがないか確認してください。
           </p>
-          <p id="animal-error" class="error-text" role="alert" hidden></p>
+          <p id="animal-error" class="error-text error-text--banner" role="alert" hidden></p>
           <button id="btn-animal-next" class="btn btn--primary btn--block" type="button">
             この内容で次へ
           </button>
@@ -302,7 +302,7 @@
           </div>
 
           <div class="entry-actions">
-            <p id="entry-error" class="error-text" role="alert" hidden></p>
+            <p id="entry-error" class="error-text error-text--banner" role="alert" hidden></p>
             <div class="entry-actions__row">
               <button id="btn-entry-save" class="btn btn--primary" type="button">
                 保存する
@@ -449,7 +449,7 @@
               <button id="btn-free-qa-open-settings" class="link-inline" type="button">設定画面</button>
               でAPIキーを設定してください。
             </p>
-            <p id="free-qa-error" class="error-text" role="alert" hidden></p>
+            <p id="free-qa-error" class="error-text error-text--banner" role="alert" hidden></p>
             <p class="field__note">中央カラムの時系列全文をコンテキストにAIが回答し、結果を保存します。</p>
           </div>
         </section>
@@ -523,10 +523,9 @@
         <label class="label" for="exam-sheet-note">メモ（任意）</label>
         <input id="exam-sheet-note" class="input" type="text" placeholder="例）よければ6ヶ月後" />
       </div>
-
-      <p id="exam-sheet-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="exam-sheet-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="exam-sheet__actions" id="exam-item-sheet-actions">
         <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-exam-sheet-complete" class="btn btn--small btn--outline" type="button">完了</button>
@@ -597,9 +596,9 @@
         <label class="label" for="entry-edit-body">本文</label>
         <textarea id="entry-edit-body" class="textarea" rows="6"></textarea>
       </div>
-      <p id="entry-edit-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="entry-edit-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-entry-edit-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-entry-edit-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -625,11 +624,10 @@
         <label class="label" for="tpl-label-input">ボタン名</label>
         <input id="tpl-label-input" class="input" type="text" placeholder="例）狂犬病ワクチン接種" />
         <label class="label" for="tpl-text-input">挿入される本文</label>
-        <textarea id="tpl-text-input" class="textarea" rows="3" placeholder="ボタンを押したときに本文へ挿入される文章"></textarea>
-        <p id="tpl-error" class="error-text" role="alert" hidden></p>
-      </div>
+        <textarea id="tpl-text-input" class="textarea" rows="3" placeholder="ボタンを押したときに本文へ挿入される文章"></textarea>      </div>
     </div>
     <div class="modal__footer">
+      <p id="tpl-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-tpl-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-tpl-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
@@ -737,7 +735,7 @@
           </div>
         </div>
         <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
-        <p id="exam-plan-item-error" class="error-text" role="alert" hidden></p>
+        <p id="exam-plan-item-error" class="error-text error-text--banner" role="alert" hidden></p>
       </div>
 
       <div class="field" id="exam-plan-fasting-field" hidden>
@@ -837,10 +835,9 @@
           </div>
         </section>
       </div>
-
-      <p id="exam-plan-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="exam-plan-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-exam-plan-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-exam-plan-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -866,9 +863,9 @@
         <label class="label" for="exam-complete-note">メモ（任意）</label>
         <input id="exam-complete-note" class="input" type="text" placeholder="例）異常なし" />
       </div>
-      <p id="exam-complete-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="exam-complete-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-exam-complete-save" class="btn btn--small btn--primary" type="button">完了として記録</button>
         <button id="btn-exam-complete-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -990,7 +987,7 @@
                   追加
                 </button>
               </div>
-              <p id="history-add-item-error" class="error-text" role="alert" hidden></p>
+              <p id="history-add-item-error" class="error-text error-text--banner" role="alert" hidden></p>
             </div>
           </div>
         </div>
@@ -1009,10 +1006,9 @@
           placeholder="経過や詳細など、補足があれば記入（あとから追記もできます）"
         ></textarea>
       </div>
-      <p class="field__note">新規登録時の状態は「進行中」です。完治・完結したら詳細から終了に切り替えられます。</p>
-      <p id="history-add-error" class="error-text" role="alert" hidden></p>
-    </div>
+      <p class="field__note">新規登録時の状態は「進行中」です。完治・完結したら詳細から終了に切り替えられます。</p>    </div>
     <div class="modal__footer">
+      <p id="history-add-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-history-add-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-history-add-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1038,10 +1034,9 @@
         <label class="label" for="history-note-text">内容</label>
         <textarea id="history-note-text" class="textarea" rows="4" placeholder="経過や詳細を追記"></textarea>
       </div>
-      <p class="field__note">既存のメモは上書きされず、日付付きで積み上がります。</p>
-      <p id="history-note-error" class="error-text" role="alert" hidden></p>
-    </div>
+      <p class="field__note">既存のメモは上書きされず、日付付きで積み上がります。</p>    </div>
     <div class="modal__footer">
+      <p id="history-note-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-history-note-save" class="btn btn--small btn--primary" type="button">追記する</button>
         <button id="btn-history-note-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1166,7 +1161,7 @@
                   追加
                 </button>
               </div>
-              <p id="med-add-item-error" class="error-text" role="alert" hidden></p>
+              <p id="med-add-item-error" class="error-text error-text--banner" role="alert" hidden></p>
             </div>
           </div>
         </div>
@@ -1307,9 +1302,9 @@
           placeholder="例）食欲低下に注意"
         ></textarea>
       </div>
-      <p id="med-add-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="med-add-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-med-add-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-med-add-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1416,10 +1411,9 @@
         <label class="label" for="med-event-detail">一言メモ（任意）</label>
         <input id="med-event-detail" class="input" type="text" placeholder="例）食欲低下のため減量" />
       </div>
-
-      <p id="med-event-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="med-event-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-med-event-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-med-event-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1496,9 +1490,9 @@
           autocomplete="off"
         />
       </div>
-      <p id="procedure-plan-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="procedure-plan-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-procedure-plan-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-procedure-plan-complete" class="btn btn--small btn--outline" type="button" hidden>
@@ -1542,9 +1536,9 @@
           autocomplete="off"
         />
       </div>
-      <p id="procedure-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="procedure-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-procedure-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-procedure-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1580,9 +1574,9 @@
         <p class="field__note" id="special-note-author-hint"></p>
         <div class="author-row" id="special-note-author-row"></div>
       </div>
-      <p id="special-note-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="special-note-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-special-note-save" class="btn btn--small btn--primary" type="button">追加する</button>
         <button id="btn-special-note-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
@@ -1617,6 +1611,7 @@
             キーを削除する
           </button>
         </div>
+        <p id="settings-error" class="error-text error-text--banner" role="alert" hidden></p>
         <div id="settings-qr-section" class="settings-qr" hidden>
           <p class="field__note">カメラにAPIキーのQRコードをかざしてください。</p>
           <div id="settings-qr-reader" class="settings-qr__reader"></div>
@@ -1624,7 +1619,6 @@
             読み取りをやめる
           </button>
         </div>
-        <p id="settings-error" class="error-text" role="alert" hidden></p>
       </section>
       <section class="settings-section settings-section--version">
         <h3 class="settings-section__title">アプリ情報</h3>
@@ -1665,7 +1659,9 @@
       <p class="field__note">すべての提案に「確定する」または「無視する」を選ぶまで、次のカルテ操作には進めません。</p>
       <ul class="ai-suggest-list" id="ai-suggest-list"></ul>
       <p class="field__note" id="ai-suggest-empty" hidden>提案はありません。</p>
-      <p id="ai-suggest-error" class="error-text" role="alert" hidden></p>
+    </div>
+    <div class="modal__footer">
+      <p id="ai-suggest-error" class="error-text error-text--banner" role="alert" hidden></p>
     </div>
   </div>
 </div>
@@ -1680,9 +1676,9 @@
     </div>
     <div class="modal__body">
       <div id="ai-suggest-adjust-body"></div>
-      <p id="ai-suggest-adjust-error" class="error-text" role="alert" hidden></p>
     </div>
     <div class="modal__footer">
+      <p id="ai-suggest-adjust-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="tpl-editor__actions">
         <button id="btn-ai-suggest-adjust-confirm" class="btn btn--small btn--primary" type="button">この内容で確定</button>
         <button id="btn-ai-suggest-adjust-cancel" class="btn btn--small btn--outline" type="button">戻る</button>

@@ -324,8 +324,19 @@ function closeCompose({ reset = true } = {}) {
 }
 
 function showError(el, message) {
-  el.textContent = message;
+  if (!el) return;
+  el.textContent = message || "";
   el.hidden = !message;
+  if (message) {
+    // スクロール領域内に残っている警告も、可能な範囲で視界に入れる
+    requestAnimationFrame(() => {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch {
+        // ignore
+      }
+    });
+  }
 }
 
 let toastTimer = null;
@@ -819,6 +830,7 @@ AUTHORS.forEach((name) => {
     state.lastAuthor = name;
     renderAuthorSelection();
     setAuthorFieldVisible(false);
+    authorRow?.classList.remove("is-error-target");
     showError(entryError, "");
     headlineInput?.focus();
   });
@@ -842,6 +854,7 @@ AUTHORS.forEach((name) => {
     state.editDraft.author = name;
     state.lastAuthor = name;
     renderEditAuthorSelection();
+    entryEditAuthorRow?.classList.remove("is-error-target");
     showError(entryEditError, "");
   });
   entryEditAuthorRow?.appendChild(btn);
@@ -939,6 +952,7 @@ function closeEntryEdit() {
   state.editingEntryId = null;
   state.editDraft = { author: null, category: "none", important: false };
   if (entryEditModal) entryEditModal.hidden = true;
+  entryEditAuthorRow?.classList.remove("is-error-target");
   showError(entryEditError, "");
 }
 
@@ -950,8 +964,11 @@ async function handleEntryEditSave() {
 
   if (!state.editDraft.author) {
     showError(entryEditError, "編集者を選択してください。");
+    entryEditAuthorRow?.classList.add("is-error-target");
+    entryEditAuthorRow?.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
+  entryEditAuthorRow?.classList.remove("is-error-target");
   if (!headline) {
     showError(entryEditError, "見出しを入力してください。");
     entryEditHeadline?.focus();
@@ -1113,8 +1130,11 @@ async function handleEntrySave() {
   if (!state.draft.author) {
     setAuthorFieldVisible(true);
     showError(entryError, "記入者を選択してください。");
+    authorRow?.classList.add("is-error-target");
+    authorField?.scrollIntoView({ behavior: "smooth", block: "center" });
     return;
   }
+  authorRow?.classList.remove("is-error-target");
   if (!headline) {
     showError(entryError, "見出しを入力してください。");
     headlineInput.focus();

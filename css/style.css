@@ -3116,6 +3116,30 @@ select.input {
   margin: 0;
 }
 
+/* 保存ボタン近くで見落とさないよう、警告を帯状に目立たせる */
+.error-text--banner:not([hidden]) {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: #fdece9;
+  border: 1px solid #f0b4aa;
+  color: #a33d30;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.modal__footer .error-text--banner:not([hidden]) {
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.author-row.is-error-target {
+  outline: 2px solid #e07a6c;
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
 /* ===== 共通モーダル（ヘッダー／フッター固定 + 本文スクロール） ===== */
 .modal {
   position: fixed;
@@ -3750,6 +3774,11 @@ select.input {
   border-top: 1px solid var(--color-border);
   background-color: var(--color-white);
   z-index: 2;
+}
+
+/* エラーだけが入るフッターは、非表示時に余白を出さない */
+.modal__footer:not(:has(:not([hidden]))) {
+  display: none;
 }
 
 .modal__footer .tpl-editor__actions,
