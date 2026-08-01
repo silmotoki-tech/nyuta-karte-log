@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -228,7 +229,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb })
+  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
 );
 
 await page.goto(`${base}/tools/med-linear-picker-harness.html`, {
@@ -290,17 +291,17 @@ await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-01-initial.png"),
 });
 
-// 注射薬 → 中項目なしで薬剤名列（2列均等）
+// 注射薬 → 中項目あり（3列均等）
 await clickItem(page, "#med-add-col-category-list", "注射薬");
 await page.waitForTimeout(100);
-if (!(await page.locator("#med-add-col-group").isHidden())) {
-  throw new Error("inject should hide mid column");
+if (await page.locator("#med-add-col-group").isHidden()) {
+  throw new Error("inject should show mid column");
 }
 if (await page.locator("#med-add-col-leaf").isHidden()) {
   throw new Error("inject should show leaf column directly");
 }
-if ((await page.locator("#med-add-linear-picker").getAttribute("data-cols")) !== "2") {
-  throw new Error("inject should use 2-col layout");
+if ((await page.locator("#med-add-linear-picker").getAttribute("data-cols")) !== "3") {
+  throw new Error("inject should use 3-col layout");
 }
 widths = await medColWidths();
 console.log("inject widths:", widths);
@@ -315,8 +316,9 @@ await page.waitForTimeout(100);
 if (await page.locator("#med-add-col-group").isHidden()) {
   throw new Error("mid col should show after oral");
 }
-if (!(await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contains("is-placeholder")))) {
-  throw new Error("leaf col should stay placeholder until mid selected");
+// 大項目を選んだ時点で右列は操作可能（＋から中項目／薬剤名を追加できる）
+if (await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contains("is-placeholder"))) {
+  throw new Error("leaf col should be active once a category is chosen");
 }
 const groups = await itemLabels(page, "#med-add-col-group-list");
 console.log("oral groups count:", groups.length, "sample:", groups.slice(0, 5));

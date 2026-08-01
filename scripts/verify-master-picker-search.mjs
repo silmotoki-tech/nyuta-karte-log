@@ -2,6 +2,7 @@
  * 薬剤・検査リニアピッカーの大分類末尾「検索」を検証する。
  */
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
@@ -332,7 +333,7 @@ try {
     await route.fulfill({
       status: 200,
       contentType: "text/javascript; charset=utf-8",
-      body: medMock,
+      body: medMock + MASTER_DELETE_MOCK,
     });
   });
   await page.goto(`http://127.0.0.1:${port}/med.html`, { waitUntil: "networkidle" });
@@ -395,7 +396,7 @@ try {
     await route.fulfill({
       status: 200,
       contentType: "text/javascript; charset=utf-8",
-      body: examMock,
+      body: examMock + MASTER_DELETE_MOCK,
     });
   });
   await page.goto(`http://127.0.0.1:${port}/exam.html`, { waitUntil: "networkidle" });

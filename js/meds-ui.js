@@ -1186,10 +1186,10 @@ function askDeleteMedicationMasterItem(item) {
   });
 }
 
-function appendMedMasterItem(listEl, item, { selected, onSelect }) {
+function appendMedMasterItem(listEl, item, { selected, onSelect, label }) {
   listEl.appendChild(
     createSwipeableMasterPickerItem({
-      label: item.label,
+      label: label || item.label,
       selected,
       onSelect,
       onDelete: () => askDeleteMedicationMasterItem(item),
@@ -1482,6 +1482,7 @@ function renderMedSearchResults() {
   }
   rows.forEach((row) => {
     appendMedMasterItem(addColLeafList, row.item, {
+      label: row.displayLabel || row.label,
       selected: state.addDraft.name === row.label,
       onSelect: () => selectMedicationFromSearch(row),
     });

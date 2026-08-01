@@ -582,10 +582,10 @@ function askDeleteHistoryMasterItem(item, type) {
   });
 }
 
-function appendHistoryMasterItem(listEl, item, { selected, onSelect, type }) {
+function appendHistoryMasterItem(listEl, item, { selected, onSelect, type, label }) {
   listEl.appendChild(
     createSwipeableMasterPickerItem({
-      label: item.label,
+      label: label || item.label,
       selected,
       onSelect,
       onDelete: () => askDeleteHistoryMasterItem(item, type),
@@ -658,10 +658,12 @@ function updateLeafAddUI() {
   const type = state.addDraft.type;
   const items =
     type === "disease" || type === "surgery" ? treeItemsForType(type) : [];
+  // 大分類直下に小分類を持つ（＝中分類を使わない）大分類のときだけ小分類を足す。
+  // それ以外は中分類の追加として扱い、最初の中分類も作れるようにする。
   const addingLeafUnderTop =
     Boolean(state.pickTopId) &&
     !state.pickMidId &&
-    !topHasMidGroups(items, state.pickTopId);
+    topHasDirectLeaves(items, state.pickTopId);
 
   if (addNewItemLabel) {
     if (type === "referral") {
@@ -905,6 +907,7 @@ function renderSearchResults() {
           };
     appendHistoryMasterItem(addColLeafList, item, {
       type,
+      label: row.displayLabel || row.label,
       selected: state.addDraft.title === row.label,
       onSelect: () => {
         state.addDraft.title = row.label;
@@ -959,7 +962,7 @@ async function handleAddMasterItem() {
       const addFn =
         type === "surgery" ? addHistorySurgeryItem : addHistoryDiseaseItem;
       const addLeafUnderTop =
-        !state.pickMidId && !topHasMidGroups(items, state.pickTopId);
+        !state.pickMidId && topHasDirectLeaves(items, state.pickTopId);
       if (state.pickMidId || addLeafUnderTop) {
         // 小分類（葉）…中項目配下、または中項目なし大分類の直下
         const parentId = state.pickMidId || state.pickTopId;

@@ -1513,10 +1513,10 @@ function askDeleteExamMasterItem(item) {
   });
 }
 
-function appendExamMasterItem(listEl, item, { selected, onSelect }) {
+function appendExamMasterItem(listEl, item, { selected, onSelect, label }) {
   listEl.appendChild(
     createSwipeableMasterPickerItem({
-      label: item.label,
+      label: label || item.label,
       selected,
       onSelect,
       onDelete: () => askDeleteExamMasterItem(item),
@@ -1750,6 +1750,7 @@ function renderExamSearchResults() {
   }
   rows.forEach((row) => {
     appendExamMasterItem(planColLeafList, row.item, {
+      label: row.displayLabel || row.label,
       selected: isExamItemSelected(row.item),
       onSelect: () => toggleExamItem(row.item),
     });

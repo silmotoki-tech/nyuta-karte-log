@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -333,7 +334,7 @@ async function leafLabels() {
 }
 
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb })
+  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
 );
 
 await page.goto(`${base}/tools/exam-item-master-harness.html`, { waitUntil: "networkidle" });

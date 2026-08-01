@@ -3672,14 +3672,23 @@ select.input {
 
 .med-linear-picker__row.swipeable {
   width: 100%;
-  background: transparent;
+  /* 前面が列と同色になるよう不透明にする（透明だと閉じた状態でも
+     背後のスワイプ操作領域が透けて見える）。 */
+  background-color: var(--color-cream);
   border-radius: var(--radius-sm);
+  /* .swipeable の overflow:hidden で自動最小サイズが 0 になるため、
+     縦 flex のリスト内で行が潰れないよう縮小を止める。 */
+  flex: 0 0 auto;
+  min-height: 40px;
+}
+
+.med-linear-picker__col--leaf .med-linear-picker__row.swipeable {
+  background-color: var(--color-white);
 }
 
 .med-linear-picker__row.swipeable .swipeable__front {
   width: 100%;
   background: inherit;
-  background-color: transparent;
 }
 
 .med-linear-picker__row.swipeable .med-linear-picker__item {

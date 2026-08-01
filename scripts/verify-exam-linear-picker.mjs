@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -243,7 +244,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb })
+  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
 );
 
 await page.goto(`${base}/tools/exam-linear-picker-harness.html`, {
@@ -301,11 +302,12 @@ for (const label of ["CBC", "血糖(アントセンス)", "CRP"]) {
   if (!bloodRoots.includes(label)) throw new Error(`blood root leaf missing ${label}`);
 }
 if (bloodRoots.includes("ALT")) throw new Error("ALT should not appear before mid select");
+// 入力欄は畳んだまま、＋から中項目／検査項目を追加できる
 if (!(await page.locator("#exam-plan-item-add-default").isHidden())) {
   throw new Error("blood root should hide add field");
 }
-if (!(await page.locator("#btn-exam-plan-add-toggle").isHidden())) {
-  throw new Error("blood root should hide add toggle");
+if (await page.locator("#btn-exam-plan-add-toggle").isHidden()) {
+  throw new Error("blood root should show add toggle");
 }
 await shot(page, "exam-linear-picker-02-blood-mid.png");
 

@@ -3,6 +3,7 @@
  * 正しく紐づくことを検証する。
  */
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -392,7 +393,7 @@ const browser = await launchBrowser();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.route("**/js/db.js", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: examMock })
+    route.fulfill({ contentType: "application/javascript", body: examMock + MASTER_DELETE_MOCK })
   );
   await page.goto(`${base}/exam.html`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__ready === true);
@@ -498,7 +499,7 @@ const browser = await launchBrowser();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.route("**/js/db.js", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: medMock })
+    route.fulfill({ contentType: "application/javascript", body: medMock + MASTER_DELETE_MOCK })
   );
   await page.goto(`${base}/med.html`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__ready === true);
@@ -542,7 +543,7 @@ const browser = await launchBrowser();
 
   // 外用 → 皮膚
   await clickItem(page, "#med-add-col-category-list", "外用薬");
-  await clickItem(page, "#med-add-col-group-list", "皮膚");
+  await clickItem(page, "#med-add-col-group-list", "皮膚その他");
   await addLeaf(page, "#med-add-new-item", "#btn-med-add-new-item", "検証皮膚薬");
   leaves = await leafLabels(page, "#med-add-col-leaf-list");
   if (!leaves.includes("検証皮膚薬")) throw new Error("topical/skin add missing");
@@ -568,7 +569,8 @@ const browser = await launchBrowser();
     (i) => i.label === "その他" && i.kind === "group" && i.category === "oral"
   )?.id;
   const skinId = medItems.find(
-    (i) => i.label === "皮膚" && i.kind === "group" && i.category === "topical"
+    (i) =>
+      i.label === "皮膚その他" && i.kind === "group" && i.category === "topical"
   )?.id;
   assertItem(medItems, "検証セファレキシン", {
     category: "oral",
