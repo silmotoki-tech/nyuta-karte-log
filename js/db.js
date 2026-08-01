@@ -113,6 +113,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 import { app } from "./firebase-app.js";
 import { authReady } from "./auth.js";
+import { HISTORY_DISEASE_SEED } from "./history-disease-seed.js";
 
 const db = getDatabase(app);
 
@@ -2772,22 +2773,6 @@ function histTopGroupSeed(id, label, order) {
   return { id, label, kind: "group", parentId: "", order };
 }
 
-/** 疾患名マスタ: 臓器別の大分類のみシード（中・小は空） */
-const HISTORY_DISEASE_GROUP_SEED = [
-  histTopGroupSeed("seed-hist-disease-cardio", "循環器", 10),
-  histTopGroupSeed("seed-hist-disease-gi", "消化器", 20),
-  histTopGroupSeed("seed-hist-disease-kidney", "腎臓・泌尿器", 30),
-  histTopGroupSeed("seed-hist-disease-resp", "呼吸器", 40),
-  histTopGroupSeed("seed-hist-disease-neuro", "神経・行動", 50),
-  histTopGroupSeed("seed-hist-disease-endo", "内分泌・代謝", 60),
-  histTopGroupSeed("seed-hist-disease-skin", "皮膚", 70),
-  histTopGroupSeed("seed-hist-disease-eye", "眼科", 80),
-  histTopGroupSeed("seed-hist-disease-ortho", "整形外科", 90),
-  histTopGroupSeed("seed-hist-disease-onco", "腫瘍", 100),
-  histTopGroupSeed("seed-hist-disease-infect", "感染症", 110),
-  histTopGroupSeed("seed-hist-disease-other", "その他", 120),
-];
-
 /** 手術名マスタ: 診療科別の大分類のみシード */
 const HISTORY_SURGERY_GROUP_SEED = [
   histTopGroupSeed("seed-hist-surgery-ortho", "整形外科", 10),
@@ -2838,12 +2823,39 @@ async function ensureHistoryTreeDefaults(itemsRef, collectionPath, seeds) {
   }
 }
 
+/**
+ * 疾患名マスタの大・中・小シードを不足分だけ書き込み、既存シードの表記を同期する。
+ * ユーザー削除済み（retired）は再投入しない。
+ */
 export async function ensureHistoryDiseaseItemDefaults() {
-  await ensureHistoryTreeDefaults(
-    historyDiseaseItemsRef(),
-    "historyDiseaseItems",
-    HISTORY_DISEASE_GROUP_SEED
-  );
+  await authReady;
+  const itemsRef = historyDiseaseItemsRef();
+  const snapshot = await get(itemsRef);
+  const existing = snapshot.val() || {};
+  const retired = await loadRetiredMasterIdSet("historyDiseaseItems");
+  const writes = {};
+  HISTORY_DISEASE_SEED.forEach((seed) => {
+    if (retired.has(seed.id)) return;
+    const prev = existing[seed.id];
+    const payload = {
+      label: seed.label,
+      kind: normalizeHistoryMasterKind(seed.kind),
+      parentId: String(seed.parentId || "").trim(),
+      order: seed.order,
+    };
+    if (
+      !prev ||
+      prev.label !== payload.label ||
+      normalizeHistoryMasterKind(prev.kind) !== payload.kind ||
+      String(prev.parentId || "").trim() !== payload.parentId ||
+      Number(prev.order) !== payload.order
+    ) {
+      writes[seed.id] = payload;
+    }
+  });
+  if (Object.keys(writes).length) {
+    await update(itemsRef, writes);
+  }
 }
 
 export async function ensureHistorySurgeryItemDefaults() {

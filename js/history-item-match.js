@@ -13,19 +13,28 @@ function findLabel(items, id) {
 }
 
 /**
- * 疾患・手術の小分類（葉）を検索対象にする。パスは 大分類 > 中分類。
+ * 疾患・手術の小分類（葉）を検索対象にする。
+ * パスは 大分類 > 中分類。中項目なし（大分類直下の葉）は大分類のみ。
  */
 export function listHistoryTreeMatchTargets(items) {
   const list = Array.isArray(items) ? items.filter(Boolean) : [];
   const targets = [];
   for (const item of list) {
     if (normalizeKind(item.kind) !== "leaf") continue;
-    const midId = String(item.parentId || "").trim();
-    const mid = list.find((i) => i.id === midId);
-    const topId = mid ? String(mid.parentId || "").trim() : "";
-    const topLabel = findLabel(list, topId);
-    const midLabel = mid ? String(mid.label || "").trim() : "";
-    const path = [topLabel, midLabel].filter(Boolean).join(" > ");
+    const parentId = String(item.parentId || "").trim();
+    const parent = list.find((i) => i.id === parentId);
+    let path = "";
+    if (parent && normalizeKind(parent.kind) === "group") {
+      const grandId = String(parent.parentId || "").trim();
+      if (!grandId) {
+        // 親が大分類（中項目なし）
+        path = String(parent.label || "").trim();
+      } else {
+        const topLabel = findLabel(list, grandId);
+        const midLabel = String(parent.label || "").trim();
+        path = [topLabel, midLabel].filter(Boolean).join(" > ");
+      }
+    }
     targets.push({
       id: item.id,
       label: item.label || "",

@@ -177,8 +177,17 @@ function midGroups(items, topId) {
   return items.filter((i) => isGroup(i) && i.parentId === topId);
 }
 
-function leavesUnder(items, midId) {
-  return items.filter((i) => !isGroup(i) && i.parentId === midId);
+function leavesUnder(items, parentId) {
+  return items.filter((i) => !isGroup(i) && i.parentId === parentId);
+}
+
+/** 大分類直下に小分類があり、中分類が無い（または未選択で直下葉を出す）か */
+function topHasDirectLeaves(items, topId) {
+  return leavesUnder(items, topId).length > 0;
+}
+
+function topHasMidGroups(items, topId) {
+  return midGroups(items, topId).length > 0;
 }
 
 // --- 公開API --------------------------------------------------------------
@@ -647,10 +656,17 @@ function updateLeafAddUI() {
   if (!show) setItemAddOpen(false);
 
   const type = state.addDraft.type;
+  const items =
+    type === "disease" || type === "surgery" ? treeItemsForType(type) : [];
+  const addingLeafUnderTop =
+    Boolean(state.pickTopId) &&
+    !state.pickMidId &&
+    !topHasMidGroups(items, state.pickTopId);
+
   if (addNewItemLabel) {
     if (type === "referral") {
       addNewItemLabel.textContent = "新しい紹介先を追加";
-    } else if (state.pickMidId) {
+    } else if (state.pickMidId || addingLeafUnderTop) {
       addNewItemLabel.textContent = "新しい小分類を追加";
     } else {
       addNewItemLabel.textContent = "新しい中分類を追加";
@@ -660,7 +676,7 @@ function updateLeafAddUI() {
     addNewItemInput.placeholder =
       type === "referral"
         ? "例）○○動物病院"
-        : state.pickMidId
+        : state.pickMidId || addingLeafUnderTop
           ? "例）僧帽弁閉鎖不全症"
           : "例）心疾患";
   }
@@ -781,19 +797,24 @@ function renderHistoryLinearPicker() {
     } else {
       addColGroupList.innerHTML = "";
       const items = treeItemsForType(type);
-      midGroups(items, state.pickTopId).forEach((group) => {
-        appendHistoryMasterItem(addColGroupList, group, {
-          type,
-          selected:
-            state.pickMidId === group.id ||
-            state.addDraft.title === group.label,
-          onSelect: () => {
-            state.pickMidId = group.id;
-            state.addDraft.title = group.label;
-            renderHistoryLinearPicker();
-          },
+      const mids = midGroups(items, state.pickTopId);
+      if (!mids.length && topHasDirectLeaves(items, state.pickTopId)) {
+        fillPlaceholder(addColGroupList, "中項目なし（右列で小項目を選択）");
+      } else {
+        mids.forEach((group) => {
+          appendHistoryMasterItem(addColGroupList, group, {
+            type,
+            selected:
+              state.pickMidId === group.id ||
+              state.addDraft.title === group.label,
+            onSelect: () => {
+              state.pickMidId = group.id;
+              state.addDraft.title = group.label;
+              renderHistoryLinearPicker();
+            },
+          });
         });
-      });
+      }
     }
   }
 
@@ -818,27 +839,33 @@ function renderHistoryLinearPicker() {
     } else if (!state.pickTopId) {
       fillPlaceholder(addColLeafList, "大分類を選ぶと表示されます");
       if (addItemsEmpty) addItemsEmpty.hidden = true;
-    } else if (!state.pickMidId) {
-      fillPlaceholder(
-        addColLeafList,
-        "中分類を選ぶとその名前で確定できます（＋で中分類を追加／小分類も選べます）"
-      );
-      if (addItemsEmpty) addItemsEmpty.hidden = true;
     } else {
-      addColLeafList.innerHTML = "";
       const items = treeItemsForType(type);
-      const leafs = leavesUnder(items, state.pickMidId);
-      if (addItemsEmpty) addItemsEmpty.hidden = leafs.length > 0;
-      leafs.forEach((item) => {
-        appendHistoryMasterItem(addColLeafList, item, {
-          type,
-          selected: state.addDraft.title === item.label,
-          onSelect: () => {
-            state.addDraft.title = item.label;
-            renderHistoryLinearPicker();
-          },
+      const leafParentId = state.pickMidId || state.pickTopId;
+      const showDirectLeaves =
+        !state.pickMidId && topHasDirectLeaves(items, state.pickTopId);
+      const showMidLeaves = Boolean(state.pickMidId);
+      if (!showDirectLeaves && !showMidLeaves) {
+        fillPlaceholder(
+          addColLeafList,
+          "中分類を選ぶとその名前で確定できます（＋で中分類を追加／小分類も選べます）"
+        );
+        if (addItemsEmpty) addItemsEmpty.hidden = true;
+      } else {
+        addColLeafList.innerHTML = "";
+        const leafs = leavesUnder(items, leafParentId);
+        if (addItemsEmpty) addItemsEmpty.hidden = leafs.length > 0;
+        leafs.forEach((item) => {
+          appendHistoryMasterItem(addColLeafList, item, {
+            type,
+            selected: state.addDraft.title === item.label,
+            onSelect: () => {
+              state.addDraft.title = item.label;
+              renderHistoryLinearPicker();
+            },
+          });
         });
-      });
+      }
     }
   }
 
@@ -884,11 +911,17 @@ function renderSearchResults() {
         if (type !== "referral") {
           const items = treeItemsForType(type);
           const leaf = items.find((i) => i.id === row.id);
-          const mid = leaf
+          const parent = leaf
             ? items.find((i) => i.id === leaf.parentId)
             : null;
-          state.pickMidId = mid?.id || null;
-          state.pickTopId = mid?.parentId || null;
+          if (parent && isGroup(parent) && !parent.parentId) {
+            // 大分類直下の小分類
+            state.pickTopId = parent.id;
+            state.pickMidId = null;
+          } else {
+            state.pickMidId = parent?.id || null;
+            state.pickTopId = parent?.parentId || null;
+          }
         }
         renderHistoryLinearPicker();
       },
@@ -925,13 +958,16 @@ async function handleAddMasterItem() {
       const items = treeItemsForType(type);
       const addFn =
         type === "surgery" ? addHistorySurgeryItem : addHistoryDiseaseItem;
-      if (state.pickMidId) {
-        // 小分類（葉）
+      const addLeafUnderTop =
+        !state.pickMidId && !topHasMidGroups(items, state.pickTopId);
+      if (state.pickMidId || addLeafUnderTop) {
+        // 小分類（葉）…中項目配下、または中項目なし大分類の直下
+        const parentId = state.pickMidId || state.pickTopId;
         const exists = items.find(
           (i) =>
             !isGroup(i) &&
             (i.label || "").trim() === label &&
-            i.parentId === state.pickMidId
+            i.parentId === parentId
         );
         if (exists) {
           state.addDraft.title = label;
@@ -940,7 +976,7 @@ async function handleAddMasterItem() {
           deps.showToast("既存の項目を選択しました。");
           return;
         }
-        await addFn({ label, kind: "leaf", parentId: state.pickMidId });
+        await addFn({ label, kind: "leaf", parentId });
         state.addDraft.title = label;
         deps.showToast(`「${label}」を小分類に追加しました。`);
       } else {
