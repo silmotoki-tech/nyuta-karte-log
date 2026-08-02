@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>右幅・ボタン比較</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    html, body { height: 100%; margin: 0; overflow: hidden; background: #ccc; }
+    .shell { width: 1280px; height: 800px; margin: 0 auto; display: flex; flex-direction: column; background: var(--color-cream); }
+    .banner { flex-shrink: 0; padding: 6px 12px; font: 700 12px/1.3 sans-serif; background: #222; color: #fff; white-space: pre-wrap; }
+    .layout-preview { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--left-col-width, 210px) minmax(0,1fr) var(--right-col-width, 340px); }
+    .layout-preview { --left-col-width: 231px; --right-col-width: var(--preview-right, 340px); }
+    .col--center, .col--right { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="banner" id="banner">…</div>
+    <div class="layout layout-preview" id="layout">
+      <aside class="col col--left">
+        <div class="col-left__inner">
+          <div class="left-head"><h2 class="col__title">見出し</h2></div>
+          <ul class="headline-list">
+            <li class="hl-item"><button type="button" class="hl-item__btn"><span class="hl-item__text">術後経過</span></button></li>
+          </ul>
+        </div>
+      </aside>
+      <section class="col col--center">
+        <div class="timeline-wrap">
+          <h2 class="col__title timeline-title">時系列</h2>
+          <ul class="timeline" id="tl"></ul>
+        </div>
+      </section>
+      <aside class="col col--right">
+        <div class="right-tabs">
+          <button type="button" class="right-tab is-active">処置ログ</button>
+          <button type="button" class="right-tab">薬剤情報</button>
+        </div>
+        <div class="right-panel" style="display:flex">
+          <ul class="proc-list" id="procs"></ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const right = Number(params.get("right") || getComputedStyle(document.documentElement).getPropertyValue("--right-col-width") || 280);
+    document.getElementById("layout").style.setProperty("--preview-right", right + "px");
+    // Also sync root var used by style.css layout if any
+    document.documentElement.style.setProperty("--right-col-width", right + "px");
+
+    const entries = [
+      { head: "2026/7/20", meta: "入田 · 10:12", body: "腹腔鏡下避妊手術。術中特記なし。" },
+      { head: "2026/7/18", meta: "田中 · 09:40", body: "術前検査のため入院。食欲良好。" },
+      { head: "2026/7/17", meta: "佐藤 · 16:05", body: "血液検査再検。BUN/Cre 改善傾向。" },
+      { head: "2026/7/15", meta: "入田 · 11:20", body: "皮膚科紹介状作成。" },
+    ];
+    const procs = [
+      { date: "2026/7/20", content: "術創洗浄・包帯交換", meta: "入田" },
+      { date: "2026/7/19", content: "皮下輸液 100ml", meta: "田中" },
+      { date: "2026/7/18", content: "採血（術前）", meta: "佐藤" },
+      { date: "2026/7/17", content: "歯磨き指導", meta: "田中" },
+    ];
+
+    const tl = document.getElementById("tl");
+    entries.forEach((e) => {
+      const li = document.createElement("li");
+      li.className = "tl-item";
+      li.dataset.category = "none";
+      li.innerHTML = `<div class="tl-item__bar"></div><div class="tl-item__content">
+        <div class="tl-item__head"><span class="tl-item__dot"></span><span class="tl-item__headline">${e.head}</span></div>
+        <div class="tl-item__meta">${e.meta}</div>
+        <p class="tl-item__body">${e.body}</p>
+        <div class="tl-item__actions">
+          <button type="button" class="btn btn--small btn--outline">編集</button>
+          <button type="button" class="btn btn--small btn--danger-outline">削除</button>
+        </div></div>`;
+      tl.appendChild(li);
+    });
+
+    const pl = document.getElementById("procs");
+    procs.forEach((p) => {
+      const li = document.createElement("li");
+      li.className = "proc-card";
+      li.innerHTML = `<p class="proc-card__date">${p.date}</p>
+        <p class="proc-card__content">${p.content}</p>
+        <p class="proc-card__meta">${p.meta}</p>
+        <div class="proc-card__actions">
+          <button type="button" class="btn btn--small btn--outline">編集</button>
+          <button type="button" class="btn btn--small btn--danger-outline">削除</button>
+        </div>`;
+      pl.appendChild(li);
+    });
+
+    requestAnimationFrame(() => {
+      const L = document.querySelector(".col--left").getBoundingClientRect();
+      const C = document.querySelector(".col--center").getBoundingClientRect();
+      const R = document.querySelector(".col--right").getBoundingClientRect();
+      const btn = document.querySelector(".tl-item__actions .btn");
+      const bh = btn ? Math.round(btn.getBoundingClientRect().height) : 0;
+      const label = params.get("label") || "compare";
+      const text = `${label} | right=${Math.round(R.width)}px center=${Math.round(C.width)}px | edit/del高さ=${bh}px`;
+      document.getElementById("banner").textContent = text;
+      document.title = JSON.stringify({ label, right: Math.round(R.width), center: Math.round(C.width), btnH: bh });
+    });
+  </script>
+</body>
+</html>

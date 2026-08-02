@@ -1320,12 +1320,12 @@ function renderHeadlines(entries) {
     const fragment = headlineItemTemplate.content.cloneNode(true);
     const li = fragment.querySelector(".hl-item");
     const btn = li.querySelector(".hl-item__btn");
-    const dot = li.querySelector(".hl-item__dot");
     const textEl = li.querySelector(".hl-item__text");
     const dateEl = li.querySelector(".hl-item__date");
 
+    // カテゴリと★は日付・見出しの間の縦線の色で表す
     li.classList.toggle("is-important", Boolean(entry.important));
-    dot.dataset.category = entry.category || "none";
+    li.dataset.category = entry.category || "none";
     dateEl.textContent = mdFromStr(entry.recordDate) || "（日付なし）";
     textEl.textContent = entry.headline || "（見出しなし）";
 

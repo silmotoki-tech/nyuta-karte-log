@@ -37,11 +37,12 @@ export async function getAnimalName() {
 }
 export async function setAnimalName() {}
 
+// 検証スクリプト側から globalThis.__seedEntries でサンプル記録を流し込める
 export function subscribeEntries(karte, cb) {
   const list = listeners.entries.get(karte) || [];
   list.push(cb);
   listeners.entries.set(karte, list);
-  cb([]);
+  cb(structuredClone(globalThis.__seedEntries || []));
   return () =>
     listeners.entries.set(
       karte,
@@ -49,7 +50,9 @@ export function subscribeEntries(karte, cb) {
     );
 }
 export function sortEntriesDescending(entries) {
-  return [...(entries || [])];
+  return [...(entries || [])].sort((a, b) =>
+    String(b.recordDate || "").localeCompare(String(a.recordDate || ""))
+  );
 }
 export async function addEntry() {
   return nid("e");
@@ -272,6 +275,77 @@ export async function addProcedure() {
 }
 export async function updateProcedure() {}
 export async function deleteProcedure() {}
+
+export const MEDICATION_ITEM_CATEGORIES = [
+  { id: "oral", label: "内服薬" },
+  { id: "inject", label: "注射薬" },
+  { id: "other", label: "その他" },
+];
+export function normalizeMedicationItemCategory(c) {
+  return c || "other";
+}
+export function normalizeMedicationItemKind(k) {
+  return k || "leaf";
+}
+export function medicationItemCategoryLabel(c) {
+  return MEDICATION_ITEM_CATEGORIES.find((x) => x.id === c)?.label || "";
+}
+export async function ensureMedicationItemDefaults() {}
+
+export function normalizeHistoryMasterKind(k) {
+  return k || "leaf";
+}
+function subscribeEmptyList(bucket, cb) {
+  listeners[bucket] = listeners[bucket] || [];
+  listeners[bucket].push(cb);
+  cb([]);
+  return () => {
+    const i = listeners[bucket].indexOf(cb);
+    if (i >= 0) listeners[bucket].splice(i, 1);
+  };
+}
+export function subscribeHistoryDiseaseItems(cb) {
+  return subscribeEmptyList("historyDisease", cb);
+}
+export function subscribeHistorySurgeryItems(cb) {
+  return subscribeEmptyList("historySurgery", cb);
+}
+export function subscribeHistoryReferralItems(cb) {
+  return subscribeEmptyList("historyReferral", cb);
+}
+export async function addHistoryDiseaseItem() {
+  return nid("hd");
+}
+export async function addHistorySurgeryItem() {
+  return nid("hs");
+}
+export async function addHistoryReferralItem() {
+  return nid("hr");
+}
+export async function deleteHistoryDiseaseItem() {}
+export async function deleteHistorySurgeryItem() {}
+export async function deleteHistoryReferralItem() {}
+export async function ensureHistoryDiseaseItemDefaults() {}
+export async function ensureHistoryReferralItemDefaults() {}
+
+export const DEFAULT_ADMIN_PASSCODE = "oono";
+export async function verifyAdminPasscode(input) {
+  return String(input ?? "") === DEFAULT_ADMIN_PASSCODE;
+}
+export async function ensureAdminPasscodeDefault() {}
+
+export function subscribeProcedureBundle(karte, cb) {
+  cb({ plans: [], history: [] });
+  return () => {};
+}
+export async function saveProcedurePlan() {
+  return nid("pp");
+}
+export async function deleteProcedurePlan() {}
+export async function completeProcedurePlan() {}
+export async function reviveProcedurePlan() {
+  return nid("pp");
+}
 
 export const SPECIAL_NOTE_SCHEMA_VERSION = 1;
 export const SPECIAL_NOTE_IMPORTANCE = ["high", "medium", "low"];

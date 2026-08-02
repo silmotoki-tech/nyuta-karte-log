@@ -65,9 +65,8 @@
   <template id="headline-item-template">
     <li class="hl-item">
       <button class="hl-item__btn" type="button">
-        <span class="hl-item__dot"></span>
-        <span class="hl-item__star" aria-hidden="true">★</span>
         <span class="hl-item__date"></span>
+        <span class="hl-item__rule" aria-hidden="true"></span>
         <span class="hl-item__text"></span>
       </button>
     </li>
@@ -171,7 +170,7 @@
       const fragment = headlineItemTemplate.content.cloneNode(true);
       const li = fragment.querySelector(".hl-item");
       li.classList.toggle("is-important", Boolean(entry.important));
-      li.querySelector(".hl-item__dot").dataset.category = entry.category || "none";
+      li.dataset.category = entry.category || "none";
       li.querySelector(".hl-item__date").textContent = mdFromStr(entry.recordDate);
       li.querySelector(".hl-item__text").textContent = entry.headline;
       headlineList.appendChild(li);

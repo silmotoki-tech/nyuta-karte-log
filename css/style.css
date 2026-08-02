@@ -39,7 +39,8 @@
   /* 見出しカテゴリ色 */
   --cat-ope: #d9534f;         /* オペ / 救急 / 麻酔 */
   --cat-admission: #4a90a4;   /* 入院 */
-  --cat-referral: #c98a2b;    /* 紹介 */
+  --cat-referral: #8a5fbf;    /* 紹介（★の黄と細線で紛れないよう紫） */
+  --cat-none: #dcdfe3;        /* 通常の記録 */
 
   --radius-lg: 18px;
   --radius-md: 12px;
@@ -253,7 +254,7 @@ html.is-unlocked .app {
   min-height: 0;
   height: 100%;
   display: grid;
-  --left-col-width: 210px;
+  --left-col-width: 231px; /* 210px から約10%拡大（中央から取る） */
   --right-col-width: 308px; /* 280px から約10%拡大 */
   /* 左・中央・右のコンテンツ上端を揃える共通余白 */
   --col-pad-top: 10px;
@@ -504,17 +505,15 @@ html.is-unlocked .app {
 .hl-item__btn {
   width: 100%;
   display: grid;
-  grid-template-columns: 12px 14px 1fr;
-  grid-template-areas:
-    "dot star date"
-    "dot star text";
-  align-items: start;
-  column-gap: 6px;
+  /* 日付 ┃ 縦線 ┃ 見出し。日付幅を固定して縦線を一直線に揃える */
+  grid-template-columns: var(--hl-date-width, 38px) 3px minmax(0, 1fr);
+  align-items: stretch;
+  column-gap: 7px;
   text-align: left;
   background: none;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 8px 8px;
+  padding: 7px 8px;
   cursor: pointer;
   transition: background-color 0.12s ease;
 }
@@ -528,61 +527,45 @@ html.is-unlocked .app {
   box-shadow: inset 0 0 0 1.5px var(--color-green);
 }
 
-.hl-item__dot {
-  grid-area: dot;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: transparent;
-  border: 1.5px solid var(--color-border);
-  margin-top: 4px;
+/* カテゴリ／★を表す縦線。行の高さいっぱいに伸ばす */
+.hl-item__rule {
+  align-self: stretch;
+  border-radius: 2px;
+  background-color: var(--cat-none);
 }
 
-.hl-item__dot[data-category="ope"] {
+.hl-item[data-category="ope"] .hl-item__rule {
   background-color: var(--cat-ope);
-  border-color: var(--cat-ope);
 }
-.hl-item__dot[data-category="admission"] {
+.hl-item[data-category="admission"] .hl-item__rule {
   background-color: var(--cat-admission);
-  border-color: var(--cat-admission);
 }
-.hl-item__dot[data-category="referral"] {
+.hl-item[data-category="referral"] .hl-item__rule {
   background-color: var(--cat-referral);
-  border-color: var(--cat-referral);
 }
-
-.hl-item__star {
-  grid-area: star;
-  font-size: 0.8rem;
-  color: var(--star);
-  visibility: hidden;
-  margin-top: 2px;
-}
-
-.hl-item.is-important .hl-item__star {
-  visibility: visible;
+/* カテゴリなしで手動★を付けた記録 */
+.hl-item.is-important[data-category="none"] .hl-item__rule {
+  background-color: var(--star);
 }
 
 .hl-item__date {
-  grid-area: date;
+  align-self: start;
   font-size: 0.85rem;
   font-weight: 800;
   color: var(--color-text);
-  line-height: 1.3;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hl-item__text {
-  grid-area: text;
+  align-self: start;
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--color-text);
   line-height: 1.35;
-  margin-top: 1px;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
 }
 
 /* ===== 中央カラム ===== */
@@ -1302,7 +1285,7 @@ html.is-unlocked .app {
   width: var(--tl-bar-w);
   flex-shrink: 0;
   align-self: stretch;
-  background-color: #e6e8eb;
+  background-color: var(--cat-none);
 }
 
 .tl-item[data-category="ope"] .tl-item__bar {
@@ -4282,7 +4265,7 @@ select.input {
 /* 画面が狭い場合（保険）: 右カラムを畳む */
 @media (max-width: 820px) {
   .layout {
-    --left-col-width: 170px;
+    --left-col-width: 187px;
     --right-col-width: 264px; /* 240px から約10%拡大 */
   }
 
