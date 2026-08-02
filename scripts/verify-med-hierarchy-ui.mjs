@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -210,7 +211,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb })
+  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
 );
 
 await page.goto(`${base}/tools/med-hierarchy-harness.html`, {
@@ -255,12 +256,13 @@ if (!buttons.includes("抗生剤") || !buttons.includes("その他")) {
 if (buttons.includes("アモキシシリン")) {
   throw new Error("legacy leaf should not show in mid column");
 }
+// 大項目を選んだ時点で右列は操作可能（＋から中項目／薬剤名を追加できる）
 if (
-  !(await page
+  await page
     .locator("#med-add-col-leaf")
-    .evaluate((el) => el.classList.contains("is-placeholder")))
+    .evaluate((el) => el.classList.contains("is-placeholder"))
 ) {
-  throw new Error("leaf col should stay placeholder until mid selected");
+  throw new Error("leaf col should be active once a category is chosen");
 }
 
 // その他 → 同名シード以外の旧フラット

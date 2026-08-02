@@ -11,6 +11,8 @@ import {
   MED_ORAL_GI_STOMACH_GROUP_ID,
   MED_ORAL_GI_INTESTINE_GROUP_ID,
   MED_ORAL_LIVER_KIDNEY_GROUP_ID,
+  MED_ORAL_LIVER_GROUP_ID,
+  MED_ORAL_URINARY_GROUP_ID,
   MED_ORAL_CARDIO_GROUP_ID,
   MED_ORAL_RESPIRATORY_GROUP_ID,
   MED_ORAL_NEURO_GROUP_ID,
@@ -113,21 +115,17 @@ const GI_INTESTINE_LABELS = [
 ];
 
 
-const LIVER_KIDNEY_LABELS = [
+const LIVER_LABELS = ["ウルソ", "スパカール", "ピアーレシロップ"];
+
+const URINARY_LABELS = [
   "テルミサルタン",
   "ラプロス",
   "レナジェル",
   "ネフガード",
   "セミントラ",
   "ウラリット",
-  "ウルソ",
-  "スパカール",
-  "ピアーレシロップ",
-  "リバガード",
-  "SAMYLIN",
   "ウロカルン",
   "プロパリン",
-  "ウエルデリ",
   "タムスロシン塩酸塩",
 ];
 
@@ -423,7 +421,9 @@ const store = __getStore();
 const items = store.medicationItems;
 
 assert.equal(items[MED_ORAL_ANTIINFLAM_GROUP_ID]?.label, "消炎・鎮痛");
-assert.equal(items[MED_ORAL_LIVER_KIDNEY_GROUP_ID]?.label, "肝・腎・泌尿");
+assert.equal(items[MED_ORAL_LIVER_GROUP_ID]?.label, "肝臓");
+assert.equal(items[MED_ORAL_URINARY_GROUP_ID]?.label, "腎泌尿器");
+assert.equal(items[MED_ORAL_LIVER_KIDNEY_GROUP_ID], undefined);
 assert.equal(items[MED_ORAL_ANTIFUNGAL_GROUP_ID]?.label, "抗真菌・駆虫薬・抗ウイルス薬");
 assert.equal(items[MED_ORAL_ANTICANCER_GROUP_ID]?.label, "抗がん");
 assert.equal(items[MED_ORAL_VITAMIN_GROUP_ID]?.label, "ビタミン・代謝");
@@ -467,7 +467,8 @@ const antiinflam = labelsUnder(MED_ORAL_ANTIINFLAM_GROUP_ID);
 const steroid = labelsUnder(MED_ORAL_STEROID_ANTIHIST_GROUP_ID);
 const giStomach = labelsUnder(MED_ORAL_GI_STOMACH_GROUP_ID);
 const giIntestine = labelsUnder(MED_ORAL_GI_INTESTINE_GROUP_ID);
-const liverKidney = labelsUnder(MED_ORAL_LIVER_KIDNEY_GROUP_ID);
+const liver = labelsUnder(MED_ORAL_LIVER_GROUP_ID);
+const urinary = labelsUnder(MED_ORAL_URINARY_GROUP_ID);
 const cardio = labelsUnder(MED_ORAL_CARDIO_GROUP_ID);
 const respiratory = labelsUnder(MED_ORAL_RESPIRATORY_GROUP_ID);
 const neuro = labelsUnder(MED_ORAL_NEURO_GROUP_ID);
@@ -504,7 +505,8 @@ console.log("antiinflam order:", antiinflam);
 console.log("steroid-antihist order:", steroid);
 console.log("gi stomach order:", giStomach);
 console.log("gi intestine order:", giIntestine);
-console.log("liver-kidney order:", liverKidney);
+console.log("liver order:", liver);
+console.log("urinary order:", urinary);
 console.log("cardio order:", cardio);
 console.log("respiratory order:", respiratory);
 console.log("neuro order:", neuro);
@@ -533,7 +535,8 @@ assert.deepEqual(antiinflam, ANTIINFLAM_LABELS);
 assert.deepEqual(steroid, STEROID_ANTIHIST_LABELS);
 assert.deepEqual(giStomach, GI_STOMACH_LABELS);
 assert.deepEqual(giIntestine, GI_INTESTINE_LABELS);
-assert.deepEqual(liverKidney, LIVER_KIDNEY_LABELS);
+assert.deepEqual(liver, LIVER_LABELS);
+assert.deepEqual(urinary, URINARY_LABELS);
 assert.deepEqual(cardio, CARDIO_LABELS);
 assert.deepEqual(respiratory, RESPIRATORY_LABELS);
 assert.deepEqual(neuro, NEURO_LABELS);
@@ -563,10 +566,10 @@ assert.deepEqual(supplSkin, SUPPL_SKIN_LABELS);
 assert.deepEqual(supplOther, SUPPL_OTHER_LABELS);
 assert.equal(items[MED_SUPPL_JOINT_GROUP_ID]?.category, "supplement");
 assert.equal(items[MED_SUPPL_JOINT_GROUP_ID]?.label, "関節・炎症");
-assert.equal(
-  items["seed-med-oral-lk-welldeli"]?.parentId,
-  MED_ORAL_LIVER_KIDNEY_GROUP_ID
-);
+// サプリメント側と重複する3件は内服から消える
+assert.equal(items["seed-med-oral-lk-welldeli"], undefined);
+assert.equal(items["seed-med-oral-lk-rivaguard"], undefined);
+assert.equal(items["seed-med-oral-lk-samylin"], undefined);
 assert.equal(
   items["seed-med-suppl-urinary-welldeli"]?.parentId,
   MED_SUPPL_URINARY_GROUP_ID
@@ -592,14 +595,19 @@ assert.ok(!Object.values(items).some((r) => r?.label === "デルトピカロー�
 assert.ok(giStomach.includes("マロピタント"));
 assert.ok(respiratory.includes("マロピタント（鎮咳）"));
 assert.ok(!respiratory.includes("マロピタント"));
+// 注射薬はこのテストで列挙していないため、シード側から数えて差し引く
+const injectLeafCount = MEDICATION_ITEM_LEAF_SEED.filter(
+  (s) => s.category === "inject"
+).length;
 assert.equal(
-  MEDICATION_ITEM_LEAF_SEED.length,
+  MEDICATION_ITEM_LEAF_SEED.length - injectLeafCount,
   ANTIBIOTIC_LABELS.length +
     ANTIINFLAM_LABELS.length +
     STEROID_ANTIHIST_LABELS.length +
     GI_STOMACH_LABELS.length +
     GI_INTESTINE_LABELS.length +
-    LIVER_KIDNEY_LABELS.length +
+    LIVER_LABELS.length +
+    URINARY_LABELS.length +
     CARDIO_LABELS.length +
     RESPIRATORY_LABELS.length +
     NEURO_LABELS.length +
@@ -660,8 +668,8 @@ assert.equal(
   undefined
 );
 assert.ok(store.medicationItems["seed-med-oral-gi-i-piale"]);
-assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].parentId, MED_ORAL_LIVER_KIDNEY_GROUP_ID);
-assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].order, 90);
+assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].parentId, MED_ORAL_LIVER_GROUP_ID);
+assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].order, 30);
 assert.equal(store.medicationItems["seed-med-oral-lk-piale"], undefined);
 
 console.log("OK: oral leaf seeds + same-name overwrite");

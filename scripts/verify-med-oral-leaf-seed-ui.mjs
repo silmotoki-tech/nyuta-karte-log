@@ -2,6 +2,7 @@
  * 内服薬シード（抗生剤・血液）が選択画面で指定順に表示・選択できること
  */
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -88,21 +89,17 @@ const GI_INTESTINE_LABELS = [
 ];
 
 
-const LIVER_KIDNEY_LABELS = [
+const LIVER_LABELS = ["ウルソ", "スパカール", "ピアーレシロップ"];
+
+const URINARY_LABELS = [
   "テルミサルタン",
   "ラプロス",
   "レナジェル",
   "ネフガード",
   "セミントラ",
   "ウラリット",
-  "ウルソ",
-  "スパカール",
-  "ピアーレシロップ",
-  "リバガード",
-  "SAMYLIN",
   "ウロカルン",
   "プロパリン",
-  "ウエルデリ",
   "タムスロシン塩酸塩",
 ];
 
@@ -607,7 +604,7 @@ const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(String(e)));
 
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb })
+  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
 );
 
 await page.goto(`${base}/tools/med-linear-picker-harness.html`, {
@@ -709,11 +706,11 @@ assert.equal(
 );
 await page.screenshot({ path: path.join(shotDir, "07-gi-intestine.png") });
 
-await clickItem(page, "#med-add-col-group-list", "肝・腎・泌尿");
+await clickItem(page, "#med-add-col-group-list", "肝臓");
 await page.waitForTimeout(120);
-const liverKidney = await itemLabels(page, "#med-add-col-leaf-list");
-console.log("UI liver-kidney:", liverKidney);
-assert.deepEqual(liverKidney, LIVER_KIDNEY_LABELS);
+const liver = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI liver:", liver);
+assert.deepEqual(liver, LIVER_LABELS);
 await clickItem(page, "#med-add-col-leaf-list", "ピアーレシロップ");
 await page.waitForTimeout(80);
 assert.equal(
@@ -722,6 +719,13 @@ assert.equal(
     .textContent(),
   "ピアーレシロップ"
 );
+await page.screenshot({ path: path.join(shotDir, "08-liver.png") });
+
+await clickItem(page, "#med-add-col-group-list", "腎泌尿器");
+await page.waitForTimeout(120);
+const urinary = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI urinary:", urinary);
+assert.deepEqual(urinary, URINARY_LABELS);
 await clickItem(page, "#med-add-col-leaf-list", "タムスロシン塩酸塩");
 await page.waitForTimeout(80);
 assert.equal(
@@ -730,7 +734,7 @@ assert.equal(
     .textContent(),
   "タムスロシン塩酸塩"
 );
-await page.screenshot({ path: path.join(shotDir, "08-liver-kidney.png") });
+await page.screenshot({ path: path.join(shotDir, "08-urinary.png") });
 
 await clickItem(page, "#med-add-col-group-list", "循環器");
 await page.waitForTimeout(120);

@@ -3,6 +3,7 @@
  */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
+import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -460,7 +461,7 @@ const page = await browser.newPage({
 });
 page.on("pageerror", (e) => console.warn("pageerror", e.message));
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb })
+  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
 );
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__ready === true);
