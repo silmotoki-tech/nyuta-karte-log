@@ -1,7 +1,6 @@
 {
   "rules": {
-    ".read": "auth != null && auth.uid === 'REPLACE_WITH_CLINIC_UID'",
-    ".write": "auth != null && auth.uid === 'REPLACE_WITH_CLINIC_UID'"
+    ".read": "auth != null && auth.uid === 'huKhgoWWu2UcZE664ErJDDnS9iW2'",
+    ".write": "auth != null && auth.uid === 'huKhgoWWu2UcZE664ErJDDnS9iW2'"
   }
 }
-
