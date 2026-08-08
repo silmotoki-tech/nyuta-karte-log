@@ -132,13 +132,37 @@ summary,
   display: none !important;
 }
 
-/* セッション済みの初回描画用（JS起動前のチラつき防止） */
-html.is-unlocked .lock-screen {
+/* 当日パスコード済みの初回描画用（Firebase セッションは JS 起動後に確定）。
+   ログイン画面を隠し、パスコード画面を仮表示する。本編は出さない。 */
+html.is-passcode-cached #screen-login {
+  display: none !important;
+}
+
+html.is-passcode-cached #screen-lock {
+  display: flex !important;
+}
+
+html.is-unlocked #screen-login,
+html.is-unlocked #screen-lock {
   display: none !important;
 }
 
 html.is-unlocked .app {
   display: flex !important;
+}
+
+#screen-login .label {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+#screen-login .label:first-of-type {
+  margin-top: 0;
+}
+
+#screen-login .input {
+  margin-bottom: 2px;
 }
 
 /* 本編はヘッダー無しでレイアウト全面利用 */
@@ -661,6 +685,41 @@ html.is-unlocked .app {
   margin-left: auto;
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.migration-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.migration-status-btn {
+  min-width: 4.5em;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-white);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.migration-status-btn--not_started.is-selected {
+  color: #fff;
+  background-color: var(--cat-ope);
+  border-color: var(--cat-ope);
+}
+
+.migration-status-btn--in_progress.is-selected {
+  color: var(--star-text);
+  background-color: var(--star-bg);
+  border-color: var(--star);
+}
+
+.migration-status-btn--done.is-selected {
+  color: #fff;
+  background-color: var(--color-green);
+  border-color: var(--color-green-dark);
 }
 
 .app-menu {

@@ -91,6 +91,12 @@
 //   specialNotes/{カルテ番号}/{entryId}/lastEditedAt     … 更新日時ISO（任意）
 //   specialNotes/{カルテ番号}/{entryId}/lastEditedBy     … 更新者（任意）
 //
+//   migrationProgress/{カルテ番号}/schemaVersion         … 既存カルテからの移行進捗（カルテごと1件）
+//   migrationProgress/{カルテ番号}/status                … "not_started"|"in_progress"|"done"
+//   migrationProgress/{カルテ番号}/memo                  … どこまで移行したかのメモ
+//   migrationProgress/{カルテ番号}/updatedAt             … 最終更新日時ISO
+//   migrationProgress/{カルテ番号}/updatedBy             … 更新者（任意。未選択でも保存可）
+//
 //   appSettings/adminPasscode                           … マスタ削除用管理者パスコード（全端末共通）
 //   appSettings/retiredMasterIds/{collection}/{itemId}  … 削除済みシードの再投入防止
 //
@@ -3824,4 +3830,89 @@ export async function updateSpecialNote(
 export async function deleteSpecialNote(karteNumber, entryId) {
   await authReady;
   await remove(specialNoteEntryRef(karteNumber, entryId));
+}
+
+// --- 移行進捗（migrationProgress） ----------------------------------------
+
+export const MIGRATION_PROGRESS_SCHEMA_VERSION = 1;
+export const MIGRATION_PROGRESS_STATUSES = [
+  "not_started",
+  "in_progress",
+  "done",
+];
+
+function migrationProgressRef(karteNumber) {
+  return ref(db, `migrationProgress/${karteNumber}`);
+}
+
+export function normalizeMigrationProgressStatus(value) {
+  return MIGRATION_PROGRESS_STATUSES.includes(value) ? value : "not_started";
+}
+
+/**
+ * 未設定のカルテは「未着手」として扱う。
+ */
+export function normalizeMigrationProgress(raw) {
+  const entry = {
+    schemaVersion: MIGRATION_PROGRESS_SCHEMA_VERSION,
+    status: "not_started",
+    memo: "",
+    updatedAt: "",
+    updatedBy: "",
+  };
+  if (!raw || typeof raw !== "object") return entry;
+  entry.schemaVersion = raw.schemaVersion || MIGRATION_PROGRESS_SCHEMA_VERSION;
+  entry.status = normalizeMigrationProgressStatus(raw.status);
+  entry.memo = typeof raw.memo === "string" ? raw.memo : "";
+  entry.updatedAt = raw.updatedAt || "";
+  entry.updatedBy = raw.updatedBy || "";
+  return entry;
+}
+
+/**
+ * カルテの移行進捗をリアルタイム監視する。未設定時は未着手を返す。
+ */
+export function subscribeMigrationProgress(karteNumber, callback) {
+  const r = migrationProgressRef(karteNumber);
+  let unsubscribed = false;
+  let listener = null;
+
+  authReady
+    .then(() => {
+      if (unsubscribed) return;
+      listener = onValue(r, (snapshot) => {
+        callback(normalizeMigrationProgress(snapshot.val()));
+      });
+    })
+    .catch((err) => {
+      console.error("移行進捗の監視開始に失敗しました", err);
+      callback(normalizeMigrationProgress(null));
+    });
+
+  return () => {
+    unsubscribed = true;
+    if (listener) {
+      off(r, "value", listener);
+      listener = null;
+    }
+  };
+}
+
+/**
+ * カルテの移行進捗を保存する（上書き）。updatedBy は空でも可。
+ */
+export async function saveMigrationProgress(
+  karteNumber,
+  { status, memo, updatedBy }
+) {
+  await authReady;
+  const payload = {
+    schemaVersion: MIGRATION_PROGRESS_SCHEMA_VERSION,
+    status: normalizeMigrationProgressStatus(status),
+    memo: typeof memo === "string" ? memo : "",
+    updatedAt: new Date().toISOString(),
+    updatedBy: updatedBy || "",
+  };
+  await set(migrationProgressRef(karteNumber), payload);
+  return payload;
 }

@@ -347,6 +347,60 @@ export async function reviveProcedurePlan() {
   return nid("pp");
 }
 
+export const MIGRATION_PROGRESS_SCHEMA_VERSION = 1;
+export const MIGRATION_PROGRESS_STATUSES = [
+  "not_started",
+  "in_progress",
+  "done",
+];
+const migrationStore = {};
+const migrationListeners = new Map();
+
+export function normalizeMigrationProgressStatus(value) {
+  return MIGRATION_PROGRESS_STATUSES.includes(value) ? value : "not_started";
+}
+export function normalizeMigrationProgress(raw) {
+  const entry = {
+    schemaVersion: MIGRATION_PROGRESS_SCHEMA_VERSION,
+    status: "not_started",
+    memo: "",
+    updatedAt: "",
+    updatedBy: "",
+  };
+  if (!raw || typeof raw !== "object") return entry;
+  entry.schemaVersion = raw.schemaVersion || MIGRATION_PROGRESS_SCHEMA_VERSION;
+  entry.status = normalizeMigrationProgressStatus(raw.status);
+  entry.memo = typeof raw.memo === "string" ? raw.memo : "";
+  entry.updatedAt = raw.updatedAt || "";
+  entry.updatedBy = raw.updatedBy || "";
+  return entry;
+}
+export function subscribeMigrationProgress(karte, cb) {
+  const list = migrationListeners.get(karte) || [];
+  list.push(cb);
+  migrationListeners.set(karte, list);
+  cb(normalizeMigrationProgress(migrationStore[karte] || null));
+  return () =>
+    migrationListeners.set(
+      karte,
+      (migrationListeners.get(karte) || []).filter((x) => x !== cb)
+    );
+}
+export async function saveMigrationProgress(karte, { status, memo, updatedBy }) {
+  const payload = {
+    schemaVersion: MIGRATION_PROGRESS_SCHEMA_VERSION,
+    status: normalizeMigrationProgressStatus(status),
+    memo: typeof memo === "string" ? memo : "",
+    updatedAt: new Date().toISOString(),
+    updatedBy: updatedBy || "",
+  };
+  migrationStore[karte] = payload;
+  (migrationListeners.get(karte) || []).forEach((cb) =>
+    cb(normalizeMigrationProgress(payload))
+  );
+  return payload;
+}
+
 export const SPECIAL_NOTE_SCHEMA_VERSION = 1;
 export const SPECIAL_NOTE_IMPORTANCE = ["high", "medium", "low"];
 export function subscribeSpecialNotes(karte, cb) {

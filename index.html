@@ -16,8 +16,10 @@
 
 <link rel="stylesheet" href="./css/style.css" />
 <script>
-  // 当日認証済みならロック画面の一瞬表示を抑える（判定は app.js / passcode-auth.js と同じ条件）
-  // 有効: localStorage に flag=1 かつ 日付が今日。sessionStorage だけではスキップしない。
+  // Firebase ログイン後かつ当日パスコード済みなら、ロック画面の一瞬表示を抑える。
+  // Firebase セッションは IndexedDB にあり JS 起動前には分からないため、
+  // ここではパスコード済みフラグがあるときだけ「ロックを隠す候補」にする。
+  // 実際の本編表示は app.js が Firebase 認証を確認してから行う。
   try {
     var k = "nyutaKartePasscodeVerified";
     var dk = "nyutaKartePasscodeVerifiedDate";
@@ -31,15 +33,51 @@
     var flagged = localStorage.getItem(k) === "1";
     var savedDate = localStorage.getItem(dk) || "";
     if (flagged && savedDate === today) {
-      document.documentElement.classList.add("is-unlocked");
+      document.documentElement.classList.add("is-passcode-cached");
     }
   } catch (e) {}
 </script>
 </head>
 <body>
 
-<!-- ============ 起動時ロック画面（認証前はこれだけ表示） ============ -->
-<div id="screen-lock" class="lock-screen" aria-label="パスコード入力">
+<!-- ============ Firebase ログイン（パスコードより前） ============ -->
+<div id="screen-login" class="lock-screen" aria-label="ログイン">
+  <div class="lock-screen__inner">
+    <img class="lock-screen__icon" src="./icons/icon-192.png" alt="" />
+    <h1 class="lock-screen__brand">にゅうたカルテ記録</h1>
+    <div class="card lock-screen__card">
+      <h2 class="card__title">院内アカウントでログイン</h2>
+      <p class="card__hint">院内共通のメールアドレスとパスワードを入力してください</p>
+      <label class="label" for="login-email">メールアドレス</label>
+      <input
+        id="login-email"
+        class="input"
+        type="email"
+        autocomplete="username"
+        autocapitalize="off"
+        spellcheck="false"
+        enterkeyhint="next"
+        placeholder="example@clinic.example"
+      />
+      <label class="label" for="login-password">パスワード</label>
+      <input
+        id="login-password"
+        class="input"
+        type="password"
+        autocomplete="current-password"
+        enterkeyhint="done"
+        placeholder="パスワード"
+      />
+      <p id="login-error" class="error-text error-text--banner" role="alert" hidden></p>
+      <button id="btn-login" class="btn btn--primary btn--block" type="button">
+        ログイン
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ パスコード画面（Firebase ログイン後） ============ -->
+<div id="screen-lock" class="lock-screen" aria-label="パスコード入力" hidden>
   <div class="lock-screen__inner">
     <img class="lock-screen__icon" src="./icons/icon-192.png" alt="" />
     <h1 class="lock-screen__brand">にゅうたカルテ記録</h1>
@@ -212,6 +250,16 @@
             定型文の管理
           </button>
           <div class="center-toolbar__end">
+            <button
+              id="btn-migration-progress"
+              class="btn btn--small migration-progress-btn is-status-not_started"
+              type="button"
+              data-status="not_started"
+              title="移行進捗：未着手"
+              aria-label="移行進捗：未着手"
+            >
+              移行
+            </button>
             <div class="app-menu" id="app-menu">
               <button
                 id="btn-app-menu"
@@ -239,6 +287,14 @@
                   data-app-menu-action="logout"
                 >
                   ログアウト
+                </button>
+                <button
+                  type="button"
+                  class="app-menu__item"
+                  role="menuitem"
+                  data-app-menu-action="signout-account"
+                >
+                  アカウントからサインアウト
                 </button>
               </div>
             </div>
@@ -1584,17 +1640,58 @@
   </div>
 </div>
 
+<!-- 既存カルテからの移行進捗 -->
+<div class="modal" id="migration-progress-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="migration-progress-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="migration-progress-modal-title">データ移行の進捗</h2>
+      <button class="modal__close" id="btn-close-migration-progress" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <span class="label">進捗</span>
+        <div
+          class="migration-status-row"
+          id="migration-progress-status-row"
+          role="group"
+          aria-label="移行進捗"
+        ></div>
+      </div>
+      <div class="field">
+        <label class="label" for="migration-progress-memo">メモ</label>
+        <textarea
+          id="migration-progress-memo"
+          class="textarea"
+          rows="4"
+          placeholder="例）既往歴と現在の薬まで入力済み。過去の検査歴は未着手"
+        ></textarea>
+      </div>
+      <p class="field__note">
+        最終更新：<span id="migration-progress-updated-at">まだ保存されていません</span>
+      </p>
+    </div>
+    <div class="modal__footer">
+      <p id="migration-progress-error" class="error-text error-text--banner" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-migration-progress-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-migration-progress-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- マスタ削除（管理者パスコード） -->
 <div class="modal" id="master-delete-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="master-delete-modal-title">
     <div class="modal__header">
-      <h2 class="modal__title" id="master-delete-modal-title">マスタ項目を削除</h2>
+      <h2 class="modal__title" id="master-delete-modal-title">管理者確認</h2>
       <button class="modal__close" id="btn-close-master-delete" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">
-      <p class="field__note" id="master-delete-label">この項目をマスタから削除します。</p>
-      <p class="field__note">誤削除防止のため、管理者パスコードを入力してください。</p>
+      <p class="field__note" id="master-delete-label">この操作を実行します。</p>
+      <p class="field__note" id="master-delete-hint">誤操作防止のため、管理者パスコードを入力してください。</p>
       <label class="label" for="master-delete-passcode">管理者パスコード</label>
       <input
         id="master-delete-passcode"

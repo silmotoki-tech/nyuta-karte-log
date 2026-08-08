@@ -39,6 +39,11 @@ import {
   enterSpecialNotes,
   leaveSpecialNotes,
 } from "./special-notes-ui.js";
+import {
+  initMigrationProgressUI,
+  enterMigrationProgress,
+  leaveMigrationProgress,
+} from "./migration-progress-ui.js";
 import { initSettingsUI } from "./settings-ui.js";
 import { initMasterDeleteUI } from "./master-delete-ui.js";
 import {
@@ -64,6 +69,12 @@ import {
   setPasscodeVerified,
   clearPasscodeVerified,
 } from "./passcode-auth.js";
+import {
+  waitForInitialAuthState,
+  signInWithEmailPassword,
+  signOutUser,
+  authErrorMessage,
+} from "./auth.js";
 import { enableRowGestures } from "./row-gestures.js";
 import { isImeKey } from "./ime-keys.js";
 
@@ -117,12 +128,18 @@ const state = {
 
 // --- DOM参照 -------------------------------------------------------------
 
+const screenLogin = document.getElementById("screen-login");
 const screenLock = document.getElementById("screen-lock");
 const appShell = document.getElementById("app-shell");
 
 const gateKarte = document.getElementById("gate-karte");
 const gateAnimal = document.getElementById("gate-animal");
 const centerMain = document.getElementById("center-main");
+
+const loginEmailInput = document.getElementById("login-email");
+const loginPasswordInput = document.getElementById("login-password");
+const loginError = document.getElementById("login-error");
+const btnLogin = document.getElementById("btn-login");
 
 const passcodeInput = document.getElementById("passcode-input");
 const passcodeError = document.getElementById("passcode-error");
@@ -242,9 +259,21 @@ function initLeftCollapse() {
   });
 }
 
+function showLoginScreen() {
+  state.unlocked = false;
+  document.documentElement.classList.remove("is-unlocked");
+  document.documentElement.classList.remove("is-passcode-cached");
+  if (screenLogin) screenLogin.hidden = false;
+  if (screenLock) screenLock.hidden = true;
+  if (appShell) appShell.hidden = true;
+  showError(loginError, "");
+  setTimeout(() => loginEmailInput?.focus(), 0);
+}
+
 function showLockScreen() {
   state.unlocked = false;
   document.documentElement.classList.remove("is-unlocked");
+  if (screenLogin) screenLogin.hidden = true;
   if (screenLock) screenLock.hidden = false;
   if (appShell) appShell.hidden = true;
   setupPasscodeNumpad();
@@ -256,10 +285,14 @@ function showLockScreen() {
 function unlockAppShell() {
   state.unlocked = true;
   document.documentElement.classList.add("is-unlocked");
+  document.documentElement.classList.remove("is-passcode-cached");
+  if (screenLogin) screenLogin.hidden = true;
   if (screenLock) screenLock.hidden = true;
   if (appShell) appShell.hidden = false;
   // ロック画面の読取専用入力が activeElement のまま残らないようにする
   passcodeInput?.blur();
+  loginEmailInput?.blur();
+  loginPasswordInput?.blur();
 }
 
 function showCenterState(s) {
@@ -626,6 +659,62 @@ function logoutToPasscode() {
   if (karteNumberInput) karteNumberInput.value = "";
   showLockScreen();
   showToast("ログアウトしました。");
+}
+
+async function signOutFirebaseAccount() {
+  if (isAiReviewBlocking()) {
+    showToast("AI提案の確認が終わるまで、サインアウトできません。", { isError: true });
+    return;
+  }
+  try {
+    clearPasscodeVerified();
+  } catch (err) {
+    console.error(err);
+  }
+  leaveMain();
+  showCenterState("karte");
+  if (karteNumberInput) karteNumberInput.value = "";
+  try {
+    await signOutUser();
+  } catch (err) {
+    console.error(err);
+    showToast("サインアウトに失敗しました。", { isError: true });
+    showLockScreen();
+    return;
+  }
+  if (loginPasswordInput) loginPasswordInput.value = "";
+  showLoginScreen();
+  showToast("アカウントからサインアウトしました。");
+}
+
+async function handleLogin() {
+  const email = loginEmailInput?.value || "";
+  const password = loginPasswordInput?.value || "";
+  if (!String(email).trim() || !password) {
+    showError(loginError, "メールアドレスとパスワードを入力してください。");
+    return;
+  }
+  setBusy(btnLogin, true, "ログイン中...", "ログイン");
+  showError(loginError, "");
+  try {
+    await signInWithEmailPassword(email, password);
+    if (loginPasswordInput) loginPasswordInput.value = "";
+    // ログイン直後は必ずパスコードへ（当日済みでも、アカウント切替直後は再確認）
+    showLockScreen();
+  } catch (err) {
+    console.error(err);
+    showError(loginError, authErrorMessage(err));
+  } finally {
+    setBusy(btnLogin, false, "ログイン中...", "ログイン");
+  }
+}
+
+function proceedAfterFirebaseAuth() {
+  if (isPasscodeVerified()) {
+    goToKarte();
+  } else {
+    showLockScreen();
+  }
 }
 
 // --- 状態1: カルテ番号入力 -----------------------------------------------
@@ -1087,6 +1176,7 @@ function enterMain() {
   enterHistory(state.karteNumber);
   enterProcedures(state.karteNumber);
   enterSpecialNotes(state.karteNumber);
+  enterMigrationProgress(state.karteNumber);
   enterFreeQa(state.karteNumber);
 }
 
@@ -1100,6 +1190,7 @@ function leaveMain() {
   leaveHistory();
   leaveProcedures();
   leaveSpecialNotes();
+  leaveMigrationProgress();
   leaveFreeQa();
   clearRightTabAlerts();
   closeCompose({ reset: true });
@@ -1547,13 +1638,36 @@ initSpecialNotesUI({
   getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
 });
 
+initMigrationProgressUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+});
+
 initSettingsUI({
   showToast,
   showError,
   onApiKeyChange: notifyApiKeyChanged,
   onLogout: logoutToPasscode,
+  onSignOutAccount: () => signOutFirebaseAccount(),
 });
 
+btnLogin?.addEventListener("click", () => {
+  handleLogin();
+});
+loginPasswordInput?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  if (isImeKey(event)) return;
+  event.preventDefault();
+  handleLogin();
+});
+loginEmailInput?.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  if (isImeKey(event)) return;
+  event.preventDefault();
+  loginPasswordInput?.focus();
+});
 initFreeQaUI({
   showToast,
   showError,
@@ -1604,8 +1718,18 @@ initServiceWorkerUpdates({
 
 initLeftCollapse();
 
-if (isPasscodeVerified()) {
-  goToKarte();
-} else {
-  showLockScreen();
-}
+// 起動フロー: Firebase ログイン → パスコード → カルテ
+(async function bootApp() {
+  try {
+    const user = await waitForInitialAuthState();
+    if (!user) {
+      showLoginScreen();
+      return;
+    }
+    proceedAfterFirebaseAuth();
+  } catch (err) {
+    console.error(err);
+    showLoginScreen();
+    showError(loginError, "認証状態の確認に失敗しました。再度ログインしてください。");
+  }
+})();

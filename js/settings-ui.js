@@ -4,12 +4,14 @@
 import { hasApiKey, setApiKey, clearApiKey } from "./api-key.js";
 import { APP_VERSION, CACHE_LABEL } from "./app-version.js";
 import { checkForUpdatesNow } from "./sw-update.js";
+import { requestAdminPasscodeAction } from "./master-delete-ui.js";
 
 let deps = {
   showToast: () => {},
   showError: () => {},
   onApiKeyChange: () => {},
   onLogout: () => {},
+  onSignOutAccount: () => {},
 };
 
 let html5Qrcode = null;
@@ -38,6 +40,9 @@ const appMenuPanel = document.getElementById("app-menu-panel");
 const APP_MENU_ACTIONS = {
   logout: () => {
     handleLogout();
+  },
+  "signout-account": () => {
+    handleSignOutAccount();
   },
 };
 
@@ -312,4 +317,26 @@ async function handleLogout() {
   if (!ok) return;
   await closeSettings();
   deps.onLogout();
+}
+
+async function handleSignOutAccount() {
+  const ok = window.confirm(
+    "院内アカウントからサインアウトしますか？\n次回はメールアドレスとパスワードの再入力が必要になります。"
+  );
+  if (!ok) return;
+  await closeSettings();
+  // 共有iPadでの誤操作防止：マスタ削除と同じ管理者パスコードを毎回要求する
+  requestAdminPasscodeAction({
+    title: "アカウントからサインアウト",
+    message:
+      "院内アカウントからサインアウトします。次に使う人はメールアドレスとパスワードの再入力が必要です。",
+    hint: "誤操作防止のため、管理者パスコードを入力してください。",
+    confirmLabel: "サインアウトする",
+    busyLabel: "確認中...",
+    danger: true,
+    failureMessage: "サインアウトに失敗しました。もう一度お試しください。",
+    onConfirm: async () => {
+      await deps.onSignOutAccount();
+    },
+  });
 }

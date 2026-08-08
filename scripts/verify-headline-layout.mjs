@@ -12,6 +12,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { MOCK_AUTH_LOGGED_IN } from "./mock-auth-email.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -77,7 +78,7 @@ export function setApiKey() {}
 export function clearApiKey() {}
 `;
 const mockFirebase = `export const app = {};`;
-const mockAuth = `export const authReady = Promise.resolve({ uid: "test" });`;
+const mockAuth = MOCK_AUTH_LOGGED_IN;
 
 const SEED_ENTRIES = [
   {
