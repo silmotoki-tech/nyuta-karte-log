@@ -2154,6 +2154,16 @@ export function focusMedicationByName(name) {
   return true;
 }
 
+/**
+ * 薬剤IDを指定して既存の詳細シートを開く（状態モードなど別画面から使う）。
+ */
+export function openMedicationDetailById(drugId) {
+  const drug = (state.drugs || []).find((d) => d.id === drugId);
+  if (!drug) return false;
+  openMedDetailSheet(drug);
+  return true;
+}
+
 /** カルテ内検索用: 薬剤の出来事履歴 */
 export function getMedSearchItems() {
   const out = [];

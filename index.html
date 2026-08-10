@@ -243,6 +243,25 @@
       <div class="center-main" id="center-main" hidden>
 
         <div class="center-toolbar">
+          <div class="view-toggle" role="group" aria-label="表示の切り替え">
+            <button
+              type="button"
+              class="view-toggle__btn"
+              id="btn-view-status"
+              data-view="status"
+            >
+              状態
+            </button>
+            <button
+              type="button"
+              class="view-toggle__btn is-active"
+              id="btn-view-history"
+              data-view="history"
+              aria-pressed="true"
+            >
+              履歴
+            </button>
+          </div>
           <button id="btn-start-compose" class="btn btn--small btn--primary" type="button">
             新しく記録を追加
           </button>
@@ -547,8 +566,116 @@
     </aside>
 
   </div>
+
+  <!-- ============ 状態モード（全画面・既存3カラムとは排他表示） ============ -->
+  <div class="status-mode" id="screen-status" hidden>
+    <header class="status-topbar">
+      <button
+        type="button"
+        class="status-topbar__patient"
+        id="btn-status-change-karte"
+        title="カルテを変更"
+      >
+        <span class="status-topbar__back" aria-hidden="true">⬅</span>
+        <span class="status-topbar__meta">
+          <span class="status-topbar__karte" id="status-patient-karte"></span>
+          <span class="status-topbar__name" id="status-patient-name"></span>
+        </span>
+      </button>
+
+      <div class="view-toggle" role="group" aria-label="表示の切り替え">
+        <button
+          type="button"
+          class="view-toggle__btn is-active"
+          id="btn-status-view-status"
+          aria-pressed="true"
+        >
+          状態
+        </button>
+        <button type="button" class="view-toggle__btn" id="btn-status-view-history">
+          履歴
+        </button>
+      </div>
+
+      <button id="btn-status-compose" class="btn btn--small btn--primary" type="button">
+        記録する
+      </button>
+    </header>
+
+    <div class="status-body" id="status-body">
+      <section class="status-alerts" id="status-high-notes" hidden>
+        <ul class="status-alerts__list" id="status-high-notes-list"></ul>
+      </section>
+
+      <div class="status-grid">
+        <section class="status-block" id="status-block-meds">
+          <h2 class="status-block__title">
+            薬剤<span class="status-block__count" id="status-meds-count"></span>
+          </h2>
+          <p class="field__note status-block__empty" id="status-meds-empty">登録された薬剤はありません。</p>
+          <ul class="status-list" id="status-meds-list"></ul>
+        </section>
+
+        <section class="status-block" id="status-block-exam">
+          <h2 class="status-block__title">検査</h2>
+          <h3 class="status-block__subtitle">
+            予定<span class="status-block__count" id="status-exam-plan-count"></span>
+          </h3>
+          <p class="field__note status-block__empty" id="status-exam-plan-empty">検査予定はありません。</p>
+          <ul class="status-list" id="status-exam-plan-list"></ul>
+          <h3 class="status-block__subtitle">
+            実施履歴<span class="status-block__count" id="status-exam-history-count"></span>
+          </h3>
+          <p class="field__note status-block__empty" id="status-exam-history-empty">実施履歴はありません。</p>
+          <ul class="status-list" id="status-exam-history-list"></ul>
+        </section>
+
+        <section class="status-block" id="status-block-history">
+          <h2 class="status-block__title">
+            既往歴<span class="status-block__count" id="status-history-count"></span>
+          </h2>
+          <p class="field__note status-block__empty" id="status-history-empty">既往歴はありません。</p>
+          <ul class="status-list" id="status-history-list"></ul>
+        </section>
+
+        <section class="status-block" id="status-block-proc">
+          <h2 class="status-block__title">処置</h2>
+          <h3 class="status-block__subtitle">
+            予定<span class="status-block__count" id="status-proc-plan-count"></span>
+          </h3>
+          <p class="field__note status-block__empty" id="status-proc-plan-empty">処置予定はありません。</p>
+          <ul class="status-list" id="status-proc-plan-list"></ul>
+          <h3 class="status-block__subtitle">
+            実施履歴<span class="status-block__count" id="status-proc-history-count"></span>
+          </h3>
+          <p class="field__note status-block__empty" id="status-proc-history-empty">実施履歴はありません。</p>
+          <ul class="status-list" id="status-proc-history-list"></ul>
+        </section>
+
+        <section class="status-block" id="status-block-notes">
+          <h2 class="status-block__title">
+            特記（中・低）<span class="status-block__count" id="status-notes-count"></span>
+          </h2>
+          <p class="field__note status-block__empty" id="status-notes-empty">中・低の特記事項はありません。</p>
+          <ul class="status-list" id="status-notes-list"></ul>
+        </section>
+      </div>
+    </div>
+  </div>
 </div>
 <!-- /#app-shell -->
+
+<!-- 状態モード: 既往歴の詳細（右カラムの展開と同じ編集UIを流用） -->
+<div class="modal" id="status-detail-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="status-detail-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="status-detail-title">詳細</h2>
+      <button class="modal__close" id="btn-close-status-detail" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body" id="status-detail-body"></div>
+  </div>
+</div>
 
 <!-- 検査予定一覧: 詳細（次回予定をその場で入力・保存） -->
 <div class="modal" id="exam-item-sheet" hidden>

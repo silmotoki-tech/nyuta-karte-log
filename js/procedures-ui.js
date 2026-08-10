@@ -182,6 +182,26 @@ export async function addProcedureFromExternal(karteNumber, payload) {
   });
 }
 
+/**
+ * 処置予定IDを指定して既存の編集モーダルを開く（状態モードなど別画面から使う）。
+ */
+export function openProcedurePlanEditorById(planId) {
+  const plan = (state.plans || []).find((p) => p.id === planId);
+  if (!plan) return false;
+  openPlanModal("edit", plan);
+  return true;
+}
+
+/**
+ * 処置実施履歴IDを指定して既存の編集モーダルを開く。
+ */
+export function openProcedureHistoryEditorById(entryId) {
+  const item = (state.history || []).find((h) => h.id === entryId);
+  if (!item) return false;
+  openHistModal("edit", item);
+  return true;
+}
+
 // --- 描画 ----------------------------------------------------------------
 
 function renderAll() {

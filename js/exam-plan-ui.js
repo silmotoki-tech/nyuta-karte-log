@@ -2351,6 +2351,18 @@ export function getExamItemsSnapshot() {
   return Array.isArray(state.examItems) ? state.examItems.slice() : [];
 }
 
+/**
+ * 予定IDを指定して既存の検査予定シートを開く（状態モードなど別画面から使う）。
+ * 右カラムのタブは切り替えない。
+ */
+export function openExamPlanEditorById(planId) {
+  if (!state.plan) return false;
+  const entry = collectUnifiedPlanEntries().find((e) => e.id === planId);
+  if (!entry) return false;
+  openExamItemSheet(entry);
+  return true;
+}
+
 /** カルテ内検索用: 検査予定・実施履歴の横断テキスト源 */
 export function getExamSearchItems() {
   if (!state.plan) return [];

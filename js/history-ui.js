@@ -361,6 +361,16 @@ function createHistoryCard(entry) {
   return li;
 }
 
+/**
+ * 既往歴の編集UI（右カラムで展開しているものと同じDOM）を組み立てて返す。
+ * 状態モードなど別画面から、同じ編集操作をポップアップ内で使うための入口。
+ */
+export function buildHistoryDetailNode(entryId) {
+  const entry = (state.entries || []).find((e) => e.id === entryId);
+  if (!entry) return null;
+  return { title: entry.title || "（タイトル未設定）", node: createHistoryDetail(entry) };
+}
+
 function createHistoryDetail(entry) {
   const detail = document.createElement("div");
   detail.className = "hist-card__detail";

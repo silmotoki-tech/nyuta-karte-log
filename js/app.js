@@ -33,6 +33,15 @@ import {
   refreshChartSearch,
 } from "./chart-search-ui.js";
 import {
+  initStatusModeUI,
+  enterStatusMode,
+  leaveStatusMode,
+  showStatusMode,
+  hideStatusMode,
+  isStatusModeVisible,
+  updatePatientHeader as updateStatusPatientHeader,
+} from "./status-mode-ui.js";
+import {
   initHistoryUI,
   enterHistory,
   leaveHistory,
@@ -177,6 +186,8 @@ const btnLeftCollapse = document.getElementById("btn-left-collapse");
 const leftCollapseIcon = btnLeftCollapse?.querySelector(".left-collapse-btn__icon");
 const btnOpenTemplates = document.getElementById("btn-open-templates");
 const btnStartCompose = document.getElementById("btn-start-compose");
+const btnViewStatus = document.getElementById("btn-view-status");
+const btnViewHistory = document.getElementById("btn-view-history");
 const entryComposer = document.getElementById("entry-composer");
 const authorField = document.getElementById("author-field");
 
@@ -323,7 +334,26 @@ function showCenterState(s) {
   headlineList.hidden = !inMain;
   starFilterWrap.hidden = !inMain;
   if (btnChangeKarte) btnChangeKarte.hidden = !inMain;
-  if (!inMain) closeCompose({ reset: true });
+  if (!inMain) {
+    closeCompose({ reset: true });
+    hideStatusMode();
+  }
+  syncViewToggle();
+}
+
+/** 既存の3カラム（履歴）画面に戻す */
+function showHistoryView() {
+  hideStatusMode();
+  syncViewToggle();
+}
+
+/** 中央ツールバーの「状態 | 履歴」トグルを現在の表示に合わせる */
+function syncViewToggle() {
+  const onStatus = isStatusModeVisible();
+  btnViewStatus?.classList.toggle("is-active", onStatus);
+  btnViewStatus?.setAttribute("aria-pressed", String(onStatus));
+  btnViewHistory?.classList.toggle("is-active", !onStatus);
+  btnViewHistory?.setAttribute("aria-pressed", String(!onStatus));
 }
 
 function formatAnimalDisplayName(animalName) {
@@ -1210,6 +1240,9 @@ function enterMain() {
   enterSpecialNotes(state.karteNumber);
   enterMigrationProgress(state.karteNumber);
   enterFreeQa(state.karteNumber);
+  // 状態モードは同じカルテを別購読で見る。表示切替を即時にするため入場時から購読する。
+  enterStatusMode(state.karteNumber);
+  updateStatusPatientHeader();
 }
 
 function leaveMain() {
@@ -1224,6 +1257,7 @@ function leaveMain() {
   leaveSpecialNotes();
   leaveMigrationProgress();
   leaveFreeQa();
+  leaveStatusMode();
   clearRightTabAlerts();
   closeCompose({ reset: true });
   closeEntryEdit();
@@ -1713,6 +1747,28 @@ initFreeQaUI({
   getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
   getTimelineEntries: () => state.entries || [],
 });
+
+initStatusModeUI({
+  showToast,
+  getPatient: () => ({
+    karteNumber: state.karteNumber || "",
+    animalName: formatAnimalDisplayName(state.animalName),
+  }),
+  onShowHistoryView: () => showHistoryView(),
+  onStartCompose: () => {
+    showHistoryView();
+    openCompose();
+  },
+  onChangeKarte: () => btnChangeKarte?.click(),
+});
+
+btnViewStatus?.addEventListener("click", () => {
+  if (state.centerState !== "main") return;
+  showStatusMode();
+  syncViewToggle();
+});
+
+btnViewHistory?.addEventListener("click", () => showHistoryView());
 
 initChartSearchUI({
   getTimelineEntries: () => state.entries || [],

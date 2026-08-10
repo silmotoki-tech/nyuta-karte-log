@@ -234,6 +234,16 @@ function renderAuthorSelection() {
   });
 }
 
+/**
+ * 特記事項IDを指定して既存の編集モーダルを開く（状態モードなど別画面から使う）。
+ */
+export function openSpecialNoteEditorById(noteId) {
+  const item = (state.items || []).find((n) => n.id === noteId);
+  if (!item) return false;
+  openModal("edit", item);
+  return true;
+}
+
 function openModal(mode, item = null) {
   state.editingId = mode === "edit" && item ? item.id : null;
   const selected = deps.getSelectedAuthor() || "";
