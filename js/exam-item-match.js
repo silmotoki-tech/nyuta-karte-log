@@ -465,13 +465,26 @@ function toExamCandidateRow(t, score = 0) {
 /**
  * リニアピッカー用: 検査項目名の部分一致で横断検索する。
  */
+function examTargetSearchText(t) {
+  return normalizeExamLabel(
+    [t.label, t.parentLabel, t.categoryLabel].filter(Boolean).join(" ")
+  );
+}
+
 export function filterExamLeavesByQuery(query, items, { limit = 100 } = {}) {
   const q = normalizeExamLabel(query);
   if (!q) return [];
 
   const matched = listExamMatchTargets(items)
-    .filter((t) => normalizeExamLabel(t.label).includes(q))
-    .map((t) => toExamCandidateRow(t, scoreExamLabelMatch(query, t.label, t)));
+    .filter((t) => examTargetSearchText(t).includes(q))
+    .map((t) => {
+      const score = Math.max(
+        scoreExamLabelMatch(query, t.label, t),
+        t.parentLabel ? scoreExamLabelMatch(query, t.parentLabel, t) : 0,
+        t.categoryLabel ? scoreExamLabelMatch(query, t.categoryLabel, t) : 0
+      );
+      return toExamCandidateRow(t, score);
+    });
 
   matched.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;

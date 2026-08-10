@@ -264,12 +264,38 @@ function renderHistoryList() {
   const items = state.history;
   if (histEmpty) histEmpty.hidden = items.length > 0;
 
+  // 内容ごとにグループ化し、見出し＋実施日の降順で並べる
+  const groups = new Map();
   items.forEach((item) => {
-    histList.appendChild(createHistoryCard(item));
+    const key = (item.content || "").trim() || "（内容なし）";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  });
+
+  const groupKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b, "ja"));
+  groupKeys.forEach((content) => {
+    const groupItems = [...groups.get(content)].sort((a, b) =>
+      (b.date || "").localeCompare(a.date || "")
+    );
+
+    const groupTitle = document.createElement("li");
+    groupTitle.className = "exam-history-group-title";
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "exam-history-group-title__label";
+    groupLabel.textContent = content;
+    const groupHint = document.createElement("div");
+    groupHint.className = "exam-history-group-title__hint";
+    groupHint.textContent = `${groupItems.length}件 · 新しい順`;
+    groupTitle.append(groupLabel, groupHint);
+    histList.appendChild(groupTitle);
+
+    groupItems.forEach((item) => {
+      histList.appendChild(createHistoryCard(item, { hideContent: true }));
+    });
   });
 }
 
-function createHistoryCard(item) {
+function createHistoryCard(item, { hideContent = false } = {}) {
   const li = document.createElement("li");
   li.className = "proc-card";
   li.dataset.entryId = item.id;
@@ -279,11 +305,14 @@ function createHistoryCard(item) {
   dateEl.className = "proc-card__date";
   dateEl.textContent = ymdFromStr(item.date) || "（日付なし）";
 
-  const contentEl = document.createElement("p");
-  contentEl.className = "proc-card__content";
-  contentEl.textContent = item.content || "（内容なし）";
+  li.appendChild(dateEl);
 
-  li.append(dateEl, contentEl);
+  if (!hideContent) {
+    const contentEl = document.createElement("p");
+    contentEl.className = "proc-card__content";
+    contentEl.textContent = item.content || "（内容なし）";
+    li.appendChild(contentEl);
+  }
 
   if (item.note) {
     const noteEl = document.createElement("p");

@@ -52,33 +52,43 @@ function categoryGroupSeed(category, group) {
     },
   ];
   (group.children || []).forEach((child, index) => {
-    rows.push({
+    const row = {
       id: child.id,
       label: child.label,
       category,
       kind: "leaf",
       parentId: group.id,
       order: (index + 1) * 10,
-    });
+    };
+    if (child.defaultFasting) row.defaultFasting = child.defaultFasting;
+    rows.push(row);
   });
   return rows;
 }
 
 const SEED = [
-  { id: "seed-blood-cbc", label: "CBC", category: "blood", kind: "leaf", parentId: "", order: 1 },
+  {
+    id: "seed-blood-cbc",
+    label: "CBC",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 1,
+    defaultFasting: "none",
+  },
   ...bloodGroupSeed({
     id: "seed-blood-liver",
     label: "肝臓",
     order: 10,
     children: [
-      { id: "seed-blood-liver-scr", label: "肝スク" },
-      { id: "seed-blood-liver-alt", label: "ALT" },
-      { id: "seed-blood-liver-ast", label: "AST" },
-      { id: "seed-blood-liver-alp", label: "ALP" },
-      { id: "seed-blood-liver-ggt", label: "GGT" },
-      { id: "seed-blood-liver-tbil", label: "総ビリルビン" },
-      { id: "seed-blood-liver-tba-prepost", label: "TBA(pre・post)" },
-      { id: "seed-blood-liver-tba-post", label: "TBA(post)" },
+      { id: "seed-blood-liver-scr", label: "肝スク", defaultFasting: "required" },
+      { id: "seed-blood-liver-alt", label: "ALT", defaultFasting: "required" },
+      { id: "seed-blood-liver-ast", label: "AST", defaultFasting: "required" },
+      { id: "seed-blood-liver-alp", label: "ALP", defaultFasting: "required" },
+      { id: "seed-blood-liver-ggt", label: "GGT", defaultFasting: "required" },
+      { id: "seed-blood-liver-tbil", label: "総ビリルビン", defaultFasting: "required" },
+      { id: "seed-blood-liver-tba-prepost", label: "TBA(pre・post)", defaultFasting: "required" },
+      { id: "seed-blood-liver-tba-post", label: "TBA(post)", defaultFasting: "none" },
     ],
   }),
   ...bloodGroupSeed({
@@ -86,13 +96,13 @@ const SEED = [
     label: "腎臓",
     order: 20,
     children: [
-      { id: "seed-blood-kidney-scr", label: "腎スク" },
-      { id: "seed-blood-kidney-bun", label: "BUN" },
-      { id: "seed-blood-kidney-cre", label: "Cre" },
-      { id: "seed-blood-kidney-ca", label: "Ca" },
-      { id: "seed-blood-kidney-ip", label: "IP" },
-      { id: "seed-blood-kidney-electrolyte", label: "電解質" },
-      { id: "seed-blood-kidney-panel-idexx", label: "腎パネル(IDEXX)" },
+      { id: "seed-blood-kidney-scr", label: "腎スク", defaultFasting: "required" },
+      { id: "seed-blood-kidney-bun", label: "BUN", defaultFasting: "required" },
+      { id: "seed-blood-kidney-cre", label: "Cre", defaultFasting: "required" },
+      { id: "seed-blood-kidney-ca", label: "Ca", defaultFasting: "required" },
+      { id: "seed-blood-kidney-ip", label: "IP", defaultFasting: "required" },
+      { id: "seed-blood-kidney-electrolyte", label: "電解質", defaultFasting: "required" },
+      { id: "seed-blood-kidney-panel-idexx", label: "腎パネル(IDEXX)", defaultFasting: "required" },
     ],
   }),
   ...bloodGroupSeed({
@@ -100,8 +110,8 @@ const SEED = [
     label: "脂質",
     order: 30,
     children: [
-      { id: "seed-blood-lipid-tcho", label: "T-Cho" },
-      { id: "seed-blood-lipid-tg", label: "TG" },
+      { id: "seed-blood-lipid-tcho", label: "T-Cho", defaultFasting: "required" },
+      { id: "seed-blood-lipid-tg", label: "TG", defaultFasting: "required" },
     ],
   }),
   ...bloodGroupSeed({
@@ -109,10 +119,10 @@ const SEED = [
     label: "ホルモン",
     order: 40,
     children: [
-      { id: "seed-blood-hormone-acth", label: "ACTH通常" },
-      { id: "seed-blood-hormone-acth-matsuki", label: "ACTH松木式" },
-      { id: "seed-blood-hormone-t4", label: "T4" },
-      { id: "seed-blood-hormone-ft4", label: "fT4" },
+      { id: "seed-blood-hormone-acth", label: "ACTH通常", defaultFasting: "none" },
+      { id: "seed-blood-hormone-acth-matsuki", label: "ACTH松木式", defaultFasting: "none" },
+      { id: "seed-blood-hormone-t4", label: "T4", defaultFasting: "none" },
+      { id: "seed-blood-hormone-ft4", label: "fT4", defaultFasting: "none" },
     ],
   }),
   {
@@ -122,6 +132,7 @@ const SEED = [
     kind: "leaf",
     parentId: "",
     order: 110,
+    defaultFasting: "required",
   },
   {
     id: "seed-blood-glucose-drychem",
@@ -130,9 +141,26 @@ const SEED = [
     kind: "leaf",
     parentId: "",
     order: 120,
+    defaultFasting: "required",
   },
-  { id: "seed-blood-crp", label: "CRP", category: "blood", kind: "leaf", parentId: "", order: 130 },
-  { id: "seed-blood-saa", label: "SAA", category: "blood", kind: "leaf", parentId: "", order: 140 },
+  {
+    id: "seed-blood-crp",
+    label: "CRP",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 130,
+    defaultFasting: "none",
+  },
+  {
+    id: "seed-blood-saa",
+    label: "SAA",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 140,
+    defaultFasting: "none",
+  },
   {
     id: "seed-blood-checkup-fujifilm",
     label: "健診セット(FUJIFILM)",
@@ -140,6 +168,7 @@ const SEED = [
     kind: "leaf",
     parentId: "",
     order: 150,
+    defaultFasting: "required",
   },
   {
     id: "seed-blood-checkup-idexx",
@@ -148,6 +177,7 @@ const SEED = [
     kind: "leaf",
     parentId: "",
     order: 160,
+    defaultFasting: "required",
   },
   ...categoryGroupSeed("imaging", {
     id: "seed-imaging-set",
@@ -330,6 +360,7 @@ function normalizeItem(id, raw) {
     kind,
     parentId: kind === "group" ? "" : String(raw.parentId || "").trim(),
     order: typeof raw.order === "number" ? raw.order : 0,
+    defaultFasting: normalizeExamFasting(raw.defaultFasting),
   };
 }
 function notifyItems() {
@@ -347,14 +378,21 @@ function notifyPlan(k) {
 
 export async function ensureExamItemDefaults() {
   SEED.forEach((seed) => {
+    const fasting = normalizeExamFasting(seed.defaultFasting);
     if (!store.examItems[seed.id]) {
-      store.examItems[seed.id] = {
+      const row = {
         label: seed.label,
         category: seed.category,
         kind: seed.kind || "leaf",
         parentId: seed.parentId || "",
         order: seed.order,
       };
+      if (fasting) row.defaultFasting = fasting;
+      store.examItems[seed.id] = row;
+      return;
+    }
+    if (fasting && normalizeExamFasting(store.examItems[seed.id].defaultFasting) !== fasting) {
+      store.examItems[seed.id].defaultFasting = fasting;
     }
   });
   notifyItems();

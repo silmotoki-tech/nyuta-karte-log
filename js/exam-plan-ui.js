@@ -605,6 +605,7 @@ function renderUnifiedPlanList() {
   entries.forEach((entry) => {
     const li = document.createElement("li");
     li.className = "exam-list-item";
+    li.dataset.planId = entry.id;
 
     const info = document.createElement("div");
     info.className = "exam-list-item__info";
@@ -764,7 +765,7 @@ function renderHistory() {
   const items = Object.entries(state.plan.history || {}).map(([id, h]) => ({ id, ...h }));
   if (historyEmpty) historyEmpty.hidden = items.length > 0;
 
-  // 項目名ごとにグループ化（表示順・ギャップ計算用。見出し行は出さない）
+  // 項目名ごとにグループ化し、見出し＋実施日の降順で並べる
   const groups = new Map();
   items.forEach((h) => {
     const key = h.item || "（項目未設定）";
@@ -772,7 +773,7 @@ function renderHistory() {
     groups.get(key).push(h);
   });
 
-  const groupKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b));
+  const groupKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b, "ja"));
 
   groupKeys.forEach((itemName) => {
     const groupItems = groups.get(itemName);
@@ -783,19 +784,29 @@ function renderHistory() {
     );
     const oldestId = oldestFirst[0]?.id;
 
+    const groupTitle = document.createElement("li");
+    groupTitle.className = "exam-history-group-title";
+    groupTitle.dataset.historyGroup = itemName;
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "exam-history-group-title__label";
+    groupLabel.textContent = itemName;
+    const groupHint = document.createElement("div");
+    groupHint.className = "exam-history-group-title__hint";
+    groupHint.textContent = `${groupItems.length}件 · 新しい順`;
+    groupTitle.append(groupLabel, groupHint);
+    historyList.appendChild(groupTitle);
+
     groupItems.forEach((h) => {
       const li = document.createElement("li");
       li.className = "exam-list-item exam-list-item--history";
+      li.dataset.historyId = h.id;
+      li.dataset.historyItem = itemName;
 
       const info = document.createElement("div");
       info.className = "exam-list-item__info";
 
       const head = document.createElement("div");
       head.className = "exam-list-item__head";
-
-      const title = document.createElement("div");
-      title.className = "exam-list-item__title";
-      title.textContent = itemName;
 
       const dateEl = document.createElement("div");
       dateEl.className = "exam-history-date";
@@ -811,7 +822,7 @@ function renderHistory() {
       mdEl.textContent = parts.md;
       dateEl.appendChild(mdEl);
 
-      head.append(title, dateEl);
+      head.appendChild(dateEl);
       info.appendChild(head);
 
       if (h.id !== oldestId && h.date) {
@@ -1342,6 +1353,31 @@ function selectionNeedsFasting(selected = state.draft.selectedItems) {
   );
 }
 
+/** 選択中の血液項目からマスタ既定の絶食を解決する（不一致・未設定は空） */
+function resolveDefaultFastingFromSelection(selected = state.draft.selectedItems) {
+  const values = (selected || [])
+    .filter((sel) => normalizeExamItemCategory(sel.category) === "blood")
+    .map((sel) => {
+      const item =
+        (sel.id && state.examItems.find((x) => x.id === sel.id)) ||
+        findExamItemByLabel(sel.label);
+      return normalizeExamFasting(item?.defaultFasting);
+    })
+    .filter(Boolean);
+  if (!values.length) return "";
+  const first = values[0];
+  return values.every((v) => v === first) ? first : "";
+}
+
+/** 選択変更時にマスタ既定の絶食を反映（未設定なら空のまま手動必須） */
+function applyDefaultFastingFromSelection() {
+  if (!selectionNeedsFasting()) {
+    state.draft.fasting = "";
+    return;
+  }
+  state.draft.fasting = resolveDefaultFastingFromSelection();
+}
+
 function escapeRegExp(text) {
   return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -1631,6 +1667,8 @@ function toggleExamItem(item) {
     syncDraftItemFromSelection();
     if (!selectionNeedsFasting()) {
       state.draft.fasting = "";
+    } else {
+      applyDefaultFastingFromSelection();
     }
   }
 
@@ -1963,7 +2001,7 @@ async function handleAddExamItemFromPlanModal() {
       }
       state.draft.selectedItems.push(createdRef);
       syncDraftItemFromSelection();
-      if (!selectionNeedsFasting()) state.draft.fasting = "";
+      applyDefaultFastingFromSelection();
     }
     collapseExamItemAddForm();
     renderExamLinearPicker();
@@ -2311,4 +2349,74 @@ export async function addExamPlanFromExternal(
  */
 export function getExamItemsSnapshot() {
   return Array.isArray(state.examItems) ? state.examItems.slice() : [];
+}
+
+/** カルテ内検索用: 検査予定・実施履歴の横断テキスト源 */
+export function getExamSearchItems() {
+  if (!state.plan) return [];
+  const out = [];
+  Object.entries(state.plan.plans || {}).forEach(([id, p]) => {
+    if (!p) return;
+    out.push({
+      id,
+      kind: "plan",
+      kindLabel: "検査予定",
+      item: p.item || "",
+      note: p.note || "",
+      date: p.dueDate || p.baselineDate || "",
+    });
+  });
+  Object.entries(state.plan.history || {}).forEach(([id, h]) => {
+    if (!h) return;
+    out.push({
+      id,
+      kind: "history",
+      kindLabel: "検査実施",
+      item: h.item || "",
+      note: h.note || "",
+      date: h.date || "",
+    });
+  });
+  return out;
+}
+
+/** カルテ内検索の結果から検査タブへジャンプ */
+export function focusExamSearchTarget({ kind, id, itemName } = {}) {
+  switchTab("exam");
+  if (!state.plan) return false;
+  const flash = (el) => {
+    if (!el) return;
+    el.classList.add("is-search-target");
+    try {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch {
+      /* ignore */
+    }
+    setTimeout(() => el.classList.remove("is-search-target"), 1600);
+  };
+
+  if (kind === "plan" && id) {
+    const entry = collectUnifiedPlanEntries().find((e) => e.id === id);
+    if (entry) openExamItemSheet(entry);
+    queueMicrotask(() => flash(planList?.querySelector(`[data-plan-id="${CSS.escape(id)}"]`)));
+    return true;
+  }
+
+  if (kind === "history") {
+    const byId = id
+      ? historyList?.querySelector(`[data-history-id="${CSS.escape(id)}"]`)
+      : null;
+    if (byId) {
+      flash(byId);
+      return true;
+    }
+    if (itemName) {
+      const group = historyList?.querySelector(
+        `[data-history-group="${CSS.escape(itemName)}"]`
+      );
+      flash(group);
+      return Boolean(group);
+    }
+  }
+  return false;
 }

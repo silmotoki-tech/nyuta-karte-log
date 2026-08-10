@@ -33,7 +33,7 @@ import {
   bindFrequencyPicker,
 } from "./freq-picker.js";
 import { filterMedicationLeavesByQuery } from "./med-item-match.js";
-import { getDueCountdown } from "./exam-plan-ui.js";
+import { getDueCountdown, switchRightTab } from "./exam-plan-ui.js";
 import { maxDueAlertLevel, setRightTabDueAlert } from "./right-tab-alerts.js";
 
 const APPROACHING_DAYS = 7;
@@ -999,6 +999,7 @@ function findStartEvent(drug) {
 function createEventItem(drug, ev) {
   const li = document.createElement("li");
   li.className = "exam-list-item";
+  li.dataset.eventId = ev.id || "";
 
   const info = document.createElement("div");
   info.className = "exam-list-item__info";
@@ -2150,6 +2151,48 @@ export function focusMedicationByName(name) {
   const drug = state.drugs.find((d) => d.name === trimmed);
   if (!drug) return false;
   openMedDetailSheet(drug);
+  return true;
+}
+
+/** カルテ内検索用: 薬剤の出来事履歴 */
+export function getMedSearchItems() {
+  const out = [];
+  (state.drugs || []).forEach((drug) => {
+    const events = sortEvents(drug.events);
+    events.forEach((ev) => {
+      out.push({
+        drugId: drug.id,
+        eventId: ev.id,
+        drugName: drug.name || "",
+        typeLabel: eventHistoryLabel(ev.type),
+        detail: ev.detail || "",
+        date: ev.date || "",
+        changedBy: ev.changedBy || "",
+      });
+    });
+  });
+  return out;
+}
+
+/** カルテ内検索の結果から薬剤タブへジャンプ */
+export function focusMedSearchTarget({ drugId, eventId } = {}) {
+  const drug = (state.drugs || []).find((d) => d.id === drugId);
+  if (!drug) return false;
+  switchRightTab("meds");
+  openMedDetailSheet(drug);
+  if (eventId) {
+    queueMicrotask(() => {
+      const el = document.querySelector(`[data-event-id="${CSS.escape(eventId)}"]`);
+      if (!el) return;
+      el.classList.add("is-search-target");
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {
+        /* ignore */
+      }
+      setTimeout(() => el.classList.remove("is-search-target"), 1600);
+    });
+  }
   return true;
 }
 

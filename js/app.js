@@ -17,12 +17,21 @@ import {
   enterExamPlan,
   leaveExamPlan,
   setRightTabChangeHandler,
+  getExamSearchItems,
+  focusExamSearchTarget,
 } from "./exam-plan-ui.js";
 import {
   initMedsUI,
   enterMeds,
   leaveMeds,
+  getMedSearchItems,
+  focusMedSearchTarget,
 } from "./meds-ui.js";
+import {
+  initChartSearchUI,
+  clearChartSearch,
+  refreshChartSearch,
+} from "./chart-search-ui.js";
 import {
   initHistoryUI,
   enterHistory,
@@ -117,6 +126,8 @@ const state = {
   composing: false,
   // 直近に選択した記入者（右カラムの自動記録用。compose 終了後も保持）
   lastAuthor: null,
+  // 同一カルテを開いている間だけ引き継ぐ記入者（カルテ入場時は未選択）
+  sessionAuthor: null,
   // 編集中エントリ
   editingEntryId: null,
   editDraft: {
@@ -179,6 +190,7 @@ const bodyInput = document.getElementById("body-input");
 const templateButtonsEl = document.getElementById("template-buttons");
 const templateEmptyEl = document.getElementById("template-empty");
 const entryError = document.getElementById("entry-error");
+const entrySelectedAuthor = document.getElementById("entry-selected-author");
 const btnEntrySave = document.getElementById("btn-entry-save");
 const btnEntryCancel = document.getElementById("btn-entry-cancel");
 
@@ -332,14 +344,27 @@ function setAuthorFieldVisible(visible) {
   if (authorField) authorField.hidden = !visible;
 }
 
+function updateSelectedAuthorChip() {
+  if (!entrySelectedAuthor) return;
+  const name = state.draft.author || "";
+  entrySelectedAuthor.textContent = name ? `記入者: ${name}` : "記入者: 未選択";
+  entrySelectedAuthor.classList.toggle("is-unset", !name);
+  entrySelectedAuthor.classList.toggle("is-set", Boolean(name));
+}
+
 function openCompose() {
   state.composing = true;
   if (entryComposer) entryComposer.hidden = false;
   if (btnStartCompose) btnStartCompose.hidden = true;
   resetDraft({ keepAuthor: false });
-  // 記入者が未選択なら表示。選択済みなら隠す
+  // 同じカルテ内で直前に保存した記入者を引き継ぐ（初回は未選択のまま）
+  if (state.sessionAuthor) {
+    state.draft.author = state.sessionAuthor;
+  }
+  // 記入者が未選択なら表示。選択済みなら隠す（チップから再表示可）
   setAuthorFieldVisible(!state.draft.author);
   renderAuthorSelection();
+  updateSelectedAuthorChip();
   showError(entryError, "");
   setTimeout(() => {
     if (!state.draft.author) return;
@@ -919,6 +944,7 @@ AUTHORS.forEach((name) => {
     state.draft.author = name;
     state.lastAuthor = name;
     renderAuthorSelection();
+    updateSelectedAuthorChip();
     setAuthorFieldVisible(false);
     authorRow?.classList.remove("is-error-target");
     showError(entryError, "");
@@ -927,10 +953,16 @@ AUTHORS.forEach((name) => {
   authorRow?.appendChild(btn);
 });
 
+entrySelectedAuthor?.addEventListener("click", () => {
+  setAuthorFieldVisible(true);
+  authorField?.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
 function renderAuthorSelection() {
   authorRow?.querySelectorAll(".author-btn").forEach((btn) => {
     btn.classList.toggle("is-selected", btn.dataset.author === state.draft.author);
   });
+  updateSelectedAuthorChip();
 }
 
 // 編集モーダル用・編集者ボタン
@@ -1064,11 +1096,6 @@ async function handleEntryEditSave() {
     entryEditHeadline?.focus();
     return;
   }
-  if (!body) {
-    showError(entryEditError, "本文を入力してください。");
-    entryEditBody?.focus();
-    return;
-  }
 
   showError(entryEditError, "");
   setBusy(btnEntryEditSave, true, "保存中...", "保存する");
@@ -1080,6 +1107,8 @@ async function handleEntryEditSave() {
       important: state.editDraft.important,
       editedBy: state.editDraft.author,
     });
+    state.sessionAuthor = state.editDraft.author;
+    state.lastAuthor = state.editDraft.author;
     closeEntryEdit();
     showToast("編集内容を保存しました。");
   } catch (err) {
@@ -1153,11 +1182,14 @@ function resetDraft({ keepAuthor = false } = {}) {
   renderCategorySelection();
   updateRecordDateNote();
   renderAuthorSelection();
+  updateSelectedAuthorChip();
   const formEl = document.querySelector(".entry-form");
   if (formEl) formEl.scrollTop = 0;
 }
 
 function enterMain() {
+  // カルテ入場直後の1回目は記入者未選択（セッション引き継ぎをリセット）
+  state.sessionAuthor = null;
   updateLeftPatient();
   if (recordDateInput) recordDateInput.max = todayStr();
   closeCompose({ reset: true });
@@ -1199,6 +1231,8 @@ function leaveMain() {
   state.animalName = null;
   state.entries = [];
   state.draft.author = null;
+  state.sessionAuthor = null;
+  clearChartSearch();
   // lastAuthor は端末内の作業継続用に残す（カルテ変更後も処置ログ等で使える）
   state.starFilter = false;
   if (starFilterInput) starFilterInput.checked = false;
@@ -1232,11 +1266,6 @@ async function handleEntrySave() {
     headlineInput.focus();
     return;
   }
-  if (!body) {
-    showError(entryError, "本文を入力してください。");
-    bodyInput.focus();
-    return;
-  }
   if (!recordDate) {
     showError(entryError, "記録日を選択してください。");
     return;
@@ -1257,12 +1286,15 @@ async function handleEntrySave() {
       body,
       source,
     });
+    state.sessionAuthor = author;
+    state.lastAuthor = author;
     const karteNumber = state.karteNumber;
     closeCompose({ reset: true });
     showToast("保存しました。");
 
     // 定型文入力は対象外。手動入力のみ AI 提案フローへ（フラグで無効化可）
-    if (source === "manual") {
+    // 本文が空のときは提案対象外
+    if (source === "manual" && body) {
       await runAiSuggestAfterSave({
         karteNumber,
         body,
@@ -1336,7 +1368,10 @@ function createTimelineItem(entry) {
   starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
   dateEl.textContent = mdFromStr(entry.recordDate) || "";
   headlineEl.textContent = entry.headline || "（見出しなし）";
-  bodyEl.textContent = entry.body || "";
+  const bodyText = (entry.body || "").trim();
+  bodyEl.textContent = bodyText;
+  bodyEl.hidden = !bodyText;
+  li.classList.toggle("tl-item--headline-only", !bodyText);
 
   // 時刻・記入者は常時非表示。タップで開閉。カテゴリ名もここで補足。
   const metaParts = [];
@@ -1425,15 +1460,18 @@ function renderHeadlines(entries) {
   });
 }
 
-function jumpToEntry(entryId, headlineLi) {
+function jumpToEntry(entryId, headlineLi = null) {
   const target = document.getElementById(`tl-${entryId}`);
   if (!target) return;
+  target.classList.add("is-search-target");
   target.scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(() => target.classList.remove("is-search-target"), 1600);
   target.classList.add("is-flash");
   setTimeout(() => target.classList.remove("is-flash"), 1200);
 
+  if (!headlineLi || !headlineList) return;
   headlineList.querySelectorAll(".hl-item__btn").forEach((b) => b.classList.remove("is-target"));
-  headlineLi.querySelector(".hl-item__btn").classList.add("is-target");
+  headlineLi.querySelector(".hl-item__btn")?.classList.add("is-target");
 }
 
 // ★フィルタ
@@ -1676,11 +1714,21 @@ initFreeQaUI({
   getTimelineEntries: () => state.entries || [],
 });
 
+initChartSearchUI({
+  getTimelineEntries: () => state.entries || [],
+  getExamSearchItems,
+  getMedSearchItems,
+  jumpToEntry: (entryId) => jumpToEntry(entryId),
+  jumpToExamTarget: focusExamSearchTarget,
+  jumpToMedTarget: focusMedSearchTarget,
+});
+
 // 検索タブ表示時に入力欄・APIキー案内を再確認（他タブ操作の影響を受けないようにする）
 setRightTabChangeHandler((tabId, hasKarte) => {
   if (tabId !== "qa" || !hasKarte) return;
   if (state.karteNumber) ensureFreeQaActive(state.karteNumber);
   onFreeQaTabShown();
+  refreshChartSearch();
 });
 
 initAiSuggestUI({

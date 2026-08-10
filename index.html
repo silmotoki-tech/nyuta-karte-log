@@ -336,14 +336,14 @@
               <span class="field__note" id="record-date-note"></span>
             </div>
 
-            <!-- 本文 -->
+            <!-- 本文（任意） -->
             <div class="field">
-              <label class="label" for="body-input">本文</label>
+              <label class="label" for="body-input">本文（任意）</label>
               <textarea
                 id="body-input"
                 class="textarea"
                 rows="5"
-                placeholder="診療内容を入力してください"
+                placeholder="必要なら診療内容を入力（空でも保存できます）"
               ></textarea>
             </div>
 
@@ -359,6 +359,14 @@
 
           <div class="entry-actions">
             <p id="entry-error" class="error-text error-text--banner" role="alert" hidden></p>
+            <button
+              id="entry-selected-author"
+              class="entry-author-chip"
+              type="button"
+              title="記入者を選び直す"
+            >
+              記入者: 未選択
+            </button>
             <div class="entry-actions__row">
               <button id="btn-entry-save" class="btn btn--primary" type="button">
                 保存する
@@ -484,7 +492,27 @@
       <!-- D. 自由質問 -->
       <div class="right-panel" id="panel-qa" data-panel="qa" hidden>
         <section class="exam-section">
-          <h3 class="exam-section__title">新規質問</h3>
+          <h3 class="exam-section__title">カルテ内検索</h3>
+          <div class="chart-search">
+            <label class="label" for="chart-search-input">キーワード</label>
+            <input
+              id="chart-search-input"
+              class="input"
+              type="search"
+              autocomplete="off"
+              enterkeyhint="search"
+              placeholder="例）エコー / 肝臓 / アモキシ"
+            />
+            <p class="field__note" id="chart-search-hint">
+              見出し・本文、検査の予定・実施履歴、薬剤の出来事を横断検索します。
+            </p>
+            <p class="field__note" id="chart-search-empty" hidden>一致する記録はありません。</p>
+            <ul class="chart-search-results" id="chart-search-results"></ul>
+          </div>
+        </section>
+
+        <section class="exam-section">
+          <h3 class="exam-section__title">AIへの自由質問</h3>
           <div class="qa-compose">
             <label class="label" for="free-qa-input">この患者について質問</label>
             <textarea
@@ -648,8 +676,8 @@
         </div>
       </div>
       <div class="field">
-        <label class="label" for="entry-edit-body">本文</label>
-        <textarea id="entry-edit-body" class="textarea" rows="6"></textarea>
+        <label class="label" for="entry-edit-body">本文（任意）</label>
+        <textarea id="entry-edit-body" class="textarea" rows="6" placeholder="空でも保存できます"></textarea>
       </div>
     </div>
     <div class="modal__footer">
@@ -804,7 +832,7 @@
           <button type="button" class="exam-fasting-btn" data-fasting="required">必要</button>
           <button type="button" class="exam-fasting-btn" data-fasting="none">不要</button>
         </div>
-        <p class="field__note">血液検査の予定では、絶食の要不要を選んでください。</p>
+        <p class="field__note">血液検査の予定では絶食の要不要を選びます。マスタに既定値がある項目は自動選択されます。</p>
       </div>
 
       <div class="exam-plan-dual" id="exam-plan-dual">

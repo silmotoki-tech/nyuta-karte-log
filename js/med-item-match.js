@@ -97,15 +97,26 @@ function toMedicationCandidateRow(t, score = 0) {
 /**
  * リニアピッカー用: 薬剤名の部分一致で横断検索する。
  */
+function medicationTargetSearchText(t) {
+  return normalizeMedQuery(
+    [t.label, t.parentLabel, t.categoryLabel].filter(Boolean).join(" ")
+  );
+}
+
 export function filterMedicationLeavesByQuery(query, items, { limit = 100 } = {}) {
   const q = normalizeMedQuery(query);
   if (!q) return [];
 
   const matched = listMedicationMatchTargets(items)
-    .filter((t) => normalizeMedQuery(t.label).includes(q))
-    .map((t) =>
-      toMedicationCandidateRow(t, scoreMedicationLabelMatch(query, t.label))
-    );
+    .filter((t) => medicationTargetSearchText(t).includes(q))
+    .map((t) => {
+      const score = Math.max(
+        scoreMedicationLabelMatch(query, t.label),
+        t.parentLabel ? scoreMedicationLabelMatch(query, t.parentLabel) : 0,
+        t.categoryLabel ? scoreMedicationLabelMatch(query, t.categoryLabel) : 0
+      );
+      return toMedicationCandidateRow(t, score);
+    });
 
   matched.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;

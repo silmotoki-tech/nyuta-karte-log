@@ -830,6 +830,30 @@ html.is-unlocked .app {
   flex: 1;
 }
 
+.entry-author-chip {
+  align-self: flex-start;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: #f7f4ef;
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.entry-author-chip.is-unset {
+  color: var(--color-text-muted);
+  border-style: dashed;
+}
+
+.entry-author-chip.is-set {
+  border-color: #c9b59a;
+  background: #fff8ee;
+  color: var(--color-brown);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -1443,6 +1467,17 @@ html.is-unlocked .app {
   font-size: 0.84rem;
   font-weight: 400;
   color: #5c6570;
+}
+
+.tl-item__body[hidden] {
+  display: none !important;
+}
+
+.is-search-target {
+  outline: 2px solid #c9a06a;
+  outline-offset: 2px;
+  background-color: #fff8ee !important;
+  transition: background-color 0.2s ease;
 }
 
 .tl-item__meta {
@@ -4062,7 +4097,73 @@ select.input {
   width: 100% !important;
 }
 
-/* ===== 自由質問タブ ===== */
+/* ===== 検索タブ（カルテ内検索 + 自由質問） ===== */
+.chart-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.chart-search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chart-search-item__btn {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.chart-search-item__btn:active {
+  background: #f7f4ef;
+}
+
+.chart-search-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chart-search-item__badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--color-brown);
+}
+
+.chart-search-item__date {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-search-item__title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.chart-search-item__snippet {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 .qa-compose {
   display: flex;
   flex-direction: column;
