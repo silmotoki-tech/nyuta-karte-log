@@ -1,5 +1,4 @@
 import { chromium } from "playwright";
-import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -211,7 +210,7 @@ const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
+  route.fulfill({ contentType: "application/javascript", body: mockDb })
 );
 
 await page.goto(`${base}/tools/med-hierarchy-harness.html`, {

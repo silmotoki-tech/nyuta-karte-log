@@ -419,3 +419,110 @@ export async function addSpecialNote() {
 }
 export async function updateSpecialNote() {}
 export async function deleteSpecialNote() {}
+
+// ==== ここから自動生成: node scripts/check-mock-db-exports.mjs --write ====
+// db.js にあってこのモックが定義していない名前を、起動が通る最小限の実装で埋める。
+// 挙動が必要になったら、この上でその名前を普通に定義すれば生成対象から外れる。
+
+export function examItemCategoryLabel() {
+  return "";
+}
+
+export const MED_ORAL_OTHER_GROUP_ID = "seed-med-oral-other";
+
+export const MED_INJECT_ANTIINFLAM_STEROID_GROUP_ID =
+  "seed-med-inject-antiinflam-steroid";
+
+export const MED_INJECT_ANTIBIOTIC_GROUP_ID = "seed-med-inject-antibiotic";
+
+export const MED_INJECT_GI_GROUP_ID = "seed-med-inject-gi";
+
+export const MED_INJECT_NEURO_GROUP_ID = "seed-med-inject-neuro";
+
+export const MED_INJECT_ANTICANCER_GROUP_ID = "seed-med-inject-anticancer";
+
+export const MED_INJECT_CARDIO_RESP_GROUP_ID = "seed-med-inject-cardio-resp";
+
+export const MED_INJECT_OTHER_GROUP_ID = "seed-med-inject-other";
+
+export const MED_ORAL_ANTIBIOTIC_GROUP_ID = "seed-med-oral-antibiotic";
+
+export const MED_ORAL_ANTIINFLAM_GROUP_ID = "seed-med-oral-antiinflam";
+
+export const MED_ORAL_STEROID_ANTIHIST_GROUP_ID = "seed-med-oral-steroid-antihist";
+
+export const MED_ORAL_GI_STOMACH_GROUP_ID = "seed-med-oral-gi-stomach";
+
+export const MED_ORAL_GI_INTESTINE_GROUP_ID = "seed-med-oral-gi-intestine";
+
+export const MED_ORAL_LIVER_GROUP_ID = "seed-med-oral-liver";
+
+export const MED_ORAL_URINARY_GROUP_ID = "seed-med-oral-urinary";
+
+export const MED_ORAL_LIVER_KIDNEY_GROUP_ID = "seed-med-oral-liver-kidney";
+
+export const MED_ORAL_CARDIO_GROUP_ID = "seed-med-oral-cardio";
+
+export const MED_ORAL_RESPIRATORY_GROUP_ID = "seed-med-oral-respiratory";
+
+export const MED_ORAL_NEURO_GROUP_ID = "seed-med-oral-neuro";
+
+export const MED_ORAL_ANTIFUNGAL_GROUP_ID = "seed-med-oral-antifungal";
+
+export const MED_ORAL_ANTICANCER_GROUP_ID = "seed-med-oral-anticancer";
+
+export const MED_ORAL_IMMUNO_GROUP_ID = "seed-med-oral-immuno";
+
+export const MED_ORAL_VITAMIN_GROUP_ID = "seed-med-oral-vitamin";
+
+export const MED_ORAL_HORMONE_GROUP_ID = "seed-med-oral-hormone";
+
+export const MED_ORAL_KAMPO_GROUP_ID = "seed-med-oral-kampo";
+
+export const MED_ORAL_BLOOD_GROUP_ID = "seed-med-oral-blood";
+
+export const MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID = "seed-med-topical-skin-steroid-abx";
+
+export const MED_TOPICAL_SKIN_OTHER_GROUP_ID = "seed-med-topical-skin-other";
+
+export const MED_TOPICAL_EAR_GROUP_ID = "seed-med-topical-ear";
+
+export const MED_TOPICAL_SKIN_GROUP_ID = "seed-med-topical-skin";
+
+export const MED_TOPICAL_DISINFECT_GROUP_ID = "seed-med-topical-disinfect";
+
+export const MED_TOPICAL_SHAMPOO_GROUP_ID = "seed-med-topical-shampoo";
+
+export const MED_SUPPL_JOINT_GROUP_ID = "seed-med-suppl-joint";
+
+export const MED_SUPPL_ORAL_GROUP_ID = "seed-med-suppl-oral";
+
+export const MED_SUPPL_GI_GROUP_ID = "seed-med-suppl-gi";
+
+export const MED_SUPPL_KIDNEY_GROUP_ID = "seed-med-suppl-kidney";
+
+export const MED_SUPPL_URINARY_GROUP_ID = "seed-med-suppl-urinary";
+
+export const MED_SUPPL_NEURO_GROUP_ID = "seed-med-suppl-neuro";
+
+export const MED_SUPPL_SKIN_GROUP_ID = "seed-med-suppl-skin";
+
+export const MED_SUPPL_OTHER_GROUP_ID = "seed-med-suppl-other";
+
+export const MED_FOOD_HILLS_GROUP_ID = "seed-med-food-hills";
+
+export const MED_FOOD_DOCTORS_GROUP_ID = "seed-med-food-doctors";
+
+export const MED_FOOD_DIETIX_GROUP_ID = "seed-med-food-dietix";
+
+export const MED_FOOD_FARMINA_GROUP_ID = "seed-med-food-farmina";
+
+export const MED_FOOD_PURINA_GROUP_ID = "seed-med-food-purina";
+
+export const MED_FOOD_ROYAL_CANIN_GROUP_ID = "seed-med-food-royal-canin";
+
+export const MED_FOOD_OTHER_GROUP_ID = "seed-med-food-other";
+
+export async function ensureHistorySurgeryItemDefaults() {}
+
+// ==== 自動生成ここまで ====

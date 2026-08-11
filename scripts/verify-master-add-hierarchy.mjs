@@ -3,7 +3,6 @@
  * 正しく紐づくことを検証する。
  */
 import { chromium } from "playwright";
-import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -393,7 +392,7 @@ const browser = await launchBrowser();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.route("**/js/db.js", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: examMock + MASTER_DELETE_MOCK })
+    route.fulfill({ contentType: "application/javascript", body: examMock })
   );
   await page.goto(`${base}/exam.html`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__ready === true);
@@ -499,7 +498,7 @@ const browser = await launchBrowser();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.route("**/js/db.js", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: medMock + MASTER_DELETE_MOCK })
+    route.fulfill({ contentType: "application/javascript", body: medMock })
   );
   await page.goto(`${base}/med.html`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__ready === true);

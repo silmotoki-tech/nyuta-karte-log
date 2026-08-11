@@ -2,7 +2,6 @@
  * リニア選択の長い列が、下の入力欄（予定日・テンキー等）に重ならないことを検証する。
  */
 import { chromium } from "playwright";
-import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -405,7 +404,7 @@ const errors = [];
   });
   page.on("pageerror", (e) => errors.push("exam:" + e));
   await page.route("**/js/db.js", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: examMock + MASTER_DELETE_MOCK })
+    route.fulfill({ contentType: "application/javascript", body: examMock })
   );
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__ready === true);
@@ -453,7 +452,7 @@ const errors = [];
   });
   page.on("pageerror", (e) => errors.push("med:" + e));
   await page.route("**/js/db.js", (route) =>
-    route.fulfill({ contentType: "application/javascript", body: medMock + MASTER_DELETE_MOCK })
+    route.fulfill({ contentType: "application/javascript", body: medMock })
   );
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => window.__ready === true);

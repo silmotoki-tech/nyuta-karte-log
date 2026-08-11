@@ -955,3 +955,256 @@ export function __resetStore() {
   store.medications = {};
   seq = 0;
 }
+
+// ==== ここから自動生成: node scripts/check-mock-db-exports.mjs --write ====
+// db.js にあってこのモックが定義していない名前を、起動が通る最小限の実装で埋める。
+// 挙動が必要になったら、この上でその名前を普通に定義すれば生成対象から外れる。
+
+let __mockSeq = 0;
+const __mockNextId = () => "mock" + (__mockSeq += 1);
+
+export const DEFAULT_ADMIN_PASSCODE = "oono";
+
+export async function ensureAdminPasscodeDefault() {}
+
+export async function verifyAdminPasscode(input) {
+  return String(input ?? "") === DEFAULT_ADMIN_PASSCODE;
+}
+
+export async function getAnimalName() {}
+
+export async function setAnimalName() {}
+
+export async function addEntry() {
+  return __mockNextId();
+}
+
+export async function setEntryImportant() {}
+
+export async function updateEntry() {}
+
+export async function deleteEntry() {}
+
+export function subscribeEntries(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export function sortEntriesDescending(list) {
+  return [...(list || [])];
+}
+
+export function subscribeTemplates(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function addTemplate() {
+  return __mockNextId();
+}
+
+export async function updateTemplate() {}
+
+export async function deleteTemplate() {}
+
+export function examItemCategoryLabel() {
+  return "";
+}
+
+export function normalizeExamItemKind(value) {
+  return value;
+}
+
+export async function ensureExamItemDefaults() {}
+
+export async function updateExamItem() {}
+
+export async function deleteExamItem() {}
+
+export const EXAM_PLAN_SCHEMA_VERSION = 2;
+
+export async function setNextExamPlan() {}
+
+export async function clearNextExamPlan() {}
+
+export async function deleteExamHistory() {}
+
+export async function fetchMedicationItemsOnce() {
+  return [];
+}
+
+export async function fetchExamItemsOnce() {
+  return [];
+}
+
+export async function updateMedicationItem() {}
+
+export async function deleteMedicationItem() {}
+
+export const MEDICATION_SCHEMA_VERSION = 1;
+
+export function normalizeHistoryMasterKind(value) {
+  return value;
+}
+
+export async function ensureHistoryDiseaseItemDefaults() {}
+
+export async function ensureHistorySurgeryItemDefaults() {}
+
+export async function ensureHistoryReferralItemDefaults() {}
+
+export async function deleteHistoryDiseaseItem() {}
+
+export async function deleteHistorySurgeryItem() {}
+
+export async function deleteHistoryReferralItem() {}
+
+export function subscribeHistoryDiseaseItems(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export function subscribeHistorySurgeryItems(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export function subscribeHistoryReferralItems(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function addHistoryDiseaseItem() {
+  return __mockNextId();
+}
+
+export async function addHistorySurgeryItem() {
+  return __mockNextId();
+}
+
+export async function addHistoryReferralItem() {
+  return __mockNextId();
+}
+
+export const PATIENT_HISTORY_SCHEMA_VERSION = 1;
+
+export function subscribePatientHistory(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function addPatientHistoryEntry() {
+  return __mockNextId();
+}
+
+export async function updatePatientHistoryEntry() {}
+
+export async function setPatientHistoryStatus() {}
+
+export async function appendPatientHistoryNote() {}
+
+export async function deletePatientHistoryNote() {}
+
+export async function deletePatientHistoryEntry() {}
+
+export const FREE_QA_SCHEMA_VERSION = 1;
+
+export function subscribeFreeQA(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function addFreeQA() {
+  return __mockNextId();
+}
+
+export async function updateFreeQAAnswer() {}
+
+export async function deleteFreeQA() {}
+
+export const PROCEDURE_SCHEMA_VERSION = 2;
+
+export function subscribeProcedureBundle(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export function subscribeProcedures(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function saveProcedurePlan() {
+  return __mockNextId();
+}
+
+export async function deleteProcedurePlan() {}
+
+export async function reviveProcedurePlan() {
+  return __mockNextId();
+}
+
+export async function completeProcedurePlan() {}
+
+export async function addProcedure() {
+  return __mockNextId();
+}
+
+export async function updateProcedure() {}
+
+export async function deleteProcedure() {}
+
+export const SPECIAL_NOTE_SCHEMA_VERSION = 1;
+
+export const SPECIAL_NOTE_IMPORTANCE = ["high", "medium", "low"];
+
+export function subscribeSpecialNotes(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function addSpecialNote() {
+  return __mockNextId();
+}
+
+export async function updateSpecialNote() {}
+
+export async function deleteSpecialNote() {}
+
+export const MIGRATION_PROGRESS_SCHEMA_VERSION = 1;
+
+export const MIGRATION_PROGRESS_STATUSES = [
+  "not_started",
+  "in_progress",
+  "done",
+];
+
+export function normalizeMigrationProgressStatus(value) {
+  return value;
+}
+
+export function normalizeMigrationProgress(value) {
+  return value;
+}
+
+export function subscribeMigrationProgress(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function saveMigrationProgress() {
+  return __mockNextId();
+}
+
+// ==== 自動生成ここまで ====

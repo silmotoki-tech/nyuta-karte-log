@@ -2,7 +2,6 @@
  * 内服薬シード（抗生剤・血液）が選択画面で指定順に表示・選択できること
  */
 import { chromium } from "playwright";
-import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -604,7 +603,7 @@ const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(String(e)));
 
 await page.route("**/js/db.js", (route) =>
-  route.fulfill({ contentType: "application/javascript", body: mockDb + MASTER_DELETE_MOCK })
+  route.fulfill({ contentType: "application/javascript", body: mockDb })
 );
 
 await page.goto(`${base}/tools/med-linear-picker-harness.html`, {

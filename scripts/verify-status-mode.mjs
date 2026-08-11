@@ -146,7 +146,7 @@ await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 const layoutHidden = await page.locator("#app-shell .layout").evaluate((el) => el.hidden);
 assert.equal(layoutHidden, true, "3カラムが隠れていない");
 
-const header = await page.locator(".status-topbar__meta").innerText();
+const header = await page.locator("#screen-status .status-topbar__meta").innerText();
 console.log("HEADER", header.replace(/\s+/g, " "));
 assert.ok(header.includes("00001"), "カルテ番号が出ていない");
 assert.ok(header.includes("イチロウちゃん"), "動物名が出ていない");
@@ -309,11 +309,11 @@ const medsStillThere = await page
 assert.equal(medsStillThere, 6, "切替後に薬剤一覧が消えている");
 await shot("11-back-to-status");
 
-// 「記録する」で履歴側の入力欄が開くこと
+// 「記録する」で入力モードが開くこと
 await page.click("#btn-status-compose");
-await page.waitForSelector("#entry-composer:not([hidden])", { timeout: 5000 });
+await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
 const statusHidden = await page.locator("#screen-status").evaluate((el) => el.hidden);
-assert.equal(statusHidden, true, "記録するで履歴画面に切り替わっていない");
+assert.equal(statusHidden, true, "記録するで入力モードに切り替わっていない");
 await shot("12-compose");
 
 if (pageErrors.length) {

@@ -3,7 +3,6 @@
  * TBA(pre・post)=必要 / TBA(post)=不要 を含む。
  */
 import { chromium } from "playwright";
-import { MASTER_DELETE_MOCK } from "./mock-master-delete.js";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
@@ -68,8 +67,7 @@ async function launchBrowser() {
 }
 
 const mockDb =
-  fs.readFileSync(path.join(__dirname, "mock-db-exam-categories.js"), "utf-8") +
-  MASTER_DELETE_MOCK;
+  fs.readFileSync(path.join(__dirname, "mock-db-exam-categories.js"), "utf-8");
 
 const harness = `<!DOCTYPE html>
 <html lang="ja">
