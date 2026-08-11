@@ -51,6 +51,8 @@ export async function signOut() {
 
 export async function signInWithEmailAndPassword(_auth, email, password) {
   globalThis.__authCalls.signInWithEmailAndPassword += 1;
+  // 想定外の失敗（コード無しの例外）を再現するための入り口
+  if (password === "boom") throw new Error("unexpected boom");
   if (email !== "clinic@example.com" || password !== "correct-password") {
     const err = new Error("bad credential");
     err.code = "auth/invalid-credential";
@@ -239,6 +241,23 @@ const REAL = { uid: "real-uid", email: "clinic@example.com", isAnonymous: false 
   check("匿名セッションを破棄する", calls.signOut >= 1, JSON.stringify(calls));
   check("ページエラーなし", pageErrors.length === 0, pageErrors.join(" / "));
 
+  // ログインボタンが他の要素に覆われていないこと（覆われると無反応に見える）
+  const hit = await page.evaluate(() => {
+    const btn = document.getElementById("btn-login");
+    const r = btn.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { id: top?.id || "", tag: top?.tagName || "", isButton: top === btn };
+  });
+  check("ログインボタンが最前面にある", hit.isButton === true, JSON.stringify(hit));
+
+  // 匿名セッションを破棄した直後でもログインできること
+  await page.fill("#login-email", "clinic@example.com");
+  await page.fill("#login-password", "correct-password");
+  await page.click("#btn-login");
+  await page.waitForTimeout(400);
+  const afterLogin = await screens(page);
+  check("匿名破棄のあともログインできる", afterLogin.lock === true, JSON.stringify(afterLogin));
+
   await page.screenshot({ path: path.join(root, "tools/auth-gate-02-anonymous.png") });
   await context.close();
 }
@@ -255,6 +274,50 @@ const REAL = { uid: "real-uid", email: "clinic@example.com", isAnonymous: false 
   await page.waitForTimeout(250);
   const afterWrong = await screens(page);
   check("誤ったパスワードでは進まない", afterWrong.login === true, JSON.stringify(afterWrong));
+
+  // 無反応に見えないよう、失敗理由を必ず画面に出す
+  const errText = await page.evaluate(() => {
+    const el = document.getElementById("login-error");
+    return { hidden: !!el?.hidden, text: (el?.textContent || "").trim() };
+  });
+  check("失敗理由を画面に表示する", errText.hidden === false && errText.text.length > 0, JSON.stringify(errText));
+
+  // 処理中はボタンを無効化して二重押しを防ぐ
+  const busy = await page.evaluate(async () => {
+    const btn = document.getElementById("btn-login");
+    const seen = { disabled: false, label: "" };
+    const observer = new MutationObserver(() => {
+      if (btn.disabled) {
+        seen.disabled = true;
+        seen.label = btn.textContent.trim();
+      }
+    });
+    observer.observe(btn, { attributes: true, childList: true, subtree: true });
+    btn.click();
+    await new Promise((r) => setTimeout(r, 60));
+    observer.disconnect();
+    return seen;
+  });
+  check("処理中はボタンを無効化する", busy.disabled === true, JSON.stringify(busy));
+  check("処理中が分かる表示になる", busy.label.includes("ログイン中"), JSON.stringify(busy));
+  await page.waitForTimeout(200);
+
+  // コードを持たない想定外の例外でも、無反応にせずメッセージを出す
+  await page.fill("#login-password", "boom");
+  await page.click("#btn-login");
+  await page.waitForTimeout(250);
+  const boom = await page.evaluate(() => {
+    const el = document.getElementById("login-error");
+    const btn = document.getElementById("btn-login");
+    return {
+      hidden: !!el?.hidden,
+      text: (el?.textContent || "").trim(),
+      disabled: !!btn?.disabled,
+      label: (btn?.textContent || "").trim(),
+    };
+  });
+  check("想定外の例外でもメッセージを出す", boom.hidden === false && boom.text.length > 0, JSON.stringify(boom));
+  check("失敗後はボタンが押せる状態に戻る", boom.disabled === false && boom.label === "ログイン", JSON.stringify(boom));
 
   await page.fill("#login-password", "correct-password");
   await page.click("#btn-login");

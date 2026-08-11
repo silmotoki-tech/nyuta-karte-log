@@ -791,16 +791,23 @@ async function signOutFirebaseAccount() {
   showToast("アカウントからサインアウトしました。");
 }
 
+// ログイン処理は多重で走らせない（連打で状態が混ざるのを防ぐ）
+let loginInFlight = false;
+
 async function handleLogin() {
+  if (loginInFlight) return;
   const email = loginEmailInput?.value || "";
   const password = loginPasswordInput?.value || "";
   if (!String(email).trim() || !password) {
     showError(loginError, "メールアドレスとパスワードを入力してください。");
     return;
   }
-  setBusy(btnLogin, true, "ログイン中...", "ログイン");
-  showError(loginError, "");
+  // 失敗が画面に出ないと「押しても無反応」に見えるため、
+  // 表示の準備も含めて全体を捕捉する。
+  loginInFlight = true;
   try {
+    setBusy(btnLogin, true, "ログイン中...", "ログイン");
+    showError(loginError, "");
     await signInWithEmailPassword(email, password);
     if (loginPasswordInput) loginPasswordInput.value = "";
     // ログイン直後は必ずパスコードへ（当日済みでも、アカウント切替直後は再確認）
@@ -809,6 +816,7 @@ async function handleLogin() {
     console.error(err);
     showError(loginError, authErrorMessage(err));
   } finally {
+    loginInFlight = false;
     setBusy(btnLogin, false, "ログイン中...", "ログイン");
   }
 }
@@ -1778,6 +1786,26 @@ initSettingsUI({
   onSignOutAccount: () => signOutFirebaseAccount(),
 });
 
+// ログイン画面で想定外の例外が起きたとき、無言で終わらせない。
+// 画面に何も出ないと利用者からは「押しても反応しない」としか分からない。
+function reportUnexpectedLoginFailure(reason) {
+  if (!screenLogin || screenLogin.hidden) return;
+  if (btnLogin) setBusy(btnLogin, false, "ログイン中...", "ログイン");
+  loginInFlight = false;
+  const detail = reason?.code || reason?.message || String(reason || "");
+  showError(
+    loginError,
+    `ログイン処理でエラーが発生しました。${detail ? `（${detail}）` : ""}`
+  );
+}
+
+window.addEventListener("unhandledrejection", (event) => {
+  reportUnexpectedLoginFailure(event.reason);
+});
+window.addEventListener("error", (event) => {
+  reportUnexpectedLoginFailure(event.error || event.message);
+});
+
 btnLogin?.addEventListener("click", () => {
   handleLogin();
 });
@@ -1902,13 +1930,16 @@ const AUTH_RESOLVE_TIMEOUT_MS = 8000;
 // 起動フロー: Firebase ログイン → パスコード → カルテ
 (async function bootApp() {
   const timedOut = Symbol("auth-timeout");
+  let timer = null;
   try {
     const user = await Promise.race([
       waitForInitialAuthState(),
-      new Promise((resolve) =>
-        setTimeout(() => resolve(timedOut), AUTH_RESOLVE_TIMEOUT_MS)
-      ),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(timedOut), AUTH_RESOLVE_TIMEOUT_MS);
+      }),
     ]);
+    // 起動判定は一度きり。以降ログイン操作に割り込ませない。
+    if (timer) clearTimeout(timer);
     if (user === timedOut) {
       showLoginScreen();
       showError(
@@ -1924,6 +1955,7 @@ const AUTH_RESOLVE_TIMEOUT_MS = 8000;
     }
     proceedAfterFirebaseAuth();
   } catch (err) {
+    if (timer) clearTimeout(timer);
     console.error(err);
     showLoginScreen();
     showError(loginError, "認証状態の確認に失敗しました。再度ログインしてください。");

@@ -145,7 +145,15 @@ export function authErrorMessage(error) {
       return "試行回数が多すぎます。しばらくしてから再度お試しください。";
     case "auth/network-request-failed":
       return "通信に失敗しました。ネットワークを確認してください。";
+    case "auth/operation-not-allowed":
+      return "メール/パスワードのログインが有効になっていません。管理者に連絡してください。";
+    case "auth/invalid-api-key":
+    case "auth/api-key-not-valid":
+      return "アプリの設定が正しくありません。管理者に連絡してください。";
     default:
-      return "ログインに失敗しました。入力内容を確認してください。";
+      // 想定外の失敗でも原因を追えるよう、コードか本文を添える。
+      return `ログインに失敗しました。${
+        code || error?.message ? `（${code || error.message}）` : ""
+      }`;
   }
 }
