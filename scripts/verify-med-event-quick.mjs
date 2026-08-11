@@ -1,7 +1,7 @@
 /**
  * 薬剤詳細シート上の出来事種類ボタン → 記録確定までの流れを検証する。
  */
-import { chromium } from "playwright";
+import { launchBrowser } from "./launch-browser.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -193,7 +193,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const { port } = server.address();
 const base = `http://127.0.0.1:${port}`;
 
-const browser = await chromium.launch();
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 480, height: 980 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));

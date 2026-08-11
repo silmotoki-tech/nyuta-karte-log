@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { launchBrowser } from "./launch-browser.js";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -117,7 +117,7 @@ const server = http.createServer((req, res) => {
 
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const { port } = server.address();
-const browser = await chromium.launch({ headless: true });
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 const shown = await page.evaluate(() => window.__bannerShown);

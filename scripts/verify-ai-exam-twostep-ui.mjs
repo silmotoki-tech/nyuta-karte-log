@@ -2,7 +2,7 @@
  * AI提案の検査2段階UI（キーワード一覧→詳細候補）をスクショ検証する。
  */
 import assert from "node:assert/strict";
-import { chromium } from "playwright";
+import { launchBrowser } from "./launch-browser.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -160,7 +160,7 @@ const server = http.createServer((req, res) => {
 
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const { port } = server.address();
-const browser = await chromium.launch({ headless: true });
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 720, height: 900 } });
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 
