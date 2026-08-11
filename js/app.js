@@ -42,6 +42,16 @@ import {
   updatePatientHeader as updateStatusPatientHeader,
 } from "./status-mode-ui.js";
 import {
+  initInputModeUI,
+  enterInputMode,
+  leaveInputMode,
+  showInputMode,
+  hideInputMode,
+  isInputModeVisible,
+  prepareInputDraft,
+  updatePatientHeader as updateInputPatientHeader,
+} from "./input-mode-ui.js";
+import {
   initHistoryUI,
   enterHistory,
   leaveHistory,
@@ -133,6 +143,8 @@ const state = {
   editingTemplateId: null,
   // 新規記録の入力エリアが開いているか
   composing: false,
+  // 入力モードを開く前の画面（閉じたときの戻り先）
+  inputModeOrigin: null,
   // 直近に選択した記入者（右カラムの自動記録用。compose 終了後も保持）
   lastAuthor: null,
   // 同一カルテを開いている間だけ引き継ぐ記入者（カルテ入場時は未選択）
@@ -336,6 +348,7 @@ function showCenterState(s) {
   if (btnChangeKarte) btnChangeKarte.hidden = !inMain;
   if (!inMain) {
     closeCompose({ reset: true });
+    hideInputMode();
     hideStatusMode();
   }
   syncViewToggle();
@@ -343,13 +356,32 @@ function showCenterState(s) {
 
 /** 既存の3カラム（履歴）画面に戻す */
 function showHistoryView() {
+  hideInputMode();
   hideStatusMode();
+  syncViewToggle();
+}
+
+/** 入力モードを開く。origin は閉じたときに戻る先。 */
+function openInputMode(origin) {
+  if (state.centerState !== "main") return;
+  state.inputModeOrigin = origin;
+  hideStatusMode();
+  showInputMode();
+  syncViewToggle();
+}
+
+/** 入力モードを閉じ、開く前の画面に戻す */
+function closeInputMode() {
+  const origin = state.inputModeOrigin;
+  state.inputModeOrigin = null;
+  hideInputMode();
+  if (origin === "status") showStatusMode();
   syncViewToggle();
 }
 
 /** 中央ツールバーの「状態 | 履歴」トグルを現在の表示に合わせる */
 function syncViewToggle() {
-  const onStatus = isStatusModeVisible();
+  const onStatus = isStatusModeVisible() || isInputModeVisible();
   btnViewStatus?.classList.toggle("is-active", onStatus);
   btnViewStatus?.setAttribute("aria-pressed", String(onStatus));
   btnViewHistory?.classList.toggle("is-active", !onStatus);
@@ -1243,6 +1275,9 @@ function enterMain() {
   // 状態モードは同じカルテを別購読で見る。表示切替を即時にするため入場時から購読する。
   enterStatusMode(state.karteNumber);
   updateStatusPatientHeader();
+  enterInputMode(state.karteNumber);
+  updateInputPatientHeader();
+  prepareInputDraft();
 }
 
 function leaveMain() {
@@ -1258,6 +1293,7 @@ function leaveMain() {
   leaveMigrationProgress();
   leaveFreeQa();
   leaveStatusMode();
+  leaveInputMode();
   clearRightTabAlerts();
   closeCompose({ reset: true });
   closeEntryEdit();
@@ -1755,11 +1791,31 @@ initStatusModeUI({
     animalName: formatAnimalDisplayName(state.animalName),
   }),
   onShowHistoryView: () => showHistoryView(),
-  onStartCompose: () => {
-    showHistoryView();
-    openCompose();
-  },
+  onStartCompose: () => openInputMode("status"),
   onChangeKarte: () => btnChangeKarte?.click(),
+});
+
+initInputModeUI({
+  showToast,
+  setBusy,
+  getPatient: () => ({
+    karteNumber: state.karteNumber || "",
+    animalName: formatAnimalDisplayName(state.animalName),
+  }),
+  // 入力モードでも「同じカルテを開いている間は記入者を引き継ぐ」を共有する
+  getCarriedAuthor: () => state.sessionAuthor,
+  onAuthorChosen: (name) => {
+    state.sessionAuthor = name;
+    state.lastAuthor = name;
+  },
+  onClose: () => closeInputMode(),
+  onSavedAndNext: () => {
+    state.inputModeOrigin = null;
+    leaveMain();
+    goToKarte();
+    if (karteNumberInput) karteNumberInput.value = "";
+  },
+  onOpenTemplates: () => openTemplatesModal(),
 });
 
 btnViewStatus?.addEventListener("click", () => {
