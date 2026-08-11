@@ -5,8 +5,8 @@
 //
 // 展開中の共存（重要）:
 // - このクライアントは匿名ログインを呼ばない。
-// - ただし Firebase コンソールで匿名認証がまだ有効で、DB ルールが従来どおり
-//   （auth != null 等）なら、旧バージョンのキャッシュを持つ端末はこれまで通り動く。
+// - 旧バージョンが作った匿名セッションは端末に残り続けるため、未ログインとして扱い、
+//   検出しだいサインアウトする。残したままだとログイン画面を出さずに素通りしてしまう。
 // - 匿名の無効化と UID 限定ルールのデプロイは、全端末のメールログイン完了後に行う。
 //   手順は docs/AUTH-ROLLOUT.md を参照。
 
@@ -33,10 +33,31 @@ export const authReady = new Promise((resolve) => {
   authReadyResolve = resolve;
 });
 
+/**
+ * メール/パスワードでログインしたユーザーだけを「ログイン済み」とみなす。
+ * 匿名ユーザーは旧バージョンの名残であり、認証の関門を通す対象ではない。
+ */
+export function isSignedInUser(user) {
+  return !!user && !user.isAnonymous;
+}
+
 function settleAuthReady(user) {
-  if (!user || authReadySettled) return;
+  if (!isSignedInUser(user) || authReadySettled) return;
   authReadySettled = true;
   authReadyResolve(user);
+}
+
+/**
+ * 旧バージョンが残した匿名セッションを破棄する。
+ * 残しておくと onAuthStateChanged が user を返し続け、ログイン画面の判定を誤らせる。
+ */
+async function discardAnonymousSession(user) {
+  if (!user?.isAnonymous) return;
+  try {
+    await signOut(auth);
+  } catch (err) {
+    console.error("匿名セッションの破棄に失敗しました", err);
+  }
 }
 
 const persistenceReady = setPersistence(auth, browserLocalPersistence).catch(
@@ -46,18 +67,17 @@ const persistenceReady = setPersistence(auth, browserLocalPersistence).catch(
 );
 
 /**
- * 起動時の認証状態を1回だけ待つ（ユーザー or null）。
- * 永続セッションがあれば自動復元される。
+ * 起動時の認証状態を1回だけ待つ（ログイン済みユーザー or null）。
+ * 永続セッションがあれば自動復元される。匿名セッションは破棄して null を返す。
  */
 export async function waitForInitialAuthState() {
   await persistenceReady;
-  return new Promise((resolve, reject) => {
+  const user = await new Promise((resolve, reject) => {
     const unsubscribe = onAuthStateChanged(
       auth,
-      (user) => {
+      (current) => {
         unsubscribe();
-        if (user) settleAuthReady(user);
-        resolve(user);
+        resolve(current);
       },
       (error) => {
         unsubscribe();
@@ -66,11 +86,17 @@ export async function waitForInitialAuthState() {
       }
     );
   });
+  if (user?.isAnonymous) {
+    await discardAnonymousSession(user);
+    return null;
+  }
+  if (user) settleAuthReady(user);
+  return user;
 }
 
 // 初回以降のログイン（画面からのサインイン）でも authReady を解決する
 onAuthStateChanged(auth, (user) => {
-  if (user) settleAuthReady(user);
+  settleAuthReady(user);
 });
 
 /**
@@ -96,7 +122,8 @@ export async function signOutUser() {
 }
 
 export function getCurrentUser() {
-  return auth.currentUser;
+  const user = auth.currentUser;
+  return isSignedInUser(user) ? user : null;
 }
 
 /**

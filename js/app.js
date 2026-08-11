@@ -102,6 +102,7 @@ import {
   signInWithEmailPassword,
   signOutUser,
   authErrorMessage,
+  getCurrentUser,
 } from "./auth.js";
 import { enableRowGestures } from "./row-gestures.js";
 import { isImeKey } from "./ime-keys.js";
@@ -294,10 +295,18 @@ function initLeftCollapse() {
   });
 }
 
+/**
+ * 認証状態が確定するまでの読み込み中表示を解除する。
+ * 確定前にログイン画面やパスコード画面を出すと、一瞬だけ表示されてちらつく。
+ */
+function settleAuthPending() {
+  document.documentElement.classList.remove("is-auth-pending");
+}
+
 function showLoginScreen() {
   state.unlocked = false;
+  settleAuthPending();
   document.documentElement.classList.remove("is-unlocked");
-  document.documentElement.classList.remove("is-passcode-cached");
   if (screenLogin) screenLogin.hidden = false;
   if (screenLock) screenLock.hidden = true;
   if (appShell) appShell.hidden = true;
@@ -307,6 +316,7 @@ function showLoginScreen() {
 
 function showLockScreen() {
   state.unlocked = false;
+  settleAuthPending();
   document.documentElement.classList.remove("is-unlocked");
   if (screenLogin) screenLogin.hidden = true;
   if (screenLock) screenLock.hidden = false;
@@ -319,8 +329,8 @@ function showLockScreen() {
 
 function unlockAppShell() {
   state.unlocked = true;
+  settleAuthPending();
   document.documentElement.classList.add("is-unlocked");
-  document.documentElement.classList.remove("is-passcode-cached");
   if (screenLogin) screenLogin.hidden = true;
   if (screenLock) screenLock.hidden = true;
   if (appShell) appShell.hidden = false;
@@ -717,6 +727,13 @@ function handlePasscodeNext() {
   if (value !== PASSCODE) {
     showError(passcodeError, "パスコードが正しくありません。");
     setPasscodeDigits("");
+    return;
+  }
+  // パスコードは Firebase ログインの後段の関門であり、単独では本編を開けない。
+  if (!getCurrentUser()) {
+    setPasscodeDigits("");
+    showLoginScreen();
+    showError(loginError, "セッションが切れています。再度ログインしてください。");
     return;
   }
   showError(passcodeError, "");
@@ -1878,11 +1895,30 @@ initServiceWorkerUpdates({
 
 initLeftCollapse();
 
+// 認証状態が返ってこないときに読み込み中のまま固まらないための上限。
+// 判断できないときはログイン画面（安全側）に倒す。
+const AUTH_RESOLVE_TIMEOUT_MS = 8000;
+
 // 起動フロー: Firebase ログイン → パスコード → カルテ
 (async function bootApp() {
+  const timedOut = Symbol("auth-timeout");
   try {
-    const user = await waitForInitialAuthState();
-    if (!user) {
+    const user = await Promise.race([
+      waitForInitialAuthState(),
+      new Promise((resolve) =>
+        setTimeout(() => resolve(timedOut), AUTH_RESOLVE_TIMEOUT_MS)
+      ),
+    ]);
+    if (user === timedOut) {
+      showLoginScreen();
+      showError(
+        loginError,
+        "ログイン状態を確認できませんでした。通信環境を確認して、ログインしてください。"
+      );
+      return;
+    }
+    // 匿名セッション（旧バージョンの名残）はログイン済みとして扱わない。
+    if (!user || user.isAnonymous) {
       showLoginScreen();
       return;
     }

@@ -75,6 +75,8 @@ const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const harness = indexHtml.replace(
   /<script type="module" src="\.\/js\/app\.js"><\/script>/,
   `<script type="module">
+// app.js を読まないため、認証確定待ちの表示は自前で解除する
+document.documentElement.classList.remove("is-auth-pending");
 window.__showLock = () => {
   document.getElementById("screen-lock")?.removeAttribute("hidden");
   document.getElementById("app-shell")?.setAttribute("hidden", "");

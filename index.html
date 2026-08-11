@@ -16,26 +16,10 @@
 
 <link rel="stylesheet" href="./css/style.css" />
 <script>
-  // Firebase ログイン後かつ当日パスコード済みなら、ロック画面の一瞬表示を抑える。
-  // Firebase セッションは IndexedDB にあり JS 起動前には分からないため、
-  // ここではパスコード済みフラグがあるときだけ「ロックを隠す候補」にする。
-  // 実際の本編表示は app.js が Firebase 認証を確認してから行う。
-  try {
-    var k = "nyutaKartePasscodeVerified";
-    var dk = "nyutaKartePasscodeVerifiedDate";
-    var now = new Date();
-    var today =
-      now.getFullYear() +
-      "-" +
-      String(now.getMonth() + 1).padStart(2, "0") +
-      "-" +
-      String(now.getDate()).padStart(2, "0");
-    var flagged = localStorage.getItem(k) === "1";
-    var savedDate = localStorage.getItem(dk) || "";
-    if (flagged && savedDate === today) {
-      document.documentElement.classList.add("is-passcode-cached");
-    }
-  } catch (e) {}
+  // Firebase セッションは IndexedDB にあり JS 起動前には分からない。
+  // 確定するまではどの画面も出さず読み込み中にしておき、
+  // app.js が認証を確認してからログイン画面かパスコード画面かを出し分ける。
+  document.documentElement.classList.add("is-auth-pending");
 </script>
 </head>
 <body>
@@ -125,6 +109,15 @@
         確認する
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ============ 認証状態の確定待ち（ログイン画面より前に出す） ============ -->
+<div id="screen-auth-pending" class="lock-screen auth-pending" aria-label="読み込み中" role="status">
+  <div class="lock-screen__inner">
+    <img class="lock-screen__icon" src="./icons/icon-192.png" alt="" />
+    <h1 class="lock-screen__brand">にゅうたカルテ記録</h1>
+    <p class="auth-pending__text">読み込み中...</p>
   </div>
 </div>
 
