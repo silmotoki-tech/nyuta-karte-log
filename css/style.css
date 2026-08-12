@@ -717,6 +717,25 @@ html.is-unlocked .app {
   cursor: pointer;
 }
 
+/* ツールバーの移行ボタン。色はモーダル内の .migration-status-btn--* と揃える */
+.migration-progress-btn.is-status-not_started {
+  color: #fff;
+  background-color: var(--cat-ope);
+  border-color: var(--cat-ope);
+}
+
+.migration-progress-btn.is-status-in_progress {
+  color: var(--star-text);
+  background-color: var(--star-bg);
+  border-color: var(--star);
+}
+
+.migration-progress-btn.is-status-done {
+  color: #fff;
+  background-color: var(--color-green);
+  border-color: var(--color-green-dark);
+}
+
 .migration-status-btn--not_started.is-selected {
   color: #fff;
   background-color: var(--cat-ope);

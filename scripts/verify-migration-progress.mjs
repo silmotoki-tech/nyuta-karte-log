@@ -133,6 +133,8 @@ async function enterKarte(digits = ["1", "2", "3", "4", "5"], animal = "テス�
 }
 
 async function btnStyle() {
+  // .btn は background-color を 0.15s かけて変える。遷移中の中間色を拾わないよう待つ
+  await page.waitForTimeout(250);
   return page.locator("#btn-migration-progress").evaluate((el) => {
     const cs = getComputedStyle(el);
     return {
