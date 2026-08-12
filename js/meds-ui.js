@@ -1670,17 +1670,17 @@ async function handleAddMedicationItemFromModal() {
   if (exists) {
     state.medItemCategory = category;
     if (addingMid) {
-      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.medItemParentId = exists.id;
     } else {
       state.medItemParentId = parentId || null;
-      state.addDraft.name = label;
     }
+    // ＋から足すのは目の前の記録のためなので、追加した中項目はそのまま選択する
+    state.addDraft.name = label;
     setMedItemAddFormOpen(false);
     deps.showError(addItemError, "");
     renderMedLinearPicker();
     deps.showToast(
-      addingMid ? "既存の中項目を開きました。" : "既存の薬剤を選択しました。"
+      addingMid ? "既存の中項目を選択しました。" : "既存の薬剤を選択しました。"
     );
     return;
   }
@@ -1695,11 +1695,10 @@ async function handleAddMedicationItemFromModal() {
       parentId,
     });
     if (addingMid) {
-      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.medItemParentId = createdId || null;
-    } else {
-      state.addDraft.name = label;
     }
+    // ＋から足すのは目の前の記録のためなので、追加した項目はそのまま選択する
+    state.addDraft.name = label;
     setMedItemAddFormOpen(false);
     renderMedLinearPicker();
     const parent = parentId

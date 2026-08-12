@@ -1975,10 +1975,11 @@ async function handleAddExamItemFromPlanModal() {
   );
   if (exists) {
     state.examItemCategory = category;
+    // ＋から足すのは目の前の記録のためなので、追加した中項目はそのまま選択する
     if (addingMid) {
-      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.examBloodParentId = exists.id;
-      renderExamLinearPicker();
+      if (!isExamItemSelected(exists)) toggleExamItem(exists);
+      else renderExamLinearPicker();
     } else {
       state.examBloodParentId = parentId || null;
       if (!isExamItemSelected(exists)) toggleExamItem(exists);
@@ -1987,7 +1988,7 @@ async function handleAddExamItemFromPlanModal() {
     collapseExamItemAddForm();
     deps.showError(planItemError, "");
     deps.showToast(
-      addingMid ? "既存の中項目を開きました。" : "既存の項目を選択しました。"
+      addingMid ? "既存の中項目を選択しました。" : "既存の項目を選択しました。"
     );
     return;
   }
@@ -2005,10 +2006,15 @@ async function handleAddExamItemFromPlanModal() {
       order: Date.now(),
     });
     if (addingMid) {
-      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.examBloodParentId = createdId || null;
-    } else if (!isExamItemSelected(createdRef)) {
-      if (parentId) {
+    }
+    // ＋から足すのは目の前の記録のためなので、追加した項目はそのまま選択する
+    if (!isExamItemSelected(createdRef)) {
+      if (addingMid) {
+        state.draft.selectedItems = state.draft.selectedItems.filter(
+          (sel) => sel.parentId !== createdId
+        );
+      } else if (parentId) {
         state.draft.selectedItems = state.draft.selectedItems.filter(
           (sel) => sel.id !== parentId
         );

@@ -738,23 +738,20 @@ await page.waitForTimeout(150);
 const mids = await labels("#history-add-col-group-list");
 console.log("disease mids:", mids);
 assert.ok(mids.includes("心疾患"));
-// 中分類を足した時点では開くだけで、「「心疾患」で登録」を押すと確定すること
-assert.notEqual(
+// ＋から足した中分類は、そのまま選択確定されていること
+assert.equal(
   (await page.locator("#history-add-selected").textContent()).trim(),
   "選択中: 心疾患"
 );
-const midGroupPick = page.locator(
-  "#history-add-col-leaf-list .med-linear-picker__group-pick"
-);
 assert.equal(
-  (await midGroupPick.locator(".med-linear-picker__item-label").textContent()).trim(),
+  (
+    await page
+      .locator(
+        "#history-add-col-leaf-list .med-linear-picker__group-pick .med-linear-picker__item-label"
+      )
+      .textContent()
+  ).trim(),
   "「心疾患」で登録"
-);
-await midGroupPick.click();
-await page.waitForTimeout(80);
-assert.equal(
-  (await page.locator("#history-add-selected").textContent()).trim(),
-  "選択中: 心疾患"
 );
 
 await page.click("#btn-history-add-toggle");

@@ -828,25 +828,20 @@ const midLabels = await page
   .allTextContents();
 console.log("blood mids:", midLabels);
 if (!midLabels.includes("肝臓パネル")) throw new Error("mid group not added");
-// 中項目を足しただけでは選択されない（開くだけ）
-let midSummary = await page.locator("#exam-plan-selection-summary").textContent();
+// ＋から足した中項目は、そのまま選択された状態になる
+const midSummary = await page.locator("#exam-plan-selection-summary").textContent();
 console.log("mid summary:", midSummary);
-if (midSummary.includes("肝臓パネル")) {
-  throw new Error("adding a mid group must not select it");
-}
-// 「「肝臓パネル」で登録」を押した時だけ中項目自体が選ばれる
-const groupPick = page.locator("#exam-plan-col-leaf-list .med-linear-picker__group-pick");
+if (!midSummary.includes("肝臓パネル")) throw new Error("mid not selected as item");
+// 中項目を開いた右列の先頭には「「◯◯」で登録」が並ぶ
 const groupPickLabel = (
-  await groupPick.locator(".med-linear-picker__item-label").textContent()
+  await page
+    .locator(
+      "#exam-plan-col-leaf-list .med-linear-picker__group-pick .med-linear-picker__item-label"
+    )
+    .textContent()
 ).trim();
 if (groupPickLabel !== "「肝臓パネル」で登録") {
   throw new Error(`group pick label wrong: ${groupPickLabel}`);
-}
-await groupPick.click();
-await page.waitForTimeout(80);
-midSummary = await page.locator("#exam-plan-selection-summary").textContent();
-if (!midSummary.includes("肝臓パネル")) {
-  throw new Error("mid not selected by group pick");
 }
 
 await page.click("#btn-exam-plan-add-toggle");

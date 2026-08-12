@@ -1020,12 +1020,13 @@ async function handleAddMasterItem() {
             (i.label || "").trim() === label &&
             i.parentId === state.pickTopId
         );
+        // ＋から足すのは目の前の記録のためなので、追加した中分類はそのまま選択する
         if (exists) {
-          // 中分類は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
           state.pickMidId = exists.id;
+          state.addDraft.title = label;
           setItemAddOpen(false);
           renderHistoryLinearPicker();
-          deps.showToast("既存の中分類を開きました。");
+          deps.showToast("既存の中分類を選択しました。");
           return;
         }
         const id = await addFn({
@@ -1034,7 +1035,8 @@ async function handleAddMasterItem() {
           parentId: state.pickTopId,
         });
         state.pickMidId = id;
-        deps.showToast(`「${label}」を中分類に追加しました。`);
+        state.addDraft.title = label;
+        deps.showToast(`「${label}」を中分類に追加・選択しました。`);
       }
     }
     setItemAddOpen(false);
