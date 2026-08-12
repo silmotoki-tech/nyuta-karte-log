@@ -482,8 +482,11 @@ async function clickLabel(listSel, text) {
 }
 
 async function leafLabels() {
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
   return page
-    .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+    .locator(
+      "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+    )
     .allTextContents();
 }
 

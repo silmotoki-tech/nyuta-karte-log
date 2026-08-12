@@ -20,6 +20,7 @@ import {
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
 import {
+  createMasterPickerGroupSelectItem,
   createSwipeableMasterPickerItem,
   requestMasterDelete,
 } from "./master-delete-ui.js";
@@ -1187,14 +1188,24 @@ function askDeleteMedicationMasterItem(item) {
   });
 }
 
-function appendMedMasterItem(listEl, item, { selected, onSelect, label }) {
+function appendMedMasterItem(listEl, item, { selected, open, onSelect, label }) {
   listEl.appendChild(
     createSwipeableMasterPickerItem({
       label: label || item.label,
       selected,
+      open,
       onSelect,
       onDelete: () => askDeleteMedicationMasterItem(item),
     })
+  );
+}
+
+/** いま中身を開いている中項目。開いていなければ null */
+function openMedMidGroup() {
+  if (!state.medItemParentId) return null;
+  return (
+    state.medicationItems.find((item) => item.id === state.medItemParentId) ||
+    null
   );
 }
 
@@ -1563,12 +1574,11 @@ function renderMedLinearPicker() {
       addColGroupList.innerHTML = "";
       medGroupsForCategory(category).forEach((group) => {
         appendMedMasterItem(addColGroupList, group, {
-          selected:
-            state.medItemParentId === group.id ||
-            state.addDraft.name === group.label,
+          selected: state.addDraft.name === group.label,
+          open: state.medItemParentId === group.id,
+          // 中項目のタップは中身を開くだけ。中項目自体の登録は右列先頭のボタンで行う
           onSelect: () => {
             state.medItemParentId = group.id;
-            state.addDraft.name = group.label;
             renderMedLinearPicker();
           },
         });
@@ -1587,11 +1597,24 @@ function renderMedLinearPicker() {
     } else if (usesMid && !state.medItemParentId) {
       fillMedLinearPlaceholder(
         addColLeafList,
-        "中項目を選ぶとその名前で確定できます（＋で中項目を追加／薬剤名も選べます）"
+        "中項目を選ぶと表示されます（＋で中項目を追加）"
       );
       if (addItemsEmpty) addItemsEmpty.hidden = true;
     } else {
       addColLeafList.innerHTML = "";
+      const openGroup = openMedMidGroup();
+      if (openGroup) {
+        addColLeafList.appendChild(
+          createMasterPickerGroupSelectItem({
+            groupLabel: openGroup.label,
+            selected: state.addDraft.name === openGroup.label,
+            onSelect: () => {
+              state.addDraft.name = openGroup.label;
+              renderMedLinearPicker();
+            },
+          })
+        );
+      }
       const leaves = medLeavesForPicker();
       if (addItemsEmpty) addItemsEmpty.hidden = leaves.length > 0;
       leaves.forEach((item) => {
@@ -1647,16 +1670,17 @@ async function handleAddMedicationItemFromModal() {
   if (exists) {
     state.medItemCategory = category;
     if (addingMid) {
+      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.medItemParentId = exists.id;
     } else {
       state.medItemParentId = parentId || null;
+      state.addDraft.name = label;
     }
-    state.addDraft.name = label;
     setMedItemAddFormOpen(false);
     deps.showError(addItemError, "");
     renderMedLinearPicker();
     deps.showToast(
-      addingMid ? "既存の中項目を選択しました。" : "既存の薬剤を選択しました。"
+      addingMid ? "既存の中項目を開きました。" : "既存の薬剤を選択しました。"
     );
     return;
   }
@@ -1671,9 +1695,11 @@ async function handleAddMedicationItemFromModal() {
       parentId,
     });
     if (addingMid) {
+      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.medItemParentId = createdId || null;
+    } else {
+      state.addDraft.name = label;
     }
-    state.addDraft.name = label;
     setMedItemAddFormOpen(false);
     renderMedLinearPicker();
     const parent = parentId

@@ -3824,6 +3824,20 @@ select.input {
   color: var(--color-brown);
 }
 
+/* 中項目を開いているだけの状態。選択済み（✓付き）とは別の見た目にする */
+.med-linear-picker__item.is-open {
+  background-color: var(--color-white);
+  color: var(--color-brown);
+}
+
+.med-linear-picker__group-pick {
+  flex-shrink: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 4px;
+  color: var(--color-brown);
+}
+
 .med-linear-picker__item-label {
   min-width: 0;
   flex: 1;

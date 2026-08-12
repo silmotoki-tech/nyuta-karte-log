@@ -251,7 +251,9 @@ await page.fill("#med-add-new-item", "点眼テスト薬");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(200);
 let buttons = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 console.log("KARTE A after add:", buttons);
 if (!buttons.includes("点眼テスト薬")) throw new Error("master button missing");
@@ -296,7 +298,9 @@ await page.locator("#med-add-col-category-list .med-linear-picker__item", {
 }).click();
 await page.waitForTimeout(100);
 buttons = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 console.log("KARTE B buttons:", buttons);
 if (!buttons.includes("点眼テスト薬")) throw new Error("master not shared to karte B");
@@ -307,7 +311,7 @@ if (await page.locator("#med-add-other").count()) throw new Error("その他チ�
 
 await page.screenshot({ path: path.join(root, "tools/med-master-verify.png") });
 
-// 内服: 中項目クリックで確定、中項目の手入力追加、小項目追加
+// 内服: 中項目は開くだけ・「「◯◯」で登録」で確定、中項目の手入力追加、小項目追加
 await page.click("#btn-close-med-add").catch(() => {});
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
@@ -322,13 +326,39 @@ await page
   })
   .click();
 await page.waitForTimeout(80);
+const midOpenName = await page.evaluate(() => {
+  const el = document.querySelector(
+    "#med-add-col-group-list .med-linear-picker__item.is-open .med-linear-picker__item-label"
+  );
+  return el?.textContent?.trim() || "";
+});
+if (midOpenName !== "抗生剤") throw new Error("mid not opened");
+if (
+  await page.evaluate(() =>
+    Boolean(
+      document.querySelector("#med-add-col-group-list .med-linear-picker__item.is-selected")
+    )
+  )
+) {
+  throw new Error("opening a mid must not select it");
+}
+// 「「抗生剤」で登録」を押した時だけ中項目自体が選ばれる
+const groupPick = page.locator("#med-add-col-leaf-list .med-linear-picker__group-pick");
+const groupPickLabel = (
+  await groupPick.locator(".med-linear-picker__item-label").textContent()
+).trim();
+if (groupPickLabel !== "「抗生剤」で登録") {
+  throw new Error(`group pick label wrong: ${groupPickLabel}`);
+}
+await groupPick.click();
+await page.waitForTimeout(80);
 const midSelectedName = await page.evaluate(() => {
   const sel = document.querySelector(
     "#med-add-col-group-list .med-linear-picker__item.is-selected .med-linear-picker__item-label"
   );
   return sel?.textContent?.trim() || "";
 });
-if (midSelectedName !== "抗生剤") throw new Error("mid not visually selected");
+if (midSelectedName !== "抗生剤") throw new Error("mid not selected by group pick");
 // 中項目名で追加保存できること
 await page.click("#btn-med-add-save");
 await page.waitForTimeout(200);
@@ -360,7 +390,9 @@ await page.fill("#med-add-new-item", "検証用薬剤");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(200);
 const customLeaves = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 if (!customLeaves.includes("検証用薬剤")) throw new Error("custom leaf not added");
 await page.screenshot({ path: path.join(root, "tools/med-mid-select-verify.png") });

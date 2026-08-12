@@ -739,7 +739,12 @@ async function clickLinear(listSel, label) {
 }
 
 async function leafLabels() {
-  return page.locator("#exam-plan-col-leaf-list .med-linear-picker__item-label").allTextContents();
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
+  return page
+    .locator(
+      "#exam-plan-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+    )
+    .allTextContents();
 }
 
 await page.route("**/js/db.js", (route) =>
@@ -823,9 +828,26 @@ const midLabels = await page
   .allTextContents();
 console.log("blood mids:", midLabels);
 if (!midLabels.includes("肝臓パネル")) throw new Error("mid group not added");
-const midSummary = await page.locator("#exam-plan-selection-summary").textContent();
+// 中項目を足しただけでは選択されない（開くだけ）
+let midSummary = await page.locator("#exam-plan-selection-summary").textContent();
 console.log("mid summary:", midSummary);
-if (!midSummary.includes("肝臓パネル")) throw new Error("mid not selected as item");
+if (midSummary.includes("肝臓パネル")) {
+  throw new Error("adding a mid group must not select it");
+}
+// 「「肝臓パネル」で登録」を押した時だけ中項目自体が選ばれる
+const groupPick = page.locator("#exam-plan-col-leaf-list .med-linear-picker__group-pick");
+const groupPickLabel = (
+  await groupPick.locator(".med-linear-picker__item-label").textContent()
+).trim();
+if (groupPickLabel !== "「肝臓パネル」で登録") {
+  throw new Error(`group pick label wrong: ${groupPickLabel}`);
+}
+await groupPick.click();
+await page.waitForTimeout(80);
+midSummary = await page.locator("#exam-plan-selection-summary").textContent();
+if (!midSummary.includes("肝臓パネル")) {
+  throw new Error("mid not selected by group pick");
+}
 
 await page.click("#btn-exam-plan-add-toggle");
 await page.waitForSelector("#exam-plan-item-add-default:not([hidden])");

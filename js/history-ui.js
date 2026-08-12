@@ -28,6 +28,7 @@ import {
 } from "./history-item-match.js";
 import { enableRowGestures } from "./row-gestures.js";
 import {
+  createMasterPickerGroupSelectItem,
   createSwipeableMasterPickerItem,
   requestMasterDelete,
 } from "./master-delete-ui.js";
@@ -592,11 +593,16 @@ function askDeleteHistoryMasterItem(item, type) {
   });
 }
 
-function appendHistoryMasterItem(listEl, item, { selected, onSelect, type, label }) {
+function appendHistoryMasterItem(
+  listEl,
+  item,
+  { selected, open, onSelect, type, label }
+) {
   listEl.appendChild(
     createSwipeableMasterPickerItem({
       label: label || item.label,
       selected,
+      open,
       onSelect,
       onDelete: () => askDeleteHistoryMasterItem(item, type),
     })
@@ -816,12 +822,11 @@ function renderHistoryLinearPicker() {
         mids.forEach((group) => {
           appendHistoryMasterItem(addColGroupList, group, {
             type,
-            selected:
-              state.pickMidId === group.id ||
-              state.addDraft.title === group.label,
+            selected: state.addDraft.title === group.label,
+            open: state.pickMidId === group.id,
+            // 中分類のタップは中身を開くだけ。中分類自体の登録は右列先頭のボタンで行う
             onSelect: () => {
               state.pickMidId = group.id;
-              state.addDraft.title = group.label;
               renderHistoryLinearPicker();
             },
           });
@@ -860,11 +865,26 @@ function renderHistoryLinearPicker() {
       if (!showDirectLeaves && !showMidLeaves) {
         fillPlaceholder(
           addColLeafList,
-          "中分類を選ぶとその名前で確定できます（＋で中分類を追加／小分類も選べます）"
+          "中分類を選ぶと表示されます（＋で中分類を追加）"
         );
         if (addItemsEmpty) addItemsEmpty.hidden = true;
       } else {
         addColLeafList.innerHTML = "";
+        const openMid = state.pickMidId
+          ? items.find((i) => i.id === state.pickMidId)
+          : null;
+        if (openMid) {
+          addColLeafList.appendChild(
+            createMasterPickerGroupSelectItem({
+              groupLabel: openMid.label,
+              selected: state.addDraft.title === openMid.label,
+              onSelect: () => {
+                state.addDraft.title = openMid.label;
+                renderHistoryLinearPicker();
+              },
+            })
+          );
+        }
         const leafs = leavesUnder(items, leafParentId);
         if (addItemsEmpty) addItemsEmpty.hidden = leafs.length > 0;
         leafs.forEach((item) => {
@@ -1001,11 +1021,11 @@ async function handleAddMasterItem() {
             i.parentId === state.pickTopId
         );
         if (exists) {
+          // 中分類は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
           state.pickMidId = exists.id;
-          state.addDraft.title = label;
           setItemAddOpen(false);
           renderHistoryLinearPicker();
-          deps.showToast("既存の中分類を選択しました。");
+          deps.showToast("既存の中分類を開きました。");
           return;
         }
         const id = await addFn({
@@ -1014,8 +1034,7 @@ async function handleAddMasterItem() {
           parentId: state.pickTopId,
         });
         state.pickMidId = id;
-        state.addDraft.title = label;
-        deps.showToast(`「${label}」を中分類に追加・選択しました。`);
+        deps.showToast(`「${label}」を中分類に追加しました。`);
       }
     }
     setItemAddOpen(false);

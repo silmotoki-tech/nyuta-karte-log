@@ -542,7 +542,12 @@ window.__ready = true;
 </html>`
 
 function itemLabels(page, listSel) {
-  return page.locator(`${listSel} .med-linear-picker__item-label`).allTextContents();
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
+  return page
+    .locator(
+      `${listSel} .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label`
+    )
+    .allTextContents();
 }
 
 async function clickItem(page, listSel, label) {

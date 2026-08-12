@@ -167,7 +167,12 @@ window.__ready = true;
 </html>`;
 
 function itemLabels(page, listSel) {
-  return page.locator(`${listSel} .med-linear-picker__item-label`).allTextContents();
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
+  return page
+    .locator(
+      `${listSel} .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label`
+    )
+    .allTextContents();
 }
 
 async function clickItem(page, listSel, label) {
@@ -385,10 +390,15 @@ const leafSelected = await page
   .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
   .textContent();
 if (leafSelected !== "アラバ") throw new Error("leaf not selected");
+// 中項目は開いているだけ（is-open）で、✓は大項目と小項目に付く
 const checks = await page
   .locator("#med-add-linear-picker .med-linear-picker__item.is-selected .med-linear-picker__check")
   .count();
-if (checks < 3) throw new Error("expected checkmarks on 3 selected columns");
+if (checks < 2) throw new Error("expected checkmarks on category and leaf");
+const openMids = await page
+  .locator("#med-add-col-group-list .med-linear-picker__item.is-open")
+  .count();
+if (openMids !== 1) throw new Error("expected exactly one opened mid group");
 await page.screenshot({
   path: path.join(root, "tools/med-linear-picker-04-oral-selected.png"),
 });

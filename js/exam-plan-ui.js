@@ -18,6 +18,7 @@ import {
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
 import {
+  createMasterPickerGroupSelectItem,
   createSwipeableMasterPickerItem,
   requestMasterDelete,
 } from "./master-delete-ui.js";
@@ -1549,14 +1550,23 @@ function askDeleteExamMasterItem(item) {
   });
 }
 
-function appendExamMasterItem(listEl, item, { selected, onSelect, label }) {
+function appendExamMasterItem(listEl, item, { selected, open, onSelect, label }) {
   listEl.appendChild(
     createSwipeableMasterPickerItem({
       label: label || item.label,
       selected,
+      open,
       onSelect,
       onDelete: () => askDeleteExamMasterItem(item),
     })
+  );
+}
+
+/** いま中身を開いている中項目。開いていなければ null */
+function openExamMidGroup() {
+  if (!state.examBloodParentId) return null;
+  return (
+    state.examItems.find((item) => item.id === state.examBloodParentId) || null
   );
 }
 
@@ -1868,11 +1878,12 @@ function renderExamLinearPicker() {
       planColGroupList.innerHTML = "";
       examGroupsForCategory(category).forEach((group) => {
         appendExamMasterItem(planColGroupList, group, {
-          selected:
-            state.examBloodParentId === group.id || isExamItemSelected(group),
+          selected: isExamItemSelected(group),
+          open: state.examBloodParentId === group.id,
+          // 中項目のタップは中身を開くだけ。中項目自体の登録は右列先頭のボタンで行う
           onSelect: () => {
             state.examBloodParentId = group.id;
-            toggleExamItem(group);
+            renderExamLinearPicker();
           },
         });
       });
@@ -1894,11 +1905,21 @@ function renderExamLinearPicker() {
     ) {
       fillExamLinearPlaceholder(
         planColLeafList,
-        "中項目を選ぶとその名前で確定できます（＋で中項目を追加／検査項目も選べます）"
+        "中項目を選ぶと表示されます（＋で中項目を追加）"
       );
       if (planItemsEmpty) planItemsEmpty.hidden = true;
     } else {
       planColLeafList.innerHTML = "";
+      const openGroup = openExamMidGroup();
+      if (openGroup) {
+        planColLeafList.appendChild(
+          createMasterPickerGroupSelectItem({
+            groupLabel: openGroup.label,
+            selected: isExamItemSelected(openGroup),
+            onSelect: () => toggleExamItem(openGroup),
+          })
+        );
+      }
       const leaves = examLeavesForPicker();
       if (planItemsEmpty) planItemsEmpty.hidden = leaves.length > 0;
       leaves.forEach((item) => {
@@ -1955,11 +1976,9 @@ async function handleAddExamItemFromPlanModal() {
   if (exists) {
     state.examItemCategory = category;
     if (addingMid) {
+      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.examBloodParentId = exists.id;
-      if (!isExamItemSelected(exists)) toggleExamItem(exists);
-      else {
-        renderExamLinearPicker();
-      }
+      renderExamLinearPicker();
     } else {
       state.examBloodParentId = parentId || null;
       if (!isExamItemSelected(exists)) toggleExamItem(exists);
@@ -1968,7 +1987,7 @@ async function handleAddExamItemFromPlanModal() {
     collapseExamItemAddForm();
     deps.showError(planItemError, "");
     deps.showToast(
-      addingMid ? "既存の中項目を選択しました。" : "既存の項目を選択しました。"
+      addingMid ? "既存の中項目を開きました。" : "既存の項目を選択しました。"
     );
     return;
   }
@@ -1986,15 +2005,10 @@ async function handleAddExamItemFromPlanModal() {
       order: Date.now(),
     });
     if (addingMid) {
+      // 中項目は開くだけ。登録は右列先頭の「「◯◯」で登録」から行う
       state.examBloodParentId = createdId || null;
-    }
-    if (!isExamItemSelected(createdRef)) {
-      if (addingMid) {
-        // 中項目追加時は配下葉を消して中項目自体を選択
-        state.draft.selectedItems = state.draft.selectedItems.filter(
-          (sel) => sel.parentId !== createdId
-        );
-      } else if (parentId) {
+    } else if (!isExamItemSelected(createdRef)) {
+      if (parentId) {
         state.draft.selectedItems = state.draft.selectedItems.filter(
           (sel) => sel.id !== parentId
         );

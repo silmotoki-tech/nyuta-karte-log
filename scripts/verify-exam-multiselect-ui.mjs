@@ -215,20 +215,47 @@ await page.waitForTimeout(300);
 await page.click("#btn-exam-new");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
 
+async function summaryText() {
+  return (await page.locator("#exam-plan-selection-summary").textContent()) || "";
+}
+
 await clickLinear("#exam-plan-col-category-list", "血液");
 await clickLinear("#exam-plan-col-group-list", "肝臓");
 await page.waitForTimeout(50);
 let liver = await leafLabels();
 console.log("LIVER", liver);
-if (liver[0] !== "肝スク") throw new Error(`肝スク should be first, got ${liver[0]}`);
+// 中項目を開くと、小項目リストの先頭に「「肝臓」で登録」が並ぶ
+if (liver[0] !== "「肝臓」で登録") {
+  throw new Error(`group pick button should be first, got ${liver[0]}`);
+}
+if (liver[1] !== "肝スク") throw new Error(`肝スク should follow, got ${liver[1]}`);
+// 中項目をタップしただけでは選択されない
+if ((await summaryText()).includes("肝臓")) {
+  throw new Error(`opening a group must not select it: ${await summaryText()}`);
+}
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-liver-scr.png") });
 
 await clickLinear("#exam-plan-col-group-list", "腎臓");
 await page.waitForTimeout(50);
 let kidney = await leafLabels();
 console.log("KIDNEY", kidney);
-if (kidney[0] !== "腎スク") throw new Error(`腎スク should be first, got ${kidney[0]}`);
+if (kidney[0] !== "「腎臓」で登録") {
+  throw new Error(`group pick button should be first, got ${kidney[0]}`);
+}
+if (kidney[1] !== "腎スク") throw new Error(`腎スク should follow, got ${kidney[1]}`);
 await page.screenshot({ path: path.join(root, "tools/exam-multiselect-kidney-scr.png") });
+
+// 「◯◯」で登録を押した時だけ中項目自体が選ばれ、もう一度押すと外れる
+await clickLinear("#exam-plan-col-leaf-list", "「腎臓」で登録");
+console.log("MID SUMMARY", await summaryText());
+if (!(await summaryText()).includes("腎臓")) {
+  throw new Error(`group pick did not select: ${await summaryText()}`);
+}
+await page.screenshot({ path: path.join(root, "tools/exam-multiselect-group-pick.png") });
+await clickLinear("#exam-plan-col-leaf-list", "「腎臓」で登録");
+if ((await summaryText()).includes("腎臓")) {
+  throw new Error(`group pick did not deselect: ${await summaryText()}`);
+}
 
 await clickLinear("#exam-plan-col-group-list", "肝臓");
 await page.waitForTimeout(50);

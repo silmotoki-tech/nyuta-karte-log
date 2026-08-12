@@ -691,7 +691,12 @@ await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__ready === true);
 
 async function labels(sel) {
-  return page.locator(`${sel} .med-linear-picker__item-label`).allTextContents();
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
+  return page
+    .locator(
+      `${sel} .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label`
+    )
+    .allTextContents();
 }
 async function clickLabel(sel, text) {
   const re = new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
@@ -733,7 +738,20 @@ await page.waitForTimeout(150);
 const mids = await labels("#history-add-col-group-list");
 console.log("disease mids:", mids);
 assert.ok(mids.includes("心疾患"));
-// 中分類追加時点で中分類名が選択確定されていること
+// 中分類を足した時点では開くだけで、「「心疾患」で登録」を押すと確定すること
+assert.notEqual(
+  (await page.locator("#history-add-selected").textContent()).trim(),
+  "選択中: 心疾患"
+);
+const midGroupPick = page.locator(
+  "#history-add-col-leaf-list .med-linear-picker__group-pick"
+);
+assert.equal(
+  (await midGroupPick.locator(".med-linear-picker__item-label").textContent()).trim(),
+  "「心疾患」で登録"
+);
+await midGroupPick.click();
+await page.waitForTimeout(80);
 assert.equal(
   (await page.locator("#history-add-selected").textContent()).trim(),
   "選択中: 心疾患"
@@ -751,8 +769,14 @@ assert.equal(
   "選択中: 僧帽弁閉鎖不全症"
 );
 
-// 中分類をクリックすると中分類名で再確定できること
+// 中分類のタップでは選択が変わらず、「「心疾患」で登録」で再確定できること
 await clickLabel("#history-add-col-group-list", "心疾患");
+await page.waitForTimeout(80);
+assert.equal(
+  (await page.locator("#history-add-selected").textContent()).trim(),
+  "選択中: 僧帽弁閉鎖不全症"
+);
+await page.locator("#history-add-col-leaf-list .med-linear-picker__group-pick").click();
 await page.waitForTimeout(80);
 assert.equal(
   (await page.locator("#history-add-selected").textContent()).trim(),

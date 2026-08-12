@@ -145,10 +145,12 @@ async function handleConfirmAdminAction() {
 /**
  * リニアピッカー用のスワイプ削除対応行を作る。
  * 右スワイプで削除、タップで選択。
+ * open は中項目を開いているだけの状態で、選択（✓）とは区別して表示する。
  */
 export function createSwipeableMasterPickerItem({
   label,
   selected = false,
+  open = false,
   onSelect,
   onDelete,
 }) {
@@ -160,6 +162,7 @@ export function createSwipeableMasterPickerItem({
   const item = document.createElement("div");
   item.className = "med-linear-picker__item";
   if (selected) item.classList.add("is-selected");
+  if (open) item.classList.add("is-open");
 
   const text = document.createElement("span");
   text.className = "med-linear-picker__item-label";
@@ -185,4 +188,34 @@ export function createSwipeableMasterPickerItem({
   });
 
   return row;
+}
+
+/**
+ * 小項目リストの先頭に置く「「◯◯」で登録」ボタンを作る。
+ * 中項目のタップは中身を開くだけにしたので、中項目自体の選択はこのボタンだけで行う。
+ */
+export function createMasterPickerGroupSelectItem({
+  groupLabel,
+  selected = false,
+  onSelect,
+}) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "med-linear-picker__item med-linear-picker__group-pick";
+  btn.setAttribute("role", "option");
+  btn.setAttribute("aria-selected", selected ? "true" : "false");
+  if (selected) btn.classList.add("is-selected");
+
+  const text = document.createElement("span");
+  text.className = "med-linear-picker__item-label";
+  text.textContent = `「${groupLabel}」で登録`;
+
+  const check = document.createElement("span");
+  check.className = "med-linear-picker__check";
+  check.setAttribute("aria-hidden", "true");
+  check.textContent = "✓";
+
+  btn.append(text, check);
+  btn.addEventListener("click", () => onSelect?.());
+  return btn;
 }

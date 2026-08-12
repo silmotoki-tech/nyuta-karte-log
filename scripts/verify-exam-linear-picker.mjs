@@ -166,8 +166,11 @@ window.__ready = true;
 </html>`;
 
 async function itemLabels(page, listSel) {
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
   return page
-    .locator(`${listSel} .med-linear-picker__item-label`)
+    .locator(
+      `${listSel} .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label`
+    )
     .allTextContents();
 }
 

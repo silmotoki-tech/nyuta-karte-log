@@ -270,7 +270,9 @@ await page.locator("#med-add-col-group-list .med-linear-picker__item", {
 }).click();
 await page.waitForTimeout(150);
 buttons = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 console.log("oral/その他 leaves:", buttons);
 for (const name of ["アラバ", "パラディア", "アモキシシリン"]) {
@@ -287,7 +289,9 @@ await page.locator("#med-add-col-group-list .med-linear-picker__item", {
 }).click();
 await page.waitForTimeout(120);
 buttons = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 console.log("oral/抗生剤 leaves sample:", buttons.slice(0, 3), "...", buttons.length);
 if (buttons[0] !== "アモキシシリン") {
@@ -352,7 +356,9 @@ await page.fill("#med-add-new-item", "イソジンゲル");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(150);
 buttons = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 if (!buttons.includes("イソジンゲル")) throw new Error("topical add failed");
 
@@ -366,7 +372,9 @@ if (!eyeMidHidden) throw new Error("eye should not show mid column");
 const eyeToggleVisible = await page.locator("#btn-med-add-toggle").isVisible();
 if (!eyeToggleVisible) throw new Error("eye should show add toggle in leaf col");
 buttons = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 console.log("eye leaves:", buttons);
 if (
@@ -382,7 +390,9 @@ await page.fill("#med-add-new-item", "ヒアレイン");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(150);
 buttons = await page
-  .locator("#med-add-col-leaf-list .med-linear-picker__item-label")
+  .locator(
+    "#med-add-col-leaf-list .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label"
+  )
   .allTextContents();
 if (!buttons.includes("ヒアレイン")) throw new Error("eye add failed");
 // デフォルト A のまま保存（明示的に B へは変更しない）

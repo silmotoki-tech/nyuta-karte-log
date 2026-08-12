@@ -588,7 +588,12 @@ await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__ready === true);
 
 async function labels(sel) {
-  return page.locator(`${sel} .med-linear-picker__item-label`).allTextContents();
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
+  return page
+    .locator(
+      `${sel} .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label`
+    )
+    .allTextContents();
 }
 async function clickLabel(sel, text) {
   const re = new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
@@ -629,7 +634,18 @@ for (const top of tops) {
       assert.ok(midLabels.includes(mid.label), `${top.label} missing mid ${mid.label}`);
       await clickLabel("#history-add-col-group-list", mid.label);
       await page.waitForTimeout(40);
+      // 中分類のタップは開くだけ。登録は小項目リスト先頭のボタンから行う
       assert.equal(
+        (
+          await page
+            .locator(
+              "#history-add-col-leaf-list .med-linear-picker__group-pick .med-linear-picker__item-label"
+            )
+            .textContent()
+        ).trim(),
+        `「${mid.label}」で登録`
+      );
+      assert.notEqual(
         (await page.locator("#history-add-selected").textContent()).trim(),
         `選択中: ${mid.label}`
       );
