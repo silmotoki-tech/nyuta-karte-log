@@ -467,7 +467,7 @@ assert.equal(await page.inputValue("#karte-number-input"), "", "カルテ番号�
 assert.equal(await hiddenOf("#screen-input"), true, "入力モードが閉じていない");
 await shot("06-next-karte");
 
-// --- 3カラムの「新しく記録を追加」も同じ入力モードを開く --------------------
+// --- 3カラムの「記録する」も同じ入力モードを開く --------------------
 for (const d of ["0", "0", "0", "0", "1"]) {
   await page.click(`#karte-numpad [data-karte-digit="${d}"]`);
 }

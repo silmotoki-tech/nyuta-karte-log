@@ -128,6 +128,7 @@ const btnAddProc = document.getElementById("btn-input-add-proc");
 
 const btnSave = document.getElementById("btn-input-save");
 const btnSaveNext = document.getElementById("btn-input-save-next");
+const btnCancel = document.getElementById("btn-input-cancel");
 
 const sheetModal = document.getElementById("input-sheet-modal");
 const sheetTitle = document.getElementById("input-sheet-title");
@@ -200,6 +201,7 @@ export function initInputModeUI(helpers = {}) {
 
   btnSave?.addEventListener("click", () => handleSave({ next: false }));
   btnSaveNext?.addEventListener("click", () => handleSave({ next: true }));
+  btnCancel?.addEventListener("click", () => requestClose());
 
   btnSheetAdd?.addEventListener("click", commitSheet);
   btnSheetCancel?.addEventListener("click", closeSheet);
@@ -471,14 +473,27 @@ export function prepareInputDraft() {
   renderAuthorSelection();
 }
 
+/** 破棄すると消えるものを、確認文に出すために並べる */
+function pendingSummary() {
+  const written =
+    Boolean(headlineInput?.value.trim()) || Boolean(bodyInput?.value.trim());
+  const parts = [];
+  if (written) parts.push("書きかけの記録");
+  if (state.queue.length) parts.push(`「今日の登録」${state.queue.length}件`);
+  return parts;
+}
+
+/** 入力を捨てて閉じる。消えるものがあるときだけ確認する。 */
 function requestClose() {
-  if (state.queue.length) {
+  const pending = pendingSummary();
+  if (pending.length) {
     const ok = window.confirm(
-      `「今日の登録」に${state.queue.length}件たまっています。保存せずに閉じますか？`
+      `${pending.join("と")}は保存されずに消えます。破棄しますか？`
     );
     if (!ok) return;
   }
-  resetForm();
+  // 記入者は同じカルテを開いている間の引き継ぎとして残す
+  prepareInputDraft();
   hideInputMode();
   deps.onClose();
 }

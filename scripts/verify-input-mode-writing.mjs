@@ -112,11 +112,15 @@ page.on("pageerror", (e) => {
 
 // 「続きから選ぶ」は確認を挟まない。ダイアログが出た時点で不合格。
 // （iPad で確認が抑止／キャンセルされると、タップが空振りになるため）
+// 破棄の確認だけは出てほしいので、場面ごとに応答を切り替える。
 let dialogCount = 0;
+let lastDialog = "";
+let dialogAnswer = "dismiss";
 page.on("dialog", (d) => {
   dialogCount += 1;
-  console.warn("DIALOG", d.message());
-  d.dismiss();
+  lastDialog = d.message();
+  if (dialogAnswer === "accept") d.accept();
+  else d.dismiss();
 });
 
 await page.addInitScript((entries) => {
@@ -377,7 +381,7 @@ assert.equal(
   "左カラムが3カラムに戻っていない"
 );
 
-// --- 3カラムの「新しく記録を追加」からも、同じ入力モードが同じように使える ---
+// --- 3カラムの「記録する」からも、同じ入力モードが同じように使える ---
 assert.equal(
   await page.evaluate(() => Boolean(document.getElementById("entry-composer"))),
   false,
@@ -491,6 +495,124 @@ assert.ok(
   "3カラム経由で「今日の登録」が保存されていない"
 );
 await shot("18-from-history-saved");
+
+// --- キャンセル -----------------------------------------------------------
+
+// 何も書いていなければ、確認なしでそのまま閉じる
+await page.click("#btn-start-compose");
+await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
+const beforeEmptyCancel = dialogCount;
+await page.click("#btn-input-cancel");
+await page.waitForFunction(() => document.getElementById("screen-input").hidden, null, {
+  timeout: 5000,
+});
+assert.equal(dialogCount, beforeEmptyCancel, "空のまま閉じたのに確認が出た");
+assert.equal(
+  await page.evaluate(() => document.querySelector("#app-shell .layout").hidden),
+  false,
+  "キャンセルで3カラムに戻っていない"
+);
+
+// 書きかけと「今日の登録」がある状態では確認が出る
+await page.click("#btn-start-compose");
+await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
+await page.fill("#input-headline", "捨てられる見出し");
+await page.fill("#input-body-text", "エンロフロキサシンを開始。");
+await page.waitForFunction(
+  () => document.querySelectorAll("#input-chip-list .input-chip").length >= 1,
+  null,
+  { timeout: 5000 }
+);
+await page.click('#input-chip-list .input-chip[data-chip-label="エンロフロキサシン"]');
+await page.waitForSelector("#input-sheet-modal:not([hidden])", { timeout: 5000 });
+await page.click("#btn-input-sheet-add");
+await page.waitForFunction(() => document.getElementById("input-sheet-modal").hasAttribute("hidden"));
+
+const writesBeforeCancel = await page.evaluate(() => (globalThis.__writes || []).length);
+
+// いったん「やめない」を選ぶと、入力はそのまま残る
+dialogAnswer = "dismiss";
+const beforeKeep = dialogCount;
+await page.click("#btn-input-cancel");
+assert.equal(dialogCount, beforeKeep + 1, "書きかけがあるのに確認が出ない");
+console.log("CANCEL_DIALOG", lastDialog);
+assert.ok(lastDialog.includes("破棄"), `確認文に破棄の旨がない: ${lastDialog}`);
+assert.ok(lastDialog.includes("書きかけの記録"), `確認文に書きかけの記録がない: ${lastDialog}`);
+assert.ok(lastDialog.includes("今日の登録"), `確認文に今日の登録がない: ${lastDialog}`);
+assert.equal(
+  await page.evaluate(() => document.getElementById("screen-input").hidden),
+  false,
+  "確認をやめたのに入力モードが閉じた"
+);
+assert.equal(
+  await page.inputValue("#input-headline"),
+  "捨てられる見出し",
+  "確認をやめたのに入力が消えた"
+);
+await shot("19-cancel-confirm");
+
+// 破棄すると、元の画面に戻って中身は空になる
+dialogAnswer = "accept";
+await page.click("#btn-input-cancel");
+await page.waitForFunction(() => document.getElementById("screen-input").hidden, null, {
+  timeout: 5000,
+});
+dialogAnswer = "dismiss";
+
+const afterCancel = await page.evaluate(() => ({
+  layoutHidden: document.querySelector("#app-shell .layout").hidden,
+  statusHidden: document.getElementById("screen-status").hidden,
+  leftHome: document.getElementById("col-left").parentElement.className,
+  writes: (globalThis.__writes || []).length,
+  timeline: [...document.querySelectorAll("#timeline .tl-item__headline")].map((el) =>
+    el.textContent.trim()
+  ),
+}));
+console.log("AFTER_CANCEL", afterCancel);
+assert.equal(afterCancel.layoutHidden, false, "破棄しても3カラムに戻らない");
+assert.equal(afterCancel.statusHidden, true, "3カラムから開いたのに状態モードに戻った");
+assert.equal(afterCancel.leftHome, "layout", "左カラムが3カラムに戻っていない");
+assert.equal(afterCancel.writes, writesBeforeCancel, "破棄したのにDBへ書き込まれている");
+assert.ok(
+  !afterCancel.timeline.includes("捨てられる見出し"),
+  "破棄した記録が時系列に残っている"
+);
+
+// 開き直すと空になっている
+await page.click("#btn-start-compose");
+await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
+const reopened = await page.evaluate(() => ({
+  headline: document.getElementById("input-headline").value,
+  body: document.getElementById("input-body-text").value,
+  queue: document.querySelectorAll("#input-today-list .input-today-item").length,
+  author: document.querySelector("#input-author-row .author-btn.is-selected")?.dataset.author || "",
+}));
+console.log("REOPENED", reopened);
+assert.equal(reopened.headline, "", "破棄後も見出しが残っている");
+assert.equal(reopened.body, "", "破棄後も本文が残っている");
+assert.equal(reopened.queue, 0, "破棄後も「今日の登録」が残っている");
+assert.equal(reopened.author, "院長", "同じカルテ内の記入者が引き継がれていない");
+
+// 状態モードから開いた場合は、破棄で状態モードに戻る
+await page.click("#btn-input-cancel");
+await page.waitForFunction(() => document.getElementById("screen-input").hidden, null, {
+  timeout: 5000,
+});
+await page.click("#btn-view-status");
+await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
+await page.click("#btn-status-compose");
+await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
+await page.fill("#input-headline", "状態モードから書きかけ");
+dialogAnswer = "accept";
+await page.click("#btn-input-cancel");
+await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
+dialogAnswer = "dismiss";
+assert.equal(
+  await page.evaluate(() => document.getElementById("screen-input").hidden),
+  true,
+  "破棄しても入力モードが閉じない"
+);
+await shot("20-cancel-back-to-status");
 
 assert.deepEqual(pageErrors, [], `ページエラーが出ている: ${pageErrors.join(" / ")}`);
 

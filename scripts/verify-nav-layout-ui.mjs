@@ -105,7 +105,7 @@ const harness = `<!DOCTYPE html>
     <section class="col col--center" id="col-center" style="flex:1">
       <div class="center-main" id="center-main">
         <div class="center-toolbar">
-          <button id="btn-start-compose" class="btn btn--small btn--primary" type="button">新しく記録を追加</button>
+          <button id="btn-start-compose" class="btn btn--small btn--primary" type="button">記録する</button>
           <button id="btn-open-templates" class="btn btn--small btn--outline" type="button">定型文の管理</button>
           <div class="center-toolbar__end">
             <div class="app-menu" id="app-menu">

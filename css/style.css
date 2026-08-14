@@ -5358,6 +5358,11 @@ select.input {
   background-color: var(--color-white);
 }
 
+/* 破棄は保存と押し間違えたくないので、間を空けて端に置く */
+.input-footer__cancel {
+  margin-left: auto;
+}
+
 .input-sheet__fixed {
   margin: 0;
   font-size: 0.88rem;
