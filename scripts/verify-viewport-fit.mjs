@@ -2,17 +2,15 @@
  * ロック／ゲート／主要モーダルが各ビューポートで画面内に収まることを検証する。
  */
 import assert from "node:assert/strict";
-import { chromium } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { launchBrowser } from "./launch-browser.js";
+import { HARNESS_AUTH_BOOT } from "./auth-stub.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const SYSTEM_CHROME =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const outDir = path.join(root, "tools", "viewport-fit-verify");
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -21,40 +19,6 @@ function contentType(filePath) {
   if (filePath.endsWith(".css")) return "text/css; charset=utf-8";
   if (filePath.endsWith(".js")) return "text/javascript; charset=utf-8";
   return "application/octet-stream";
-}
-
-function findChromeHeadlessShell() {
-  const cacheRoot = path.join(os.tmpdir(), "cursor-sandbox-cache");
-  if (!fs.existsSync(cacheRoot)) return null;
-  for (const dir of fs.readdirSync(cacheRoot)) {
-    for (const arch of ["mac-arm64", "mac-x64"]) {
-      const c = path.join(
-        cacheRoot,
-        dir,
-        `playwright/chromium_headless_shell-1228/chrome-headless-shell-${arch}/chrome-headless-shell`
-      );
-      if (fs.existsSync(c)) return c;
-    }
-  }
-  return null;
-}
-
-async function launchBrowser() {
-  for (const executablePath of [
-    findChromeHeadlessShell(),
-    fs.existsSync(SYSTEM_CHROME) ? SYSTEM_CHROME : null,
-  ].filter(Boolean)) {
-    try {
-      return await chromium.launch({
-        executablePath,
-        headless: true,
-        timeout: 30_000,
-      });
-    } catch (err) {
-      console.warn("launch failed", executablePath, err.message);
-    }
-  }
-  return chromium.launch({ headless: true });
 }
 
 const css = fs.readFileSync(path.join(root, "css/style.css"), "utf8");
@@ -75,8 +39,8 @@ const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const harness = indexHtml.replace(
   /<script type="module" src="\.\/js\/app\.js"><\/script>/,
   `<script type="module">
-// app.js を読まないため、認証確定待ちの表示は自前で解除する
-document.documentElement.classList.remove("is-auth-pending");
+// app.js を読まないため、認証まわりの初期表示は自前で片付ける
+${HARNESS_AUTH_BOOT}
 window.__showLock = () => {
   document.getElementById("screen-lock")?.removeAttribute("hidden");
   document.getElementById("app-shell")?.setAttribute("hidden", "");

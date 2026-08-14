@@ -4,16 +4,16 @@
  * - 本文・見出し・動物名などは編集可能で focus できる
  * - パスコード／カルテ番号テンキーは従来どおり動作
  */
-import { chromium } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { launchBrowser } from "./launch-browser.js";
+import { applyAuthStub, readMockDb } from "./auth-stub.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const SYSTEM_CHROME =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const mockDb = readMockDb("mock-db-status-mode.js");
 
 function contentType(fp) {
   const ext = path.extname(fp);
@@ -45,15 +45,13 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
 const base = `http://127.0.0.1:${port}`;
 
-const browser = await chromium.launch({
-  executablePath: SYSTEM_CHROME,
-  headless: true,
-});
+const browser = await launchBrowser();
 const context = await browser.newContext({
   viewport: { width: 1180, height: 900 },
   serviceWorkers: "block",
 });
 const page = await context.newPage();
+await applyAuthStub(page, { dbMock: mockDb });
 const fails = [];
 
 function assert(cond, msg) {

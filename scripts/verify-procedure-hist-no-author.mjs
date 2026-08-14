@@ -150,20 +150,24 @@ await page.waitForFunction(() => {
   return !!modal?.hidden;
 });
 
+// 実施履歴は内容ごとに束ねられ、内容は見出し側に出る
 await page.waitForFunction(() => {
-  const texts = [...document.querySelectorAll("#procedures-list .proc-card__content")].map(
-    (el) => el.textContent || ""
-  );
+  const texts = [
+    ...document.querySelectorAll("#procedures-list .exam-history-group-title__label"),
+  ].map((el) => el.textContent || "");
   return texts.some((t) => t.includes("皮下点滴 100ml"));
 });
 
 const listed = await page.evaluate(() => {
-  const cards = [...document.querySelectorAll("#procedures-list .proc-card")];
-  const card = cards.find((c) =>
-    (c.querySelector(".proc-card__content")?.textContent || "").includes("皮下点滴 100ml")
+  const nodes = [...document.querySelectorAll("#procedures-list > *")];
+  const titleIndex = nodes.findIndex((el) =>
+    (el.querySelector?.(".exam-history-group-title__label")?.textContent || "").includes(
+      "皮下点滴 100ml"
+    )
   );
+  const card = nodes.slice(titleIndex + 1).find((el) => el.classList.contains("proc-card"));
   return {
-    content: card?.querySelector(".proc-card__content")?.textContent || "",
+    content: nodes[titleIndex]?.querySelector(".exam-history-group-title__label")?.textContent || "",
     note: card?.querySelector(".proc-card__note")?.textContent || "",
     meta: card?.querySelector(".proc-card__meta")?.textContent || "",
     hasAuthorMeta: !!card?.querySelector(".proc-card__meta"),

@@ -8,19 +8,23 @@
  * - サインアウト時は管理者パスコード（oono）が必要
  */
 import assert from "node:assert/strict";
-import { chromium } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MOCK_AUTH_EMAIL } from "./mock-auth-email.js";
+import { launchBrowser } from "./launch-browser.js";
+import {
+  AUTH_EMAIL,
+  AUTH_PASSWORD,
+  AUTH_USERS,
+  applyAuthStub,
+  enterPasscode,
+  readMockDb,
+} from "./auth-stub.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const outDir = path.join(root, "tools");
-const SYSTEM_CHROME =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
 function contentType(fp) {
   const ext = path.extname(fp);
@@ -31,69 +35,7 @@ function contentType(fp) {
   return "application/octet-stream";
 }
 
-function findChromeHeadlessShell() {
-  const cacheRoot = path.join(os.tmpdir(), "cursor-sandbox-cache");
-  if (!fs.existsSync(cacheRoot)) return null;
-  for (const dir of fs.readdirSync(cacheRoot)) {
-    for (const arch of ["mac-arm64", "mac-x64"]) {
-      const c = path.join(
-        cacheRoot,
-        dir,
-        `playwright/chromium_headless_shell-1228/chrome-headless-shell-${arch}/chrome-headless-shell`
-      );
-      if (fs.existsSync(c)) return c;
-    }
-  }
-  return null;
-}
-
-async function launchBrowser() {
-  const candidates = [
-    findChromeHeadlessShell(),
-    fs.existsSync(SYSTEM_CHROME) ? SYSTEM_CHROME : null,
-  ].filter(Boolean);
-  for (const executablePath of candidates) {
-    try {
-      return await chromium.launch({
-        executablePath,
-        headless: true,
-        timeout: 30_000,
-      });
-    } catch (err) {
-      console.warn("launch failed", executablePath, err.message);
-    }
-  }
-  return chromium.launch({ channel: "chrome", headless: true, timeout: 30_000 });
-}
-
-const mockDb = fs.readFileSync(
-  path.join(__dirname, "mock-db-full-app-free-qa.js"),
-  "utf8"
-);
-const mockPasscode = `
-export const PASSCODE_STORAGE_KEY = "nyutaKartePasscodeVerified";
-export const PASSCODE_DATE_KEY = "nyutaKartePasscodeVerifiedDate";
-export function todayDateStrLocal() { return "2026-08-08"; }
-export function isPasscodeVerified() {
-  return localStorage.getItem(PASSCODE_STORAGE_KEY) === "1" &&
-    localStorage.getItem(PASSCODE_DATE_KEY) === todayDateStrLocal();
-}
-export function setPasscodeVerified() {
-  localStorage.setItem(PASSCODE_STORAGE_KEY, "1");
-  localStorage.setItem(PASSCODE_DATE_KEY, todayDateStrLocal());
-}
-export function clearPasscodeVerified() {
-  localStorage.removeItem(PASSCODE_STORAGE_KEY);
-  localStorage.removeItem(PASSCODE_DATE_KEY);
-}
-`;
-const mockApiKey = `
-export function hasApiKey() { return true; }
-export function getApiKey() { return "sk-ant-test"; }
-export function setApiKey() {}
-export function clearApiKey() {}
-`;
-const mockFirebase = `export const app = {};`;
+const mockDb = readMockDb("mock-db-full-app-free-qa.js");
 
 const server = http.createServer((req, res) => {
   let u = decodeURIComponent((req.url || "/").split("?")[0]);
@@ -120,17 +62,11 @@ const page = await context.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(String(e)));
 
-for (const [pattern, body] of [
-  ["**/js/db.js", mockDb],
-  ["**/js/auth.js", MOCK_AUTH_EMAIL],
-  ["**/js/passcode-auth.js", mockPasscode],
-  ["**/js/api-key.js", mockApiKey],
-  ["**/js/firebase-app.js", mockFirebase],
-]) {
-  await page.route(pattern, (route) =>
-    route.fulfill({ contentType: "application/javascript", body })
-  );
-}
+await applyAuthStub(page, {
+  user: AUTH_USERS.none,
+  dbMock: mockDb,
+  stubApiKey: false,
+});
 
 async function visibleGates() {
   return page.evaluate(() => ({
@@ -158,7 +94,7 @@ await page.locator("#screen-login .lock-screen__card").screenshot({
 });
 
 // 誤パスワード
-await page.fill("#login-email", "clinic@example.com");
+await page.fill("#login-email", AUTH_EMAIL);
 await page.fill("#login-password", "wrong-password");
 await page.click("#btn-login");
 await page.waitForFunction(() => {
@@ -176,7 +112,7 @@ await page.locator("#screen-login .lock-screen__card").screenshot({
 });
 
 // 正パスワード → パスコード
-await page.fill("#login-password", "correct-password");
+await page.fill("#login-password", AUTH_PASSWORD);
 await page.click("#btn-login");
 await page.waitForSelector("#screen-lock:not([hidden])", { timeout: 10_000 });
 gates = await visibleGates();
@@ -189,10 +125,7 @@ await page.locator("#screen-lock .lock-screen__card").screenshot({
 });
 
 // パスコード → カルテ → 本編（設定メニューを出すため）
-for (const d of ["2", "2", "1", "1"]) {
-  await page.click(`#passcode-numpad [data-pass-digit="${d}"]`);
-}
-await page.click('#passcode-numpad [data-pass-action="confirm"]');
+await enterPasscode(page);
 await page.waitForSelector("#gate-karte:not([hidden])", { timeout: 10_000 });
 for (const d of ["1", "2", "3", "4", "5"]) {
   await page.click(`#karte-numpad [data-karte-digit="${d}"]`);
@@ -241,15 +174,26 @@ await page.locator("#screen-login .lock-screen__card").screenshot({
 });
 
 // 再ログイン後はまたパスコード
-await page.fill("#login-email", "clinic@example.com");
-await page.fill("#login-password", "correct-password");
+await page.fill("#login-email", AUTH_EMAIL);
+await page.fill("#login-password", AUTH_PASSWORD);
 await page.click("#btn-login");
 await page.waitForSelector("#screen-lock:not([hidden])", { timeout: 10_000 });
 
 assert.deepEqual(pageErrors, [], `page errors:\n${pageErrors.join("\n")}`);
 
-const rules = fs.readFileSync(path.join(root, "database.rules.json"), "utf8");
-assert.match(rules, /REPLACE_WITH_CLINIC_UID/);
+// ルールは中身の UID ではなく形（1アカウントに限定しているか）を見る。
+// 実際の UID をここに書くと、医院ごとに差し替えるたびに検証が落ちる。
+const rules = JSON.parse(
+  fs.readFileSync(path.join(root, "database.rules.json"), "utf8")
+);
+const uidGuard = /^auth != null && auth\.uid === '[^']+'$/;
+assert.match(rules.rules[".read"], uidGuard, "読み取りが単一アカウントに限定されていない");
+assert.match(rules.rules[".write"], uidGuard, "書き込みが単一アカウントに限定されていない");
+assert.equal(
+  rules.rules[".read"],
+  rules.rules[".write"],
+  "読み取りと書き込みで許可アカウントが違う"
+);
 assert.ok(fs.existsSync(path.join(root, "firebase.json")));
 assert.ok(fs.existsSync(path.join(root, "docs/AUTH-ROLLOUT.md")));
 

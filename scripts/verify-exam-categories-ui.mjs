@@ -93,10 +93,17 @@ const harness = `<!DOCTYPE html>
             <div class="med-linear-picker__list" id="exam-plan-col-group-list" role="listbox"></div>
           </div>
           <div class="med-linear-picker__col med-linear-picker__col--leaf" id="exam-plan-col-leaf" hidden>
-            <div class="med-linear-picker__head">検査項目</div>
+            <div class="med-linear-picker__head">
+              <span class="med-linear-picker__head-label" id="exam-plan-col-leaf-head-label">検査項目</span>
+              <button type="button" class="exam-item-add__toggle" id="btn-exam-plan-add-toggle" hidden
+                aria-expanded="false" aria-controls="exam-plan-item-add-default" aria-label="新しい項目を追加">＋</button>
+            </div>
+            <div class="med-linear-picker__search" id="exam-plan-search" hidden>
+              <input id="exam-plan-search-input" class="input med-linear-picker__search-input" type="search" />
+            </div>
             <div class="med-linear-picker__list" id="exam-plan-col-leaf-list" role="listbox"></div>
             <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden></p>
-            <div class="exam-item-add" id="exam-plan-item-add-default">
+            <div class="exam-item-add" id="exam-plan-item-add-default" hidden>
               <label class="label label--sub" id="exam-plan-new-item-label" for="exam-plan-new-item">新しい項目を追加</label>
               <div class="exam-item-add__row">
                 <input id="exam-plan-new-item" class="input" type="text" />
@@ -199,7 +206,12 @@ async function clickLinear(listSel, label) {
 }
 
 async function labelsOf(listSel) {
-  return page.locator(`${listSel} .med-linear-picker__item-label`).allTextContents();
+  // 「◯◯」で登録ボタンはマスタ項目ではないので除く
+  return page
+    .locator(
+      `${listSel} .med-linear-picker__item:not(.med-linear-picker__group-pick) .med-linear-picker__item-label`
+    )
+    .allTextContents();
 }
 
 await page.route("**/js/db.js", (route) =>
@@ -215,7 +227,11 @@ await page.waitForSelector("#exam-plan-modal:not([hidden])");
 
 const tabLabels = await labelsOf("#exam-plan-col-category-list");
 console.log("TABS", tabLabels);
-if (JSON.stringify(tabLabels) !== JSON.stringify(["血液", "画像", "病理", "その他"])) {
+// 大分類の末尾には検索モードが並ぶ
+if (
+  JSON.stringify(tabLabels) !==
+  JSON.stringify(["血液", "画像", "病理", "その他", "検索"])
+) {
   throw new Error("category list wrong");
 }
 
@@ -359,6 +375,9 @@ if (selected !== "組織検査") throw new Error("select pathology item failed")
 if (!(await page.isHidden("#exam-plan-fasting-field"))) {
   throw new Error("fasting should hide for pathology");
 }
+// 追加フォームは ＋ ボタンで開く
+await page.click("#btn-exam-plan-add-toggle");
+await page.waitForSelector("#exam-plan-item-add-default:not([hidden])");
 await page.fill("#exam-plan-new-item", "追加病理");
 await page.click("#btn-exam-plan-add-item");
 await page.waitForTimeout(200);

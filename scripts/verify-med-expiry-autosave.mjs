@@ -808,7 +808,8 @@ await page
 await page.waitForTimeout(250);
 const listOver = await page.locator("#meds-list").innerText();
 console.log("LIST OVER", listOver);
-if (!listOver.includes("期限超過")) throw new Error("overdue label missing");
+// 日数が出せる場合は「○日超過」、出せない場合だけ「期限超過」
+if (!/\d+日超過|期限超過/.test(listOver)) throw new Error("overdue label missing");
 if (!(await page.locator(".med-card.is-overdue").count())) {
   throw new Error("is-overdue missing");
 }

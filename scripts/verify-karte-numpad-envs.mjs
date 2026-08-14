@@ -5,16 +5,16 @@
  * - 古い HTML（#karte-numpad 無し）+ 現行 JS で自動生成されること
  * - コンソールエラー（Firebase 以外）
  */
-import { chromium } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { launchBrowser } from "./launch-browser.js";
+import { applyAuthStub, enterPasscode, readMockDb } from "./auth-stub.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const SYSTEM_CHROME =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const mockDb = readMockDb("mock-db-status-mode.js");
 
 function contentType(fp) {
   const ext = path.extname(fp);
@@ -60,10 +60,7 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
 const base = `http://127.0.0.1:${port}`;
 
-const browser = await chromium.launch({
-  executablePath: SYSTEM_CHROME,
-  headless: true,
-});
+const browser = await launchBrowser();
 
 async function runCase(label, { url, standalone = false } = {}) {
   const context = await browser.newContext({
@@ -76,6 +73,8 @@ async function runCase(label, { url, standalone = false } = {}) {
   page.on("console", (m) => {
     if (m.type() === "error") consoleErrors.push(m.text());
   });
+
+  await applyAuthStub(page, { dbMock: mockDb });
 
   if (standalone) {
     const client = await context.newCDPSession(page);
@@ -110,11 +109,7 @@ async function runCase(label, { url, standalone = false } = {}) {
   }
 
   await page.goto(url, { waitUntil: "networkidle" });
-  await page.waitForSelector("#passcode-numpad .numpad__btn");
-  for (const d of ["2", "2", "1", "1"]) {
-    await page.click(`#passcode-numpad [data-pass-digit="${d}"]`);
-  }
-  await page.click('#passcode-numpad [data-pass-action="confirm"]');
+  await enterPasscode(page);
   await page.waitForSelector("#gate-karte:not([hidden])", { timeout: 10000 });
   await page.waitForTimeout(300);
 

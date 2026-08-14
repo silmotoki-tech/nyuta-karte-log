@@ -147,16 +147,21 @@ function rebuildMock(body, extraNames = new Set()) {
   };
 }
 
-/** 検証スクリプトに直書きされた `const mockDb = \`...\`;` を取り出す */
-const INLINE_MOCK = /(const\s+mockDb\s*=\s*`)([\s\S]*?)(`;)/;
+/**
+ * 検証スクリプトに直書きされたモック（`const mockDb = \`...\`;` など）を取り出す。
+ * 1ファイルに検査用・薬剤用と複数置いている場合があるので名前は固定しない。
+ */
+const INLINE_MOCK = /(const\s+([A-Za-z0-9_$]+)\s*=\s*`)([\s\S]*?)(`;)/g;
 
 /**
  * `body: mockDb + MASTER_DELETE_MOCK` のように、配信時に別の断片を足している場合に
  * その断片が定義している名前を集める。ここと重複すると構文エラーになる。
  */
-function concatenatedNames(source) {
+function concatenatedNames(source, varName) {
   const names = new Set();
-  const concat = /body:\s*mockDb\s*((?:\+\s*[A-Za-z0-9_$]+\s*)+)/.exec(source);
+  const concat = new RegExp(
+    `body:\\s*${varName}\\s*((?:\\+\\s*[A-Za-z0-9_$]+\\s*)+)`
+  ).exec(source);
   if (!concat) return names;
 
   for (const token of concat[1].split("+")) {
@@ -182,6 +187,22 @@ function concatenatedNames(source) {
   return names;
 }
 
+/**
+ * その名前が /js/db.js の中身として配信されているか。
+ * route の差し替えでも自前サーバの分岐でも、db.js の直後に名前が現れる。
+ */
+function servesDbJs(source, varName) {
+  const used = new RegExp(`\\b${varName}\\b`);
+  for (const m of source.matchAll(/js\/db\.js/g)) {
+    // 次に別モジュールのパスが出てくるまでが、この差し替えの守備範囲
+    const rest = source.slice(m.index + m[0].length);
+    const nextModule = /js\/[A-Za-z0-9_-]+\.js/.exec(rest);
+    const window = rest.slice(0, nextModule ? nextModule.index : 400);
+    if (used.test(window)) return true;
+  }
+  return false;
+}
+
 function collectTargets() {
   const targets = [];
   for (const file of fs.readdirSync(scriptsDir).sort()) {
@@ -192,13 +213,23 @@ function collectTargets() {
     }
     if (!file.endsWith(".mjs")) continue;
     const source = fs.readFileSync(full, "utf8");
-    const m = INLINE_MOCK.exec(source);
-    // db.js を差し替える目的のモックだけを対象にする
-    if (m && /^export\s/m.test(m[2])) {
-      targets.push({ file, full, kind: "inline" });
+    for (const m of source.matchAll(INLINE_MOCK)) {
+      // db.js を差し替える目的のモックだけを対象にする。
+      // 他モジュール（firebase.js など）のモックに db.js のエクスポートを足すと壊れる。
+      if (!/^export\s/m.test(m[3])) continue;
+      if (!servesDbJs(source, m[2])) continue;
+      targets.push({ file, full, kind: "inline", varName: m[2] });
     }
   }
   return targets;
+}
+
+/** ファイル内の特定の名前の直書きモックを取り出す */
+function findInlineMock(source, varName) {
+  for (const m of source.matchAll(INLINE_MOCK)) {
+    if (m[2] === varName) return m;
+  }
+  return null;
 }
 
 const write = process.argv.includes("--write");
@@ -212,29 +243,32 @@ for (const target of collectTargets()) {
   if (target.kind === "file") {
     ({ body: rebuilt, missing } = rebuildMock(original));
   } else {
-    const m = INLINE_MOCK.exec(original);
-    const result = rebuildMock(m[2], concatenatedNames(original));
+    const m = findInlineMock(original, target.varName);
+    const result = rebuildMock(m[3], concatenatedNames(original, target.varName));
     missing = result.missing;
     rebuilt =
       original.slice(0, m.index) +
       m[1] +
       result.body +
-      m[3] +
+      m[4] +
       original.slice(m.index + m[0].length);
   }
 
+  const label =
+    target.kind === "inline" ? `${target.file} (${target.varName})` : target.file;
+
   if (rebuilt === original) {
-    console.log(`OK   ${target.file}`);
+    console.log(`OK   ${label}`);
     continue;
   }
   if (write) {
     fs.writeFileSync(target.full, rebuilt);
-    console.log(`WROTE ${target.file} (${missing.length}件を補完)`);
+    console.log(`WROTE ${label} (${missing.length}件を補完)`);
     continue;
   }
   problems += 1;
   console.log(
-    `MISS ${target.file}: ${missing.length}件が不足しています` +
+    `MISS ${label}: ${missing.length}件が不足しています` +
       " → node scripts/check-mock-db-exports.mjs --write"
   );
 }

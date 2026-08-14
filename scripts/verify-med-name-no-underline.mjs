@@ -2,7 +2,8 @@
  * 薬剤名に赤い下線が出ないことを検証する（canvas 描画版）。
  * Chromium と WebKit(iPad) の両方で確認する。
  */
-import { chromium, webkit, devices } from "playwright";
+import { webkit, devices } from "playwright";
+import { launchBrowser } from "./launch-browser.js";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -204,8 +205,8 @@ print("OK: no red underline band under med names")
   if (r.status !== 0) throw new Error(`pixel analysis failed for ${pngPath}`);
 }
 
-async function runScenario({ label, browserType, contextOptions, outName }) {
-  const browser = await browserType.launch({ headless: true });
+async function runScenario({ label, launch, contextOptions, outName }) {
+  const browser = await launch();
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   await page.goto(base, { waitUntil: "networkidle" });
@@ -268,24 +269,33 @@ async function runScenario({ label, browserType, contextOptions, outName }) {
 try {
   await runScenario({
     label: "chromium-narrow",
-    browserType: chromium,
+    launch: () => launchBrowser(),
     contextOptions: { viewport: { width: 400, height: 800 } },
     outName: "med-name-no-underline-verify.png",
   });
 
+  // 本命は iPad Safari のスペル波線なので WebKit も見たいが、未インストールの
+  // 環境がある。その場合は落とさずに、飛ばしたことがわかるログを残す。
   const ipad = devices["iPad (gen 7)"] || null;
-  await runScenario({
-    label: "webkit-ipad",
-    browserType: webkit,
-    contextOptions: ipad
-      ? { ...ipad }
-      : {
-          viewport: { width: 810, height: 1080 },
-          isMobile: true,
-          hasTouch: true,
-        },
-    outName: "med-name-no-underline-ipad.png",
-  });
+  try {
+    await runScenario({
+      label: "webkit-ipad",
+      launch: () => webkit.launch({ headless: true }),
+      contextOptions: ipad
+        ? { ...ipad }
+        : {
+            viewport: { width: 810, height: 1080 },
+            isMobile: true,
+            hasTouch: true,
+          },
+      outName: "med-name-no-underline-ipad.png",
+    });
+  } catch (err) {
+    if (!/Executable doesn't exist/.test(String(err?.message))) throw err;
+    console.log(
+      "SKIP: WebKit が入っていないため webkit-ipad は未実行（npx playwright install webkit で有効化）"
+    );
+  }
 } finally {
   server.close();
 }

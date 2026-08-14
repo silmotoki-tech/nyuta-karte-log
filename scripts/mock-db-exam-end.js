@@ -1,64 +1,138 @@
-/**
- * ★フィルターがカテゴリ付き記録も含むこと、特記の並び・メタ表示を検証する。
- */
-import { chromium } from "playwright";
-import fs from "node:fs";
-import http from "node:http";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { htmlFragment } from "./html-fragment.js";
+// Playwright 検証用のインメモリ db モック（検査予定の終了／復活フロー）
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, "..");
-const SYSTEM_CHROME =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const store = {
+  examItems: {
+    item1: { label: "血液検査", order: 1, category: "blood", kind: "leaf" },
+  },
+  examPlan: {},
+};
 
-const mockDb = `
-const store = { notes: {} };
-let noteSeq = 1;
-const listeners = new Set();
-
-function emit() {
-  const items = Object.entries(store.notes).map(([id, raw]) => ({ id, ...raw }));
-  const rank = { high: 0, medium: 1, low: 2 };
-  items.sort((a, b) => {
-    const ir = (rank[a.importance] ?? 1) - (rank[b.importance] ?? 1);
-    if (ir !== 0) return ir;
-    return (b.createdAt || "").localeCompare(a.createdAt || "");
-  });
-  listeners.forEach((cb) => cb(items));
+function emptyPlan() {
+  return { schemaVersion: 2, plans: {}, history: {} };
 }
 
-export function subscribeSpecialNotes(_karte, cb) {
-  listeners.add(cb);
-  emit();
-  return () => listeners.delete(cb);
+function ensurePlan(karte) {
+  if (!store.examPlan[karte]) store.examPlan[karte] = emptyPlan();
+  return store.examPlan[karte];
 }
-export async function addSpecialNote(_karte, { content, importance, createdBy }) {
-  const id = "n" + noteSeq++;
-  store.notes[id] = {
-    content, importance, createdBy,
-    createdAt: new Date().toISOString(),
-    lastEditedAt: "", lastEditedBy: "",
+
+function notify(karte) {
+  const listeners = examPlanListeners.get(karte) || [];
+  const snap = structuredClone(ensurePlan(karte));
+  listeners.forEach((cb) => cb(snap));
+}
+
+const examPlanListeners = new Map();
+let idSeq = 1;
+function nextId(prefix) {
+  idSeq += 1;
+  return `${prefix}${idSeq}`;
+}
+
+function todayIsoDate() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function subscribeExamPlan(karteNumber, callback) {
+  const list = examPlanListeners.get(karteNumber) || [];
+  list.push(callback);
+  examPlanListeners.set(karteNumber, list);
+  callback(structuredClone(ensurePlan(karteNumber)));
+  return () => {
+    const cur = examPlanListeners.get(karteNumber) || [];
+    examPlanListeners.set(
+      karteNumber,
+      cur.filter((cb) => cb !== callback)
+    );
   };
-  emit();
+}
+
+export function subscribeExamItems(callback) {
+  callback(
+    Object.entries(store.examItems).map(([id, v]) => ({ id, ...v }))
+  );
+  return () => {};
+}
+
+export async function saveExamScheduledPlan(
+  karteNumber,
+  { planId = null, item, dueDate, note, baselineDate }
+) {
+  const plan = ensurePlan(karteNumber);
+  const itemName = (item || "").trim();
+  let targetId = planId || null;
+  if (!targetId && itemName) {
+    const found = Object.entries(plan.plans).find(
+      ([, p]) => p && (p.item || "").trim() === itemName
+    );
+    if (found) targetId = found[0];
+  }
+  const date = dueDate || "";
+  const record = {
+    item: item || "",
+    dueDate: date,
+    baselineDate: baselineDate || date || "",
+    dueDateFrom: date,
+    dueDateTo: date,
+    note: note || "",
+  };
+  if (!targetId) targetId = nextId("plan");
+  plan.plans[targetId] = record;
+  notify(karteNumber);
+  return targetId;
+}
+
+export async function deleteExamScheduledPlan(karteNumber, planId) {
+  const plan = ensurePlan(karteNumber);
+  if (planId) delete plan.plans[planId];
+  notify(karteNumber);
+}
+
+export async function endExamScheduledPlan(karteNumber, planId) {
+  await deleteExamScheduledPlan(karteNumber, planId);
+}
+
+export async function reviveExamPlanByItem(karteNumber, { item, note = "" }) {
+  return saveExamScheduledPlan(karteNumber, {
+    item,
+    dueDate: "",
+    note,
+    baselineDate: todayIsoDate(),
+  });
+}
+
+export async function addExamHistory(karteNumber, { item, date, note }) {
+  const plan = ensurePlan(karteNumber);
+  const id = nextId("hist");
+  plan.history[id] = { item: item || "", date: date || "", note: note || "" };
+  notify(karteNumber);
   return id;
 }
-export async function updateSpecialNote(_karte, id, { content, importance, editedBy }) {
-  store.notes[id] = {
-    ...store.notes[id],
-    content, importance,
-    lastEditedAt: new Date().toISOString(),
-    lastEditedBy: editedBy,
-  };
-  emit();
+
+export async function deleteExamHistory(karteNumber, historyId) {
+  const plan = ensurePlan(karteNumber);
+  delete plan.history[historyId];
+  notify(karteNumber);
 }
-export async function deleteSpecialNote(_karte, id) {
-  delete store.notes[id];
-  emit();
+
+export async function addExamItem() {
+  return nextId("item");
 }
-// stubs for other imports if any
-export function subscribeProcedures(){return ()=>{};}
+export async function updateExamItem() {}
+export async function deleteExamItem() {}
+
+// 他モジュールが import する可能性のあるスタブ
+export async function subscribeKarte() {
+  return () => {};
+}
+export const EXAM_PLAN_SCHEMA_VERSION = 2;
+
+/** テスト用: 現在の examPlan スナップショット */
+export function __getExamPlan(karte) {
+  return structuredClone(ensurePlan(karte));
+}
 
 // ==== ここから自動生成: node scripts/check-mock-db-exports.mjs --write ====
 // db.js にあってこのモックが定義していない名前を、起動が通る最小限の実装で埋める。
@@ -147,49 +221,9 @@ export function normalizeExamItemKind(value) {
 
 export async function ensureExamItemDefaults() {}
 
-export function subscribeExamItems(...args) {
-  const cb = args[args.length - 1];
-  if (typeof cb === "function") cb([]);
-  return () => {};
-}
-
-export async function addExamItem() {
-  return __mockNextId();
-}
-
-export async function updateExamItem() {}
-
-export async function deleteExamItem() {}
-
-export const EXAM_PLAN_SCHEMA_VERSION = 2;
-
-export function subscribeExamPlan(...args) {
-  const cb = args[args.length - 1];
-  if (typeof cb === "function") cb([]);
-  return () => {};
-}
-
-export async function saveExamScheduledPlan() {
-  return __mockNextId();
-}
-
-export async function deleteExamScheduledPlan() {}
-
-export async function endExamScheduledPlan() {}
-
-export async function reviveExamPlanByItem() {
-  return __mockNextId();
-}
-
 export async function setNextExamPlan() {}
 
 export async function clearNextExamPlan() {}
-
-export async function addExamHistory() {
-  return __mockNextId();
-}
-
-export async function deleteExamHistory() {}
 
 export const MEDICATION_ITEM_CATEGORIES = [
   { id: "inject", label: "注射薬" },
@@ -451,6 +485,12 @@ export function subscribeProcedureBundle(...args) {
   return () => {};
 }
 
+export function subscribeProcedures(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
 export async function saveProcedurePlan() {
   return __mockNextId();
 }
@@ -474,6 +514,20 @@ export async function deleteProcedure() {}
 export const SPECIAL_NOTE_SCHEMA_VERSION = 1;
 
 export const SPECIAL_NOTE_IMPORTANCE = ["high", "medium", "low"];
+
+export function subscribeSpecialNotes(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function addSpecialNote() {
+  return __mockNextId();
+}
+
+export async function updateSpecialNote() {}
+
+export async function deleteSpecialNote() {}
 
 export const MIGRATION_PROGRESS_SCHEMA_VERSION = 1;
 
@@ -502,191 +556,3 @@ export async function saveMigrationProgress() {
 }
 
 // ==== 自動生成ここまで ====
-`;
-
-const harness = `<!DOCTYPE html>
-<html lang="ja"><head><meta charset="UTF-8" />
-<link rel="stylesheet" href="/css/style.css" />
-<style>body{margin:0;padding:16px;background:#f5f6f7;font-family:system-ui}</style>
-</head><body>
-<section style="margin-bottom:24px">
-  <h2>★フィルター</h2>
-  <label><input type="checkbox" id="star-filter" /> ★のみ</label>
-  <ul id="headline-out"></ul>
-</section>
-<aside class="col col--right" style="width:340px;border:1px solid #ddd;background:#fff;padding:8px">
-  <div class="right-tabs" id="right-tabs">
-    <button class="right-tab is-active" type="button" data-tab="notes">特記</button>
-  </div>
-  <div class="right-panel" id="panel-notes" data-panel="notes">
-    <div class="exam-toolbar">
-      <button id="btn-special-note-add" class="btn btn--small btn--primary" type="button">特記を追加</button>
-    </div>
-    <section class="exam-section">
-      <h3 class="exam-section__title">特記事項</h3>
-      <p class="field__note" id="special-notes-empty">登録された特記事項はありません。</p>
-      <ul class="note-list" id="special-notes-list"></ul>
-    </section>
-  </div>
-</aside>
-${htmlFragment("special-note-modal")}
-<script type="module">
-  import {
-    initSpecialNotesUI,
-    enterSpecialNotes,
-  } from "/js/special-notes-ui.js";
-
-  // --- star filter unit (inline, mirrors app.js) ---
-  function entryMatchesStarFilter(entry) {
-    if (entry?.important) return true;
-    const cat = entry?.category || "none";
-    return cat === "ope" || cat === "admission" || cat === "referral";
-  }
-  const entries = [
-    { id: "1", headline: "通常のみ", important: false, category: "none" },
-    { id: "2", headline: "手動★", important: true, category: "none" },
-    { id: "3", headline: "オペ（★なし）", important: false, category: "ope" },
-    { id: "4", headline: "紹介（★なし）", important: false, category: "referral" },
-  ];
-  const out = document.getElementById("headline-out");
-  const box = document.getElementById("star-filter");
-  function render() {
-    const list = box.checked ? entries.filter(entryMatchesStarFilter) : entries;
-    out.innerHTML = list.map((e) => "<li>" + e.headline + "</li>").join("");
-    out.dataset.count = String(list.length);
-    out.dataset.titles = list.map((e) => e.headline).join("|");
-  }
-  box.addEventListener("change", render);
-  render();
-
-  initSpecialNotesUI({
-    showToast: () => {},
-    showError: (el, msg) => { if (el) { el.textContent = msg || ""; el.hidden = !msg; } },
-    setBusy: () => {},
-    getSelectedAuthor: () => "院長",
-  });
-  enterSpecialNotes("12345");
-  window.__test = { render };
-</script>
-</body></html>`;
-
-const server = http.createServer((req, res) => {
-  let u = decodeURIComponent((req.url || "/").split("?")[0]);
-  if (u === "/") {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(harness);
-    return;
-  }
-  if (u === "/js/db.js") {
-    res.writeHead(200, { "Content-Type": "text/javascript", "Cache-Control": "no-store" });
-    res.end(mockDb);
-    return;
-  }
-  const fp = path.join(root, u.replace(/^\//, ""));
-  if (!fp.startsWith(root) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) {
-    res.writeHead(404);
-    res.end("nf");
-    return;
-  }
-  const ext = path.extname(fp);
-  const type =
-    ext === ".css" ? "text/css" : ext === ".js" ? "text/javascript" : "application/octet-stream";
-  res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store" });
-  res.end(fs.readFileSync(fp));
-});
-
-await new Promise((r) => server.listen(0, "127.0.0.1", r));
-const port = server.address().port;
-const browser = await chromium.launch({
-  executablePath: SYSTEM_CHROME,
-  headless: true,
-});
-const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
-await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
-
-// 1) star filter
-const before = await page.locator("#headline-out").getAttribute("data-titles");
-await page.check("#star-filter");
-await page.waitForTimeout(50);
-const after = await page.locator("#headline-out").getAttribute("data-titles");
-const starOk =
-  before === "通常のみ|手動★|オペ（★なし）|紹介（★なし）" &&
-  after === "手動★|オペ（★なし）|紹介（★なし）";
-
-// 2) special notes: add low, high, medium — order should be high, medium, low
-await page.click("#btn-special-note-add");
-await page.fill("#special-note-content", "低：参考メモ");
-await page.click('#special-note-importance-row [data-importance="low"]');
-await page.click('#special-note-author-row [data-author="院長"]');
-await page.click("#btn-special-note-save");
-await page.waitForTimeout(200);
-
-await page.click("#btn-special-note-add");
-await page.fill("#special-note-content", "高：金銭制限あり");
-await page.click('#special-note-importance-row [data-importance="high"]');
-await page.click('#special-note-author-row [data-author="院長"]');
-await page.click("#btn-special-note-save");
-await page.waitForTimeout(200);
-
-await page.click("#btn-special-note-add");
-await page.fill("#special-note-content", "中：飼い主は説明を好む");
-await page.click('#special-note-importance-row [data-importance="medium"]');
-await page.click('#special-note-author-row [data-author="大辻"]');
-await page.click("#btn-special-note-save");
-await page.waitForTimeout(300);
-
-const order = await page.locator(".note-card__content").allTextContents();
-const badges = await page.locator(".note-card__importance").allTextContents();
-const metas = await page.locator(".note-card__meta").allTextContents();
-const sortOk =
-  order[0]?.includes("高：") &&
-  order[1]?.includes("中：") &&
-  order[2]?.includes("低：") &&
-  badges[0]?.includes("高") &&
-  badges[1]?.includes("中") &&
-  badges[2]?.includes("低");
-const createMetaOk = metas.every((m) => /追加 /.test(m) && /院長|大辻/.test(m));
-
-// edit first (high) card
-await page.locator(".note-card").first().click();
-await page.waitForSelector("#special-note-modal:not([hidden])");
-await page.fill("#special-note-content", "高：金銭制限あり（更新）");
-await page.click('#special-note-author-row [data-author="川邉"]');
-await page.click("#btn-special-note-save");
-await page.waitForTimeout(300);
-const metaAfterEdit = await page.locator(".note-card__meta").first().textContent();
-const editOk = /更新 /.test(metaAfterEdit || "") && /川邉/.test(metaAfterEdit || "");
-const contentAfter = await page.locator(".note-card__content").first().textContent();
-
-await page.screenshot({
-  path: path.join(root, "tools/special-notes-verify.png"),
-  fullPage: true,
-});
-
-console.log(
-  JSON.stringify(
-    {
-      starOk,
-      before,
-      after,
-      sortOk,
-      order,
-      badges,
-      createMetaOk,
-      metas,
-      editOk,
-      metaAfterEdit,
-      contentAfter,
-    },
-    null,
-    2
-  )
-);
-
-await browser.close();
-server.close();
-if (!starOk || !sortOk || !createMetaOk || !editOk) {
-  console.error("VERIFY_FAILED");
-  process.exit(1);
-}
-console.log("VERIFY_OK");

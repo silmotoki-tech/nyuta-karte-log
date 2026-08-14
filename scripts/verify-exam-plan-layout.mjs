@@ -165,8 +165,10 @@ const layout = await page.evaluate(() => {
 console.log("layout", layout);
 
 if (layout.hasCalendarBtn) throw new Error("calendar button should be removed");
-if (layout.planTitle !== "次回予定の登録") throw new Error("plan section title missing");
-if (layout.doneTitle !== "本日実施した内容の記録") throw new Error("done section title missing");
+if (layout.planTitle !== "次回予定の登録（任意）") throw new Error("plan section title missing");
+if (layout.doneTitle !== "本日実施した内容の記録（任意）") {
+  throw new Error("done section title missing");
+}
 if (!layout.displayIsCompact) throw new Error("due display should be compact");
 if (layout.numpadCols !== 3) {
   throw new Error("numpad should stay 3-column (3x4), got " + layout.numpadCols);

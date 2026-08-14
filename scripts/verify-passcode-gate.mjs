@@ -1,7 +1,6 @@
 /**
  * 起動時のパスコード判定・両画面テンキーの検証。
  */
-import { chromium } from "playwright";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -14,11 +13,12 @@ import {
   clearPasscodeVerified,
   todayDateStrLocal,
 } from "../js/passcode-auth.js";
+import { launchBrowser } from "./launch-browser.js";
+import { applyAuthStub, enterPasscode, readMockDb } from "./auth-stub.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const SYSTEM_CHROME =
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const mockDb = readMockDb("mock-db-status-mode.js");
 
 function contentType(fp) {
   const ext = path.extname(fp);
@@ -114,10 +114,7 @@ if (!unit.every(([, ok]) => ok)) {
   process.exit(1);
 }
 
-const browser = await chromium.launch({
-  executablePath: SYSTEM_CHROME,
-  headless: true,
-});
+const browser = await launchBrowser();
 
 async function openFresh() {
   const context = await browser.newContext({
@@ -130,6 +127,7 @@ async function openFresh() {
     } catch (_) {}
   });
   const page = await context.newPage();
+  await applyAuthStub(page, { dbMock: mockDb });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   page.on("console", (m) => {
@@ -177,10 +175,7 @@ const results = [];
 {
   const { context, page, errors } = await openFresh();
   await page.waitForTimeout(300);
-  for (const d of ["2", "2", "1", "1"]) {
-    await page.click(`#passcode-numpad [data-pass-digit="${d}"]`);
-  }
-  await page.click('#passcode-numpad [data-pass-action="confirm"]');
+  await enterPasscode(page);
   await page.waitForSelector("#gate-karte:not([hidden])", { timeout: 8000 });
   await page.waitForTimeout(300);
   const info = await page.evaluate(() => ({
@@ -222,6 +217,7 @@ const results = [];
     [PASSCODE_STORAGE_KEY, PASSCODE_DATE_KEY, today]
   );
   const page = await context.newPage();
+  await applyAuthStub(page, { dbMock: mockDb });
   await page.goto(`${base}/index.html`, { waitUntil: "networkidle" });
   await page.waitForTimeout(500);
   const info = await page.evaluate(() => ({
@@ -249,6 +245,7 @@ const results = [];
     sessionStorage.setItem(flagKey, "1");
   }, [PASSCODE_STORAGE_KEY]);
   const page = await context.newPage();
+  await applyAuthStub(page, { dbMock: mockDb });
   await page.goto(`${base}/index.html`, { waitUntil: "networkidle" });
   await page.waitForTimeout(500);
   const info = await page.evaluate(() => ({

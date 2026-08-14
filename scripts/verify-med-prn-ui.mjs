@@ -676,11 +676,13 @@ console.log("after toggle", after);
 if (!after.prn || after.prnText !== "頓") {
   throw new Error("prn mark missing after toggle: " + JSON.stringify(after));
 }
+// 重要度が先頭、薬剤名を挟んで、右側は 頓 → 使用状況の順
 const statusIdx = after.kids.findIndex((c) => c.includes("med-status"));
 const prnIdx = after.kids.findIndex((c) => c.includes("med-sign--prn"));
 const catIdx = after.kids.findIndex((c) => c.includes("med-cat"));
-if (!(statusIdx < prnIdx && prnIdx < catIdx)) {
-  throw new Error(`order want status→prn→cat, got ${after.kids.join(" | ")}`);
+const nameIdx = after.kids.findIndex((c) => c.includes("med-card__name"));
+if (!(catIdx < nameIdx && nameIdx < prnIdx && prnIdx < statusIdx)) {
+  throw new Error(`order want cat→name→prn→status, got ${after.kids.join(" | ")}`);
 }
 
 await page.screenshot({

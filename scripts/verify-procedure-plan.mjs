@@ -206,9 +206,12 @@ await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 await page.waitForFunction(() => window.__ready === true);
 await page.waitForTimeout(150);
 
-const legacyVisible = await page.locator("#procedures-list .proc-card__content", {
-  hasText: "旧形式の皮下点滴",
-}).count();
+// 実施履歴は内容ごとに束ねられ、内容は見出し側に出る
+const legacyVisible = await page
+  .locator("#procedures-list .exam-history-group-title__label", {
+    hasText: "旧形式の皮下点滴",
+  })
+  .count();
 if (!legacyVisible) throw new Error("legacy history missing");
 
 await page.screenshot({
@@ -272,7 +275,7 @@ const planCount = await page.locator("#procedure-plan-list .exam-list-item").cou
 if (planCount !== 0) throw new Error("plan should be gone after complete");
 
 const histContents = await page
-  .locator("#procedures-list .proc-card__content")
+  .locator("#procedures-list .exam-history-group-title__label")
   .allTextContents();
 if (!histContents.some((t) => t.includes("抜糸"))) {
   throw new Error("completed plan not in history");
@@ -292,7 +295,9 @@ await page.fill("#procedure-content", "皮下点滴 100ml");
 await page.fill("#procedure-note", "元気あり");
 await page.click("#btn-procedure-save");
 await page.waitForTimeout(150);
-const afterAdd = await page.locator("#procedures-list .proc-card__content").allTextContents();
+const afterAdd = await page
+  .locator("#procedures-list .exam-history-group-title__label")
+  .allTextContents();
 if (!afterAdd.some((t) => t.includes("皮下点滴 100ml"))) {
   throw new Error("manual history add failed");
 }
@@ -302,9 +307,15 @@ await page.screenshot({
 });
 
 const revived = await page.evaluate(() => {
-  const card = [...document.querySelectorAll("#procedures-list .proc-card")].find(
-    (el) => el.querySelector(".proc-card__content")?.textContent?.includes("抜糸")
+  // 内容は見出しに出るので、その直後のカードを取る
+  const nodes = [...document.querySelectorAll("#procedures-list > *")];
+  const titleIndex = nodes.findIndex((el) =>
+    (el.querySelector?.(".exam-history-group-title__label")?.textContent || "").includes("抜糸")
   );
+  const card =
+    titleIndex < 0
+      ? null
+      : nodes.slice(titleIndex + 1).find((el) => el.classList.contains("proc-card"));
   if (!card) return { ok: false, reason: "card missing" };
   card.classList.add("is-actions-open-edit");
   const refreshBtn = [...card.querySelectorAll(".swipeable__action-btn")].find(
@@ -334,7 +345,9 @@ const planAfterRevive = await page
 if (!planAfterRevive.some((t) => t.includes("抜糸"))) {
   throw new Error("revive did not restore plan");
 }
-const histStill = await page.locator("#procedures-list .proc-card__content").allTextContents();
+const histStill = await page
+  .locator("#procedures-list .exam-history-group-title__label")
+  .allTextContents();
 if (!histStill.some((t) => t.includes("抜糸"))) {
   throw new Error("history should remain after revive");
 }

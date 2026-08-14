@@ -783,7 +783,16 @@ const quickLabels = await sheetBody
   .allTextContents();
 if (
   JSON.stringify(quickLabels) !==
-  JSON.stringify(["継続", "増量", "減量", "中止", "再開", "休薬中"])
+  JSON.stringify([
+    "継続",
+    "一時的",
+    "投与難",
+    "増量",
+    "減量",
+    "休薬中",
+    "再開",
+    "中止",
+  ])
 ) {
   throw new Error("event quick buttons mismatch: " + quickLabels.join(","));
 }

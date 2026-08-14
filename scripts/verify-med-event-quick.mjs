@@ -67,9 +67,14 @@ const harness = `<!DOCTYPE html>
       <div class="med-linear-picker__col"><div class="med-linear-picker__list" id="med-add-col-category-list"></div></div>
       <div class="med-linear-picker__col" id="med-add-col-group" hidden><div class="med-linear-picker__list" id="med-add-col-group-list"></div></div>
       <div class="med-linear-picker__col" id="med-add-col-leaf" hidden>
+        <div class="med-linear-picker__head">
+          <span class="med-linear-picker__head-label" id="med-add-col-leaf-head-label">薬剤名</span>
+          <button type="button" class="exam-item-add__toggle" id="btn-med-add-toggle" hidden
+            aria-expanded="false" aria-controls="med-add-item-add" aria-label="新しい薬剤を追加">＋</button>
+        </div>
         <div class="med-linear-picker__list" id="med-add-col-leaf-list"></div>
         <p id="med-add-items-empty" hidden></p>
-        <div id="med-add-item-add">
+        <div id="med-add-item-add" hidden>
           <label id="med-add-new-item-label" for="med-add-new-item">新薬</label>
           <input id="med-add-new-item" class="input" type="text" />
           <button id="btn-med-add-new-item" type="button">追加</button>
@@ -212,6 +217,9 @@ await page.evaluate(() => window.__enter("karte-ev"));
 await page.click("#btn-med-add");
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await clickLinear(page, "#med-add-col-category-list", "点眼薬");
+// 追加フォームは ＋ ボタンで開く
+await page.click("#btn-med-add-toggle");
+await page.waitForSelector("#med-add-item-add:not([hidden])");
 await page.fill("#med-add-new-item", "イベント検証薬");
 await page.click("#btn-med-add-new-item");
 await page.waitForTimeout(80);
@@ -228,7 +236,16 @@ const labels = await page
 console.log("quick buttons:", labels);
 if (
   JSON.stringify(labels) !==
-  JSON.stringify(["継続", "増量", "減量", "中止", "再開", "休薬中"])
+  JSON.stringify([
+    "継続",
+    "一時的",
+    "投与難",
+    "増量",
+    "減量",
+    "休薬中",
+    "再開",
+    "中止",
+  ])
 ) {
   throw new Error("quick event buttons mismatch");
 }
