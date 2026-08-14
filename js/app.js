@@ -134,17 +134,8 @@ const state = {
   unsubscribeEntries: null,
   templates: [],
   starFilter: false,
-  // 入力中エントリの下書き状態
-  draft: {
-    author: null,
-    category: "none",
-    important: false,
-    usedTemplate: false,
-  },
   // 定型文編集中のID（null なら新規追加モード）
   editingTemplateId: null,
-  // 新規記録の入力エリアが開いているか
-  composing: false,
   // 入力モードを開く前の画面（閉じたときの戻り先）
   inputModeOrigin: null,
   // 直近に選択した記入者（右カラムの自動記録用。compose 終了後も保持）
@@ -202,23 +193,6 @@ const btnOpenTemplates = document.getElementById("btn-open-templates");
 const btnStartCompose = document.getElementById("btn-start-compose");
 const btnViewStatus = document.getElementById("btn-view-status");
 const btnViewHistory = document.getElementById("btn-view-history");
-const entryComposer = document.getElementById("entry-composer");
-const authorField = document.getElementById("author-field");
-
-const authorRow = document.getElementById("author-row");
-const headlineInput = document.getElementById("headline-input");
-const categoryButtonsEl = document.getElementById("category-buttons");
-const btnImportant = document.getElementById("btn-important");
-const recordDateInput = document.getElementById("record-date-input");
-const recordDateNote = document.getElementById("record-date-note");
-const bodyInput = document.getElementById("body-input");
-const templateButtonsEl = document.getElementById("template-buttons");
-const templateEmptyEl = document.getElementById("template-empty");
-const entryError = document.getElementById("entry-error");
-const entrySelectedAuthor = document.getElementById("entry-selected-author");
-const btnEntrySave = document.getElementById("btn-entry-save");
-const btnEntryCancel = document.getElementById("btn-entry-cancel");
-
 const entryEditModal = document.getElementById("entry-edit-modal");
 const btnCloseEntryEdit = document.getElementById("btn-close-entry-edit");
 const entryEditAuthorRow = document.getElementById("entry-edit-author-row");
@@ -358,7 +332,6 @@ function showCenterState(s) {
   starFilterWrap.hidden = !inMain;
   if (btnChangeKarte) btnChangeKarte.hidden = !inMain;
   if (!inMain) {
-    closeCompose({ reset: true });
     hideInputMode();
     hideStatusMode();
   }
@@ -410,48 +383,6 @@ function updateLeftPatient() {
   }
   if (leftPatientName) {
     leftPatientName.textContent = formatAnimalDisplayName(state.animalName);
-  }
-}
-
-function setAuthorFieldVisible(visible) {
-  if (authorField) authorField.hidden = !visible;
-}
-
-function updateSelectedAuthorChip() {
-  if (!entrySelectedAuthor) return;
-  const name = state.draft.author || "";
-  entrySelectedAuthor.textContent = name ? `記入者: ${name}` : "記入者: 未選択";
-  entrySelectedAuthor.classList.toggle("is-unset", !name);
-  entrySelectedAuthor.classList.toggle("is-set", Boolean(name));
-}
-
-function openCompose() {
-  state.composing = true;
-  if (entryComposer) entryComposer.hidden = false;
-  if (btnStartCompose) btnStartCompose.hidden = true;
-  resetDraft({ keepAuthor: false });
-  // 同じカルテ内で直前に保存した記入者を引き継ぐ（初回は未選択のまま）
-  if (state.sessionAuthor) {
-    state.draft.author = state.sessionAuthor;
-  }
-  // 記入者が未選択なら表示。選択済みなら隠す（チップから再表示可）
-  setAuthorFieldVisible(!state.draft.author);
-  renderAuthorSelection();
-  updateSelectedAuthorChip();
-  showError(entryError, "");
-  setTimeout(() => {
-    if (!state.draft.author) return;
-    headlineInput?.focus();
-  }, 0);
-}
-
-function closeCompose({ reset = true } = {}) {
-  state.composing = false;
-  if (entryComposer) entryComposer.hidden = true;
-  if (btnStartCompose) btnStartCompose.hidden = false;
-  if (reset) {
-    resetDraft({ keepAuthor: false });
-    showError(entryError, "");
   }
 }
 
@@ -1021,38 +952,6 @@ async function handleAnimalNext() {
 
 // --- 状態3: メイン作業エリア ----------------------------------------------
 
-// 記入者ボタン（横一列・単一選択）
-AUTHORS.forEach((name) => {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "author-btn";
-  btn.textContent = name;
-  btn.dataset.author = name;
-  btn.addEventListener("click", () => {
-    state.draft.author = name;
-    state.lastAuthor = name;
-    renderAuthorSelection();
-    updateSelectedAuthorChip();
-    setAuthorFieldVisible(false);
-    authorRow?.classList.remove("is-error-target");
-    showError(entryError, "");
-    headlineInput?.focus();
-  });
-  authorRow?.appendChild(btn);
-});
-
-entrySelectedAuthor?.addEventListener("click", () => {
-  setAuthorFieldVisible(true);
-  authorField?.scrollIntoView({ behavior: "smooth", block: "center" });
-});
-
-function renderAuthorSelection() {
-  authorRow?.querySelectorAll(".author-btn").forEach((btn) => {
-    btn.classList.toggle("is-selected", btn.dataset.author === state.draft.author);
-  });
-  updateSelectedAuthorChip();
-}
-
 // 編集モーダル用・編集者ボタン
 AUTHORS.forEach((name) => {
   const btn = document.createElement("button");
@@ -1076,30 +975,6 @@ function renderEditAuthorSelection() {
       "is-selected",
       btn.dataset.author === state.editDraft.author
     );
-  });
-}
-
-// カテゴリボタン
-CATEGORIES.forEach((cat) => {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "category-btn";
-  btn.dataset.category = cat.id;
-  const dot = document.createElement("span");
-  dot.className = "category-btn__dot";
-  const label = document.createElement("span");
-  label.textContent = cat.label;
-  btn.append(dot, label);
-  btn.addEventListener("click", () => {
-    state.draft.category = cat.id;
-    renderCategorySelection();
-  });
-  categoryButtonsEl.appendChild(btn);
-});
-
-function renderCategorySelection() {
-  categoryButtonsEl?.querySelectorAll(".category-btn").forEach((btn) => {
-    btn.classList.toggle("is-selected", btn.dataset.category === state.draft.category);
   });
 }
 
@@ -1141,7 +1016,7 @@ entryEditImportant?.addEventListener("click", () => {
 function openEntryEdit(entry) {
   state.editingEntryId = entry.id;
   state.editDraft = {
-    author: state.draft.author || null,
+    author: state.sessionAuthor || null,
     category: entry.category || "none",
     important: Boolean(entry.important),
   };
@@ -1214,24 +1089,6 @@ entryEditModal
   ?.addEventListener("click", closeEntryEdit);
 btnEntryEditSave?.addEventListener("click", handleEntryEditSave);
 
-// ★トグル（入力中エントリ用）
-btnImportant.addEventListener("click", () => {
-  state.draft.important = !state.draft.important;
-  btnImportant.setAttribute("aria-pressed", String(state.draft.important));
-});
-
-// 記録日
-recordDateInput.addEventListener("change", updateRecordDateNote);
-
-function updateRecordDateNote() {
-  const value = recordDateInput.value;
-  if (value && value !== todayStr()) {
-    recordDateNote.textContent = "過去の日付に遡って記録します";
-  } else {
-    recordDateNote.textContent = "";
-  }
-}
-
 btnChangeKarte.addEventListener("click", () => {
   if (isAiReviewBlocking()) {
     showToast("AI提案の確認が終わるまで、カルテ切替はできません。", { isError: true });
@@ -1242,46 +1099,13 @@ btnChangeKarte.addEventListener("click", () => {
   karteNumberInput.value = "";
 });
 
-btnStartCompose?.addEventListener("click", () => {
-  openCompose();
-});
-
-btnEntryCancel?.addEventListener("click", () => {
-  closeCompose({ reset: true });
-});
-
-btnEntrySave.addEventListener("click", handleEntrySave);
-
-// 本文入力開始時に記入者未選択なら記入者欄を出す
-bodyInput?.addEventListener("focus", () => {
-  if (!state.composing) return;
-  if (!state.draft.author) setAuthorFieldVisible(true);
-});
-
-function resetDraft({ keepAuthor = false } = {}) {
-  if (!keepAuthor) state.draft.author = null;
-  state.draft.category = "none";
-  state.draft.important = false;
-  state.draft.usedTemplate = false;
-  if (headlineInput) headlineInput.value = "";
-  if (bodyInput) bodyInput.value = "";
-  btnImportant?.setAttribute("aria-pressed", "false");
-  if (recordDateInput) recordDateInput.value = todayStr();
-  renderCategorySelection();
-  updateRecordDateNote();
-  renderAuthorSelection();
-  updateSelectedAuthorChip();
-  const formEl = document.querySelector(".entry-form");
-  if (formEl) formEl.scrollTop = 0;
-}
+// 3カラムからの記入も、状態モードからの記入と同じ全画面の入力モードで行う
+btnStartCompose?.addEventListener("click", () => openInputMode("history"));
 
 function enterMain() {
   // カルテ入場直後の1回目は記入者未選択（セッション引き継ぎをリセット）
   state.sessionAuthor = null;
   updateLeftPatient();
-  if (recordDateInput) recordDateInput.max = todayStr();
-  closeCompose({ reset: true });
-  showError(entryError, "");
 
   showCenterState("main");
 
@@ -1321,12 +1145,10 @@ function leaveMain() {
   leaveStatusMode();
   leaveInputMode();
   clearRightTabAlerts();
-  closeCompose({ reset: true });
   closeEntryEdit();
   state.karteNumber = null;
   state.animalName = null;
   state.entries = [];
-  state.draft.author = null;
   state.sessionAuthor = null;
   clearChartSearch();
   // lastAuthor は端末内の作業継続用に残す（カルテ変更後も処置ログ等で使える）
@@ -1336,75 +1158,6 @@ function leaveMain() {
   if (headlineList) headlineList.innerHTML = "";
   if (leftPatientKarte) leftPatientKarte.textContent = "";
   if (leftPatientName) leftPatientName.textContent = "";
-}
-
-async function handleEntrySave() {
-  if (!state.composing) {
-    openCompose();
-    showError(entryError, "内容を入力してから保存してください。");
-    return;
-  }
-
-  const headline = headlineInput.value.trim();
-  const body = bodyInput.value.trim();
-  const recordDate = recordDateInput.value;
-
-  if (!state.draft.author) {
-    setAuthorFieldVisible(true);
-    showError(entryError, "記入者を選択してください。");
-    authorRow?.classList.add("is-error-target");
-    authorField?.scrollIntoView({ behavior: "smooth", block: "center" });
-    return;
-  }
-  authorRow?.classList.remove("is-error-target");
-  if (!headline) {
-    showError(entryError, "見出しを入力してください。");
-    headlineInput.focus();
-    return;
-  }
-  if (!recordDate) {
-    showError(entryError, "記録日を選択してください。");
-    return;
-  }
-
-  showError(entryError, "");
-  setBusy(btnEntrySave, true, "保存中...", "保存する");
-
-  try {
-    const source = state.draft.usedTemplate ? "template" : "manual";
-    const author = state.draft.author;
-    await addEntry(state.karteNumber, {
-      recordDate,
-      headline,
-      category: state.draft.category,
-      important: state.draft.important,
-      author,
-      body,
-      source,
-    });
-    state.sessionAuthor = author;
-    state.lastAuthor = author;
-    const karteNumber = state.karteNumber;
-    closeCompose({ reset: true });
-    showToast("保存しました。");
-
-    // 定型文入力は対象外。手動入力のみ AI 提案フローへ（フラグで無効化可）
-    // 本文が空のときは提案対象外
-    if (source === "manual" && body) {
-      await runAiSuggestAfterSave({
-        karteNumber,
-        body,
-        headline,
-        recordDate,
-        author,
-      });
-    }
-  } catch (err) {
-    console.error(err);
-    showError(entryError, "保存に失敗しました。もう一度お試しください。");
-  } finally {
-    setBusy(btnEntrySave, false, "保存中...", "保存する");
-  }
 }
 
 // --- 時系列・見出しの描画 -------------------------------------------------
@@ -1591,37 +1344,6 @@ starFilterInput.addEventListener("change", () => {
   renderEntries();
 });
 
-// --- 定型文 ---------------------------------------------------------------
-
-function renderTemplateButtons() {
-  templateButtonsEl.innerHTML = "";
-  templateEmptyEl.hidden = state.templates.length > 0;
-
-  state.templates.forEach((tpl) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "template-btn";
-    btn.textContent = tpl.label || "(名称未設定)";
-    btn.addEventListener("click", () => insertTemplate(tpl));
-    templateButtonsEl.appendChild(btn);
-  });
-}
-
-function insertTemplate(tpl) {
-  // 見出しが空なら定型文名を見出しに、本文には定型文テキストを追記する。
-  if (!headlineInput.value.trim() && tpl.label) {
-    headlineInput.value = tpl.label;
-  }
-  const current = bodyInput.value;
-  const insertText = tpl.text || "";
-  bodyInput.value = current
-    ? `${current.replace(/\s*$/, "")}\n${insertText}`
-    : insertText;
-  state.draft.usedTemplate = true;
-  bodyInput.focus();
-  showError(entryError, "");
-}
-
 // --- 定型文管理モーダル ---------------------------------------------------
 
 btnOpenTemplates.addEventListener("click", openTemplatesModal);
@@ -1743,11 +1465,8 @@ async function handleTemplateDelete(tpl) {
 
 subscribeTemplates((templates) => {
   state.templates = templates;
-  renderTemplateButtons();
   if (!templatesModal.hidden) renderTemplateList();
 });
-
-renderCategorySelection();
 
 initExamPlanUI({
   showToast,
@@ -1759,14 +1478,14 @@ initMedsUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
 });
 
 initHistoryUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
 });
 
 initMasterDeleteUI({
@@ -1784,14 +1503,14 @@ initSpecialNotesUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
 });
 
 initMigrationProgressUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
 });
 
 initSettingsUI({
@@ -1841,7 +1560,7 @@ initFreeQaUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
   getTimelineEntries: () => state.entries || [],
 });
 
@@ -1870,6 +1589,11 @@ initInputModeUI({
     state.lastAuthor = name;
   },
   onClose: () => closeInputMode(),
+  // 定型文入力は対象外。手動入力のみ AI 提案フローへ（フラグで無効化可）
+  onSaved: async ({ karteNumber, headline, body, recordDate, author, source }) => {
+    if (source !== "manual" || !body) return;
+    await runAiSuggestAfterSave({ karteNumber, body, headline, recordDate, author });
+  },
   onSavedAndNext: () => {
     state.inputModeOrigin = null;
     leaveMain();
@@ -1908,7 +1632,7 @@ initAiSuggestUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.draft.author || state.lastAuthor || "",
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
   onBlockingChange: () => {},
 });
 

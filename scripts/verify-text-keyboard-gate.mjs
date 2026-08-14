@@ -104,8 +104,8 @@ console.log("\n[karte gate]");
   const info = await page.evaluate(() => {
     const gate = document.getElementById("karte-number-input");
     const animal = document.getElementById("animal-name-input");
-    const headline = document.getElementById("headline-input");
-    const body = document.getElementById("body-input");
+    const headline = document.getElementById("input-headline");
+    const body = document.getElementById("input-body-text");
     const pick = (el) =>
       el
         ? {
@@ -164,10 +164,9 @@ console.log("\n[normal text fields]");
     if (gateAnimal) gateAnimal.hidden = false;
     if (centerMain) centerMain.hidden = false;
     document.documentElement.classList.add("is-unlocked");
-    const composer = document.getElementById("entry-composer");
-    const start = document.getElementById("btn-start-compose");
-    if (composer) composer.hidden = false;
-    if (start) start.hidden = true;
+    // 記入は全画面の入力モードに一本化されている
+    const input = document.getElementById("screen-input");
+    if (input) input.hidden = false;
   });
 
   // 読取専用ゲートが active のまま残っていないこと
@@ -176,7 +175,7 @@ console.log("\n[normal text fields]");
     document.getElementById("karte-number-input")?.blur();
   });
 
-  for (const id of ["animal-name-input", "headline-input", "body-input"]) {
+  for (const id of ["animal-name-input", "input-headline", "input-body-text"]) {
     const focused = await page.evaluate((fieldId) => {
       const el = document.getElementById(fieldId);
       if (!el) return { ok: false, reason: "missing" };

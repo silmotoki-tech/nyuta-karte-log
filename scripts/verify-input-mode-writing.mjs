@@ -377,6 +377,121 @@ assert.equal(
   "左カラムが3カラムに戻っていない"
 );
 
+// --- 3カラムの「新しく記録を追加」からも、同じ入力モードが同じように使える ---
+assert.equal(
+  await page.evaluate(() => Boolean(document.getElementById("entry-composer"))),
+  false,
+  "中央カラムのインラインフォームが残っている"
+);
+
+await page.click("#btn-start-compose");
+await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
+
+const fromHistory = await page.evaluate(() => {
+  const rect = (sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { y: Math.round(r.y), h: Math.round(r.h ?? r.height) };
+  };
+  return {
+    layoutHidden: document.querySelector("#app-shell .layout").hidden,
+    leftInInput: document.getElementById("col-left").parentElement.id === "input-left-slot",
+    textarea: rect("#input-body-text"),
+    pane: rect(".input-pane"),
+    todayOpen: document.getElementById("input-today").open,
+    changedChecked: document.getElementById("input-changed").checked,
+  };
+});
+console.log("FROM_HISTORY", fromHistory);
+assert.equal(fromHistory.layoutHidden, true, "3カラムが隠れていない");
+assert.equal(fromHistory.leftInInput, true, "左カラムが入力モードに移っていない");
+assert.equal(fromHistory.todayOpen, false, "「今日の登録」が畳まれていない");
+assert.equal(fromHistory.changedChecked, false, "「変化あり」が入ったまま開いている");
+assert.ok(
+  fromHistory.textarea.h / fromHistory.pane.h > 0.45,
+  "本文欄が狭い（3カラムから開いた場合）"
+);
+
+// 続きから選ぶ（保存済みの記録が先頭に増えているので見出しで選ぶ）
+await page
+  .locator("#headline-list .hl-item__btn", { hasText: ENTRIES[0].headline })
+  .first()
+  .tap();
+now = await fields();
+assert.equal(now.headline, ENTRIES[0].headline, "3カラム経由で見出しが写らない");
+assert.equal(now.body, ENTRIES[0].body, "3カラム経由で本文が写らない");
+
+// 検出チップ（本文の薬剤名を拾う）
+await page.fill("#input-body-text", "エンロフロキサシンを開始。CBCを予定。");
+await page.waitForFunction(
+  () => document.querySelectorAll("#input-chip-list .input-chip").length >= 2,
+  null,
+  { timeout: 5000 }
+);
+const historyChips = await page.evaluate(() =>
+  [...document.querySelectorAll("#input-chip-list .input-chip")].map((el) => el.dataset.chipLabel)
+);
+console.log("FROM_HISTORY_CHIPS", historyChips);
+assert.ok(historyChips.includes("エンロフロキサシン"), "3カラム経由で薬剤チップが出ない");
+assert.ok(historyChips.includes("CBC"), "3カラム経由で検査チップが出ない");
+
+// 今日の登録（チップから積むと開く）
+await page.click('#input-chip-list .input-chip[data-chip-label="CBC"]');
+await page.waitForSelector("#input-sheet-modal:not([hidden])", { timeout: 5000 });
+await page.click("#btn-input-sheet-add");
+await page.waitForFunction(() => document.getElementById("input-sheet-modal").hasAttribute("hidden"));
+assert.equal(
+  await page.evaluate(() => document.getElementById("input-today").open),
+  true,
+  "3カラム経由で「今日の登録」が開かない"
+);
+assert.equal(
+  await page.locator("#input-today-list .input-today-item").count(),
+  1,
+  "3カラム経由で登録が積まれない"
+);
+
+// 変化あり付きで保存 → 3カラムに戻り、時系列に印が出る
+await page.click('#input-author-row .author-btn[data-author="院長"]');
+await page.fill("#input-headline", "3カラムから記録");
+await page.check("#input-changed");
+await shot("17-from-history-input-mode");
+await page.click("#btn-input-save");
+await page.waitForFunction(
+  () => document.getElementById("screen-input").hidden,
+  null,
+  { timeout: 5000 }
+);
+
+const backTo3col = await page.evaluate(() => ({
+  layoutHidden: document.querySelector("#app-shell .layout").hidden,
+  statusHidden: document.getElementById("screen-status").hidden,
+  leftHome: document.getElementById("col-left").parentElement.className,
+  first: (() => {
+    const li = document.querySelector("#timeline .tl-item");
+    return {
+      headline: li.querySelector(".tl-item__headline").textContent.trim(),
+      badge: !li.querySelector(".tl-item__changed").hidden,
+    };
+  })(),
+}));
+console.log("BACK_TO_3COL", backTo3col);
+assert.equal(backTo3col.layoutHidden, false, "3カラムに戻っていない");
+assert.equal(backTo3col.statusHidden, true, "3カラムから開いたのに状態モードへ移っている");
+assert.equal(backTo3col.leftHome, "layout", "左カラムが3カラムに戻っていない");
+assert.equal(backTo3col.first.headline, "3カラムから記録", "保存した記録が時系列の先頭にない");
+assert.equal(backTo3col.first.badge, true, "3カラム経由の変化ありに印が付いていない");
+
+const writesFromHistory = await page.evaluate(() => globalThis.__writes || []);
+const savedFromHistory = writesFromHistory.filter((w) => w.op === "addEntry").at(-1);
+assert.equal(savedFromHistory.changed, true, "3カラム経由で変化フラグが保存されていない");
+assert.ok(
+  writesFromHistory.some((w) => w.op === "saveExamScheduledPlan"),
+  "3カラム経由で「今日の登録」が保存されていない"
+);
+await shot("18-from-history-saved");
+
 assert.deepEqual(pageErrors, [], `ページエラーが出ている: ${pageErrors.join(" / ")}`);
 
 await context.close();

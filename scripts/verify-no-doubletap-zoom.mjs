@@ -76,10 +76,10 @@ document.getElementById("app-shell")?.removeAttribute("hidden");
 document.documentElement.classList.add("is-unlocked");
 document.getElementById("gate-karte")?.setAttribute("hidden", "");
 document.getElementById("center-main")?.removeAttribute("hidden");
-document.getElementById("entry-composer")?.removeAttribute("hidden");
+document.getElementById("screen-input")?.removeAttribute("hidden");
 
-const headline = document.getElementById("headline-input");
-const body = document.getElementById("body-input");
+const headline = document.getElementById("input-headline");
+const body = document.getElementById("input-body-text");
 if (headline) headline.value = "術後経過の確認メモ";
 if (body) body.value = "本日の経過は良好。食欲あり。";
 
@@ -140,8 +140,8 @@ const meta = await page.evaluate(() => {
   const vp = document.querySelector('meta[name="viewport"]')?.content || "";
   const htmlTouch = getComputedStyle(document.documentElement).touchAction;
   const bodyTouch = getComputedStyle(document.body).touchAction;
-  const headline = document.getElementById("headline-input");
-  const bodyEl = document.getElementById("body-input");
+  const headline = document.getElementById("input-headline");
+  const bodyEl = document.getElementById("input-body-text");
   const btn = document.querySelector("#karte-numpad .numpad__btn");
   return {
     vp,
@@ -190,15 +190,15 @@ await page.screenshot({
   fullPage: false,
 });
 
-await doubleTap("#headline-input");
-await rapidTaps("#headline-input", 5);
-await doubleTap("#body-input");
-await rapidTaps("#body-input", 5);
+await doubleTap("#input-headline");
+await rapidTaps("#input-headline", 5);
+await doubleTap("#input-body-text");
+await rapidTaps("#input-body-text", 5);
 
 const afterFields = await page.evaluate(() => ({
   scale: window.visualViewport?.scale ?? 1,
-  headline: document.getElementById("headline-input")?.value || "",
-  body: document.getElementById("body-input")?.value || "",
+  headline: document.getElementById("input-headline")?.value || "",
+  body: document.getElementById("input-body-text")?.value || "",
 }));
 console.log("afterFields", afterFields);
 assert.equal(afterFields.scale, 1);

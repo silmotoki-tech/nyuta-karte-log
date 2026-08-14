@@ -59,6 +59,7 @@ let deps = {
   getCarriedAuthor: () => null,
   onAuthorChosen: () => {},
   onClose: () => {},
+  onSaved: async () => {},
   onSavedAndNext: () => {},
   onOpenTemplates: () => {},
 };
@@ -1140,8 +1141,11 @@ async function handleSave({ next }) {
   const label = next ? "保存して次のカルテへ" : "保存";
   deps.setBusy(btn, true, "保存中...", label);
 
+  const karteNumber = state.karteNumber;
+  const source = state.usedTemplate ? "template" : "manual";
+
   try {
-    await addEntry(state.karteNumber, {
+    await addEntry(karteNumber, {
       recordDate,
       headline,
       category: state.category,
@@ -1149,7 +1153,7 @@ async function handleSave({ next }) {
       changed: Boolean(changedCheck?.checked),
       author,
       body,
-      source: state.usedTemplate ? "template" : "manual",
+      source,
     });
 
     for (const item of state.queue) {
@@ -1170,6 +1174,8 @@ async function handleSave({ next }) {
     hideInputMode();
     if (next) deps.onSavedAndNext();
     else deps.onClose();
+
+    await deps.onSaved({ karteNumber, headline, body, recordDate, author, source });
   } catch (err) {
     console.error(err);
     showError(errorEl, "保存に失敗しました。もう一度お試しください。");

@@ -467,7 +467,7 @@ assert.equal(await page.inputValue("#karte-number-input"), "", "カルテ番号�
 assert.equal(await hiddenOf("#screen-input"), true, "入力モードが閉じていない");
 await shot("06-next-karte");
 
-// --- 既存の3カラムには手を入れていない ------------------------------------
+// --- 3カラムの「新しく記録を追加」も同じ入力モードを開く --------------------
 for (const d of ["0", "0", "0", "0", "1"]) {
   await page.click(`#karte-numpad [data-karte-digit="${d}"]`);
 }
@@ -483,9 +483,14 @@ await page.waitForSelector("#center-main:not([hidden])", { timeout: 10000 });
 assert.equal(await hiddenOf("#screen-input"), true, "初期表示が入力モードになっている");
 assert.equal(await hiddenOf("#screen-status"), true, "初期表示が状態モードになっている");
 await page.click("#btn-start-compose");
-await page.waitForSelector("#entry-composer:not([hidden])", { timeout: 5000 });
-assert.equal(await hiddenOf("#screen-input"), true, "既存フォームが入力モードに置き換わっている");
-await shot("07-existing-form-intact");
+await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
+assert.equal(
+  await page.evaluate(() => Boolean(document.getElementById("entry-composer"))),
+  false,
+  "中央カラムのインラインフォームが残っている"
+);
+assert.equal(await hiddenOf("#app-shell .layout"), true, "3カラムが隠れていない");
+await shot("07-history-opens-input-mode");
 
 assert.deepEqual(pageErrors, [], `page error: ${pageErrors.join(" / ")}`);
 
