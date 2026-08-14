@@ -49,6 +49,7 @@ import {
   hideInputMode,
   isInputModeVisible,
   prepareInputDraft,
+  copyEntryToInput,
   updatePatientHeader as updateInputPatientHeader,
 } from "./input-mode-ui.js";
 import {
@@ -1455,6 +1456,7 @@ function createTimelineItem(entry) {
   const starBtn = li.querySelector(".tl-item__star");
   const dateEl = li.querySelector(".tl-item__date");
   const headlineEl = li.querySelector(".tl-item__headline");
+  const changedEl = li.querySelector(".tl-item__changed");
   const metaEl = li.querySelector(".tl-item__meta");
   const bodyEl = li.querySelector(".tl-item__body");
   const sideMeta = buildEntrySideMeta(entry);
@@ -1463,6 +1465,9 @@ function createTimelineItem(entry) {
   starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
   dateEl.textContent = mdFromStr(entry.recordDate) || "";
   headlineEl.textContent = entry.headline || "（見出しなし）";
+  const changed = Boolean(entry.changed);
+  li.classList.toggle("tl-item--changed", changed);
+  if (changedEl) changedEl.hidden = !changed;
   const bodyText = (entry.body || "").trim();
   bodyEl.textContent = bodyText;
   bodyEl.hidden = !bodyText;
@@ -1550,9 +1555,22 @@ function renderHeadlines(entries) {
     dateEl.textContent = mdFromStr(entry.recordDate) || "（日付なし）";
     textEl.textContent = entry.headline || "（見出しなし）";
 
-    btn.addEventListener("click", () => jumpToEntry(entry.id, li));
+    // 入力中は、同じ一覧が「続きから選ぶ」の選択肢になる
+    btn.addEventListener("click", () => {
+      if (isInputModeVisible()) {
+        if (copyEntryToInput(entry)) markHeadlineTarget(li);
+        return;
+      }
+      jumpToEntry(entry.id, li);
+    });
     headlineList.appendChild(li);
   });
+}
+
+function markHeadlineTarget(headlineLi) {
+  if (!headlineLi || !headlineList) return;
+  headlineList.querySelectorAll(".hl-item__btn").forEach((b) => b.classList.remove("is-target"));
+  headlineLi.querySelector(".hl-item__btn")?.classList.add("is-target");
 }
 
 function jumpToEntry(entryId, headlineLi = null) {
@@ -1564,9 +1582,7 @@ function jumpToEntry(entryId, headlineLi = null) {
   target.classList.add("is-flash");
   setTimeout(() => target.classList.remove("is-flash"), 1200);
 
-  if (!headlineLi || !headlineList) return;
-  headlineList.querySelectorAll(".hl-item__btn").forEach((b) => b.classList.remove("is-target"));
-  headlineLi.querySelector(".hl-item__btn")?.classList.add("is-target");
+  markHeadlineTarget(headlineLi);
 }
 
 // ★フィルタ

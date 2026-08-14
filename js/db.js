@@ -237,7 +237,7 @@ export async function setAnimalName(karteNumber, animalName) {
  */
 export async function addEntry(
   karteNumber,
-  { recordDate, headline, category, important, author, body, source }
+  { recordDate, headline, category, important, author, body, source, changed }
 ) {
   await authReady;
   const newRef = push(entriesRef(karteNumber));
@@ -249,6 +249,8 @@ export async function addEntry(
     headline: headline || "",
     category: category || "none",
     important: Boolean(important),
+    // 同じ見出しが続く中で、内容が変わった回であることの印
+    changed: Boolean(changed),
     author,
     body: body || "",
     source: source || "manual",

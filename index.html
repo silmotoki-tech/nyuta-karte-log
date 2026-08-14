@@ -677,103 +677,120 @@
       </button>
     </header>
 
-    <div class="input-body" id="input-body">
-      <p id="input-error" class="error-text error-text--banner" role="alert" hidden></p>
+    <!-- 左は既存の見出しカラムを移してくる置き場。中身は #col-left そのもの -->
+    <div class="input-main">
+      <div class="input-left" id="input-left-slot"></div>
 
-      <div class="field" id="input-author-field">
-        <span class="label">記入者</span>
-        <div class="author-row" id="input-author-row"></div>
-      </div>
+      <div class="input-pane">
+        <div class="input-body" id="input-body">
+          <p id="input-error" class="error-text error-text--banner" role="alert" hidden></p>
 
-      <div class="field">
-        <label class="label" for="input-headline">見出し（その日のメインの出来事）</label>
-        <input
-          id="input-headline"
-          class="input"
-          type="text"
-          autocomplete="off"
-          placeholder="例）左前肢の跛行で来院"
-        />
-        <div class="headline-options">
-          <div class="category-buttons" id="input-category-buttons"></div>
-          <button
-            id="btn-input-important"
-            class="star-toggle"
-            type="button"
-            aria-pressed="false"
-            title="重要（★）"
-          >
-            <span class="star-toggle__icon">★</span>
-            <span class="star-toggle__label">重要</span>
-          </button>
-        </div>
-      </div>
+          <div class="input-meta-row">
+            <div class="input-meta-group input-meta-group--author" id="input-author-field">
+              <span class="label input-meta-group__label">記入者</span>
+              <div class="author-row author-row--compact" id="input-author-row"></div>
+            </div>
 
-      <div class="field field--inline">
-        <label class="label" for="input-record-date">記録日</label>
-        <input id="input-record-date" class="input input--date" type="date" />
-        <span class="field__note" id="input-record-date-note"></span>
-      </div>
+            <div class="input-meta-group">
+              <span class="label input-meta-group__label">分類</span>
+              <div class="category-buttons category-buttons--compact" id="input-category-buttons"></div>
+            </div>
 
-      <div class="field input-body-field">
-        <label class="label" for="input-body-text">本文（任意）</label>
-        <textarea
-          id="input-body-text"
-          class="textarea input-textarea"
-          rows="12"
-          placeholder="診療内容を入力（空でも保存できます）"
-        ></textarea>
-      </div>
-
-      <section class="input-chips">
-        <div class="input-chips__head">
-          <span class="label">本文から検出</span>
-          <span class="field__note" id="input-chips-hint">
-            マスタ登録済みの薬剤名・検査項目名が本文にあると、ここに出ます。
-          </span>
-        </div>
-        <ul class="input-chip-list" id="input-chip-list"></ul>
-      </section>
-
-      <div class="field">
-        <span class="label">定型文</span>
-        <div class="template-buttons" id="input-template-buttons"></div>
-        <p class="field__note" id="input-template-empty" hidden>
-          定型文は「定型文の管理」から登録できます。
-        </p>
-      </div>
-
-      <section class="input-today">
-        <div class="input-today__head">
-          <h2 class="input-today__title">
-            今日の登録<span class="status-block__count" id="input-today-count"></span>
-          </h2>
-          <div class="input-today__actions">
-            <button id="btn-input-add-med" class="btn btn--small btn--outline" type="button">
-              ＋ 薬
+            <button
+              id="btn-input-important"
+              class="star-toggle star-toggle--compact"
+              type="button"
+              aria-pressed="false"
+              title="重要（★）"
+            >
+              <span class="star-toggle__icon">★</span>
+              <span class="star-toggle__label">重要</span>
             </button>
-            <button id="btn-input-add-exam" class="btn btn--small btn--outline" type="button">
-              ＋ 検査
-            </button>
-            <button id="btn-input-add-proc" class="btn btn--small btn--outline" type="button">
-              ＋ 処置
-            </button>
+
+            <div class="input-meta-group">
+              <label class="label input-meta-group__label" for="input-record-date">記録日</label>
+              <input id="input-record-date" class="input input--date input--compact" type="date" />
+              <span class="field__note" id="input-record-date-note"></span>
+            </div>
           </div>
-        </div>
-        <p class="field__note" id="input-today-note"></p>
-        <p class="field__note" id="input-today-empty">
-          まだ登録はありません。チップか上のボタンから追加できます。
-        </p>
-        <ul class="input-today-list" id="input-today-list"></ul>
-      </section>
-    </div>
 
-    <footer class="input-footer">
-      <button id="btn-input-save" class="btn btn--primary" type="button">保存</button>
-      <button id="btn-input-save-next" class="btn btn--outline" type="button">
-        保存して次のカルテへ
-      </button>
-    </footer>
+          <div class="input-headline-row">
+            <label class="label input-headline-row__label" for="input-headline">見出し</label>
+            <input
+              id="input-headline"
+              class="input"
+              type="text"
+              autocomplete="off"
+              placeholder="例）左前肢の跛行で来院"
+            />
+            <label class="input-changed" for="input-changed" title="前回から内容が変わった回">
+              <input type="checkbox" id="input-changed" />
+              <span class="input-changed__text">変化あり</span>
+            </label>
+          </div>
+
+          <div class="input-template-row">
+            <span class="label input-template-row__label">定型文</span>
+            <div class="template-buttons template-buttons--compact" id="input-template-buttons"></div>
+            <p class="field__note" id="input-template-empty" hidden>
+              「定型文」から登録できます。
+            </p>
+          </div>
+
+          <div class="field input-body-field">
+            <textarea
+              id="input-body-text"
+              class="textarea input-textarea"
+              aria-label="本文（任意）"
+              placeholder="診療内容を入力（空でも保存できます）"
+            ></textarea>
+          </div>
+
+          <section class="input-chips">
+            <div class="input-chips__head">
+              <span class="label">本文から検出</span>
+              <span class="field__note" id="input-chips-hint">
+                マスタ登録済みの薬剤名・検査項目名が本文にあると、ここに出ます。
+              </span>
+            </div>
+            <ul class="input-chip-list" id="input-chip-list"></ul>
+          </section>
+
+          <details class="input-today" id="input-today">
+            <summary class="input-today__head">
+              <h2 class="input-today__title">
+                今日の登録<span class="status-block__count" id="input-today-count"></span>
+              </h2>
+            </summary>
+            <div class="input-today__panel">
+              <div class="input-today__actions">
+                <button id="btn-input-add-med" class="btn btn--small btn--outline" type="button">
+                  ＋ 薬
+                </button>
+                <button id="btn-input-add-exam" class="btn btn--small btn--outline" type="button">
+                  ＋ 検査
+                </button>
+                <button id="btn-input-add-proc" class="btn btn--small btn--outline" type="button">
+                  ＋ 処置
+                </button>
+              </div>
+              <p class="field__note" id="input-today-note"></p>
+              <p class="field__note" id="input-today-empty">
+                まだ登録はありません。チップか上のボタンから追加できます。
+              </p>
+              <ul class="input-today-list" id="input-today-list"></ul>
+            </div>
+          </details>
+        </div>
+
+        <footer class="input-footer">
+          <button id="btn-input-save" class="btn btn--primary" type="button">保存</button>
+          <button id="btn-input-save-next" class="btn btn--outline" type="button">
+            保存して次のカルテへ
+          </button>
+        </footer>
+      </div>
+    </div>
   </div>
 </div>
 <!-- /#app-shell -->
@@ -889,6 +906,7 @@
         <div class="tl-item__title">
           <span class="tl-item__date"></span>
           <span class="tl-item__headline"></span>
+          <span class="tl-item__changed" hidden>変化</span>
         </div>
       </div>
       <p class="tl-item__body"></p>

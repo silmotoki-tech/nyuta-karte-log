@@ -84,12 +84,18 @@ const state = {
   karteUnsubs: [],
   sheet: null,
   detectTimer: null,
+  /** 左カラムから写した直後の中身。書き換えられたかの判定に使う */
+  copiedSource: null,
 };
+
+/** 借りてきた左カラムを元の位置へ戻すための控え */
+let leftColumnHome = null;
 
 // --- DOM -----------------------------------------------------------------
 
 const screenInput = document.getElementById("screen-input");
 const layoutEl = document.querySelector("#app-shell .layout");
+const leftSlot = document.getElementById("input-left-slot");
 
 const patientKarteEl = document.getElementById("input-patient-karte");
 const patientNameEl = document.getElementById("input-patient-name");
@@ -99,6 +105,7 @@ const btnTemplates = document.getElementById("btn-input-templates");
 const errorEl = document.getElementById("input-error");
 const authorRow = document.getElementById("input-author-row");
 const headlineInput = document.getElementById("input-headline");
+const changedCheck = document.getElementById("input-changed");
 const categoryButtons = document.getElementById("input-category-buttons");
 const btnImportant = document.getElementById("btn-input-important");
 const recordDateInput = document.getElementById("input-record-date");
@@ -111,6 +118,7 @@ const chipsHint = document.getElementById("input-chips-hint");
 const templateButtons = document.getElementById("input-template-buttons");
 const templateEmpty = document.getElementById("input-template-empty");
 
+const todayDetails = document.getElementById("input-today");
 const todayList = document.getElementById("input-today-list");
 const todayEmpty = document.getElementById("input-today-empty");
 const todayCount = document.getElementById("input-today-count");
@@ -256,11 +264,30 @@ export function leaveInputMode() {
   hideInputMode();
 }
 
+/**
+ * 見出しカラムは入力中も「続きから選ぶ」ために使うので、
+ * 別物を作らず #col-left をそのまま入力モードへ移して借りる。
+ */
+function borrowLeftColumn() {
+  const col = document.getElementById("col-left");
+  if (!leftSlot || !col || col.parentElement === leftSlot) return;
+  leftColumnHome = { parent: col.parentElement, next: col.nextElementSibling };
+  leftSlot.appendChild(col);
+}
+
+function returnLeftColumn() {
+  const col = document.getElementById("col-left");
+  if (!col || !leftColumnHome) return;
+  leftColumnHome.parent.insertBefore(col, leftColumnHome.next);
+  leftColumnHome = null;
+}
+
 /** 入力モードを開く。記入者は直前の選択を引き継ぐ。 */
 export function showInputMode() {
   if (!screenInput) return;
   state.visible = true;
   if (layoutEl) layoutEl.hidden = true;
+  borrowLeftColumn();
   screenInput.hidden = false;
   updatePatientHeader();
   if (recordDateInput) recordDateInput.max = todayStr();
@@ -282,11 +309,46 @@ export function hideInputMode() {
   if (!screenInput) return;
   state.visible = false;
   screenInput.hidden = true;
+  returnLeftColumn();
   if (layoutEl) layoutEl.hidden = false;
 }
 
 export function isInputModeVisible() {
   return state.visible;
+}
+
+/**
+ * 左カラムで選んだ記録の見出し・本文を写す（「続きから選ぶ」）。
+ * 何度でも選び直せるが、自分で書き換えた内容を黙って捨てないよう確認する。
+ * @returns {boolean} 写したかどうか
+ */
+export function copyEntryToInput(entry) {
+  if (!state.visible || !entry) return false;
+
+  const headline = entry.headline || "";
+  const body = entry.body || "";
+  const nowHeadline = headlineInput?.value || "";
+  const nowBody = bodyInput?.value || "";
+  const untouched =
+    (!nowHeadline.trim() && !nowBody.trim()) ||
+    (state.copiedSource &&
+      state.copiedSource.headline === nowHeadline &&
+      state.copiedSource.body === nowBody);
+
+  if (!untouched) {
+    const ok = window.confirm(
+      "入力中の見出しと本文を、選んだ記録の内容で置き換えますか？"
+    );
+    if (!ok) return false;
+  }
+
+  if (headlineInput) headlineInput.value = headline;
+  if (bodyInput) bodyInput.value = body;
+  state.copiedSource = { headline, body };
+  showError(errorEl, "");
+  runDetection();
+  bodyInput?.focus();
+  return true;
 }
 
 export function updatePatientHeader() {
@@ -365,6 +427,9 @@ function renderTemplateButtons() {
   if (!templateButtons) return;
   templateButtons.innerHTML = "";
   if (templateEmpty) templateEmpty.hidden = state.templates.length > 0;
+  // 未登録のうちは行ごと出さない（本文に高さを回す）
+  const row = templateButtons.closest(".input-template-row");
+  if (row) row.hidden = state.templates.length === 0;
   state.templates.forEach((tpl) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -399,8 +464,10 @@ function resetForm({ keepAuthor = false } = {}) {
   state.usedTemplate = false;
   state.chips = [];
   state.queue = [];
+  state.copiedSource = null;
   if (headlineInput) headlineInput.value = "";
   if (bodyInput) bodyInput.value = "";
+  if (changedCheck) changedCheck.checked = false;
   if (recordDateInput) recordDateInput.value = todayStr();
   btnImportant?.setAttribute("aria-pressed", "false");
   showError(errorEl, "");
@@ -1003,6 +1070,8 @@ function openProcSheet() {
 function pushQueue(item) {
   state.queueSeq += 1;
   state.queue.push({ id: `q${state.queueSeq}`, ...item });
+  // 積んだ内容はその場で見せる（畳んだままだと追加できたか分からない）
+  if (todayDetails) todayDetails.open = true;
   renderQueue();
 }
 
@@ -1014,6 +1083,7 @@ function removeQueueItem(id) {
 function renderQueue() {
   if (!todayList) return;
   todayList.innerHTML = "";
+  if (todayDetails && !state.queue.length) todayDetails.open = false;
   if (todayEmpty) todayEmpty.hidden = state.queue.length > 0;
   if (todayCount) {
     todayCount.textContent = state.queue.length ? `（${state.queue.length}）` : "";
@@ -1091,6 +1161,7 @@ async function handleSave({ next }) {
       headline,
       category: state.category,
       important: state.important,
+      changed: Boolean(changedCheck?.checked),
       author,
       body,
       source: state.usedTemplate ? "template" : "manual",

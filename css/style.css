@@ -36,6 +36,9 @@
   --star-text: #b57e17;
   --star-bg: #fdf3d9;
 
+  /* 「変化あり」の印（★とは別の役割なので色も分ける） */
+  --changed-mark: #c9663c;
+
   /* 見出しカテゴリ色 */
   --cat-ope: #d9534f;         /* オペ / 救急 / 麻酔 */
   --cat-admission: #4a90a4;   /* 入院 */
@@ -1487,6 +1490,28 @@ html.is-unlocked .app {
   color: inherit;
   min-width: 0;
   word-break: break-word;
+}
+
+/* 同じ見出しが続く中で、実際に内容が変わった回の目印 */
+.tl-item__changed {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background-color: var(--changed-mark, #c9663c);
+  color: var(--color-white);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.tl-item__changed[hidden] {
+  display: none !important;
+}
+
+.tl-item--changed .tl-item__headline {
+  color: var(--changed-mark, #c9663c);
 }
 
 .tl-item__body {
@@ -5005,20 +5030,181 @@ select.input {
   color: var(--color-brown);
 }
 
+/* 左に見出しカラム、右に記入面。左は #col-left をそのまま借りてくる */
+.input-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.input-left {
+  flex: 0 0 var(--left-col-width, 230px);
+  min-height: 0;
+  display: flex;
+}
+
+.input-left > .col--left {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 借りている間は折りたたみ操作を出さない（戻り先の状態と食い違うため） */
+.input-left .left-collapse-btn {
+  display: none;
+}
+
+.input-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .input-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 14px 18px 20px;
+  padding: 10px 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+}
+
+/* 記入者・分類・★・記録日は横並び。入りきらない分だけ折り返す */
+.input-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+}
+
+.input-meta-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.input-meta-group--author {
+  flex: 1 1 auto;
+}
+
+.input-meta-group__label {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+}
+
+.author-row--compact {
+  gap: 4px;
+}
+
+.author-row--compact .author-btn {
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  min-width: 0;
+}
+
+.category-buttons--compact .category-btn {
+  padding: 3px 8px;
+  font-size: 0.78rem;
+}
+
+.star-toggle--compact {
+  padding: 3px 10px;
+  font-size: 0.78rem;
+}
+
+.input--compact {
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  width: auto;
+}
+
+.input-headline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-headline-row__label {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+}
+
+.input-headline-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.input-changed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-white);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.input-changed:has(input:checked) {
+  border-color: var(--changed-mark, #c9663c);
+  background-color: #fdf1ea;
+  color: var(--changed-mark, #c9663c);
+}
+
+.input-template-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.input-template-row[hidden] {
+  display: none !important;
+}
+
+.input-template-row__label {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+}
+
+.template-buttons--compact {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.template-buttons--compact .template-btn {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+}
+
+/* 本文は残りの高さをすべて使う */
+.input-body-field {
+  flex: 1 1 auto;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
 }
 
 .input-textarea {
-  min-height: 220px;
-  resize: vertical;
+  flex: 1;
+  min-height: 160px;
+  resize: none;
 }
 
 .input-chips {
@@ -5104,10 +5290,8 @@ select.input {
 }
 
 .input-today {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px 12px;
+  flex-shrink: 0;
+  padding: 6px 12px 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background-color: var(--color-white);
@@ -5116,8 +5300,32 @@ select.input {
 .input-today__head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.input-today__head::-webkit-details-marker {
+  display: none;
+}
+
+/* 折りたたみの向きが分かる三角 */
+.input-today__head::after {
+  content: "▸";
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.input-today[open] > .input-today__head::after {
+  content: "▾";
+}
+
+.input-today__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
 }
 
 .input-today__title {
@@ -5128,7 +5336,6 @@ select.input {
 }
 
 .input-today__actions {
-  margin-left: auto;
   display: flex;
   gap: 6px;
 }

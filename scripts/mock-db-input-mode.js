@@ -358,7 +358,12 @@ export function sortEntriesDescending(entries) {
 }
 export async function addEntry(karte, payload) {
   recordWrite("addEntry", { karte, ...payload });
-  return nid("e");
+  const id = nid("e");
+  // 保存直後の見え方も検証できるよう、購読中の一覧にも流す
+  const list = globalThis.__seedEntries || (globalThis.__seedEntries = []);
+  list.unshift({ id, ...payload });
+  notifyMap(listeners.entries, karte, list);
+  return id;
 }
 export async function updateEntry() {}
 export async function setEntryImportant() {}
