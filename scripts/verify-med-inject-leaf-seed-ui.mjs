@@ -16,6 +16,7 @@ import {
   MED_INJECT_NEURO_GROUP_ID,
   MED_INJECT_ANTICANCER_GROUP_ID,
   MED_INJECT_CARDIO_RESP_GROUP_ID,
+  MED_INJECT_SUPPOSITORY_GROUP_ID,
   MED_INJECT_OTHER_GROUP_ID,
   __getStore,
 } from "./mock-db-med-hierarchy.js";
@@ -32,6 +33,7 @@ const INJECT_GROUPS = [
   "鎮痛・鎮静・神経",
   "抗癌剤",
   "循環器・呼吸器",
+  "処方注射薬・座薬",
   "その他",
 ];
 
@@ -120,6 +122,20 @@ const CARDIO_RESP = [
   "咳マロピタント",
 ];
 
+const SUPPOSITORY = [
+  "ヒューマリンN",
+  "トレシーバ",
+  "プロジンク",
+  "レベミル",
+  "ブレンダ注",
+  "ブプレノルフィン注",
+  "ミダゾラム(噴霧)",
+  "ミダゾラム(注)",
+  "バノクエル",
+  "ダイアップ",
+  "フェノバルビタール",
+];
+
 const OTHER = [
   "ダルテパリン",
   "ダルベポエチン",
@@ -180,6 +196,13 @@ const GROUP_SPECS = [
     shot: "med-inject-cardio-resp.png",
   },
   {
+    id: MED_INJECT_SUPPOSITORY_GROUP_ID,
+    label: "処方注射薬・座薬",
+    leaves: SUPPOSITORY,
+    pick: "ミダゾラム(注)",
+    shot: "med-inject-suppository.png",
+  },
+  {
     id: MED_INJECT_OTHER_GROUP_ID,
     label: "その他",
     leaves: OTHER,
@@ -212,7 +235,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   groupRows.map((r) => r.order),
-  [10, 20, 30, 40, 50, 60, 70]
+  [10, 20, 30, 40, 50, 60, 65, 70]
 );
 for (const g of GROUP_SPECS) {
   assert.deepEqual(leafLabelsUnder(items, g.id), g.leaves, g.label);

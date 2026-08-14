@@ -217,7 +217,10 @@ const ANTICANCER_LABELS = [
   "エンドキサン",
   "チガソン",
   "ロムスチン",
+  "アレンドロン",
 ];
+
+const ORAL_OTHER_LABELS = ["インターベリー", "単シロップ", "ハイチオール"];
 
 
 const IMMUNO_LABELS = [
@@ -492,6 +495,7 @@ const vitamin = labelsUnder(MED_ORAL_VITAMIN_GROUP_ID);
 const hormone = labelsUnder(MED_ORAL_HORMONE_GROUP_ID);
 const kampo = labelsUnder(MED_ORAL_KAMPO_GROUP_ID);
 const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
+const oralOther = labelsUnder(MED_ORAL_OTHER_GROUP_ID);
 const topicalSteroidAbx = labelsUnder(MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID);
 const topicalSkinOther = labelsUnder(MED_TOPICAL_SKIN_OTHER_GROUP_ID);
 const topicalEar = labelsUnder(MED_TOPICAL_EAR_GROUP_ID);
@@ -566,6 +570,7 @@ assert.deepEqual(vitamin, VITAMIN_LABELS);
 assert.deepEqual(hormone, HORMONE_LABELS);
 assert.deepEqual(kampo, KAMPO_LABELS);
 assert.deepEqual(blood, BLOOD_LABELS);
+assert.deepEqual(oralOther, ORAL_OTHER_LABELS);
 assert.deepEqual(topicalSteroidAbx, TOPICAL_SKIN_STEROID_ABX_LABELS);
 assert.deepEqual(topicalSkinOther, TOPICAL_SKIN_OTHER_LABELS);
 assert.deepEqual(topicalEar, TOPICAL_EAR_LABELS);
@@ -637,6 +642,7 @@ assert.equal(
     HORMONE_LABELS.length +
     KAMPO_LABELS.length +
     BLOOD_LABELS.length +
+    ORAL_OTHER_LABELS.length +
     TOPICAL_SKIN_STEROID_ABX_LABELS.length +
     TOPICAL_SKIN_OTHER_LABELS.length +
     TOPICAL_EAR_LABELS.length +

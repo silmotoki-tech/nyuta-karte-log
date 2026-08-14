@@ -1650,6 +1650,7 @@ export const MED_INJECT_GI_GROUP_ID = "seed-med-inject-gi";
 export const MED_INJECT_NEURO_GROUP_ID = "seed-med-inject-neuro";
 export const MED_INJECT_ANTICANCER_GROUP_ID = "seed-med-inject-anticancer";
 export const MED_INJECT_CARDIO_RESP_GROUP_ID = "seed-med-inject-cardio-resp";
+export const MED_INJECT_SUPPOSITORY_GROUP_ID = "seed-med-inject-suppository";
 export const MED_INJECT_OTHER_GROUP_ID = "seed-med-inject-other";
 export const MED_ORAL_ANTIBIOTIC_GROUP_ID = "seed-med-oral-antibiotic";
 export const MED_ORAL_ANTIINFLAM_GROUP_ID = "seed-med-oral-antiinflam";
@@ -1708,6 +1709,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("inject", MED_INJECT_NEURO_GROUP_ID, "鎮痛・鎮静・神経", 40),
   medGroupSeed("inject", MED_INJECT_ANTICANCER_GROUP_ID, "抗癌剤", 50),
   medGroupSeed("inject", MED_INJECT_CARDIO_RESP_GROUP_ID, "循環器・呼吸器", 60),
+  medGroupSeed("inject", MED_INJECT_SUPPOSITORY_GROUP_ID, "処方注射薬・座薬", 65),
   medGroupSeed("inject", MED_INJECT_OTHER_GROUP_ID, "その他", 70),
   // 内服
   medGroupSeed("oral", MED_ORAL_ANTIBIOTIC_GROUP_ID, "抗生剤", 10),
@@ -1728,7 +1730,6 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("oral", MED_ORAL_ANTICANCER_GROUP_ID, "抗がん", 160),
   medGroupSeed("oral", MED_ORAL_KAMPO_GROUP_ID, "漢方", 170),
   medGroupSeed("oral", MED_ORAL_OTHER_GROUP_ID, "その他", 180),
-  medGroupSeed("oral", "seed-med-oral-inject-suppository", "処方注射薬・座薬", 190),
   // 外用（皮膚ステロイド+抗菌／皮膚その他／耳／シャンプー）
   medGroupSeed("topical", MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID, "皮膚ステロイド+抗菌", 10),
   medGroupSeed("topical", MED_TOPICAL_SKIN_OTHER_GROUP_ID, "皮膚その他", 20),
@@ -1836,6 +1837,19 @@ const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-inject-acepromazine", label: "アセプロマジン" },
     { id: "seed-med-inject-danpron", label: "ダンプロン" },
     { id: "seed-med-inject-cough-maropitant", label: "咳マロピタント" },
+  ]),
+  ...medGroupLeaves("inject", MED_INJECT_SUPPOSITORY_GROUP_ID, [
+    { id: "seed-med-inject-sup-humulin-n", label: "ヒューマリンN" },
+    { id: "seed-med-inject-sup-tresiba", label: "トレシーバ" },
+    { id: "seed-med-inject-sup-prozinc", label: "プロジンク" },
+    { id: "seed-med-inject-sup-levemir", label: "レベミル" },
+    { id: "seed-med-inject-sup-brenda", label: "ブレンダ注" },
+    { id: "seed-med-inject-sup-buprenorphine", label: "ブプレノルフィン注" },
+    { id: "seed-med-inject-sup-midazolam-spray", label: "ミダゾラム(噴霧)" },
+    { id: "seed-med-inject-sup-midazolam", label: "ミダゾラム(注)" },
+    { id: "seed-med-inject-sup-banoquell", label: "バノクエル" },
+    { id: "seed-med-inject-sup-diup", label: "ダイアップ" },
+    { id: "seed-med-inject-sup-phenobarbital", label: "フェノバルビタール" },
   ]),
   ...medGroupLeaves("inject", MED_INJECT_OTHER_GROUP_ID, [
     { id: "seed-med-inject-dalteparin", label: "ダルテパリン" },
@@ -2069,6 +2083,12 @@ const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-oral-ac-endoxan", label: "エンドキサン" },
     { id: "seed-med-oral-ac-tigason", label: "チガソン" },
     { id: "seed-med-oral-ac-lomustine", label: "ロムスチン" },
+    { id: "seed-med-oral-ac-alendronate", label: "アレンドロン" },
+  ]),
+  ...medGroupLeaves("oral", MED_ORAL_OTHER_GROUP_ID, [
+    { id: "seed-med-oral-other-interberry", label: "インターベリー" },
+    { id: "seed-med-oral-other-simple-syrup", label: "単シロップ" },
+    { id: "seed-med-oral-other-hythiol", label: "ハイチオール" },
   ]),
   ...medGroupLeaves("oral", MED_ORAL_BLOOD_GROUP_ID, [
     { id: "seed-med-oral-blood-domenan", label: "ドメナン" },
@@ -2232,6 +2252,8 @@ const MEDICATION_ITEM_LEAF_SEED = [
 const MEDICATION_ITEM_SEED_RETIRE = [
   // 空の内服中項目
   "seed-med-oral-analgesic",
+  // 「処方注射薬・座薬」は注射薬側に置いたので、内服の同名は残さない
+  "seed-med-oral-inject-suppository",
   // 「肝臓」「腎泌尿器」へ分割した旧中項目
   "seed-med-oral-liver-kidney",
   // サプリメント・商品側と重複するため内服からは外す

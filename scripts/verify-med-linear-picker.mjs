@@ -326,7 +326,7 @@ if (await page.locator("#med-add-col-leaf").evaluate((el) => el.classList.contai
 }
 const groups = await itemLabels(page, "#med-add-col-group-list");
 console.log("oral groups count:", groups.length, "sample:", groups.slice(0, 5));
-if (groups.length !== 19) throw new Error(`expected 19 oral mid groups, got ${groups.length}`);
+if (groups.length !== 18) throw new Error(`expected 18 oral mid groups, got ${groups.length}`);
 if (groups.includes("鎮痛剤")) throw new Error("empty 鎮痛剤 mid group should be removed");
 if (groups.includes("肝・腎・泌尿")) {
   throw new Error("肝・腎・泌尿 should be split into 肝臓 / 腎泌尿器");

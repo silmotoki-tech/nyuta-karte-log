@@ -189,7 +189,10 @@ const ANTICANCER_LABELS = [
   "エンドキサン",
   "チガソン",
   "ロムスチン",
+  "アレンドロン",
 ];
+
+const ORAL_OTHER_LABELS = ["インターベリー", "単シロップ", "ハイチオール"];
 
 
 const IMMUNO_LABELS = [
@@ -872,15 +875,32 @@ assert.equal(
     .textContent(),
   "パラディア"
 );
-await clickItem(page, "#med-add-col-leaf-list", "ロムスチン");
+await clickItem(page, "#med-add-col-leaf-list", "アレンドロン");
 await page.waitForTimeout(80);
 assert.equal(
   await page
     .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
     .textContent(),
-  "ロムスチン"
+  "アレンドロン"
 );
 await page.screenshot({ path: path.join(shotDir, "13-anticancer.png") });
+
+await clickItem(page, "#med-add-col-group-list", "その他");
+await page.waitForTimeout(120);
+const oralOther = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI oral other:", oralOther);
+assert.deepEqual(oralOther, ORAL_OTHER_LABELS);
+for (const label of ORAL_OTHER_LABELS) {
+  await clickItem(page, "#med-add-col-leaf-list", label);
+  await page.waitForTimeout(80);
+  assert.equal(
+    await page
+      .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+      .textContent(),
+    label
+  );
+}
+await page.screenshot({ path: path.join(shotDir, "13b-oral-other.png") });
 
 await clickItem(page, "#med-add-col-group-list", "免疫抑制");
 await page.waitForTimeout(120);
