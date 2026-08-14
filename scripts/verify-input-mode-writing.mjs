@@ -96,9 +96,11 @@ await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const browser = await launchBrowser();
+// 実機はタップ操作なので、クリックではなくタップで確かめられる文脈にする
 const context = await browser.newContext({
   viewport: { width: 1180, height: 900 },
   deviceScaleFactor: 2,
+  hasTouch: true,
   serviceWorkers: "block",
 });
 const page = await context.newPage();
@@ -108,10 +110,13 @@ page.on("pageerror", (e) => {
   console.warn("pageerror", String(e));
 });
 
+// 「続きから選ぶ」は確認を挟まない。ダイアログが出た時点で不合格。
+// （iPad で確認が抑止／キャンセルされると、タップが空振りになるため）
 let dialogCount = 0;
 page.on("dialog", (d) => {
   dialogCount += 1;
-  d.accept();
+  console.warn("DIALOG", d.message());
+  d.dismiss();
 });
 
 await page.addInitScript((entries) => {
@@ -242,7 +247,8 @@ assert.deepEqual(
   `左カラムの見出しが想定と違う: ${headlines}`
 );
 
-const pick = (n) => page.locator("#headline-list .hl-item__btn").nth(n - 1).click();
+// 実機と同じくタップで操作する
+const pick = (n) => page.locator("#headline-list .hl-item__btn").nth(n - 1).tap();
 const fields = () =>
   page.evaluate(() => ({
     headline: document.getElementById("input-headline").value,
@@ -250,14 +256,12 @@ const fields = () =>
     target: document.querySelector("#headline-list .hl-item__btn.is-target")?.textContent.trim(),
   }));
 
-// 空の状態から写す（確認は出ない）
-const before = dialogCount;
+// 空の状態から写す
 await pick(1);
 let now = await fields();
 assert.equal(now.headline, ENTRIES[0].headline, "見出しが写っていない");
 assert.equal(now.body, ENTRIES[0].body, "本文が写っていない");
 assert.ok(now.target?.includes(ENTRIES[0].headline), "選んだ項目に印が付いていない");
-assert.equal(dialogCount, before, "空の入力欄なのに確認が出た");
 await shot("12-copied-from-left");
 
 // 写した内容はそのまま編集できる
@@ -269,21 +273,40 @@ assert.ok(now.body.endsWith("本日は痒みが消失。"), "写した本文を�
 await page.fill("#input-headline", "皮膚炎の経過観察（改善）");
 await shot("13-edited-after-copy");
 
-// 書き換えた後に別の記録を選ぶと、置き換え前に確認が出る
-const before2 = dialogCount;
+// 自分で書き換えた後でも、タップしたら必ず写る（ここが空振りしていた）
 await pick(3);
-assert.equal(dialogCount, before2 + 1, "編集済みなのに確認なしで置き換わった");
 now = await fields();
-assert.equal(now.headline, ENTRIES[2].headline, "2回目の写しが反映されていない");
-assert.equal(now.body, ENTRIES[2].body, "2回目の本文が反映されていない");
+assert.equal(now.headline, ENTRIES[2].headline, "編集後のタップが反映されていない");
+assert.equal(now.body, ENTRIES[2].body, "編集後のタップで本文が反映されていない");
 assert.ok(now.target?.includes(ENTRIES[2].headline), "印が選び直した項目に移っていない");
 
-// 触っていなければ、何度でも確認なしで選び直せる
-const before3 = dialogCount;
+// 本文にカーソルを置いたまま（キーボードが出ている状態）でも写る
+await page.click("#input-body-text");
+await page.type("#input-body-text", "追記。");
 await pick(2);
 now = await fields();
-assert.equal(now.headline, ENTRIES[1].headline, "3回目の写しが反映されていない");
-assert.equal(dialogCount, before3, "未編集なのに確認が出た");
+assert.equal(now.headline, ENTRIES[1].headline, "本文編集中のタップが反映されていない");
+assert.equal(now.body, ENTRIES[1].body, "本文編集中のタップで本文が反映されていない");
+
+// 4回目・5回目も同じように選び直せる
+await pick(1);
+now = await fields();
+assert.equal(now.headline, ENTRIES[0].headline, "4回目の写しが反映されていない");
+await pick(3);
+now = await fields();
+assert.equal(now.headline, ENTRIES[2].headline, "5回目の写しが反映されていない");
+
+// 写した後もそこから自由に編集できる
+await page.fill("#input-headline", `${ENTRIES[2].headline}（追記）`);
+await page.click("#input-body-text");
+await page.keyboard.press("End");
+await page.type("#input-body-text", "\n跛行は改善傾向。");
+now = await fields();
+assert.equal(now.headline, `${ENTRIES[2].headline}（追記）`, "写した後の見出しを編集できない");
+assert.ok(now.body.startsWith(ENTRIES[2].body), "編集で写した本文が消えている");
+assert.ok(now.body.endsWith("跛行は改善傾向。"), "写した後の本文に追記できない");
+
+assert.equal(dialogCount, 0, `続きから選ぶで確認ダイアログが出た（${dialogCount}回）`);
 await shot("14-repicked");
 
 // --- 【2】変化あり --------------------------------------------------------

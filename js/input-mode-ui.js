@@ -84,8 +84,6 @@ const state = {
   karteUnsubs: [],
   sheet: null,
   detectTimer: null,
-  /** 左カラムから写した直後の中身。書き換えられたかの判定に使う */
-  copiedSource: null,
 };
 
 /** 借りてきた左カラムを元の位置へ戻すための控え */
@@ -319,7 +317,8 @@ export function isInputModeVisible() {
 
 /**
  * 左カラムで選んだ記録の見出し・本文を写す（「続きから選ぶ」）。
- * 何度でも選び直せるが、自分で書き換えた内容を黙って捨てないよう確認する。
+ * 確認は挟まない。タップが空振りに見えるのが一番困るので、
+ * 何度選び直しても必ず写し、写したことはトーストで知らせる。
  * @returns {boolean} 写したかどうか
  */
 export function copyEntryToInput(entry) {
@@ -327,27 +326,14 @@ export function copyEntryToInput(entry) {
 
   const headline = entry.headline || "";
   const body = entry.body || "";
-  const nowHeadline = headlineInput?.value || "";
-  const nowBody = bodyInput?.value || "";
-  const untouched =
-    (!nowHeadline.trim() && !nowBody.trim()) ||
-    (state.copiedSource &&
-      state.copiedSource.headline === nowHeadline &&
-      state.copiedSource.body === nowBody);
-
-  if (!untouched) {
-    const ok = window.confirm(
-      "入力中の見出しと本文を、選んだ記録の内容で置き換えますか？"
-    );
-    if (!ok) return false;
-  }
-
   if (headlineInput) headlineInput.value = headline;
   if (bodyInput) bodyInput.value = body;
-  state.copiedSource = { headline, body };
   showError(errorEl, "");
   runDetection();
   bodyInput?.focus();
+  deps.showToast(
+    headline ? `「${headline}」を写しました。` : "選んだ記録を写しました。"
+  );
   return true;
 }
 
@@ -464,7 +450,6 @@ function resetForm({ keepAuthor = false } = {}) {
   state.usedTemplate = false;
   state.chips = [];
   state.queue = [];
-  state.copiedSource = null;
   if (headlineInput) headlineInput.value = "";
   if (bodyInput) bodyInput.value = "";
   if (changedCheck) changedCheck.checked = false;
