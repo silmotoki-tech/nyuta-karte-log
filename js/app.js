@@ -1304,6 +1304,7 @@ function renderHeadlines(entries) {
 
     // カテゴリと★は日付・見出しの間の縦線の色で表す
     li.classList.toggle("is-important", Boolean(entry.important));
+    li.classList.toggle("is-changed", Boolean(entry.changed));
     li.dataset.category = entry.category || "none";
     dateEl.textContent = mdFromStr(entry.recordDate) || "（日付なし）";
     textEl.textContent = entry.headline || "（見出しなし）";

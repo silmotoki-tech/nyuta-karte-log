@@ -374,6 +374,50 @@ assert.equal(badgeColor.bg, "rgb(201, 102, 60)", `バッジの色が違う: ${ba
 
 await shot("16-timeline-changed-mark");
 
+// 左カラムの見出し一覧でも、縦線が上下2色に分かれて変化ありが分かる
+const ruleMarks = await page.evaluate(() =>
+  [...document.querySelectorAll("#headline-list .hl-item")].map((li) => {
+    const rule = li.querySelector(".hl-item__rule");
+    const btn = li.querySelector(".hl-item__btn");
+    const text = li.querySelector(".hl-item__text");
+    const cs = getComputedStyle(rule);
+    return {
+      headline: text.textContent.trim(),
+      isChanged: li.classList.contains("is-changed"),
+      backgroundImage: cs.backgroundImage,
+      ruleWidth: rule.getBoundingClientRect().width,
+      textLeft: text.getBoundingClientRect().left,
+      btnLeft: btn.getBoundingClientRect().left,
+    };
+  })
+);
+console.log("RULE_MARKS", ruleMarks.slice(0, 3));
+const changedRule = ruleMarks.find((m) => m.headline === "入院4日目");
+const plainRule = ruleMarks.find((m) => m.isChanged === false);
+assert.ok(changedRule, "左カラムに変化ありの見出しが見つからない");
+assert.ok(changedRule.isChanged, "左カラムの is-changed が付いていない");
+assert.ok(
+  changedRule.backgroundImage.includes("linear-gradient"),
+  `変化ありの縦線が単色のまま: ${changedRule.backgroundImage}`
+);
+assert.equal(plainRule.backgroundImage, "none", "変化なしの縦線にグラデーションが付いている");
+assert.equal(
+  changedRule.ruleWidth,
+  plainRule.ruleWidth,
+  "変化ありとなしで縦線の太さが変わっている"
+);
+assert.equal(
+  changedRule.textLeft,
+  plainRule.textLeft,
+  "変化ありとなしで見出しの開始位置がずれている"
+);
+assert.equal(
+  changedRule.btnLeft,
+  plainRule.btnLeft,
+  "変化ありとなしで行の開始位置がずれている"
+);
+await shot("16b-headline-list-changed-mark");
+
 // 入力モードを閉じたら、左カラムは元の3カラムに戻っている
 assert.equal(
   await page.evaluate(() => document.getElementById("col-left").parentElement.className),

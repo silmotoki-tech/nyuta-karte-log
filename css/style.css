@@ -567,25 +567,38 @@ html.is-unlocked .app {
   box-shadow: inset 0 0 0 1.5px var(--color-green);
 }
 
-/* カテゴリ／★を表す縦線。行の高さいっぱいに伸ばす */
+/* カテゴリ／★を表す縦線。行の高さいっぱいに伸ばす。
+   色は --hl-cat-color に集約し、変化ありの上下2色塗りと共有する */
 .hl-item__rule {
   align-self: stretch;
   border-radius: 2px;
-  background-color: var(--cat-none);
+  --hl-cat-color: var(--cat-none);
+  background-color: var(--hl-cat-color);
 }
 
 .hl-item[data-category="ope"] .hl-item__rule {
-  background-color: var(--cat-ope);
+  --hl-cat-color: var(--cat-ope);
 }
 .hl-item[data-category="admission"] .hl-item__rule {
-  background-color: var(--cat-admission);
+  --hl-cat-color: var(--cat-admission);
 }
 .hl-item[data-category="referral"] .hl-item__rule {
-  background-color: var(--cat-referral);
+  --hl-cat-color: var(--cat-referral);
 }
 /* カテゴリなしで手動★を付けた記録 */
 .hl-item.is-important[data-category="none"] .hl-item__rule {
-  background-color: var(--star);
+  --hl-cat-color: var(--star);
+}
+
+/* 変化ありの記録は、同じ線を上下半分に分けて上をオレンジにする。
+   太さ・位置は変えず、色の塗り分けだけで区別する */
+.hl-item.is-changed .hl-item__rule {
+  background-color: initial;
+  background-image: linear-gradient(
+    to bottom,
+    var(--changed-mark) 50%,
+    var(--hl-cat-color) 50%
+  );
 }
 
 .hl-item__date {
