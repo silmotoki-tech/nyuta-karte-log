@@ -286,6 +286,18 @@ const TOPICAL_EAR_LABELS = [
   "イベルメクチン（耳用）",
 ];
 
+const TOPICAL_SHAMPOO_LABELS = [
+  "マラセキュアシャンプー",
+  "DermCareモイスチャライズ",
+  "DermCareクレンジングオイル",
+  "クロルヘキシジンシャンプー",
+  "DermCareダーマモイストバス",
+  "ヒノケア泡シャンプー",
+  "CHタオルシート",
+  "QUANPOWペットシャンプー",
+  "QUANPOW Pet Body Care Bath Milk",
+];
+
 const EYE_LABELS = [
   "ワンクリーン点眼液",
   "ヒアルロン酸点眼液",
@@ -966,7 +978,7 @@ await clickItem(page, "#med-add-col-category-list", "外用薬");
 await page.waitForTimeout(80);
 const topicalGroups = await itemLabels(page, "#med-add-col-group-list");
 console.log("UI topical groups:", topicalGroups);
-assert.deepEqual(topicalGroups, ["皮膚ステロイド+抗菌", "皮膚その他", "耳"]);
+assert.deepEqual(topicalGroups, ["皮膚ステロイド+抗菌", "皮膚その他", "耳", "シャンプー"]);
 await clickItem(page, "#med-add-col-group-list", "皮膚ステロイド+抗菌");
 await page.waitForTimeout(120);
 const topicalSteroidAbx = await itemLabels(page, "#med-add-col-leaf-list");
@@ -1037,6 +1049,23 @@ assert.equal(
   "イベルメクチン（耳用）"
 );
 await page.screenshot({ path: path.join(topicalShotDir, "03-ear.png") });
+
+await clickItem(page, "#med-add-col-group-list", "シャンプー");
+await page.waitForTimeout(120);
+const topicalShampoo = await itemLabels(page, "#med-add-col-leaf-list");
+console.log("UI topical shampoo:", topicalShampoo);
+assert.deepEqual(topicalShampoo, TOPICAL_SHAMPOO_LABELS);
+for (const label of ["マラセキュアシャンプー", "CHタオルシート", "QUANPOW Pet Body Care Bath Milk"]) {
+  await clickItem(page, "#med-add-col-leaf-list", label);
+  await page.waitForTimeout(80);
+  assert.equal(
+    await page
+      .locator("#med-add-col-leaf-list .med-linear-picker__item.is-selected .med-linear-picker__item-label")
+      .textContent(),
+    label
+  );
+}
+await page.screenshot({ path: path.join(topicalShotDir, "04-shampoo.png") });
 
 await clickItem(page, "#med-add-col-category-list", "点眼薬");
 await page.waitForTimeout(120);

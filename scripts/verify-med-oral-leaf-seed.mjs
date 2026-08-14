@@ -26,6 +26,7 @@ import {
   MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID,
   MED_TOPICAL_SKIN_OTHER_GROUP_ID,
   MED_TOPICAL_EAR_GROUP_ID,
+  MED_TOPICAL_SHAMPOO_GROUP_ID,
   MED_SUPPL_JOINT_GROUP_ID,
   MED_SUPPL_ORAL_GROUP_ID,
   MED_SUPPL_GI_GROUP_ID,
@@ -313,6 +314,18 @@ const TOPICAL_EAR_LABELS = [
   "イベルメクチン（耳用）",
 ];
 
+const TOPICAL_SHAMPOO_LABELS = [
+  "マラセキュアシャンプー",
+  "DermCareモイスチャライズ",
+  "DermCareクレンジングオイル",
+  "クロルヘキシジンシャンプー",
+  "DermCareダーマモイストバス",
+  "ヒノケア泡シャンプー",
+  "CHタオルシート",
+  "QUANPOWペットシャンプー",
+  "QUANPOW Pet Body Care Bath Milk",
+];
+
 const EYE_LABELS = [
   "ワンクリーン点眼液",
   "ヒアルロン酸点眼液",
@@ -482,6 +495,7 @@ const blood = labelsUnder(MED_ORAL_BLOOD_GROUP_ID);
 const topicalSteroidAbx = labelsUnder(MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID);
 const topicalSkinOther = labelsUnder(MED_TOPICAL_SKIN_OTHER_GROUP_ID);
 const topicalEar = labelsUnder(MED_TOPICAL_EAR_GROUP_ID);
+const topicalShampoo = labelsUnder(MED_TOPICAL_SHAMPOO_GROUP_ID);
 const eye = Object.values(items)
   .filter(
     (r) =>
@@ -577,6 +591,9 @@ assert.equal(
 assert.equal(items[MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID]?.label, "皮膚ステロイド+抗菌");
 assert.equal(items[MED_TOPICAL_SKIN_OTHER_GROUP_ID]?.label, "皮膚その他");
 assert.equal(items[MED_TOPICAL_EAR_GROUP_ID]?.label, "耳");
+assert.equal(items[MED_TOPICAL_SHAMPOO_GROUP_ID]?.label, "シャンプー");
+assert.equal(items[MED_TOPICAL_SHAMPOO_GROUP_ID]?.category, "topical");
+assert.deepEqual(topicalShampoo, TOPICAL_SHAMPOO_LABELS);
 assert.equal(
   items["seed-med-topical-skin-mometotic"]?.parentId,
   MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID
@@ -588,8 +605,10 @@ assert.equal(
 assert.ok(!items["seed-med-topical-ear-mometotic"]);
 assert.ok(!items["seed-med-topical-ear-epiotic"]);
 assert.ok(!items["seed-med-topical-disinfect"]);
-assert.ok(!items["seed-med-topical-shampoo"]);
 assert.ok(!items["seed-med-topical-skin"]);
+// 旧「シャンプー・スキンケア」から現行リストに残さなかったもの
+assert.ok(!items["seed-med-topical-shampoo-nano-basing"]);
+assert.ok(!items["seed-med-topical-shampoo-hoscare"]);
 assert.ok(!Object.values(items).some((r) => r?.label === "エピオティック"));
 assert.ok(!Object.values(items).some((r) => r?.label === "デルトピカローション"));
 assert.ok(giStomach.includes("マロピタント"));
@@ -621,6 +640,7 @@ assert.equal(
     TOPICAL_SKIN_STEROID_ABX_LABELS.length +
     TOPICAL_SKIN_OTHER_LABELS.length +
     TOPICAL_EAR_LABELS.length +
+    TOPICAL_SHAMPOO_LABELS.length +
     EYE_LABELS.length +
     SUPPL_JOINT_LABELS.length +
     SUPPL_ORAL_LABELS.length +
@@ -671,5 +691,41 @@ assert.ok(store.medicationItems["seed-med-oral-gi-i-piale"]);
 assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].parentId, MED_ORAL_LIVER_GROUP_ID);
 assert.equal(store.medicationItems["seed-med-oral-gi-i-piale"].order, 30);
 assert.equal(store.medicationItems["seed-med-oral-lk-piale"], undefined);
+
+// 旧「シャンプー・スキンケア」「消毒」が残っている医院でも、消えずに「シャンプー」へ寄る
+__resetStore();
+store.medicationItems["seed-med-topical-shampoo-malasecure"] = {
+  label: "マラセキュアシャンプー",
+  category: "topical",
+  kind: "leaf",
+  parentId: "seed-med-topical-shampoo",
+  order: 10,
+};
+store.medicationItems["seed-med-topical-disinfect-ch-towel"] = {
+  label: "CHタオルシート",
+  category: "topical",
+  kind: "leaf",
+  parentId: "seed-med-topical-disinfect",
+  order: 10,
+};
+await ensureMedicationItemDefaults();
+const shampooAfterMigration = Object.values(store.medicationItems).filter(
+  (r) => r?.parentId === MED_TOPICAL_SHAMPOO_GROUP_ID
+);
+assert.deepEqual(
+  shampooAfterMigration
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((r) => r.label),
+  TOPICAL_SHAMPOO_LABELS
+);
+assert.equal(
+  store.medicationItems["seed-med-topical-disinfect-ch-towel"]?.parentId,
+  MED_TOPICAL_SHAMPOO_GROUP_ID
+);
+assert.equal(
+  Object.values(store.medicationItems).filter((r) => r?.label === "CHタオルシート").length,
+  1
+);
 
 console.log("OK: oral leaf seeds + same-name overwrite");

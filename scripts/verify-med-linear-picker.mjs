@@ -609,7 +609,7 @@ const topical = await itemLabels(page, "#med-add-col-group-list");
 console.log("topical groups:", topical);
 if (
   JSON.stringify(topical) !==
-  JSON.stringify(["皮膚ステロイド+抗菌", "皮膚その他", "耳"])
+  JSON.stringify(["皮膚ステロイド+抗菌", "皮膚その他", "耳", "シャンプー"])
 ) {
   throw new Error("topical groups mismatch");
 }

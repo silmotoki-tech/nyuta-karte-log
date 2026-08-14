@@ -44,7 +44,6 @@ export const MED_TOPICAL_EAR_GROUP_ID = "seed-med-topical-ear";
 export const MED_TOPICAL_SKIN_GROUP_ID = "seed-med-topical-skin";
 /** @deprecated 旧「消毒」中項目。シード退役対象 */
 export const MED_TOPICAL_DISINFECT_GROUP_ID = "seed-med-topical-disinfect";
-/** @deprecated 旧「シャンプー・スキンケア」中項目。シード退役対象 */
 export const MED_TOPICAL_SHAMPOO_GROUP_ID = "seed-med-topical-shampoo";
 export const MED_SUPPL_JOINT_GROUP_ID = "seed-med-suppl-joint";
 export const MED_SUPPL_ORAL_GROUP_ID = "seed-med-suppl-oral";
@@ -140,6 +139,7 @@ const MEDICATION_ITEM_GROUP_SEED = [
   medGroupSeed("topical", MED_TOPICAL_SKIN_STEROID_ABX_GROUP_ID, "皮膚ステロイド+抗菌", 10),
   medGroupSeed("topical", MED_TOPICAL_SKIN_OTHER_GROUP_ID, "皮膚その他", 20),
   medGroupSeed("topical", MED_TOPICAL_EAR_GROUP_ID, "耳", 30),
+  medGroupSeed("topical", MED_TOPICAL_SHAMPOO_GROUP_ID, "シャンプー", 40),
   medGroupSeed("supplement", MED_SUPPL_JOINT_GROUP_ID, "関節・炎症", 10),
   medGroupSeed("supplement", MED_SUPPL_ORAL_GROUP_ID, "口腔", 20),
   medGroupSeed("supplement", MED_SUPPL_GI_GROUP_ID, "消化器・代謝", 30),
@@ -498,6 +498,21 @@ export const MEDICATION_ITEM_LEAF_SEED = [
     { id: "seed-med-topical-skin-tacrolimus", label: "タクロリムス軟膏" },
     { id: "seed-med-topical-skin-quick-stop", label: "クイックストップ" },
   ]),
+  ...medGroupLeaves("topical", MED_TOPICAL_SHAMPOO_GROUP_ID, [
+    { id: "seed-med-topical-shampoo-malasecure", label: "マラセキュアシャンプー" },
+    { id: "seed-med-topical-shampoo-dermcare-moisturize", label: "DermCareモイスチャライズ" },
+    { id: "seed-med-topical-shampoo-cleansing-oil", label: "DermCareクレンジングオイル" },
+    { id: "seed-med-topical-shampoo-chlorhexidine", label: "クロルヘキシジンシャンプー" },
+    { id: "seed-med-topical-shampoo-derma-moist", label: "DermCareダーマモイストバス" },
+    { id: "seed-med-topical-shampoo-hinocare", label: "ヒノケア泡シャンプー" },
+    // 旧「消毒」から移動。ID を変えると同名上書き先が退役IDになって消える
+    { id: "seed-med-topical-disinfect-ch-towel", label: "CHタオルシート" },
+    { id: "seed-med-topical-shampoo-quanpow", label: "QUANPOWペットシャンプー" },
+    {
+      id: "seed-med-topical-shampoo-quanpow-bath-milk",
+      label: "QUANPOW Pet Body Care Bath Milk",
+    },
+  ]),
   ...medGroupLeaves("topical", MED_TOPICAL_EAR_GROUP_ID, [
     { id: "seed-med-topical-ear-silpina", label: "シルピナ" },
     { id: "seed-med-topical-ear-mimipure", label: "ミミピュア" },
@@ -622,8 +637,6 @@ const MEDICATION_ITEM_SEED_RETIRE = [
   "seed-med-oral-lk-samylin",
   "seed-med-topical-skin",
   "seed-med-topical-disinfect",
-  "seed-med-topical-shampoo",
-  "seed-med-topical-disinfect-ch-towel",
   "seed-med-topical-disinfect-ap-water",
   "seed-med-topical-ear-mometotic",
   "seed-med-topical-ear-izotic",
@@ -631,15 +644,8 @@ const MEDICATION_ITEM_SEED_RETIRE = [
   "seed-med-topical-ear-epiotic",
   "seed-med-topical-ear-mal-a-ket-plus",
   "seed-med-topical-ear-malacetic",
-  "seed-med-topical-shampoo-malasecure",
-  "seed-med-topical-shampoo-hinocare",
   "seed-med-topical-shampoo-nano-basing",
-  "seed-med-topical-shampoo-cleansing-oil",
-  "seed-med-topical-shampoo-chlorhexidine",
-  "seed-med-topical-shampoo-derma-moist",
   "seed-med-topical-shampoo-hoscare",
-  "seed-med-topical-shampoo-quanpow",
-  "seed-med-topical-shampoo-quanpow-bath-milk",
 ];
 
 const MEDICATION_ITEM_LABEL_RETIRE = ["デルトピカローション", "エピオティック"];

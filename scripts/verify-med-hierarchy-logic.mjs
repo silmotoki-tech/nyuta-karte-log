@@ -38,17 +38,17 @@ console.log("inject groups:", injectGroups.length);
 console.log("supplement groups:", supplementGroups.length);
 console.log("food groups:", foodGroups.length);
 
-if (oralGroups.length !== 18) {
-  throw new Error(`expected 18 oral groups, got ${oralGroups.length}`);
+if (oralGroups.length !== 19) {
+  throw new Error(`expected 19 oral groups, got ${oralGroups.length}`);
 }
-if (topicalGroups.length !== 3) {
-  throw new Error(`expected 3 topical groups, got ${topicalGroups.length}`);
+if (topicalGroups.length !== 4) {
+  throw new Error(`expected 4 topical groups, got ${topicalGroups.length}`);
 }
 if (eyeGroups.length !== 0) {
   throw new Error("eye must have no mid groups");
 }
-if (injectGroups.length !== 0) {
-  throw new Error("inject must have no mid groups");
+if (injectGroups.length !== 7) {
+  throw new Error(`expected 7 inject groups, got ${injectGroups.length}`);
 }
 if (supplementGroups.length !== 8) {
   throw new Error(`expected 8 supplement groups, got ${supplementGroups.length}`);

@@ -343,7 +343,7 @@ buttons = await page
 console.log("topical groups:", buttons);
 if (
   JSON.stringify(buttons) !==
-  JSON.stringify(["皮膚ステロイド+抗菌", "皮膚その他", "耳"])
+  JSON.stringify(["皮膚ステロイド+抗菌", "皮膚その他", "耳", "シャンプー"])
 ) {
   throw new Error("topical groups mismatch");
 }
