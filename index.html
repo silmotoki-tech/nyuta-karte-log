@@ -515,62 +515,66 @@
     </header>
 
     <div class="status-body" id="status-body">
-      <section class="status-alerts" id="status-high-notes" hidden>
-        <ul class="status-alerts__list" id="status-high-notes-list"></ul>
-      </section>
-
       <div class="status-grid">
-        <section class="status-block" id="status-block-meds">
-          <h2 class="status-block__title">
-            薬剤<span class="status-block__count" id="status-meds-count"></span>
-          </h2>
-          <p class="field__note status-block__empty" id="status-meds-empty">登録された薬剤はありません。</p>
-          <ul class="status-list" id="status-meds-list"></ul>
-        </section>
+        <div class="status-col" id="status-col-history">
+          <section class="status-block" id="status-block-history">
+            <h2 class="status-block__title">
+              既往歴<span class="status-block__count" id="status-history-count"></span>
+            </h2>
+            <p class="field__note status-block__empty" id="status-history-empty">既往歴はありません。</p>
+            <ul class="status-list" id="status-history-list"></ul>
+          </section>
+        </div>
 
-        <section class="status-block" id="status-block-exam">
-          <h2 class="status-block__title">検査</h2>
-          <h3 class="status-block__subtitle">
-            予定<span class="status-block__count" id="status-exam-plan-count"></span>
-          </h3>
-          <p class="field__note status-block__empty" id="status-exam-plan-empty">検査予定はありません。</p>
-          <ul class="status-list" id="status-exam-plan-list"></ul>
-          <h3 class="status-block__subtitle">
-            実施履歴<span class="status-block__count" id="status-exam-history-count"></span>
-          </h3>
-          <p class="field__note status-block__empty" id="status-exam-history-empty">実施履歴はありません。</p>
-          <ul class="status-list" id="status-exam-history-list"></ul>
-        </section>
+        <div class="status-col" id="status-col-exam-proc">
+          <section class="status-block" id="status-block-exam">
+            <h2 class="status-block__title">検査</h2>
+            <h3 class="status-block__subtitle">
+              予定<span class="status-block__count" id="status-exam-plan-count"></span>
+            </h3>
+            <p class="field__note status-block__empty" id="status-exam-plan-empty">検査予定はありません。</p>
+            <ul class="status-list" id="status-exam-plan-list"></ul>
+            <h3 class="status-block__subtitle">
+              実施履歴<span class="status-block__count" id="status-exam-history-count"></span>
+            </h3>
+            <p class="field__note status-block__empty" id="status-exam-history-empty">実施履歴はありません。</p>
+            <ul class="status-list" id="status-exam-history-list"></ul>
+          </section>
 
-        <section class="status-block" id="status-block-history">
-          <h2 class="status-block__title">
-            既往歴<span class="status-block__count" id="status-history-count"></span>
-          </h2>
-          <p class="field__note status-block__empty" id="status-history-empty">既往歴はありません。</p>
-          <ul class="status-list" id="status-history-list"></ul>
-        </section>
+          <section class="status-block" id="status-block-proc">
+            <h2 class="status-block__title">処置</h2>
+            <h3 class="status-block__subtitle">
+              予定<span class="status-block__count" id="status-proc-plan-count"></span>
+            </h3>
+            <p class="field__note status-block__empty" id="status-proc-plan-empty">処置予定はありません。</p>
+            <ul class="status-list" id="status-proc-plan-list"></ul>
+            <h3 class="status-block__subtitle">
+              実施履歴<span class="status-block__count" id="status-proc-history-count"></span>
+            </h3>
+            <p class="field__note status-block__empty" id="status-proc-history-empty">実施履歴はありません。</p>
+            <ul class="status-list" id="status-proc-history-list"></ul>
+          </section>
+        </div>
 
-        <section class="status-block" id="status-block-proc">
-          <h2 class="status-block__title">処置</h2>
-          <h3 class="status-block__subtitle">
-            予定<span class="status-block__count" id="status-proc-plan-count"></span>
-          </h3>
-          <p class="field__note status-block__empty" id="status-proc-plan-empty">処置予定はありません。</p>
-          <ul class="status-list" id="status-proc-plan-list"></ul>
-          <h3 class="status-block__subtitle">
-            実施履歴<span class="status-block__count" id="status-proc-history-count"></span>
-          </h3>
-          <p class="field__note status-block__empty" id="status-proc-history-empty">実施履歴はありません。</p>
-          <ul class="status-list" id="status-proc-history-list"></ul>
-        </section>
+        <div class="status-col" id="status-col-meds">
+          <section class="status-block" id="status-block-meds">
+            <h2 class="status-block__title">
+              薬剤<span class="status-block__count" id="status-meds-count"></span>
+            </h2>
+            <p class="field__note status-block__empty" id="status-meds-empty">登録された薬剤はありません。</p>
+            <ul class="status-list" id="status-meds-list"></ul>
+          </section>
+        </div>
 
-        <section class="status-block" id="status-block-notes">
-          <h2 class="status-block__title">
-            特記（中・低）<span class="status-block__count" id="status-notes-count"></span>
-          </h2>
-          <p class="field__note status-block__empty" id="status-notes-empty">中・低の特記事項はありません。</p>
-          <ul class="status-list" id="status-notes-list"></ul>
-        </section>
+        <div class="status-col" id="status-col-notes">
+          <section class="status-block" id="status-block-notes">
+            <h2 class="status-block__title">
+              特記<span class="status-block__count" id="status-notes-count"></span>
+            </h2>
+            <p class="field__note status-block__empty" id="status-notes-empty">特記事項はありません。</p>
+            <ul class="status-list" id="status-notes-list"></ul>
+          </section>
+        </div>
       </div>
     </div>
   </div>

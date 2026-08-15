@@ -197,7 +197,6 @@ assert.ok(header.includes("00001"), "カルテ番号が出ていない");
 assert.ok(header.includes("イチロウちゃん"), "動物名が出ていない");
 
 const counts = await page.evaluate(() => ({
-  highNotes: document.querySelectorAll("#status-high-notes-list .status-alert").length,
   meds: document.querySelectorAll("#status-meds-list .status-row").length,
   examPlans: document.querySelectorAll("#status-exam-plan-list .status-row").length,
   examHistory: document.querySelectorAll("#status-exam-history-list .status-row").length,
@@ -205,6 +204,9 @@ const counts = await page.evaluate(() => ({
   procPlans: document.querySelectorAll("#status-proc-plan-list .status-row").length,
   procHistory: document.querySelectorAll("#status-proc-history-list .status-row").length,
   notes: document.querySelectorAll("#status-notes-list .status-row").length,
+  notesHigh: document.querySelectorAll(
+    "#status-notes-list .note-card__importance--high"
+  ).length,
   medOrder: [...document.querySelectorAll("#status-meds-list .status-row")].map((el) =>
     el.innerText.replace(/\s+/g, " ").trim()
   ),
@@ -214,14 +216,14 @@ const counts = await page.evaluate(() => ({
 }));
 console.log(counts);
 
-assert.equal(counts.highNotes, 2, "重要度「高」の特記が2件出ていない");
 assert.equal(counts.meds, 6, "薬剤が全件（6件）出ていない");
 assert.equal(counts.examPlans, 3, "検査予定が3件出ていない");
 assert.equal(counts.examHistory, 3, "検査実施履歴が3件出ていない");
 assert.equal(counts.histories, 4, "既往歴が4件出ていない");
 assert.equal(counts.procPlans, 2, "処置予定が2件出ていない");
 assert.equal(counts.procHistory, 2, "処置実施履歴が2件出ていない");
-assert.equal(counts.notes, 3, "中・低の特記が3件出ていない");
+assert.equal(counts.notes, 5, "重要度に関わらず特記が全件（5件）出ていない");
+assert.equal(counts.notesHigh, 2, "重要度「高」の特記が特記ブロックに含まれていない");
 
 // 並び順: 継続 → 一時的 → 投与難 → 休薬中 → 中止
 const statusSeq = counts.medOrder.map((t) =>
@@ -242,6 +244,28 @@ assert.ok(
 assert.ok(
   counts.dueClasses.some((c) => c.includes("exam-due-text--far")),
   "余裕ありの色分けが付いていない"
+);
+
+// --- 4列固定レイアウト: 既往歴 → 検査＋処置 → 薬剤 → 特記 -------------------
+const layout = await page.evaluate(() => {
+  const rectOf = (id) => document.getElementById(id)?.getBoundingClientRect();
+  return {
+    cols: ["status-col-history", "status-col-exam-proc", "status-col-meds", "status-col-notes"].map(
+      (id) => rectOf(id)?.x
+    ),
+    examTop: rectOf("status-block-exam")?.y,
+    procTop: rectOf("status-block-proc")?.y,
+  };
+});
+console.log("LAYOUT", layout);
+const [xHistory, xExamProc, xMeds, xNotes] = layout.cols;
+assert.ok(
+  xHistory < xExamProc && xExamProc < xMeds && xMeds < xNotes,
+  `4列の左右順が指示通りでない: ${JSON.stringify(layout.cols)}`
+);
+assert.ok(
+  layout.examTop < layout.procTop,
+  "同じ列内で検査が処置より上に来ていない"
 );
 
 await shot("01-overview");
@@ -296,17 +320,19 @@ await expectOpens(
   "#btn-close-procedure-modal",
   "06-proc-history"
 );
+// 特記は重要度に関わらず1つのブロックに入る（DB側で高→中→低の順にソート
+// されているため、先頭は重要度「高」のはず）。そのタップで編集ポップアップが
+// 開くことを確認する
+const firstNoteBadge = await page
+  .locator("#status-notes-list .status-row .note-card__importance")
+  .first()
+  .innerText();
+assert.ok(firstNoteBadge.includes("高"), "特記ブロックの先頭が重要度「高」になっていない");
 await expectOpens(
   "#status-notes-list .status-row",
   "#special-note-modal",
   "#btn-close-special-note-modal",
-  "07-note"
-);
-await expectOpens(
-  "#status-high-notes-list .status-alert",
-  "#special-note-modal",
-  "#btn-close-special-note-modal",
-  "08-high-note"
+  "07-note-high"
 );
 
 // --- 実際に編集して反映されること ---------------------------------------

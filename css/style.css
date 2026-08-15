@@ -4806,55 +4806,24 @@ select.input {
   gap: 14px;
 }
 
-.status-alerts[hidden] {
-  display: none !important;
+/* 4列固定: 既往歴／検査＋処置／薬剤／特記。狭い画面では詰めずに
+   横スクロールさせ、列の中身が読めなくなるのを防ぐ */
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(230px, 1fr));
+  align-items: start;
+  gap: 12px;
+  overflow-x: auto;
 }
 
-.status-alerts__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.status-col {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.status-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 14px;
-  border: 1.5px solid #f0b4ad;
-  border-left-width: 6px;
-  border-radius: var(--radius-md);
-  background-color: #fdecea;
-}
-
-.status-alert__icon {
-  font-size: 1.1rem;
-  line-height: 1.3;
-  color: #b42318;
-}
-
-.status-alert__text {
-  margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #7f1d1d;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-/* 段組みでブロックを詰めて配置し、縦の余白（スクロール量）を抑える */
-.status-grid {
-  column-width: 320px;
-  column-gap: 12px;
+  gap: 12px;
+  min-width: 0;
 }
 
 .status-block {
-  break-inside: avoid;
-  margin-bottom: 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background-color: var(--color-white);

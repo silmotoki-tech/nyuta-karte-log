@@ -56,9 +56,6 @@ const patientKarteEl = document.getElementById("status-patient-karte");
 const patientNameEl = document.getElementById("status-patient-name");
 const btnChangeKarte = document.getElementById("btn-status-change-karte");
 
-const highNotesSection = document.getElementById("status-high-notes");
-const highNotesList = document.getElementById("status-high-notes-list");
-
 const medsList = document.getElementById("status-meds-list");
 const medsEmpty = document.getElementById("status-meds-empty");
 const medsCount = document.getElementById("status-meds-count");
@@ -226,7 +223,6 @@ export function updatePatientHeader() {
 // --- 描画 ----------------------------------------------------------------
 
 function renderAll() {
-  renderHighNotes();
   renderMeds();
   renderExam();
   renderPatientHistory();
@@ -260,33 +256,6 @@ function dueLevelClass(level) {
   if (level === "close") return "exam-due-text--close";
   if (level === "near") return "exam-due-text--near";
   return "exam-due-text--far";
-}
-
-// --- 重要度「高」の特記 ---------------------------------------------------
-
-function renderHighNotes() {
-  if (!highNotesList) return;
-  highNotesList.innerHTML = "";
-  const highs = (state.notes || []).filter((n) => n.importance === "high");
-  if (highNotesSection) highNotesSection.hidden = highs.length === 0;
-  if (!highs.length) return;
-
-  highs.forEach((note) => {
-    const li = createRow({ onOpen: () => openSpecialNoteEditorById(note.id) });
-    li.className = "status-alert is-tappable";
-
-    const icon = document.createElement("span");
-    icon.className = "status-alert__icon";
-    icon.setAttribute("aria-hidden", "true");
-    icon.textContent = "⚠";
-
-    const text = document.createElement("p");
-    text.className = "status-alert__text";
-    text.textContent = note.content || "（内容なし）";
-
-    li.append(icon, text);
-    highNotesList.appendChild(li);
-  });
 }
 
 // --- 薬剤 ----------------------------------------------------------------
@@ -679,13 +648,13 @@ function renderProcHistory() {
     });
 }
 
-// --- 特記（中・低） --------------------------------------------------------
+// --- 特記（重要度に関わらずすべて） -----------------------------------------
 
 function renderNotes() {
   if (!notesList) return;
   notesList.innerHTML = "";
 
-  const items = (state.notes || []).filter((n) => n.importance !== "high");
+  const items = state.notes || [];
   if (notesEmpty) notesEmpty.hidden = items.length > 0;
   setCount(notesCount, items.length);
 
@@ -699,7 +668,9 @@ function renderNotes() {
     badge.className = `note-card__importance note-card__importance--${
       note.importance || "medium"
     }`;
-    badge.textContent = `重要度：${note.importance === "low" ? "低" : "中"}`;
+    badge.textContent = `重要度：${
+      note.importance === "high" ? "高" : note.importance === "low" ? "低" : "中"
+    }`;
     head.appendChild(badge);
     li.appendChild(head);
 
