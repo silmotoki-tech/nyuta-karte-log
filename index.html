@@ -1022,6 +1022,32 @@
         <p id="exam-plan-item-error" class="error-text error-text--banner" role="alert" hidden></p>
       </div>
 
+      <div
+        class="view-toggle exam-plan-mode-toggle"
+        id="exam-plan-mode-toggle"
+        role="group"
+        aria-label="登録方法"
+      >
+        <button
+          type="button"
+          class="view-toggle__btn is-active"
+          id="btn-exam-mode-plan"
+          data-mode="plan"
+          aria-pressed="true"
+        >
+          予定として登録
+        </button>
+        <button
+          type="button"
+          class="view-toggle__btn"
+          id="btn-exam-mode-history"
+          data-mode="history"
+          aria-pressed="false"
+        >
+          実施記録を追加
+        </button>
+      </div>
+
       <div class="field" id="exam-plan-fasting-field" hidden>
         <span class="label">絶食</span>
         <div
@@ -1037,7 +1063,11 @@
       </div>
 
       <div class="exam-plan-dual" id="exam-plan-dual">
-        <section class="exam-plan-section exam-plan-section--plan exam-due-field" aria-labelledby="exam-plan-section-plan-title">
+        <section
+          class="exam-plan-section exam-plan-section--plan exam-due-field"
+          id="exam-plan-section-plan"
+          aria-labelledby="exam-plan-section-plan-title"
+        >
           <h3 class="exam-plan-section__title" id="exam-plan-section-plan-title">次回予定の登録（任意）</h3>
           <div class="exam-due-compact">
             <div class="exam-due-compact__date-row">
@@ -1092,7 +1122,7 @@
           aria-labelledby="exam-plan-section-done-title"
         >
           <h3 class="exam-plan-section__title" id="exam-plan-section-done-title">本日実施した内容の記録（任意）</h3>
-          <label class="exam-other-check exam-plan-done-check">
+          <label class="exam-other-check exam-plan-done-check" id="exam-plan-done-check-row">
             <input type="checkbox" id="exam-plan-done-check" />
             <span>実施履歴に登録する</span>
           </label>

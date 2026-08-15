@@ -1141,8 +1141,15 @@ html.is-unlocked .app {
   background: var(--color-white);
 }
 
-.exam-plan-dual:has(#exam-plan-done-field[hidden]) {
+.exam-plan-dual:has(#exam-plan-done-field[hidden]),
+.exam-plan-dual:has(#exam-plan-section-plan[hidden]) {
   grid-template-columns: 1fr;
+}
+
+/* 「予定として登録／実施記録を追加」の切り替え。項目選択の直下に置く */
+.exam-plan-mode-toggle {
+  align-self: flex-start;
+  margin: 2px 0 0;
 }
 
 @media (max-width: 640px) {
@@ -2043,7 +2050,9 @@ html.is-unlocked .app {
 .field[hidden],
 .exam-sheet__fasting[hidden],
 #exam-plan-item-add-default[hidden],
-#med-add-item-add[hidden] {
+#med-add-item-add[hidden],
+#exam-plan-section-plan[hidden],
+#exam-plan-done-check-row[hidden] {
   display: none !important;
 }
 

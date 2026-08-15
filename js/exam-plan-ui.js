@@ -89,6 +89,8 @@ const state = {
     dueRelativeValue: 0,
     dueRelativeBuffer: "",
     mode: "create", // create | edit | afterComplete
+    /** 登録モーダル内の切り替え。history は予定を作らず実施履歴のみ追加する */
+    registerMode: "plan", // plan | history
   },
   /** カレンダー↔相対の同期ループ防止 */
   syncingDueFromRelative: false,
@@ -133,6 +135,12 @@ const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
 const planModal = document.getElementById("exam-plan-modal");
 const planModalTitle = document.getElementById("exam-plan-modal-title");
 const planLinearPicker = document.getElementById("exam-plan-linear-picker");
+const planModeToggle = document.getElementById("exam-plan-mode-toggle");
+const btnPlanModePlan = document.getElementById("btn-exam-mode-plan");
+const btnPlanModeHistory = document.getElementById("btn-exam-mode-history");
+const planSectionPlan = document.getElementById("exam-plan-section-plan");
+const planDoneCheckRow = document.getElementById("exam-plan-done-check-row");
+const planDoneSectionTitle = document.getElementById("exam-plan-section-done-title");
 const planColCategoryList = document.getElementById("exam-plan-col-category-list");
 const planColGroup = document.getElementById("exam-plan-col-group");
 const planColGroupList = document.getElementById("exam-plan-col-group-list");
@@ -951,6 +959,8 @@ function wirePlanModal() {
   btnPlanCancel?.addEventListener("click", closePlanModal);
   planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
   btnPlanSave?.addEventListener("click", handlePlanSave);
+  btnPlanModePlan?.addEventListener("click", () => setRegisterMode("plan"));
+  btnPlanModeHistory?.addEventListener("click", () => setRegisterMode("history"));
   btnPlanAddItem?.addEventListener("click", () => handleAddExamItemFromPlanModal());
   btnPlanAddToggle?.addEventListener("click", () => {
     const open = planItemAddDefault && !planItemAddDefault.hidden;
@@ -1619,11 +1629,61 @@ function paintFastingButtons(container, selected) {
 }
 
 function renderPlanFastingButtons() {
+  // 実施記録のみのモードでは、絶食は次回予定の絡みでしか使わないため出さない
+  if (state.draft.registerMode === "history") {
+    if (planFastingField) planFastingField.hidden = true;
+    return;
+  }
   const hasSelection =
     state.draft.selectedItems.length > 0 || Boolean((state.draft.item || "").trim());
   const needs = hasSelection && planNeedsFasting(state.draft.item);
   if (planFastingField) planFastingField.hidden = !needs;
   paintFastingButtons(planFastingButtons, state.draft.fasting);
+}
+
+/** 登録モーダルの保存ボタンに出す文言。モードで意味が変わるため合わせる。 */
+function examPlanSaveButtonLabel() {
+  return state.draft.registerMode === "history" ? "実施記録を追加" : "保存する";
+}
+
+/**
+ * 「予定として登録」／「実施記録を追加」の切り替え。
+ * history では次回予定セクションを隠し、実施記録セクションを必須の単独フォームにする
+ * （電子カルテからの過去データ移行で、同じ項目を何件も追加する場面を想定）。
+ */
+function setRegisterMode(mode) {
+  const isHistory = mode === "history";
+  state.draft.registerMode = isHistory ? "history" : "plan";
+
+  btnPlanModePlan?.classList.toggle("is-active", !isHistory);
+  btnPlanModePlan?.setAttribute("aria-pressed", String(!isHistory));
+  btnPlanModeHistory?.classList.toggle("is-active", isHistory);
+  btnPlanModeHistory?.setAttribute("aria-pressed", String(isHistory));
+
+  if (planSectionPlan) planSectionPlan.hidden = isHistory;
+  if (planDoneCheckRow) planDoneCheckRow.hidden = isHistory;
+  if (planDoneSectionTitle) {
+    planDoneSectionTitle.textContent = isHistory
+      ? "実施記録を追加"
+      : "本日実施した内容の記録（任意）";
+  }
+
+  if (isHistory) {
+    // history では常に有効な単独フォームとして扱う（チェック不要）
+    if (planDoneBlock) {
+      planDoneBlock.hidden = false;
+      planDoneBlock.classList.remove("is-disabled");
+    }
+    if (planDoneDate) planDoneDate.disabled = false;
+    if (planDoneNote) planDoneNote.disabled = false;
+  } else {
+    syncPlanDoneBlockVisibility();
+  }
+
+  renderPlanFastingButtons();
+  if (btnPlanSave && !btnPlanSave.disabled) {
+    btnPlanSave.textContent = examPlanSaveButtonLabel();
+  }
 }
 
 function syncSheetFastingUI() {
@@ -2113,6 +2173,9 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   deps.showError(planItemError, "");
   if (planDueDate) planDueDate.value = state.draft.dueDate;
   if (planNote) planNote.value = state.draft.note;
+  // 完了直後の「次の予定」は予定専用の流れなので、切り替えは出さない
+  if (planModeToggle) planModeToggle.hidden = mode === "afterComplete";
+  setRegisterMode("plan");
   resetPlanDoneFields(mode);
   if (state.draft.dueDate) {
     syncRelativeFromCalendar(state.draft.dueDate);
@@ -2171,11 +2234,24 @@ function closePlanModal() {
   state.examItemCategory = null;
   state.examBloodParentId = null;
   state.draft.selectedItems = [];
+  state.draft.registerMode = "plan";
 }
 
 async function handlePlanSave() {
   syncDraftItemFromSelection();
   const item = (state.draft.item || "").trim();
+
+  if (!item) {
+    deps.showError(planError, "検査項目を選ぶか、新しい項目を追加してください。");
+    return;
+  }
+
+  // 実施記録のみのモードでは、予定を経由せず履歴だけを追加する
+  if (state.draft.registerMode === "history") {
+    await handleHistoryOnlySave(item);
+    return;
+  }
+
   const dueBuffered = Number(state.draft.dueRelativeBuffer);
   if (state.draft.dueRelativeBuffer !== "" && dueBuffered >= 1) {
     applyDueRelativeToCalendar();
@@ -2194,10 +2270,6 @@ async function handlePlanSave() {
   // 次回予定と実施記録は独立。どちらか一方、または両方で保存できる。
   const savePlan = Boolean(dueDate);
 
-  if (!item) {
-    deps.showError(planError, "検査項目を選ぶか、新しい項目を追加してください。");
-    return;
-  }
   if (!savePlan && !saveDoneHistory) {
     deps.showError(
       planError,
@@ -2251,6 +2323,40 @@ async function handlePlanSave() {
     deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
   } finally {
     deps.setBusy(btnPlanSave, false, "保存中...", "保存する");
+  }
+}
+
+/**
+ * 「実施記録を追加」モードの保存。予定は作らず、選んだ項目の実施履歴にだけ積む。
+ * 電子カルテからの過去データ移行で同じ項目を何件も追加する場面を想定し、
+ * 保存後もモーダルは開いたままにして、日付を変えて続けて登録できるようにする。
+ */
+async function handleHistoryOnlySave(item) {
+  const doneDate = planDoneDate?.value || "";
+  const doneNote = planDoneNote?.value.trim() || "";
+
+  if (!doneDate) {
+    deps.showError(planError, "実施日を選択してください。");
+    return;
+  }
+
+  deps.showError(planError, "");
+  deps.setBusy(btnPlanSave, true, "追加中...", examPlanSaveButtonLabel());
+
+  try {
+    await addExamHistory(state.karteNumber, {
+      item,
+      date: doneDate,
+      note: doneNote,
+    });
+    deps.showToast("実施記録を追加しました。");
+    if (planDoneNote) planDoneNote.value = "";
+    planDoneNote?.focus();
+  } catch (err) {
+    console.error(err);
+    deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnPlanSave, false, "追加中...", examPlanSaveButtonLabel());
   }
 }
 
