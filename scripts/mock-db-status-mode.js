@@ -643,8 +643,22 @@ export function subscribeProcedures(karte, cb) {
       (listeners.procedures.get(karte) || []).filter((x) => x !== cb)
     );
 }
-export async function addProcedure() {
-  return nid("pr");
+export async function addProcedure(karte, { date, content, note, source } = {}) {
+  const id = nid("pr");
+  SEED.procedures.history.push({
+    id,
+    store: "history",
+    schemaVersion: 1,
+    date: date || "2026-08-15",
+    content: content || "",
+    note: note || "",
+    confirmedBy: "",
+    lastEditedAt: "",
+    lastEditedBy: "",
+    source: source || "manual",
+  });
+  notifyFeed("procedureBundle", () => SEED.procedures);
+  return id;
 }
 export async function updateProcedure() {}
 export async function deleteProcedure() {}

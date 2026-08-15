@@ -96,12 +96,13 @@ async function pickLinear(listSelector, label) {
   throw new Error(`${listSelector} に「${label}」が見つからない`);
 }
 
-// 検査予定タブ
-await page.click('.right-tab[data-tab="exam"]');
-await page.waitForSelector("#panel-exam:not([hidden])");
+// 状態モードへ切り替え、検査予定を状態モードの「＋」から登録する
+// （右カラムの5タブは削除済みのため、検査の追加・編集は状態モードから行う）
+await page.click("#btn-view-status");
+await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 
 // 予定登録
-await page.click("#btn-exam-new");
+await page.click("#btn-status-exam-add");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
 // 大項目「血液」→ 小項目「血液検査」の順に辿る（階層ピッカー）
 await pickLinear("#exam-plan-col-category-list", "血液");
@@ -113,14 +114,16 @@ await page.click('#exam-plan-fasting-buttons [data-fasting="none"]');
 await page.click("#btn-exam-plan-save");
 await page.waitForTimeout(400);
 
-const planTitles = await page.locator("#exam-plan-list .exam-list-item__title").allTextContents();
+const planTitles = await page
+  .locator("#status-exam-plan-list .status-row__title")
+  .allTextContents();
 console.log("STEP1 plans after create:", planTitles);
 if (!planTitles.some((t) => t.includes("血液検査"))) {
   throw new Error("予定登録に失敗");
 }
 
 // 実施履歴を1件追加（完了フロー）
-await page.locator("#exam-plan-list .exam-list-item").first().click();
+await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 await page.click("#btn-exam-sheet-complete");
 await page.waitForSelector("#exam-complete-modal:not([hidden])");
@@ -134,10 +137,8 @@ if (afterVisible) {
   await page.waitForTimeout(300);
 }
 
-let plans = await page.locator("#exam-plan-list .exam-list-item__title").allTextContents();
-let historyGroups = await page
-  .locator("#exam-history-list .exam-history-group-title__label")
-  .allTextContents();
+let plans = await page.locator("#status-exam-plan-list .status-row__title").allTextContents();
+let historyGroups = await page.locator("#status-exam-history-list .status-group-title").allTextContents();
 console.log("STEP2 after complete+end: plans=", plans, "history=", historyGroups);
 
 const endedSection = await page.locator("#exam-ended-list").count();
@@ -151,8 +152,8 @@ if (!historyGroups.some((t) => t.includes("血液検査"))) {
   throw new Error("実施履歴に統合されていない");
 }
 
-// 予定に戻す（履歴の行を左スワイプ。見出しではなく実施1件ずつに付いている）
-const historyRow = page.locator("#exam-history-list .exam-list-item--history").first();
+// 予定に戻す（履歴の行を左スワイプ。状態モードの実施履歴一覧に付いている）
+const historyRow = page.locator("#status-exam-history-list .status-row").first();
 const box = await historyRow.boundingBox();
 if (!box) throw new Error("履歴の行が見つからない");
 
@@ -164,11 +165,9 @@ await page.waitForTimeout(200);
 await page.locator(".swipeable__actions--edit .icon-btn--refresh").first().click();
 await page.waitForTimeout(500);
 
-plans = await page.locator("#exam-plan-list .exam-list-item__title").allTextContents();
-const dueTexts = await page.locator("#exam-plan-list .exam-list-item__due").allTextContents();
-historyGroups = await page
-  .locator("#exam-history-list .exam-history-group-title__label")
-  .allTextContents();
+plans = await page.locator("#status-exam-plan-list .status-row__title").allTextContents();
+const dueTexts = await page.locator("#status-exam-plan-list .status-row__due").allTextContents();
+historyGroups = await page.locator("#status-exam-history-list .status-group-title").allTextContents();
 console.log("STEP3 after revive: plans=", plans, "dues=", dueTexts, "history=", historyGroups);
 
 if (!plans.some((t) => t.includes("血液検査"))) {
@@ -189,7 +188,7 @@ if (sheetOpen) {
   await page.click('#exam-sheet-fasting-buttons [data-fasting="none"]');
   await page.click("#btn-exam-sheet-save");
   await page.waitForTimeout(400);
-  const duesAfter = await page.locator("#exam-plan-list .exam-list-item__due").allTextContents();
+  const duesAfter = await page.locator("#status-exam-plan-list .status-row__due").allTextContents();
   console.log("STEP4 dues after save:", duesAfter);
   if (!duesAfter.some((t) => t.includes("2026-09-01") || t.includes("あと"))) {
     throw new Error("次回予定日の保存が反映されない");
@@ -197,14 +196,12 @@ if (sheetOpen) {
 }
 
 // 追加確認: 予定がある状態で終了すると一覧から消え履歴は残る
-await page.locator("#exam-plan-list .exam-list-item").first().click();
+await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 await page.click("#btn-exam-sheet-end");
 await page.waitForTimeout(400);
-plans = await page.locator("#exam-plan-list .exam-list-item__title").allTextContents();
-historyGroups = await page
-  .locator("#exam-history-list .exam-history-group-title__label")
-  .allTextContents();
+plans = await page.locator("#status-exam-plan-list .status-row__title").allTextContents();
+historyGroups = await page.locator("#status-exam-history-list .status-group-title").allTextContents();
 console.log("STEP5 after explicit end: plans=", plans, "history=", historyGroups);
 if (plans.some((t) => t.includes("血液検査"))) {
   throw new Error("終了後も予定一覧に残っている");

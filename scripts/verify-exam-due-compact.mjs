@@ -74,7 +74,7 @@ const harness = indexHtml
   .replace(
     "</body>",
     `<script type="module">
-import { initExamPlanUI, enterExamPlan } from "/js/exam-plan-ui.js";
+import { initExamPlanUI, enterExamPlan, openExamPlanCreateModal } from "/js/exam-plan-ui.js";
 initExamPlanUI({
   showToast: () => {},
   showError: (el, msg) => { if (el) { el.hidden = !msg; el.textContent = msg || ""; } },
@@ -86,9 +86,7 @@ document.getElementById("app-shell")?.removeAttribute("hidden");
 document.documentElement.classList.add("is-unlocked");
 document.getElementById("gate-karte")?.setAttribute("hidden", "");
 document.getElementById("center-main")?.removeAttribute("hidden");
-document.querySelectorAll(".right-panel").forEach((p) => { p.hidden = true; });
-document.getElementById("panel-exam").hidden = false;
-document.getElementById("btn-exam-new")?.click();
+openExamPlanCreateModal();
 window.__ready = true;
 </script>
 </body>`

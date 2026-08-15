@@ -284,17 +284,13 @@ async function clickLinear(listSelector, label) {
     .click();
 }
 
-async function goHistoryView(tab = null) {
+async function goHistoryView() {
   await page.click("#btn-view-history");
   await page.waitForFunction(
     () => document.getElementById("screen-status")?.hasAttribute("hidden"),
     null,
     { timeout: 5000 }
   );
-  if (tab) {
-    await page.click(`#right-tabs .right-tab[data-tab="${tab}"]`);
-    await page.waitForTimeout(100);
-  }
 }
 
 async function goStatusView() {
@@ -383,6 +379,41 @@ await page.waitForFunction(
 );
 await assertContains("#status-proc-plan-list", ADD_PROC, "処置予定・状態モード");
 
+// 処置:「実施を記録」への切替（予定を経由せず実施履歴にだけ追加する）
+const ADD_PROC_HIST = "状態モード検証処置（実施のみ）";
+await page.click("#btn-status-proc-add");
+await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
+assert.ok(
+  await page.locator("#procedure-plan-mode-toggle").isVisible(),
+  "処置追加モーダルに登録方法トグルが出ていない"
+);
+await page.click("#btn-procedure-mode-history");
+assert.ok(
+  await page.locator("#procedure-plan-due-field").isHidden(),
+  "実施を記録モードで予定日欄が隠れていない"
+);
+assert.ok(
+  await page.locator("#procedure-plan-history-date-field").isVisible(),
+  "実施を記録モードで実施日欄が出ていない"
+);
+await page.fill("#procedure-plan-content", ADD_PROC_HIST);
+await page.fill("#procedure-plan-history-date", "2026-08-20");
+await page.click("#btn-procedure-plan-save");
+await page.waitForFunction(
+  () => document.getElementById("procedure-plan-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await assertContains(
+  "#status-proc-history-list",
+  ADD_PROC_HIST,
+  "処置実施履歴・状態モード（実施を記録トグル）"
+);
+const procPlansAfterHistOnly = await page
+  .locator("#status-proc-plan-list .status-row")
+  .count();
+assert.equal(procPlansAfterHistOnly, 3, "「実施を記録」モードなのに処置予定が増えている");
+
 // 特記
 await page.click("#btn-status-notes-add");
 await page.waitForSelector("#special-note-modal:not([hidden])", { timeout: 5000 });
@@ -410,17 +441,24 @@ assert.equal(countsAfterAdd.meds, 7, "薬剤が1件増えていない");
 assert.equal(countsAfterAdd.procPlans, 3, "処置予定が1件増えていない");
 assert.equal(countsAfterAdd.notes, 6, "特記が1件増えていない");
 
-await goHistoryView("history");
-await assertContains("#patient-history-list", ADD_HISTORY, "既往歴・右カラム");
-await goHistoryView("exam");
-await assertContains("#exam-plan-list", ADD_EXAM, "検査予定・右カラム");
-await goHistoryView("meds");
-const medInRight = await page.locator(`#meds-list [data-name="${ADD_MED}"]`).count();
-assert.ok(medInRight, `薬剤・右カラム: #meds-list に「${ADD_MED}」がない`);
-await goHistoryView("proc");
-await assertContains("#procedure-plan-list", ADD_PROC, "処置予定・右カラム");
-await goHistoryView("notes");
-await assertContains("#special-notes-list", ADD_NOTE, "特記・右カラム");
+// --- 右カラム: 5タブ・5パネルが削除され、検索専用スペースになっていること ---
+await goHistoryView();
+assert.equal(await page.locator("#right-tabs").count(), 0, "右カラムに旧タブが残っている");
+for (const panelId of ["panel-history", "panel-exam", "panel-meds", "panel-proc", "panel-notes"]) {
+  assert.equal(await page.locator(`#${panelId}`).count(), 0, `右カラムに旧パネル #${panelId} が残っている`);
+}
+assert.equal(await page.locator(".right-panel").count(), 1, "右カラムの検索パネル以外に .right-panel が残っている");
+await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
+
+// 検索は検査予定・薬剤の出来事を横断できること（既往歴・処置・特記は対象外）
+await page.fill("#chart-search-input", ADD_EXAM);
+await page.waitForTimeout(150);
+await assertContains("#chart-search-results", ADD_EXAM, "検索結果・検査予定");
+await page.fill("#chart-search-input", ADD_MED);
+await page.waitForTimeout(150);
+await assertContains("#chart-search-results", ADD_MED, "検索結果・薬剤");
+await page.fill("#chart-search-input", "");
+await page.waitForTimeout(150);
 
 await goStatusView();
 await shot("08-after-status-adds");
@@ -528,9 +566,10 @@ assert.deepEqual(historyChromeBack.compose, historyChrome.compose, "履歴に戻
 await chromeShot("chrome-03-history-back");
 await shot("10-history-view");
 
-// 既存の右カラムが壊れていないこと
-const rightTabs = await page.locator("#right-tabs .right-tab").count();
-assert.equal(rightTabs, 6, "右カラムのタブ数が変わっている");
+// 右カラムはタブなしの検索専用スペースのままであること
+const rightTabsAfter = await page.locator("#right-tabs").count();
+assert.equal(rightTabsAfter, 0, "右カラムに旧タブが復活している");
+await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
 
 // 状態へ戻す（再読み込みなしで即時）
 await page.click("#btn-view-status");

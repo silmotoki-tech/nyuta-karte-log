@@ -164,17 +164,7 @@ function createCard(item) {
       {
         action: "delete",
         title: "削除",
-        onClick: async () => {
-          const ok = window.confirm("この特記事項を削除しますか？");
-          if (!ok) return;
-          try {
-            await deleteSpecialNote(state.karteNumber, item.id);
-            deps.showToast("削除しました。");
-          } catch (err) {
-            console.error(err);
-            deps.showToast("削除に失敗しました。", { isError: true });
-          }
-        },
+        onClick: () => deleteSpecialNoteById(item.id),
       },
     ],
     onActivate: () => openModal("edit", item),
@@ -251,6 +241,21 @@ export function openSpecialNoteEditorById(noteId) {
   if (!item) return false;
   openModal("edit", item);
   return true;
+}
+
+/**
+ * 特記事項IDを指定して削除する（確認ダイアログ付き。状態モードなど別画面から使う）。
+ */
+export async function deleteSpecialNoteById(noteId) {
+  const ok = window.confirm("この特記事項を削除しますか？");
+  if (!ok) return;
+  try {
+    await deleteSpecialNote(state.karteNumber, noteId);
+    deps.showToast("削除しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showToast("削除に失敗しました。", { isError: true });
+  }
 }
 
 function openModal(mode, item = null) {

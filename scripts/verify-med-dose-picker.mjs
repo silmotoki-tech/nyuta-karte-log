@@ -564,7 +564,7 @@ const harness = indexHtml
   .replace(
     "</body>",
     `<script type="module">
-import { initMedsUI, enterMeds } from "/js/meds-ui.js";
+import { initMedsUI, enterMeds, openMedicationAddModal, openMedicationDetailById } from "/js/meds-ui.js";
 import { __dumpStore } from "/js/db.js";
 initMedsUI({
   showToast: () => {},
@@ -578,9 +578,9 @@ document.getElementById("app-shell")?.removeAttribute("hidden");
 document.documentElement.classList.add("is-unlocked");
 document.getElementById("gate-karte")?.setAttribute("hidden", "");
 document.getElementById("center-main")?.removeAttribute("hidden");
-document.querySelectorAll(".right-panel").forEach((p) => { p.hidden = true; });
-document.getElementById("panel-meds").hidden = false;
 window.__dumpStore = __dumpStore;
+window.__openMedAdd = openMedicationAddModal;
+window.__openMedDetailById = openMedicationDetailById;
 window.__ready = true;
 </script>`
   );
@@ -619,7 +619,7 @@ await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => window.__ready === true);
 
 async function openAddAndPickDrug(name) {
-  await page.click("#btn-med-add");
+  await page.evaluate(() => window.__openMedAdd());
   await page.waitForSelector("#med-add-modal:not([hidden])");
   await page.getByRole("option", { name: "内服薬" }).click();
   await page.getByRole("option", { name: "抗菌薬" }).click();
@@ -637,17 +637,28 @@ async function amountFor(name) {
   }, name);
 }
 
+async function findDrugId(name) {
+  return page.evaluate((drugName) => {
+    const store = window.__dumpStore();
+    const found = Object.entries(store.medications["karte-dose"] || {}).find(
+      ([, d]) => d.name === drugName
+    );
+    return found ? found[0] : null;
+  }, name);
+}
+
 async function clickDrugCard(name) {
-  await page.locator(`#meds-list .med-card__name[aria-label="${name}"]`).click();
+  const id = await findDrugId(name);
+  assert.ok(id, `drug not found: ${name}`);
+  await page.evaluate((drugId) => window.__openMedDetailById(drugId), id);
   await page.waitForSelector("#med-detail-sheet:not([hidden])");
 }
 
 async function waitForDrugInList(name) {
   await page.waitForFunction((drugName) => {
-    return [...document.querySelectorAll("#meds-list .med-card__name")].some(
-      (el) =>
-        (el.getAttribute("aria-label") || el.dataset.name || "").replace(/\u200B/g, "") ===
-        drugName
+    const store = window.__dumpStore();
+    return Object.values(store.medications["karte-dose"] || {}).some(
+      (d) => d.name === drugName
     );
   }, name);
 }
@@ -753,7 +764,7 @@ await waitForDrugInList("セファレキシン");
 assert.equal(await amountFor("セファレキシン"), "0.5ml");
 
 // 分数
-await page.click("#btn-med-add");
+await page.evaluate(() => window.__openMedAdd());
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await page.getByRole("option", { name: "内服薬" }).click();
 await page.getByRole("option", { name: "抗菌薬" }).click();

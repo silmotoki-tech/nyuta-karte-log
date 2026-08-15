@@ -337,20 +337,7 @@ function createHistoryCard(entry) {
       {
         action: "delete",
         title: "削除",
-        onClick: async () => {
-          const ok = window.confirm(
-            `既往歴「${entry.title}」を削除しますか？メモもまとめて削除されます。`
-          );
-          if (!ok) return;
-          try {
-            await deletePatientHistoryEntry(state.karteNumber, entry.id);
-            state.expandedIds.delete(entry.id);
-            deps.showToast("既往歴を削除しました。");
-          } catch (err) {
-            console.error(err);
-            deps.showToast("削除に失敗しました。", { isError: true });
-          }
-        },
+        onClick: () => deletePatientHistoryEntryById(entry.id),
       },
     ],
     onActivate: (e) => {
@@ -360,6 +347,24 @@ function createHistoryCard(entry) {
   });
 
   return li;
+}
+
+/**
+ * 既往歴IDを指定して削除する（確認ダイアログ付き。状態モードなど別画面から使う）。
+ */
+export async function deletePatientHistoryEntryById(entryId) {
+  const entry = state.entries.find((e) => e.id === entryId);
+  const label = entry?.title || "この既往歴";
+  const ok = window.confirm(`「${label}」を削除しますか？メモもまとめて削除されます。`);
+  if (!ok) return;
+  try {
+    await deletePatientHistoryEntry(state.karteNumber, entryId);
+    state.expandedIds.delete(entryId);
+    deps.showToast("既往歴を削除しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showToast("削除に失敗しました。", { isError: true });
+  }
 }
 
 /**

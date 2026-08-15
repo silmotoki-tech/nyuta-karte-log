@@ -46,6 +46,8 @@ const state = {
   dueRelativeUnit: "day",
   dueRelativeValue: 0,
   dueRelativeBuffer: "",
+  // 予定登録モーダルの「予定を登録」／「実施を記録」切り替え
+  registerMode: "plan",
 };
 
 const planList = document.getElementById("procedure-plan-list");
@@ -58,11 +60,17 @@ const btnHistAdd = document.getElementById("btn-procedure-add");
 const planModal = document.getElementById("procedure-plan-modal");
 const planModalTitle = document.getElementById("procedure-plan-modal-title");
 const planContent = document.getElementById("procedure-plan-content");
+const planModeToggle = document.getElementById("procedure-plan-mode-toggle");
+const btnPlanModePlan = document.getElementById("btn-procedure-mode-plan");
+const btnPlanModeHistory = document.getElementById("btn-procedure-mode-history");
+const planDueField = document.getElementById("procedure-plan-due-field");
 const planDueDate = document.getElementById("procedure-plan-due-date");
 const planDueUnits = document.getElementById("procedure-plan-due-units");
 const planDueDisplay = document.getElementById("procedure-plan-due-display");
 const planDueNumpad = document.getElementById("procedure-plan-due-numpad");
 const planWindowNote = document.getElementById("procedure-plan-window-note");
+const planHistDateField = document.getElementById("procedure-plan-history-date-field");
+const planHistDate = document.getElementById("procedure-plan-history-date");
 const planNote = document.getElementById("procedure-plan-note");
 const planError = document.getElementById("procedure-plan-error");
 const btnPlanSave = document.getElementById("btn-procedure-plan-save");
@@ -139,6 +147,8 @@ export function initProceduresUI(helpers = {}) {
   planModal?.querySelector("[data-close-modal]")?.addEventListener("click", closePlanModal);
   btnPlanSave?.addEventListener("click", handlePlanSave);
   btnPlanComplete?.addEventListener("click", handlePlanCompleteFromModal);
+  btnPlanModePlan?.addEventListener("click", () => setRegisterMode("plan"));
+  btnPlanModeHistory?.addEventListener("click", () => setRegisterMode("history"));
 
   btnCloseHistModal?.addEventListener("click", closeHistModal);
   btnHistCancel?.addEventListener("click", closeHistModal);
@@ -209,6 +219,31 @@ export function openProcedureHistoryEditorById(entryId) {
   if (!item) return false;
   openHistModal("edit", item);
   return true;
+}
+
+/**
+ * 処置実施履歴IDを指定して「予定に戻す」操作を行う（状態モードなど別画面から使う）。
+ */
+export function reviveProcedureHistoryById(entryId) {
+  const item = (state.history || []).find((h) => h.id === entryId);
+  if (!item) return false;
+  handleRevive(item);
+  return true;
+}
+
+/**
+ * 処置実施履歴IDを指定して削除する（確認ダイアログ付き。状態モードなど別画面から使う）。
+ */
+export async function deleteProcedureHistoryById(entryId, store = "history") {
+  const ok = window.confirm("この実施履歴を削除しますか？");
+  if (!ok) return;
+  try {
+    await deleteProcedure(state.karteNumber, entryId, { store });
+    deps.showToast("削除しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showToast("削除に失敗しました。", { isError: true });
+  }
 }
 
 // --- 描画 ----------------------------------------------------------------
@@ -365,19 +400,7 @@ function createHistoryCard(item, { hideContent = false } = {}) {
       {
         action: "delete",
         title: "削除",
-        onClick: async () => {
-          const ok = window.confirm("この実施履歴を削除しますか？");
-          if (!ok) return;
-          try {
-            await deleteProcedure(state.karteNumber, item.id, {
-              store: item.store || "history",
-            });
-            deps.showToast("削除しました。");
-          } catch (err) {
-            console.error(err);
-            deps.showToast("削除に失敗しました。", { isError: true });
-          }
-        },
+        onClick: () => deleteProcedureHistoryById(item.id, item.store || "history"),
       },
     ],
     onActivate: () => openHistModal("edit", item),
@@ -582,6 +605,34 @@ function updateWindowNote() {
 
 // --- 予定モーダル --------------------------------------------------------
 
+/** 保存ボタンの文言。モードで意味が変わるため合わせる。 */
+function procedurePlanSaveButtonLabel() {
+  return state.registerMode === "history" ? "追加する" : "保存する";
+}
+
+/**
+ * 「予定を登録」／「実施を記録」の切り替え。
+ * history では予定日セクションを隠し、実施日のみの単独フォームにする
+ * （予定を経由せず、その場で処置の実施だけを記録する場面を想定）。
+ */
+function setRegisterMode(mode) {
+  const isHistory = mode === "history";
+  state.registerMode = isHistory ? "history" : "plan";
+
+  btnPlanModePlan?.classList.toggle("is-active", !isHistory);
+  btnPlanModePlan?.setAttribute("aria-pressed", String(!isHistory));
+  btnPlanModeHistory?.classList.toggle("is-active", isHistory);
+  btnPlanModeHistory?.setAttribute("aria-pressed", String(isHistory));
+
+  if (planDueField) planDueField.hidden = isHistory;
+  if (planHistDateField) planHistDateField.hidden = !isHistory;
+  if (btnPlanComplete) btnPlanComplete.hidden = isHistory || state.editingPlanId == null;
+
+  if (btnPlanSave && !btnPlanSave.disabled) {
+    btnPlanSave.textContent = procedurePlanSaveButtonLabel();
+  }
+}
+
 function openPlanModal(mode, plan = null) {
   state.editingPlanId = mode === "edit" && plan ? plan.id : null;
   if (planModalTitle) {
@@ -599,6 +650,10 @@ function openPlanModal(mode, plan = null) {
     syncDueRelativeUI();
   }
   updateWindowNote();
+  if (planHistDate) planHistDate.value = todayStr();
+  // 新規登録時のみ「実施を記録」への切替を出す。編集は常に予定として扱う。
+  if (planModeToggle) planModeToggle.hidden = mode === "edit";
+  setRegisterMode("plan");
   if (btnPlanComplete) btnPlanComplete.hidden = mode !== "edit";
   deps.showError(planError, "");
   if (planModal) planModal.hidden = false;
@@ -612,6 +667,11 @@ function closePlanModal() {
 }
 
 async function handlePlanSave() {
+  if (state.registerMode === "history") {
+    await handleProcedureHistoryOnlySave();
+    return;
+  }
+
   const content = (planContent?.value || "").trim();
   const dueBuffered = Number(state.dueRelativeBuffer);
   if (state.dueRelativeBuffer !== "" && dueBuffered >= 1) {
@@ -651,6 +711,42 @@ async function handlePlanSave() {
     deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
   } finally {
     deps.setBusy(btnPlanSave, false, "保存中...", "保存する");
+  }
+}
+
+/**
+ * 「実施を記録」モードの保存。予定は作らず、実施履歴にだけ直接追加する。
+ */
+async function handleProcedureHistoryOnlySave() {
+  const content = (planContent?.value || "").trim();
+  const date = planHistDate?.value || "";
+  const note = (planNote?.value || "").trim();
+
+  if (!content) {
+    deps.showError(planError, "処置内容を入力してください。");
+    return;
+  }
+  if (!date) {
+    deps.showError(planError, "実施日を選択してください。");
+    return;
+  }
+  if (!state.karteNumber) {
+    deps.showError(planError, "カルテを開いてから操作してください。");
+    return;
+  }
+
+  deps.showError(planError, "");
+  const label = procedurePlanSaveButtonLabel();
+  deps.setBusy(btnPlanSave, true, "追加中...", label);
+  try {
+    await addProcedure(state.karteNumber, { date, content, note, source: "manual" });
+    closePlanModal();
+    deps.showToast("実施履歴に追加しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnPlanSave, false, "追加中...", label);
   }
 }
 

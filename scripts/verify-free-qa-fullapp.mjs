@@ -159,11 +159,9 @@ await page.fill("#animal-name-input", "テスト");
 await page.click("#btn-animal-next");
 await page.waitForSelector("#center-main:not([hidden])", { timeout: 10000 });
 
-await page.locator('.right-tab[data-tab="qa"]').click();
-await page.waitForTimeout(150);
-
-const panelHidden = await page.locator("#panel-qa").evaluate((el) => el.hidden);
-if (panelHidden) throw new Error("panel-qa hidden after 検索 in full app");
+// 右カラムはタブなしの検索専用スペースになったため、カルテを開けば
+// panel-qa がそのまま表示される（タブクリックは不要）。
+await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
 
 const inputVisible = await page.locator("#free-qa-input").isVisible();
 const btnVisible = await page.locator("#btn-free-qa-ask").isVisible();

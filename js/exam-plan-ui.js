@@ -72,7 +72,8 @@ const state = {
   examItemSearchQuery: "",
   unsubscribePlan: null,
   unsubscribeItems: null,
-  activeTab: "exam",
+  // 右カラムのタブUIは廃止済み。検索パネル(qa)のみが常時表示対象。
+  activeTab: "qa",
   activePlanId: null,
   editingPlanId: null,
   // 予定編集フォームの下書き
@@ -471,14 +472,14 @@ export function initExamPlanUI(helpers = {}) {
   });
 
   showRightEmpty(true);
-  switchTab("exam");
+  switchTab("qa");
 }
 
 export function enterExamPlan(karteNumber) {
   leaveExamPlan();
   state.karteNumber = karteNumber;
   showRightEmpty(false);
-  switchTab("exam");
+  switchTab("qa");
   state.unsubscribePlan = subscribeExamPlan(karteNumber, (plan) => {
     state.plan = plan;
     renderExamPlan();
@@ -503,6 +504,9 @@ export function leaveExamPlan() {
 }
 
 // --- タブ切替 ------------------------------------------------------------
+// 本番の右カラムはタブUIを廃止し検索パネル(qa)のみを表示するが、
+// この仕組み自体は複数タブ構成を前提にした検証スクリプトのハーネスでも
+// 使われているため残す（#right-tabs/.right-panel が無ければ何もしない）。
 
 function wireTabs() {
   rightTabs?.querySelectorAll(".right-tab").forEach((btn) => {
@@ -2498,6 +2502,16 @@ export function openExamPlanEditorById(planId) {
   return true;
 }
 
+/**
+ * 実施履歴IDを指定して「予定に戻す」操作を行う（状態モードなど別画面から使う）。
+ */
+export function reviveExamHistoryEntryById(historyId) {
+  const h = state.plan?.history?.[historyId];
+  if (!h) return false;
+  handleReviveFromHistory(h.item || "", h.note || "");
+  return true;
+}
+
 /** カルテ内検索用: 検査予定・実施履歴の横断テキスト源 */
 export function getExamSearchItems() {
   if (!state.plan) return [];
@@ -2527,9 +2541,9 @@ export function getExamSearchItems() {
   return out;
 }
 
-/** カルテ内検索の結果から検査タブへジャンプ */
+/** カルテ内検索の結果からジャンプ（右カラムは検索専用のため、対象を強調表示するのみ） */
 export function focusExamSearchTarget({ kind, id, itemName } = {}) {
-  switchTab("exam");
+  switchTab("qa");
   if (!state.plan) return false;
   const flash = (el) => {
     if (!el) return;

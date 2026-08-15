@@ -338,107 +338,12 @@
 
     <!-- ============ 右カラム: 患者情報タブ ============ -->
     <aside class="col col--right" id="col-right">
-      <div class="right-tabs" id="right-tabs" role="tablist" aria-label="患者情報">
-        <button class="right-tab" type="button" data-tab="history">既往歴</button>
-        <button class="right-tab is-active" type="button" data-tab="exam">検査</button>
-        <button class="right-tab" type="button" data-tab="meds">薬剤</button>
-        <button class="right-tab" type="button" data-tab="proc">処置</button>
-        <button class="right-tab" type="button" data-tab="notes">特記</button>
-        <button class="right-tab" type="button" data-tab="qa">検索</button>
-      </div>
-
       <p class="right-empty" id="right-empty">
-        カルテを開くと、ここに患者情報が表示されます。
+        カルテを開くと、ここで全文検索・AIへの質問ができます。
       </p>
 
-      <!-- 既往歴 -->
-      <div class="right-panel" id="panel-history" data-panel="history" hidden>
-        <div class="exam-toolbar">
-          <button id="btn-history-add" class="btn btn--small btn--primary" type="button">
-            既往歴を追加
-          </button>
-        </div>
-        <section class="exam-section">
-          <h3 class="exam-section__title">既往歴一覧</h3>
-          <p class="field__note" id="patient-history-empty">登録された既往歴はありません。</p>
-          <ul class="meds-list" id="patient-history-list"></ul>
-        </section>
-      </div>
-
-      <!-- A. 検査予定 -->
-      <div class="right-panel" id="panel-exam" data-panel="exam" hidden>
-        <div class="exam-toolbar">
-          <button id="btn-exam-new" class="btn btn--small btn--primary" type="button">予定を登録</button>
-        </div>
-
-        <section class="exam-section">
-          <div class="exam-section__head">
-            <h3 class="exam-section__title">検査予定一覧</h3>
-          </div>
-          <p class="field__note" id="exam-plan-empty">登録された検査予定はありません。</p>
-          <ul class="exam-list" id="exam-plan-list"></ul>
-        </section>
-
-        <!-- 実施履歴 -->
-        <section class="exam-section">
-          <h3 class="exam-section__title">実施履歴</h3>
-          <p class="field__note" id="exam-history-empty">まだ実施履歴がありません。</p>
-          <ul class="exam-list" id="exam-history-list"></ul>
-        </section>
-      </div>
-
-      <!-- B. 薬剤情報 -->
-      <div class="right-panel" id="panel-meds" data-panel="meds" hidden>
-        <div class="exam-toolbar">
-          <button id="btn-med-add" class="btn btn--small btn--primary" type="button">
-            薬剤を追加
-          </button>
-        </div>
-        <section class="exam-section">
-          <h3 class="exam-section__title">薬剤一覧</h3>
-          <p class="field__note" id="meds-empty">登録された薬剤はありません。</p>
-          <ul class="meds-list" id="meds-list" spellcheck="false" lang="ja" translate="no"></ul>
-        </section>
-      </div>
-
-      <!-- C. 処置ログ -->
-      <div class="right-panel" id="panel-proc" data-panel="proc" hidden>
-        <div class="exam-toolbar">
-          <button id="btn-procedure-plan-add" class="btn btn--small btn--primary" type="button">
-            予定を登録
-          </button>
-          <button id="btn-procedure-add" class="btn btn--small btn--outline" type="button">
-            実施を記録
-          </button>
-        </div>
-        <section class="exam-section">
-          <h3 class="exam-section__title">処置予定一覧</h3>
-          <p class="field__note" id="procedure-plan-empty">登録された処置予定はありません。</p>
-          <ul class="exam-list" id="procedure-plan-list"></ul>
-        </section>
-        <section class="exam-section">
-          <h3 class="exam-section__title">実施履歴</h3>
-          <p class="field__note" id="procedures-empty">まだ実施履歴がありません。</p>
-          <ul class="proc-list" id="procedures-list"></ul>
-        </section>
-      </div>
-
-      <!-- C2. 特記事項 -->
-      <div class="right-panel" id="panel-notes" data-panel="notes" hidden>
-        <div class="exam-toolbar">
-          <button id="btn-special-note-add" class="btn btn--small btn--primary" type="button">
-            特記を追加
-          </button>
-        </div>
-        <section class="exam-section">
-          <h3 class="exam-section__title">特記事項</h3>
-          <p class="field__note" id="special-notes-empty">登録された特記事項はありません。</p>
-          <ul class="note-list" id="special-notes-list"></ul>
-        </section>
-      </div>
-
-      <!-- D. 自由質問 -->
-      <div class="right-panel" id="panel-qa" data-panel="qa" hidden>
+      <!-- 検索: カルテ内全文検索＋AI自由質問（右カラム全体を使用） -->
+      <div class="right-panel right-panel--search" id="panel-qa" data-panel="qa" hidden>
         <section class="exam-section">
           <h3 class="exam-section__title">カルテ内検索</h3>
           <div class="chart-search">
@@ -1798,7 +1703,39 @@
           placeholder="例）皮下点滴 100ml、抜糸"
         ></textarea>
       </div>
-      <div class="field exam-due-field proc-due-field">
+
+      <div
+        class="view-toggle procedure-plan-mode-toggle"
+        id="procedure-plan-mode-toggle"
+        role="group"
+        aria-label="登録方法"
+      >
+        <button
+          type="button"
+          class="view-toggle__btn is-active"
+          id="btn-procedure-mode-plan"
+          data-mode="plan"
+          aria-pressed="true"
+        >
+          予定を登録
+        </button>
+        <button
+          type="button"
+          class="view-toggle__btn"
+          id="btn-procedure-mode-history"
+          data-mode="history"
+          aria-pressed="false"
+        >
+          実施を記録
+        </button>
+      </div>
+
+      <div class="field" id="procedure-plan-history-date-field" hidden>
+        <label class="label" for="procedure-plan-history-date">実施日</label>
+        <input id="procedure-plan-history-date" class="input input--date" type="date" />
+      </div>
+
+      <div class="field exam-due-field proc-due-field" id="procedure-plan-due-field">
         <span class="label">予定日</span>
         <div class="exam-due-compact">
           <div class="exam-due-compact__date-row">

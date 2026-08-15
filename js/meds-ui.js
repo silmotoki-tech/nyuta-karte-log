@@ -34,7 +34,7 @@ import {
   bindFrequencyPicker,
 } from "./freq-picker.js";
 import { filterMedicationLeavesByQuery } from "./med-item-match.js";
-import { getDueCountdown, switchRightTab } from "./exam-plan-ui.js";
+import { getDueCountdown } from "./exam-plan-ui.js";
 import { maxDueAlertLevel, setRightTabDueAlert } from "./right-tab-alerts.js";
 
 const APPROACHING_DAYS = 7;
@@ -649,20 +649,7 @@ function createDrugCard(drug) {
       {
         action: "delete",
         title: "削除",
-        onClick: async () => {
-          const ok = window.confirm(
-            `薬剤「${drug.name}」を削除しますか？履歴もまとめて削除されます。`
-          );
-          if (!ok) return;
-          try {
-            await deleteMedication(state.karteNumber, drug.id);
-            if (state.detailDrugId === drug.id) closeMedDetailSheet();
-            deps.showToast("薬剤を削除しました。");
-          } catch (err) {
-            console.error(err);
-            deps.showToast("削除に失敗しました。", { isError: true });
-          }
-        },
+        onClick: () => deleteMedicationById(drug.id),
       },
     ],
     onActivate: openDetail,
@@ -2198,6 +2185,24 @@ export function openMedicationDetailById(drugId) {
   return true;
 }
 
+/**
+ * 薬剤IDを指定して削除する（確認ダイアログ付き。状態モードなど別画面から使う）。
+ */
+export async function deleteMedicationById(drugId) {
+  const drug = (state.drugs || []).find((d) => d.id === drugId);
+  const label = drug?.name || "この薬剤";
+  const ok = window.confirm(`「${label}」を削除しますか？履歴もまとめて削除されます。`);
+  if (!ok) return;
+  try {
+    await deleteMedication(state.karteNumber, drugId);
+    if (state.detailDrugId === drugId) closeMedDetailSheet();
+    deps.showToast("薬剤を削除しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showToast("削除に失敗しました。", { isError: true });
+  }
+}
+
 /** カルテ内検索用: 薬剤の出来事履歴 */
 export function getMedSearchItems() {
   const out = [];
@@ -2218,11 +2223,10 @@ export function getMedSearchItems() {
   return out;
 }
 
-/** カルテ内検索の結果から薬剤タブへジャンプ */
+/** カルテ内検索の結果から薬剤詳細を開く（右カラムは検索専用のためタブ切替は不要） */
 export function focusMedSearchTarget({ drugId, eventId } = {}) {
   const drug = (state.drugs || []).find((d) => d.id === drugId);
   if (!drug) return false;
-  switchRightTab("meds");
   openMedDetailSheet(drug);
   if (eventId) {
     queueMicrotask(() => {

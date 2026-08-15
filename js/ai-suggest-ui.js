@@ -13,7 +13,6 @@ import { addProcedureFromExternal } from "./procedures-ui.js";
 import {
   addExamPlanFromExternal,
   unitToDays,
-  switchRightTab,
   getExamItemsSnapshot,
 } from "./exam-plan-ui.js";
 import {
@@ -1144,7 +1143,6 @@ async function applySuggestion(suggestion, data) {
       note: String(data.note || "").trim(),
       source: "ai",
     });
-    switchRightTab("exam");
     return;
   }
 
@@ -1155,7 +1153,6 @@ async function applySuggestion(suggestion, data) {
       eventDate: recordDate,
     });
     suggestion._medCreated = result.created;
-    switchRightTab("meds");
     // subscribe 反映後に展開
     setTimeout(() => focusMedicationByName(result.name), 300);
     return;
@@ -1184,7 +1181,6 @@ async function applyFollowupDate(karte, data, author, recordDate) {
     } else {
       await updateMedication(karte, drug.id, { expiryEstimate: date });
     }
-    switchRightTab("meds");
     return;
   }
 
@@ -1195,7 +1191,6 @@ async function applyFollowupDate(karte, data, author, recordDate) {
     baselineDate: recordDate || todayStr(),
     source: "ai",
   });
-  switchRightTab("exam");
 }
 
 // --- 日付ユーティリティ ---------------------------------------------------

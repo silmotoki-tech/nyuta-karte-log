@@ -611,9 +611,9 @@ if (lock) lock.hidden = true;
 const app = document.getElementById("screen-app") || document.getElementById("app-shell");
 if (app) app.hidden = false;
 
-import { initHistoryUI, enterHistory } from "/js/history-ui.js";
-import { initExamPlanUI, enterExamPlan } from "/js/exam-plan-ui.js";
-import { initMedsUI, enterMeds } from "/js/meds-ui.js";
+import { initHistoryUI, enterHistory, openPatientHistoryAddModal } from "/js/history-ui.js";
+import { initExamPlanUI, enterExamPlan, openExamPlanCreateModal } from "/js/exam-plan-ui.js";
+import { initMedsUI, enterMeds, openMedicationAddModal } from "/js/meds-ui.js";
 import { initMasterDeleteUI } from "/js/master-delete-ui.js";
 
 const deps = {
@@ -630,28 +630,11 @@ enterHistory("karte-del");
 enterExamPlan("karte-del");
 enterMeds("karte-del");
 
-function showRightTab(tab) {
-  document.querySelectorAll(".right-tab").forEach((el) => {
-    el.classList.toggle("is-active", el.dataset.tab === tab);
-  });
-  document.querySelectorAll(".right-panel").forEach((el) => {
-    el.hidden = el.dataset.panel !== tab && el.id !== \`panel-\${tab === "exam" ? "exam" : tab}\`;
-  });
-  const map = {
-    history: "panel-history",
-    exam: "panel-exam",
-    meds: "panel-meds",
-  };
-  document.querySelectorAll(".right-panel").forEach((el) => {
-    el.hidden = el.id !== map[tab];
-  });
-  const rightEmpty = document.getElementById("right-empty");
-  if (rightEmpty) rightEmpty.hidden = true;
-}
-document.querySelectorAll(".right-tab").forEach((tab) => {
-  tab.addEventListener("click", () => showRightTab(tab.dataset.tab));
-});
-showRightTab("history");
+// 右カラムの5タブは削除済みのため、各追加モーダルは状態モードの「＋」相当の
+// エクスポート関数から直接開く。
+window.__openHistoryAdd = openPatientHistoryAddModal;
+window.__openExamPlanAdd = openExamPlanCreateModal;
+window.__openMedAdd = openMedicationAddModal;
 window.__ready = true;
 </script>
 </body>`
@@ -757,8 +740,7 @@ async function assertWrongThenRightDelete({ shotWrong, shotOk, goneSelector, gon
 }
 
 // --- 疾患名マスタ ---
-await page.locator(".right-tab[data-tab=history]").click();
-await page.click("#btn-history-add");
+await page.evaluate(() => window.__openHistoryAdd());
 await page.waitForSelector("#history-add-modal:not([hidden])");
 await clickExact("#history-add-col-category-list", "皮膚");
 await page.click("#btn-history-add-toggle");
@@ -813,8 +795,7 @@ console.log("OK referral");
 await page.click("#btn-history-add-cancel").catch(() => {});
 
 // --- 検査項目マスタ ---
-await page.locator(".right-tab[data-tab=exam]").click();
-await page.click("#btn-exam-new");
+await page.evaluate(() => window.__openExamPlanAdd());
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
 await clickExact("#exam-plan-col-category-list", "血液");
 await page.click("#btn-exam-plan-add-toggle");
@@ -832,8 +813,7 @@ console.log("OK exam");
 await page.click("#btn-exam-plan-cancel").catch(() => {});
 
 // --- 薬剤マスタ ---
-await page.locator(".right-tab[data-tab=meds]").click();
-await page.click("#btn-med-add");
+await page.evaluate(() => window.__openMedAdd());
 await page.waitForSelector("#med-add-modal:not([hidden])");
 await clickExact("#med-add-col-category-list", "点眼薬");
 await page.click("#btn-med-add-toggle");

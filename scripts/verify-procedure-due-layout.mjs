@@ -67,7 +67,11 @@ const harness = indexHtml
   .replace(
     "</body>",
     `<script type="module">
-import { initProceduresUI, enterProcedures } from "/js/procedures-ui.js";
+import {
+  initProceduresUI,
+  enterProcedures,
+  openProcedurePlanCreateModal,
+} from "/js/procedures-ui.js";
 initProceduresUI({
   showToast: () => {},
   showError: (el, msg) => { if (el) { el.hidden = !msg; el.textContent = msg || ""; } },
@@ -80,9 +84,9 @@ document.getElementById("app-shell")?.removeAttribute("hidden");
 document.documentElement.classList.add("is-unlocked");
 document.getElementById("gate-karte")?.setAttribute("hidden", "");
 document.getElementById("center-main")?.removeAttribute("hidden");
-document.querySelectorAll(".right-panel").forEach((p) => { p.hidden = true; });
-document.getElementById("panel-proc").hidden = false;
-document.getElementById("btn-procedure-plan-add")?.click();
+// 右カラムのタブ削除で #btn-procedure-plan-add は本番DOMに無いため、
+// 状態モード等と同じ公開APIでモーダルを開く。
+openProcedurePlanCreateModal();
 window.__ready = true;
 </script>`
   );

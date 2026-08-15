@@ -15,6 +15,7 @@ import {
   isPrnDrug,
   openMedicationDetailById,
   openMedicationAddModal,
+  deleteMedicationById,
 } from "./meds-ui.js";
 import {
   getDueCountdown,
@@ -23,14 +24,26 @@ import {
   getPlanBaselineDate,
   openExamPlanEditorById,
   openExamPlanCreateModal,
+  reviveExamHistoryEntryById,
 } from "./exam-plan-ui.js";
 import {
   openProcedurePlanEditorById,
   openProcedureHistoryEditorById,
   openProcedurePlanCreateModal,
+  reviveProcedureHistoryById,
+  deleteProcedureHistoryById,
 } from "./procedures-ui.js";
-import { openSpecialNoteEditorById, openSpecialNoteCreateModal } from "./special-notes-ui.js";
-import { buildHistoryDetailNode, openPatientHistoryAddModal } from "./history-ui.js";
+import {
+  openSpecialNoteEditorById,
+  openSpecialNoteCreateModal,
+  deleteSpecialNoteById,
+} from "./special-notes-ui.js";
+import {
+  buildHistoryDetailNode,
+  openPatientHistoryAddModal,
+  deletePatientHistoryEntryById,
+} from "./history-ui.js";
+import { enableRowGestures } from "./row-gestures.js";
 
 let deps = {
   showToast: () => {},
@@ -360,6 +373,16 @@ function renderMeds() {
       li.appendChild(inline);
     }
 
+    enableRowGestures(li, {
+      actions: [
+        {
+          action: "delete",
+          title: "削除",
+          onClick: () => deleteMedicationById(drug.id),
+        },
+      ],
+    });
+
     medsList.appendChild(li);
   });
 }
@@ -475,6 +498,17 @@ function renderExamHistory() {
           note.textContent = h.note;
           li.appendChild(note);
         }
+
+        enableRowGestures(li, {
+          actions: [
+            {
+              action: "refresh",
+              title: "予定に戻す",
+              onClick: () => reviveExamHistoryEntryById(h.id),
+            },
+          ],
+        });
+
         examHistoryList.appendChild(li);
       });
     });
@@ -538,6 +572,16 @@ function renderPatientHistory() {
       ymdFromStr(entry.lastUpdated) || "—"
     }`;
     li.appendChild(meta);
+
+    enableRowGestures(li, {
+      actions: [
+        {
+          action: "delete",
+          title: "削除",
+          onClick: () => deletePatientHistoryEntryById(entry.id),
+        },
+      ],
+    });
 
     histList.appendChild(li);
   });
@@ -658,6 +702,22 @@ function renderProcHistory() {
           note.textContent = item.note;
           li.appendChild(note);
         }
+
+        enableRowGestures(li, {
+          actions: [
+            {
+              action: "refresh",
+              title: "予定に戻す",
+              onClick: () => reviveProcedureHistoryById(item.id),
+            },
+            {
+              action: "delete",
+              title: "削除",
+              onClick: () => deleteProcedureHistoryById(item.id, item.store || "history"),
+            },
+          ],
+        });
+
         procHistoryList.appendChild(li);
       });
     });
@@ -693,6 +753,16 @@ function renderNotes() {
     content.className = "status-row__body";
     content.textContent = note.content || "（内容なし）";
     li.appendChild(content);
+
+    enableRowGestures(li, {
+      actions: [
+        {
+          action: "delete",
+          title: "削除",
+          onClick: () => deleteSpecialNoteById(note.id),
+        },
+      ],
+    });
 
     notesList.appendChild(li);
   });

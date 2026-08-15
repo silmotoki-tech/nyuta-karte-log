@@ -418,12 +418,12 @@ html.is-unlocked .app {
   border-left: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  /* タブは固定し、下の .right-panel だけを縦スクロールさせる */
+  /* 検索パネル（.right-panel--search）だけを縦スクロールさせる */
   overflow: hidden;
   min-height: 0;
   height: 100%;
   max-height: 100%;
-  /* 上余白は .right-tabs 側で取る */
+  /* 上余白は .right-panel--search 側で取る */
   padding-top: 0;
 }
 
@@ -1152,6 +1152,12 @@ html.is-unlocked .app {
   margin: 2px 0 0;
 }
 
+/* 処置予定モーダルの「予定を登録／実施を記録」切り替え */
+.procedure-plan-mode-toggle {
+  align-self: flex-start;
+  margin: -6px 0 0;
+}
+
 @media (max-width: 640px) {
   .exam-plan-dual {
     grid-template-columns: 1fr;
@@ -1631,6 +1637,11 @@ html.is-unlocked .app {
 
 .right-panel[hidden] {
   display: none !important;
+}
+
+/* 右カラムがタブなし・検索専用になったため、他カラムと同じ上余白をここで取る */
+.right-panel--search {
+  padding-top: var(--col-pad-top);
 }
 
 .right-placeholder {

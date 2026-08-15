@@ -63,14 +63,14 @@ const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf-8");
 const harness = indexHtml.replace(
   /<script type="module" src="\.\/js\/app\.js"><\/script>/,
   `<script type="module">
-import { initExamPlanUI, enterExamPlan } from "/js/exam-plan-ui.js";
+import { initExamPlanUI, enterExamPlan, openExamPlanCreateModal } from "/js/exam-plan-ui.js";
 initExamPlanUI({
   showToast: (m) => console.log("toast", m),
   showError: (el, msg) => { if (el) { el.hidden = !msg; el.textContent = msg || ""; } },
   setBusy: (btn, busy, a, b) => { if (btn) { btn.disabled = busy; btn.textContent = busy ? a : b; } },
 });
 enterExamPlan("karte-plan-layout");
-document.getElementById("btn-exam-new")?.click();
+openExamPlanCreateModal();
 window.__ready = true;
 </script>`
 );
