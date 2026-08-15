@@ -14,6 +14,7 @@ import {
   getExpiryStatus,
   isPrnDrug,
   openMedicationDetailById,
+  openMedicationAddModal,
 } from "./meds-ui.js";
 import {
   getDueCountdown,
@@ -21,13 +22,15 @@ import {
   getPlanDueDate,
   getPlanBaselineDate,
   openExamPlanEditorById,
+  openExamPlanCreateModal,
 } from "./exam-plan-ui.js";
 import {
   openProcedurePlanEditorById,
   openProcedureHistoryEditorById,
+  openProcedurePlanCreateModal,
 } from "./procedures-ui.js";
-import { openSpecialNoteEditorById } from "./special-notes-ui.js";
-import { buildHistoryDetailNode } from "./history-ui.js";
+import { openSpecialNoteEditorById, openSpecialNoteCreateModal } from "./special-notes-ui.js";
+import { buildHistoryDetailNode, openPatientHistoryAddModal } from "./history-ui.js";
 
 let deps = {
   showToast: () => {},
@@ -82,6 +85,12 @@ const notesList = document.getElementById("status-notes-list");
 const notesEmpty = document.getElementById("status-notes-empty");
 const notesCount = document.getElementById("status-notes-count");
 
+const btnStatusHistoryAdd = document.getElementById("btn-status-history-add");
+const btnStatusExamAdd = document.getElementById("btn-status-exam-add");
+const btnStatusMedsAdd = document.getElementById("btn-status-meds-add");
+const btnStatusProcAdd = document.getElementById("btn-status-proc-add");
+const btnStatusNotesAdd = document.getElementById("btn-status-notes-add");
+
 const detailModal = document.getElementById("status-detail-modal");
 const detailTitle = document.getElementById("status-detail-title");
 const detailBody = document.getElementById("status-detail-body");
@@ -123,6 +132,12 @@ export function initStatusModeUI(helpers = {}) {
   deps = { ...deps, ...helpers };
 
   btnChangeKarte?.addEventListener("click", () => deps.onChangeKarte());
+
+  btnStatusHistoryAdd?.addEventListener("click", () => openPatientHistoryAddModal());
+  btnStatusExamAdd?.addEventListener("click", () => openExamPlanCreateModal());
+  btnStatusMedsAdd?.addEventListener("click", () => openMedicationAddModal());
+  btnStatusProcAdd?.addEventListener("click", () => openProcedurePlanCreateModal());
+  btnStatusNotesAdd?.addEventListener("click", () => openSpecialNoteCreateModal());
 
   btnCloseDetail?.addEventListener("click", closeDetailModal);
   detailModal

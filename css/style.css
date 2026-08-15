@@ -4834,6 +4834,44 @@ select.input {
   gap: 6px;
 }
 
+.status-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.status-block__head .status-block__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.status-block__add {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+  background-color: var(--color-white);
+  color: var(--color-brown);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-block__add:hover,
+.status-block__add:focus-visible {
+  border-color: var(--color-green);
+  color: var(--color-green);
+}
+
 .status-block__title {
   margin: 0;
   font-size: 0.92rem;

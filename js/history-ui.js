@@ -363,6 +363,15 @@ function createHistoryCard(entry) {
 }
 
 /**
+ * 既往歴の新規追加モーダルを開く（状態モードなど別画面から使う）。
+ */
+export function openPatientHistoryAddModal() {
+  if (!state.karteNumber) return false;
+  openAddModal();
+  return true;
+}
+
+/**
  * 既往歴の編集UI（右カラムで展開しているものと同じDOM）を組み立てて返す。
  * 状態モードなど別画面から、同じ編集操作をポップアップ内で使うための入口。
  */

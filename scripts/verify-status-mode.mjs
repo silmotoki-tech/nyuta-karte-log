@@ -1,6 +1,7 @@
 /**
  * 状態モード（全画面の状態一覧）を本番 index.html + app.js 経路で検証する。
  * - 各ブロックにデータが表示されること
+ * - ヘッダーの「＋」から新規追加フォームが開き、保存後に状態モードと右カラムの両方へ反映されること
  * - 項目タップで既存の編集ポップアップが開くこと
  * - 状態 ⇄ 履歴 の切り替えが（再読み込みなしで）動くこと
  */
@@ -268,6 +269,162 @@ assert.ok(
   "同じ列内で検査が処置より上に来ていない"
 );
 
+const ADD_HISTORY = "状態モード検証紹介先";
+const ADD_EXAM = "CBC";
+const ADD_MED = "状態モード検証薬";
+const ADD_PROC = "状態モード検証処置";
+const ADD_NOTE = "状態モード検証特記";
+
+async function clickLinear(listSelector, label) {
+  await page
+    .locator(`${listSelector} .med-linear-picker__item .med-linear-picker__item-label`, {
+      hasText: label,
+    })
+    .first()
+    .click();
+}
+
+async function goHistoryView(tab = null) {
+  await page.click("#btn-view-history");
+  await page.waitForFunction(
+    () => document.getElementById("screen-status")?.hasAttribute("hidden"),
+    null,
+    { timeout: 5000 }
+  );
+  if (tab) {
+    await page.click(`#right-tabs .right-tab[data-tab="${tab}"]`);
+    await page.waitForTimeout(100);
+  }
+}
+
+async function goStatusView() {
+  await page.click("#btn-view-status");
+  await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
+}
+
+async function assertContains(selector, text, label) {
+  const body = await page.locator(selector).innerText();
+  assert.ok(body.includes(text), `${label}: ${selector} に「${text}」がない`);
+}
+
+// --- 各ブロックの「＋」から新規追加 ---------------------------------------
+const addBtnIds = [
+  "btn-status-history-add",
+  "btn-status-exam-add",
+  "btn-status-meds-add",
+  "btn-status-proc-add",
+  "btn-status-notes-add",
+];
+for (const id of addBtnIds) {
+  assert.ok(await page.locator(`#${id}`).count(), `状態モードに ${id} がない`);
+}
+
+// 既往歴
+await page.click("#btn-status-history-add");
+await page.waitForSelector("#history-add-modal:not([hidden])", { timeout: 5000 });
+await page
+  .locator("#history-add-type-buttons .exam-item-btn", { hasText: "紹介・専門治療歴" })
+  .click();
+await page.click("#btn-history-add-toggle");
+await page.fill("#history-add-new-item", ADD_HISTORY);
+await page.click("#btn-history-add-new-item");
+await page.click("#btn-history-add-save");
+await page.waitForFunction(
+  () => document.getElementById("history-add-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await assertContains("#status-history-list", ADD_HISTORY, "既往歴・状態モード");
+
+// 検査（予定として登録。モード切替も利用可能）
+await page.click("#btn-status-exam-add");
+await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
+assert.ok(
+  await page.locator("#exam-plan-mode-toggle").isVisible(),
+  "検査追加モーダルに登録方法トグルが出ていない"
+);
+await clickLinear("#exam-plan-col-category-list", "血液");
+await clickLinear("#exam-plan-col-leaf-list", ADD_EXAM);
+await page.locator('#exam-plan-fasting-buttons [data-fasting="none"]').click();
+await page.fill("#exam-plan-due-date", "2026-09-01");
+await page.click("#btn-exam-plan-save");
+await page.waitForFunction(
+  () => document.getElementById("exam-plan-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await assertContains("#status-exam-plan-list", ADD_EXAM, "検査予定・状態モード");
+
+// 薬剤
+await page.click("#btn-status-meds-add");
+await page.waitForSelector("#med-add-modal:not([hidden])", { timeout: 5000 });
+await page.locator("#med-add-col-category-list .med-linear-picker__item").first().click();
+await page.click("#btn-med-add-toggle");
+await page.fill("#med-add-new-item", ADD_MED);
+await page.click("#btn-med-add-new-item");
+await page.click("#btn-med-add-save");
+await page.waitForFunction(
+  () => document.getElementById("med-add-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await assertContains("#status-meds-list", ADD_MED, "薬剤・状態モード");
+
+// 処置
+await page.click("#btn-status-proc-add");
+await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
+await page.fill("#procedure-plan-content", ADD_PROC);
+await page.fill("#procedure-plan-due-date", "2026-09-15");
+await page.click("#btn-procedure-plan-save");
+await page.waitForFunction(
+  () => document.getElementById("procedure-plan-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await assertContains("#status-proc-plan-list", ADD_PROC, "処置予定・状態モード");
+
+// 特記
+await page.click("#btn-status-notes-add");
+await page.waitForSelector("#special-note-modal:not([hidden])", { timeout: 5000 });
+await page.fill("#special-note-content", ADD_NOTE);
+await page.locator("#special-note-author-row .author-btn").first().click();
+await page.click("#btn-special-note-save");
+await page.waitForFunction(
+  () => document.getElementById("special-note-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await assertContains("#status-notes-list", ADD_NOTE, "特記・状態モード");
+
+const countsAfterAdd = await page.evaluate(() => ({
+  meds: document.querySelectorAll("#status-meds-list .status-row").length,
+  examPlans: document.querySelectorAll("#status-exam-plan-list .status-row").length,
+  histories: document.querySelectorAll("#status-history-list .status-row").length,
+  procPlans: document.querySelectorAll("#status-proc-plan-list .status-row").length,
+  notes: document.querySelectorAll("#status-notes-list .status-row").length,
+}));
+console.log("COUNTS_AFTER_ADD", countsAfterAdd);
+assert.equal(countsAfterAdd.histories, 5, "既往歴が1件増えていない");
+assert.equal(countsAfterAdd.examPlans, 4, "検査予定が1件増えていない");
+assert.equal(countsAfterAdd.meds, 7, "薬剤が1件増えていない");
+assert.equal(countsAfterAdd.procPlans, 3, "処置予定が1件増えていない");
+assert.equal(countsAfterAdd.notes, 6, "特記が1件増えていない");
+
+await goHistoryView("history");
+await assertContains("#patient-history-list", ADD_HISTORY, "既往歴・右カラム");
+await goHistoryView("exam");
+await assertContains("#exam-plan-list", ADD_EXAM, "検査予定・右カラム");
+await goHistoryView("meds");
+const medInRight = await page.locator(`#meds-list [data-name="${ADD_MED}"]`).count();
+assert.ok(medInRight, `薬剤・右カラム: #meds-list に「${ADD_MED}」がない`);
+await goHistoryView("proc");
+await assertContains("#procedure-plan-list", ADD_PROC, "処置予定・右カラム");
+await goHistoryView("notes");
+await assertContains("#special-notes-list", ADD_NOTE, "特記・右カラム");
+
+await goStatusView();
+await shot("08-after-status-adds");
+
 await shot("01-overview");
 await page.screenshot({
   path: path.join(outDir, "01-overview-full.png"),
@@ -381,7 +538,7 @@ await page.waitForSelector("#screen-status:not([hidden])", { timeout: 3000 });
 const medsStillThere = await page
   .locator("#status-meds-list .status-row")
   .count();
-assert.equal(medsStillThere, 6, "切替後に薬剤一覧が消えている");
+assert.equal(medsStillThere, 7, "切替後に薬剤一覧が消えている");
 await shot("11-back-to-status");
 
 // 「記録する」で入力モードが開くこと

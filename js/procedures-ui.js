@@ -183,6 +183,15 @@ export async function addProcedureFromExternal(karteNumber, payload) {
 }
 
 /**
+ * 処置予定の新規追加モーダルを開く（状態モードなど別画面から使う）。
+ */
+export function openProcedurePlanCreateModal() {
+  if (!state.karteNumber) return false;
+  openPlanModal("create");
+  return true;
+}
+
+/**
  * 処置予定IDを指定して既存の編集モーダルを開く（状態モードなど別画面から使う）。
  */
 export function openProcedurePlanEditorById(planId) {

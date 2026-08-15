@@ -2180,6 +2180,15 @@ export function focusMedicationByName(name) {
 }
 
 /**
+ * 薬剤の新規追加モーダルを開く（状態モードなど別画面から使う）。
+ */
+export function openMedicationAddModal() {
+  if (!state.karteNumber) return false;
+  openAddModal();
+  return true;
+}
+
+/**
  * 薬剤IDを指定して既存の詳細シートを開く（状態モードなど別画面から使う）。
  */
 export function openMedicationDetailById(drugId) {

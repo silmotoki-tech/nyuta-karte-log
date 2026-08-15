@@ -260,6 +260,18 @@ function sortNotes(items) {
   });
 }
 
+const EXAM_ITEMS_SEED = [
+  {
+    id: "seed-blood-cbc",
+    label: "CBC",
+    category: "blood",
+    kind: "leaf",
+    parentId: "",
+    order: 1,
+    defaultFasting: "none",
+  },
+];
+
 
 const store = {
   freeQA: {},
@@ -285,7 +297,7 @@ const listeners = {
   procedures: new Map(),
   notes: new Map(),
 };
-let seq = 0;
+let seq = 1000;
 const nid = (p) => p + (++seq);
 
 function notifyMap(map, key, items) {
@@ -372,7 +384,7 @@ export function normalizeExamItemKind(k) {
 export async function ensureExamItemDefaults() {}
 export function subscribeExamItems(cb) {
   listeners.examItems.push(cb);
-  cb([]);
+  cb(structuredClone(EXAM_ITEMS_SEED));
   return () => {
     const i = listeners.examItems.indexOf(cb);
     if (i >= 0) listeners.examItems.splice(i, 1);
@@ -391,8 +403,32 @@ export const EXAM_PLAN_SCHEMA_VERSION = 2;
 export function subscribeExamPlan(karte, cb) {
   return feed("examPlan", () => SEED.examPlan)(cb);
 }
-export async function saveExamScheduledPlan() {
-  return nid("ep");
+export async function saveExamScheduledPlan(
+  karte,
+  { planId = null, item, dueDate, note, baselineDate, fasting } = {}
+) {
+  if (planId && SEED.examPlan.plans[planId]) {
+    SEED.examPlan.plans[planId] = {
+      ...SEED.examPlan.plans[planId],
+      item: item || "",
+      dueDate: dueDate || "",
+      baselineDate: baselineDate || dueDate || "2026-08-15",
+      note: note || "",
+      fasting: fasting || "",
+    };
+    notifyFeed("examPlan", () => SEED.examPlan);
+    return planId;
+  }
+  const id = nid("p");
+  SEED.examPlan.plans[id] = {
+    item: item || "",
+    dueDate: dueDate || "",
+    baselineDate: baselineDate || dueDate || "2026-08-15",
+    note: note || "",
+    fasting: fasting || "",
+  };
+  notifyFeed("examPlan", () => SEED.examPlan);
+  return id;
 }
 export async function deleteExamScheduledPlan() {}
 export async function endExamScheduledPlan() {}
@@ -401,8 +437,15 @@ export async function reviveExamPlanByItem() {
 }
 export async function setNextExamPlan() {}
 export async function clearNextExamPlan() {}
-export async function addExamHistory() {
-  return nid("eh");
+export async function addExamHistory(karte, { item, date, note } = {}) {
+  const id = nid("h");
+  SEED.examPlan.history[id] = {
+    item: item || "",
+    date: date || "2026-08-15",
+    note: note || "",
+  };
+  notifyFeed("examPlan", () => SEED.examPlan);
+  return id;
 }
 export async function deleteExamHistory() {}
 
@@ -430,8 +473,43 @@ export function subscribeMedications(karte, cb) {
 export async function fetchMedicationsOnce() {
   return [];
 }
-export async function addMedication() {
-  return nid("d");
+export async function addMedication(
+  karte,
+  {
+    name,
+    category,
+    sideEffectNote,
+    expiryEstimate,
+    changedBy,
+    eventDate,
+    frequencyChange,
+    amountChange,
+  } = {}
+) {
+  const id = nid("d");
+  const date = eventDate || "2026-08-15";
+  const detailParts = ["開始／継続"];
+  if (frequencyChange) detailParts.push(frequencyChange);
+  if (amountChange) detailParts.push(amountChange);
+  SEED.medications.push({
+    id,
+    schemaVersion: 1,
+    name: name || "",
+    category: ["A", "B", "C"].includes(category) ? category : "A",
+    prn: false,
+    sideEffectNote: sideEffectNote || "",
+    expiryEstimate: expiryEstimate || "",
+    events: {
+      e1: {
+        date,
+        type: "add",
+        detail: detailParts.join(" "),
+        changedBy: changedBy || "",
+      },
+    },
+  });
+  notifyFeed("medications", () => SEED.medications);
+  return id;
 }
 export async function updateMedication() {}
 export async function deleteMedication() {}
@@ -445,8 +523,40 @@ export const PATIENT_HISTORY_SCHEMA_VERSION = 1;
 export function subscribePatientHistory(karte, cb) {
   return feed("patientHistory", () => SEED.history)(cb);
 }
-export async function addPatientHistoryEntry() {
-  return nid("ph");
+export async function addPatientHistoryEntry(
+  karte,
+  {
+    title,
+    type = "disease",
+    status = "active",
+    firstNoted,
+    noteText = "",
+    author = "",
+  } = {}
+) {
+  const id = nid("hx");
+  const noted = firstNoted || "2026-08-15";
+  const entry = {
+    id,
+    schemaVersion: 1,
+    title: title || "",
+    type: type || "disease",
+    status: status || "active",
+    firstNoted: noted,
+    lastUpdated: noted,
+    source: "manual",
+    notes: {},
+  };
+  if (noteText && noteText.trim()) {
+    entry.notes[nid("n")] = {
+      date: noted,
+      text: noteText.trim(),
+      author: author || "",
+    };
+  }
+  SEED.history.push(entry);
+  notifyFeed("patientHistory", () => SEED.history);
+  return id;
 }
 export async function updatePatientHistoryEntry(karte, id, patch = {}) {
   const row = SEED.history.find((x) => x.id === id);
@@ -600,8 +710,36 @@ export async function ensureAdminPasscodeDefault() {}
 export function subscribeProcedureBundle(karte, cb) {
   return feed("procedureBundle", () => SEED.procedures)(cb);
 }
-export async function saveProcedurePlan() {
-  return nid("pp");
+export async function saveProcedurePlan(
+  karte,
+  { planId = null, content, dueDate, note = "", baselineDate = "", confirmedBy = "" } = {}
+) {
+  if (planId) {
+    const row = SEED.procedures.plans.find((p) => p.id === planId);
+    if (row) {
+      Object.assign(row, {
+        content: content || "",
+        dueDate: dueDate || "",
+        baselineDate: baselineDate || dueDate || "2026-08-15",
+        note: note || "",
+        confirmedBy: confirmedBy || "",
+      });
+      notifyFeed("procedureBundle", () => SEED.procedures);
+      return planId;
+    }
+  }
+  const id = nid("pp");
+  SEED.procedures.plans.push({
+    id,
+    content: content || "",
+    dueDate: dueDate || "",
+    baselineDate: baselineDate || dueDate || "2026-08-15",
+    note: note || "",
+    confirmedBy: confirmedBy || "",
+    source: "manual",
+  });
+  notifyFeed("procedureBundle", () => SEED.procedures);
+  return id;
 }
 export async function deleteProcedurePlan() {}
 export async function completeProcedurePlan() {}
@@ -668,8 +806,21 @@ export const SPECIAL_NOTE_IMPORTANCE = ["high", "medium", "low"];
 export function subscribeSpecialNotes(karte, cb) {
   return feed("specialNotes", () => sortNotes(SEED.notes))(cb);
 }
-export async function addSpecialNote() {
-  return nid("sn");
+export async function addSpecialNote(
+  karte,
+  { content, importance = "medium", createdBy } = {}
+) {
+  const id = nid("sn");
+  SEED.notes.push({
+    id,
+    schemaVersion: 1,
+    content: content || "",
+    importance: importance || "medium",
+    createdAt: new Date().toISOString(),
+    createdBy: createdBy || "",
+  });
+  notifyFeed("specialNotes", () => sortNotes(SEED.notes));
+  return id;
 }
 export async function updateSpecialNote(karte, id, patch = {}) {
   const row = SEED.notes.find((x) => x.id === id);

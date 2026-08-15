@@ -2478,6 +2478,15 @@ export function getExamItemsSnapshot() {
 }
 
 /**
+ * 検査予定の新規追加モーダルを開く（状態モードなど別画面から使う）。
+ */
+export function openExamPlanCreateModal() {
+  if (!state.karteNumber) return false;
+  openPlanModal("create");
+  return true;
+}
+
+/**
  * 予定IDを指定して既存の検査予定シートを開く（状態モードなど別画面から使う）。
  * 右カラムのタブは切り替えない。
  */

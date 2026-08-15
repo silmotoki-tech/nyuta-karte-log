@@ -235,6 +235,15 @@ function renderAuthorSelection() {
 }
 
 /**
+ * 特記事項の新規追加モーダルを開く（状態モードなど別画面から使う）。
+ */
+export function openSpecialNoteCreateModal() {
+  if (!state.karteNumber) return false;
+  openModal("create");
+  return true;
+}
+
+/**
  * 特記事項IDを指定して既存の編集モーダルを開く（状態モードなど別画面から使う）。
  */
 export function openSpecialNoteEditorById(noteId) {
