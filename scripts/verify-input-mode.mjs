@@ -146,7 +146,7 @@ const hiddenOf = (sel) =>
 // --- 状態モード → 記録する で入力モードへ --------------------------------
 await page.click("#btn-view-status");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
-await page.click("#btn-status-compose");
+await page.click("#btn-start-compose");
 await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
 
 assert.equal(await hiddenOf("#app-shell .layout"), true, "3カラムが隠れていない");
@@ -447,7 +447,7 @@ assert.ok(
 await shot("04-after-save-status");
 
 // --- 記入者は次の記録に引き継がれる（同じカルテ内） ------------------------
-await page.click("#btn-status-compose");
+await page.click("#btn-start-compose");
 await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
 const carried = await page.locator("#input-author-row .author-btn.is-selected").innerText();
 assert.equal(carried.trim(), "大辻", "記入者が次の記録に引き継がれていない");

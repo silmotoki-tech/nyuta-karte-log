@@ -192,6 +192,7 @@ const leftCollapseIcon = btnLeftCollapse?.querySelector(".left-collapse-btn__ico
 const btnOpenTemplates = document.getElementById("btn-open-templates");
 const btnStartCompose = document.getElementById("btn-start-compose");
 const btnViewStatus = document.getElementById("btn-view-status");
+const viewChrome = document.getElementById("app-view-chrome");
 const btnViewHistory = document.getElementById("btn-view-history");
 const entryEditModal = document.getElementById("entry-edit-modal");
 const btnCloseEntryEdit = document.getElementById("btn-close-entry-edit");
@@ -363,13 +364,16 @@ function closeInputMode() {
   syncViewToggle();
 }
 
-/** 中央ツールバーの「状態 | 履歴」トグルを現在の表示に合わせる */
+/** 「状態 | 履歴」トグルと「記録する」の表示位置は共通枠のまま、状態だけ合わせる */
 function syncViewToggle() {
-  const onStatus = isStatusModeVisible() || isInputModeVisible();
+  const onStatus = isStatusModeVisible();
   btnViewStatus?.classList.toggle("is-active", onStatus);
   btnViewStatus?.setAttribute("aria-pressed", String(onStatus));
   btnViewHistory?.classList.toggle("is-active", !onStatus);
   btnViewHistory?.setAttribute("aria-pressed", String(!onStatus));
+  if (viewChrome) {
+    viewChrome.hidden = state.centerState !== "main" || isInputModeVisible();
+  }
 }
 
 function formatAnimalDisplayName(animalName) {
@@ -1100,7 +1104,9 @@ btnChangeKarte.addEventListener("click", () => {
 });
 
 // 3カラムからの記入も、状態モードからの記入と同じ全画面の入力モードで行う
-btnStartCompose?.addEventListener("click", () => openInputMode("history"));
+btnStartCompose?.addEventListener("click", () => {
+  openInputMode(isStatusModeVisible() ? "status" : "history");
+});
 
 function enterMain() {
   // カルテ入場直後の1回目は記入者未選択（セッション引き継ぎをリセット）
@@ -1571,8 +1577,6 @@ initStatusModeUI({
     karteNumber: state.karteNumber || "",
     animalName: formatAnimalDisplayName(state.animalName),
   }),
-  onShowHistoryView: () => showHistoryView(),
-  onStartCompose: () => openInputMode("status"),
   onChangeKarte: () => btnChangeKarte?.click(),
 });
 

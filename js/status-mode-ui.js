@@ -31,8 +31,6 @@ import { buildHistoryDetailNode } from "./history-ui.js";
 
 let deps = {
   showToast: () => {},
-  onShowHistoryView: () => {},
-  onStartCompose: () => {},
   onChangeKarte: () => {},
   getPatient: () => ({ karteNumber: "", animalName: "" }),
 };
@@ -57,9 +55,6 @@ const layoutEl = document.querySelector("#app-shell .layout");
 const patientKarteEl = document.getElementById("status-patient-karte");
 const patientNameEl = document.getElementById("status-patient-name");
 const btnChangeKarte = document.getElementById("btn-status-change-karte");
-const btnViewStatus = document.getElementById("btn-status-view-status");
-const btnViewHistory = document.getElementById("btn-status-view-history");
-const btnCompose = document.getElementById("btn-status-compose");
 
 const highNotesSection = document.getElementById("status-high-notes");
 const highNotesList = document.getElementById("status-high-notes-list");
@@ -131,9 +126,6 @@ export function initStatusModeUI(helpers = {}) {
   deps = { ...deps, ...helpers };
 
   btnChangeKarte?.addEventListener("click", () => deps.onChangeKarte());
-  btnViewHistory?.addEventListener("click", () => deps.onShowHistoryView());
-  btnViewStatus?.addEventListener("click", () => showStatusMode());
-  btnCompose?.addEventListener("click", () => deps.onStartCompose());
 
   btnCloseDetail?.addEventListener("click", closeDetailModal);
   detailModal

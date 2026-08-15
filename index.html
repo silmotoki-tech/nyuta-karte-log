@@ -123,6 +123,32 @@
 
 <!-- ============ 本編（パスコード認証後に表示） ============ -->
 <div id="app-shell" class="app" hidden>
+  <!-- 状態｜履歴 と「記録する」は画面を問わず、履歴（3カラム）の位置に固定する -->
+  <div class="app-view-chrome" id="app-view-chrome" hidden>
+    <div class="view-toggle" role="group" aria-label="表示の切り替え">
+      <button
+        type="button"
+        class="view-toggle__btn"
+        id="btn-view-status"
+        data-view="status"
+      >
+        状態
+      </button>
+      <button
+        type="button"
+        class="view-toggle__btn is-active"
+        id="btn-view-history"
+        data-view="history"
+        aria-pressed="true"
+      >
+        履歴
+      </button>
+    </div>
+    <button id="btn-start-compose" class="btn btn--small btn--primary" type="button">
+      記録する
+    </button>
+  </div>
+
   <div class="layout">
 
     <!-- ============ 左カラム: 患者情報 + 見出し ============ -->
@@ -236,28 +262,13 @@
       <div class="center-main" id="center-main" hidden>
 
         <div class="center-toolbar">
-          <div class="view-toggle" role="group" aria-label="表示の切り替え">
-            <button
-              type="button"
-              class="view-toggle__btn"
-              id="btn-view-status"
-              data-view="status"
-            >
-              状態
-            </button>
-            <button
-              type="button"
-              class="view-toggle__btn is-active"
-              id="btn-view-history"
-              data-view="history"
-              aria-pressed="true"
-            >
-              履歴
-            </button>
+          <div class="app-view-chrome-slot" aria-hidden="true">
+            <div class="view-toggle">
+              <button type="button" class="view-toggle__btn" tabindex="-1" disabled>状態</button>
+              <button type="button" class="view-toggle__btn" tabindex="-1" disabled>履歴</button>
+            </div>
+            <button class="btn btn--small btn--primary" type="button" tabindex="-1" disabled>記録する</button>
           </div>
-          <button id="btn-start-compose" class="btn btn--small btn--primary" type="button">
-            記録する
-          </button>
           <button id="btn-open-templates" class="btn btn--small btn--outline" type="button">
             定型文の管理
           </button>
@@ -501,23 +512,6 @@
         </span>
       </button>
 
-      <div class="view-toggle" role="group" aria-label="表示の切り替え">
-        <button
-          type="button"
-          class="view-toggle__btn is-active"
-          id="btn-status-view-status"
-          aria-pressed="true"
-        >
-          状態
-        </button>
-        <button type="button" class="view-toggle__btn" id="btn-status-view-history">
-          履歴
-        </button>
-      </div>
-
-      <button id="btn-status-compose" class="btn btn--small btn--primary" type="button">
-        記録する
-      </button>
     </header>
 
     <div class="status-body" id="status-body">

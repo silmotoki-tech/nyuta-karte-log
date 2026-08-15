@@ -162,7 +162,7 @@ const shot = (name) => page.screenshot({ path: path.join(outDir, `${name}.png`) 
 // --- 入力モードへ ---------------------------------------------------------
 await page.click("#btn-view-status");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
-await page.click("#btn-status-compose");
+await page.click("#btn-start-compose");
 await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
 
 // --- 【3】レイアウト ------------------------------------------------------
@@ -330,7 +330,7 @@ assert.equal(saved.headline, "入院4日目", "保存された見出しが違う
 assert.equal(saved.changed, true, "変化フラグが保存されていない");
 
 // 保存後は既定に戻る（次の記録に変化ありが残らない）
-await page.click("#btn-status-compose");
+await page.click("#btn-start-compose");
 await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
 assert.equal(
   await page.isChecked("#input-changed"),
@@ -341,7 +341,7 @@ await page.click("#btn-input-back");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 
 // 中央カラムの時系列で、変化ありの回に印が出る
-await page.click("#btn-status-view-history");
+await page.click("#btn-view-history");
 await page.waitForFunction(
   () => document.getElementById("screen-status").hidden,
   null,
@@ -644,7 +644,7 @@ await page.waitForFunction(() => document.getElementById("screen-input").hidden,
 });
 await page.click("#btn-view-status");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
-await page.click("#btn-status-compose");
+await page.click("#btn-start-compose");
 await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
 await page.fill("#input-headline", "状態モードから書きかけ");
 dialogAnswer = "accept";

@@ -138,6 +138,44 @@ await page.waitForSelector("#center-main:not([hidden])", { timeout: 10000 });
 const outDir = path.join(root, "tools/status-mode");
 fs.mkdirSync(outDir, { recursive: true });
 const shot = (name) => page.screenshot({ path: path.join(outDir, `${name}.png`) });
+const chromeShot = (name) =>
+  page.screenshot({
+    path: path.join(outDir, `${name}.png`),
+    clip: { x: 220, y: 0, width: 380, height: 72 },
+  });
+
+async function chromePos() {
+  return page.evaluate(() => {
+    const chrome = document.getElementById("app-view-chrome");
+    const toggle = chrome?.querySelector(".view-toggle");
+    const compose = document.getElementById("btn-start-compose");
+    const t = toggle.getBoundingClientRect();
+    const c = compose.getBoundingClientRect();
+    return {
+      hidden: chrome.hidden,
+      toggle: {
+        x: Math.round(t.x),
+        y: Math.round(t.y),
+        w: Math.round(t.width),
+        h: Math.round(t.height),
+      },
+      compose: {
+        x: Math.round(c.x),
+        y: Math.round(c.y),
+        w: Math.round(c.width),
+        h: Math.round(c.height),
+      },
+    };
+  });
+}
+
+const historyChrome = await chromePos();
+console.log("CHROME_HISTORY", historyChrome);
+assert.equal(historyChrome.hidden, false, "履歴画面でトグルが見えない");
+assert.equal(historyChrome.toggle.x, 247, `トグルの左位置が履歴基準と違う: ${historyChrome.toggle.x}`);
+assert.equal(historyChrome.toggle.y, 10, `トグルの高さが履歴基準と違う: ${historyChrome.toggle.y}`);
+assert.equal(historyChrome.compose.y, historyChrome.toggle.y, "記録するがトグルと高さが揃っていない");
+await chromeShot("chrome-01-history");
 
 // --- 状態モードへ切り替え ------------------------------------------------
 await page.click("#btn-view-status");
@@ -145,6 +183,13 @@ await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 
 const layoutHidden = await page.locator("#app-shell .layout").evaluate((el) => el.hidden);
 assert.equal(layoutHidden, true, "3カラムが隠れていない");
+
+const statusChrome = await chromePos();
+console.log("CHROME_STATUS", statusChrome);
+assert.equal(statusChrome.hidden, false, "状態モードでトグルが見えない");
+assert.deepEqual(statusChrome.toggle, historyChrome.toggle, "状態モードでトグルの位置が動いている");
+assert.deepEqual(statusChrome.compose, historyChrome.compose, "状態モードで「記録する」の位置が動いている");
+await chromeShot("chrome-02-status");
 
 const header = await page.locator("#screen-status .status-topbar__meta").innerText();
 console.log("HEADER", header.replace(/\s+/g, " "));
@@ -281,7 +326,7 @@ assert.ok(editedText.includes("状態モードから編集"), "特記の編集�
 await shot("09-after-edit");
 
 // --- 状態 ⇄ 履歴 の切り替え ---------------------------------------------
-await page.click("#btn-status-view-history");
+await page.click("#btn-view-history");
 await page.waitForFunction(
   () => document.getElementById("screen-status")?.hasAttribute("hidden"),
   null,
@@ -294,6 +339,10 @@ const toggleState = await page.evaluate(() => ({
   history: document.getElementById("btn-view-history")?.className,
 }));
 assert.ok(toggleState.history.includes("is-active"), "トグルが履歴側に戻っていない");
+const historyChromeBack = await chromePos();
+assert.deepEqual(historyChromeBack.toggle, historyChrome.toggle, "履歴に戻したらトグルの位置が変わっている");
+assert.deepEqual(historyChromeBack.compose, historyChrome.compose, "履歴に戻したら「記録する」の位置が変わっている");
+await chromeShot("chrome-03-history-back");
 await shot("10-history-view");
 
 // 既存の右カラムが壊れていないこと
@@ -310,7 +359,7 @@ assert.equal(medsStillThere, 6, "切替後に薬剤一覧が消えている");
 await shot("11-back-to-status");
 
 // 「記録する」で入力モードが開くこと
-await page.click("#btn-status-compose");
+await page.click("#btn-start-compose");
 await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
 const statusHidden = await page.locator("#screen-status").evaluate((el) => el.hidden);
 assert.equal(statusHidden, true, "記録するで入力モードに切り替わっていない");
