@@ -522,6 +522,8 @@ function renderExamHistory() {
 
 // --- 既往歴 --------------------------------------------------------------
 
+const HIST_TYPE_ABBR = { disease: "疾", surgery: "術", referral: "紹" };
+
 function renderPatientHistory() {
   if (!histList) return;
   histList.innerHTML = "";
@@ -557,22 +559,27 @@ function renderPatientHistory() {
     const head = document.createElement("div");
     head.className = "status-row__head";
 
-    const sign = document.createElement("span");
-    sign.className = "hist-card__sign";
-    sign.textContent = entry.status === "active" ? "🟢" : "⚪";
+    const type = document.createElement("span");
+    type.className = `hist-type hist-type--leading hist-type--${entry.type}`;
+    type.textContent = HIST_TYPE_ABBR[entry.type] || "他";
+    type.title =
+      { disease: "疾患", surgery: "手術歴", referral: "紹介・専門治療歴" }[entry.type] ||
+      entry.type ||
+      "";
 
     const title = document.createElement("span");
     title.className = "status-row__title";
     title.textContent = entry.title || "（タイトル未設定）";
 
-    const type = document.createElement("span");
-    type.className = `hist-type hist-type--${entry.type}`;
-    type.textContent =
-      { disease: "疾患", surgery: "手術歴", referral: "紹介・専門治療歴" }[entry.type] ||
-      entry.type ||
-      "";
+    head.append(type, title);
 
-    head.append(sign, title, type);
+    const statusEl = document.createElement("span");
+    statusEl.className = `hist-status hist-status--${
+      entry.status === "active" ? "active" : "resolved"
+    }`;
+    statusEl.textContent = entry.status === "active" ? "進行中" : "終了";
+    head.appendChild(statusEl);
+
     li.appendChild(head);
 
     const meta = document.createElement("div");

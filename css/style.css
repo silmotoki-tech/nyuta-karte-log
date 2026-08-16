@@ -2824,6 +2824,60 @@ html.is-unlocked .app {
   color: #b57e17;
 }
 
+/* 状態モードの既往歴カード: 検査・薬剤ブロックの med-cat--leading と同じ、
+   先頭に置く色付き小バッジとして表示する（種別を1文字で表現）。 */
+.hist-type--leading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.hist-type--leading.hist-type--disease {
+  background-color: #f5e2e1;
+  color: #b45353;
+}
+
+.hist-type--leading.hist-type--surgery {
+  background-color: #e2e6fb;
+  color: #3b5bdb;
+}
+
+.hist-type--leading.hist-type--referral {
+  background-color: #f7ecd1;
+  color: #b57e17;
+}
+
+/* 状態モードの既往歴カード: 検査・薬剤ブロックの med-status と同じ位置・
+   同じ見た目で「進行中／終了」を末尾に表示する。 */
+.hist-status {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  background: none;
+}
+
+.hist-status--active {
+  background-color: transparent;
+  color: var(--color-green-dark);
+}
+
+.hist-status--resolved {
+  background-color: transparent;
+  color: var(--color-text-muted);
+}
+
 .hist-status-toggle {
   white-space: nowrap;
 }
