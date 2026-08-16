@@ -546,6 +546,114 @@ console.log("EDITED", editedText.replace(/\s+/g, " "));
 assert.ok(editedText.includes("状態モードから編集"), "特記の編集結果が状態モードに反映されない");
 await shot("09-after-edit");
 
+// --- スワイプ削除アイコンが前面に透けないこと ----------------------------
+function parseAlpha(color) {
+  const m = String(color || "").match(/rgba?\(([^)]+)\)/);
+  if (!m) return 1;
+  const parts = m[1].split(",").map((s) => s.trim());
+  return parts.length === 4 ? Number(parts[3]) : 1;
+}
+
+async function swipeOpen(rowSelector, side) {
+  const row = page.locator(rowSelector).first();
+  await row.scrollIntoViewIfNeeded();
+  const box = await row.boundingBox();
+  assert.ok(box, `${rowSelector} の行が見つからない`);
+  const y = box.y + box.height / 2;
+  if (side === "delete") {
+    await page.mouse.move(box.x + 16, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + Math.min(box.width - 8, 120), y, { steps: 12 });
+  } else {
+    await page.mouse.move(box.x + box.width - 16, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + 10, y, { steps: 12 });
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(180);
+}
+
+async function closeOpenSwipe() {
+  await page.mouse.click(8, 80);
+  await page.waitForTimeout(120);
+}
+
+async function assertSwipeOpaque(rowSelector, shotName, label, side) {
+  await swipeOpen(rowSelector, side);
+  const scoped = await page.locator(rowSelector).first().evaluate((row, openSide) => {
+    const front = row.querySelector(".swipeable__front");
+    const panelSel =
+      openSide === "delete" ? ".swipeable__actions--delete" : ".swipeable__actions--edit";
+    const btnSel =
+      openSide === "delete" ? ".icon-btn--delete" : ".icon-btn--refresh, .icon-btn--edit";
+    const panel = row.querySelector(panelSel);
+    const btn = panel?.querySelector(btnSel);
+    if (!front || !panel || !btn) return { ok: false, reason: "swipe action DOM missing" };
+    const frontCs = getComputedStyle(front);
+    const btnCs = getComputedStyle(btn);
+    const panelCs = getComputedStyle(panel);
+    const rowBox = row.getBoundingClientRect();
+    const frontBox = front.getBoundingClientRect();
+    return {
+      ok: true,
+      frontBg: frontCs.backgroundColor,
+      frontTransform: frontCs.transform,
+      btnOpacity: btnCs.opacity,
+      btnBg: btnCs.backgroundColor,
+      panelBg: panelCs.backgroundColor,
+      shift: Math.round(frontBox.left - rowBox.left),
+      open: row.classList.contains(
+        openSide === "delete" ? "is-actions-open-delete" : "is-actions-open-edit"
+      ),
+    };
+  }, side);
+  console.log("SWIPE", label, scoped);
+  assert.equal(scoped.ok, true, `${label}: ${scoped.reason || "スワイプ操作DOMがない"}`);
+  assert.equal(scoped.open, true, `${label}: スワイプで操作が開いていない`);
+  assert.ok(parseAlpha(scoped.frontBg) >= 1, `${label}: 前面が透明でアイコンが透ける (${scoped.frontBg})`);
+  assert.equal(Number(scoped.btnOpacity), 1, `${label}: アイコンの opacity が 1 ではない`);
+  if (side === "delete") {
+    assert.ok(parseAlpha(scoped.btnBg) >= 1, `${label}: ゴミ箱の背景が透明 (${scoped.btnBg})`);
+    assert.ok(parseAlpha(scoped.panelBg) >= 1, `${label}: 削除パネルの背景が透明 (${scoped.panelBg})`);
+  }
+  if (side === "delete") {
+    assert.ok(scoped.shift >= 50, `${label}: 前面が右にずれていない (shift=${scoped.shift})`);
+  } else {
+    assert.ok(scoped.shift <= -50, `${label}: 前面が左にずれていない (shift=${scoped.shift})`);
+  }
+  const modalOpen = await page.evaluate(() =>
+    [...document.querySelectorAll(".modal")].some((el) => !el.hidden)
+  );
+  assert.equal(modalOpen, false, `${label}: スワイプ後に編集モーダルが開いている`);
+  const box = await page.locator(rowSelector).first().boundingBox();
+  await page.screenshot({
+    path: path.join(outDir, `${shotName}.png`),
+    clip: {
+      x: Math.max(0, box.x - 8),
+      y: Math.max(0, box.y - 8),
+      width: Math.min(360, box.width + 16),
+      height: box.height + 16,
+    },
+  });
+  await closeOpenSwipe();
+}
+
+await assertSwipeOpaque("#status-history-list .status-row", "swipe-01-history", "既往歴", "delete");
+await assertSwipeOpaque(
+  "#status-exam-history-list .status-row",
+  "swipe-02-exam-history",
+  "検査実施履歴",
+  "edit"
+);
+await assertSwipeOpaque("#status-meds-list .status-row", "swipe-03-meds", "薬剤", "delete");
+await assertSwipeOpaque(
+  "#status-proc-history-list .status-row",
+  "swipe-04-proc-history",
+  "処置実施履歴",
+  "delete"
+);
+await assertSwipeOpaque("#status-notes-list .status-row", "swipe-05-notes", "特記", "delete");
+
 // --- 状態 ⇄ 履歴 の切り替え ---------------------------------------------
 await page.click("#btn-view-history");
 await page.waitForFunction(

@@ -262,14 +262,16 @@ function setCount(el, n) {
   if (el) el.textContent = n > 0 ? `（${n}）` : "";
 }
 
-function createRow({ onOpen } = {}) {
+function createRow({ onOpen, handleClick = true } = {}) {
   const li = document.createElement("li");
   li.className = "status-row";
   if (onOpen) {
     li.classList.add("is-tappable");
     li.setAttribute("role", "button");
     li.tabIndex = 0;
-    li.addEventListener("click", onOpen);
+    // スワイプ行は enableRowGestures の onActivate に任せる。
+    // click を残すと、スワイプ終了の mouseup で編集が開いてしまう。
+    if (handleClick) li.addEventListener("click", onOpen);
     li.addEventListener("keydown", (e) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
@@ -321,7 +323,10 @@ function renderMeds() {
     const status = deriveStatus(drug);
     const expiry = getExpiryStatus(drug.expiryEstimate);
 
-    const li = createRow({ onOpen: () => openMedicationDetailById(drug.id) });
+    const li = createRow({
+      onOpen: () => openMedicationDetailById(drug.id),
+      handleClick: false,
+    });
     if (expiry === "overdue") li.classList.add("is-overdue");
     else if (expiry === "approaching") li.classList.add("is-alert");
 
@@ -381,6 +386,7 @@ function renderMeds() {
           onClick: () => deleteMedicationById(drug.id),
         },
       ],
+      onActivate: () => openMedicationDetailById(drug.id),
     });
 
     medsList.appendChild(li);
@@ -543,7 +549,10 @@ function renderPatientHistory() {
       histList.appendChild(heading);
     }
 
-    const li = createRow({ onOpen: () => openHistoryDetail(entry.id) });
+    const li = createRow({
+      onOpen: () => openHistoryDetail(entry.id),
+      handleClick: false,
+    });
 
     const head = document.createElement("div");
     head.className = "status-row__head";
@@ -581,6 +590,7 @@ function renderPatientHistory() {
           onClick: () => deletePatientHistoryEntryById(entry.id),
         },
       ],
+      onActivate: () => openHistoryDetail(entry.id),
     });
 
     histList.appendChild(li);
@@ -688,6 +698,7 @@ function renderProcHistory() {
       rows.forEach((item) => {
         const li = createRow({
           onOpen: () => openProcedureHistoryEditorById(item.id),
+          handleClick: false,
         });
         li.classList.add("status-row--compact");
 
@@ -716,6 +727,7 @@ function renderProcHistory() {
               onClick: () => deleteProcedureHistoryById(item.id, item.store || "history"),
             },
           ],
+          onActivate: () => openProcedureHistoryEditorById(item.id),
         });
 
         procHistoryList.appendChild(li);
@@ -734,7 +746,10 @@ function renderNotes() {
   setCount(notesCount, items.length);
 
   items.forEach((note) => {
-    const li = createRow({ onOpen: () => openSpecialNoteEditorById(note.id) });
+    const li = createRow({
+      onOpen: () => openSpecialNoteEditorById(note.id),
+      handleClick: false,
+    });
 
     const head = document.createElement("div");
     head.className = "status-row__head";
@@ -762,6 +777,7 @@ function renderNotes() {
           onClick: () => deleteSpecialNoteById(note.id),
         },
       ],
+      onActivate: () => openSpecialNoteEditorById(note.id),
     });
 
     notesList.appendChild(li);

@@ -4964,6 +4964,50 @@ select.input {
   background-color: var(--due-close-bg);
 }
 
+/* 状態モードのスワイプ行: 前面を不透明にし、背面の削除アイコンが透けないようにする。
+   右カラムの .med-card / .hist-card と同じ扱い。padding は front 側へ移す。 */
+.status-row.swipeable {
+  padding: 0;
+  background: var(--color-white);
+  background-color: var(--color-white);
+}
+
+.status-row.swipeable.is-overdue {
+  background: var(--due-overdue-bg);
+  background-color: var(--due-overdue-bg);
+}
+
+.status-row.swipeable.is-alert {
+  background: var(--due-close-bg);
+  background-color: var(--due-close-bg);
+}
+
+.status-row.swipeable .swipeable__front {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 6px;
+  width: 100%;
+  background: inherit;
+  background-color: inherit;
+}
+
+.status-row.swipeable.status-row--compact .swipeable__front {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.status-row.swipeable .swipeable__actions--delete {
+  background: #f3ddd9;
+}
+
+.status-row.swipeable .swipeable__action-btn.icon-btn--delete {
+  background: #f3ddd9;
+  opacity: 1;
+  color: var(--color-danger);
+}
+
 .status-row__head {
   display: flex;
   align-items: center;
