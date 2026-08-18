@@ -21,10 +21,23 @@ const EXAM_ITEM_SEED = [
   { id: "ei-blood", label: "血液", kind: "group", category: "blood", parentId: "" },
   { id: "ei-cbc", label: "CBC", kind: "leaf", category: "blood", parentId: "ei-blood" },
   { id: "ei-alt", label: "ALT", kind: "leaf", category: "blood", parentId: "ei-blood" },
+  { id: "ei-liver-scr", label: "肝スク", kind: "leaf", category: "blood", parentId: "ei-blood" },
+  { id: "ei-acth", label: "ACTH通常", kind: "leaf", category: "blood", parentId: "ei-blood" },
+  { id: "ei-acth-m", label: "ACTH松木式", kind: "leaf", category: "blood", parentId: "ei-blood" },
   { id: "ei-img", label: "画像", kind: "group", category: "imaging", parentId: "" },
   { id: "ei-abd", label: "腹部エコー", kind: "leaf", category: "imaging", parentId: "ei-img" },
   { id: "ei-heart", label: "心エコー", kind: "leaf", category: "imaging", parentId: "ei-img" },
+  // 「肝スク」との重なり検出（開始位置優先の重複解消）を検証するための独立項目。
+  // 実際のマスタでは心/腹部エコーの内訳だが、ここでは類義語ブーストの影響を
+  // 受けないよう単独項目として置く。
+  { id: "ei-scr", label: "スクリーニング", kind: "leaf", category: "imaging", parentId: "ei-img" },
   { id: "ei-xray", label: "胸部レントゲン", kind: "leaf", category: "imaging", parentId: "ei-img" },
+];
+
+const HISTORY_DISEASE_ITEM_SEED = [
+  { id: "hd-internal", label: "内科疾患", kind: "group", parentId: "" },
+  { id: "hd-ckd", label: "慢性腎臓病", kind: "leaf", parentId: "hd-internal" },
+  { id: "hd-mvi", label: "僧帽弁閉鎖不全症", kind: "leaf", parentId: "hd-internal" },
 ];
 
 const SEED = {
@@ -665,7 +678,7 @@ function subscribeEmptyList(bucket, cb) {
   };
 }
 export function subscribeHistoryDiseaseItems(cb) {
-  return subscribeEmptyList("historyDisease", cb);
+  return feed("historyDiseaseItems", () => HISTORY_DISEASE_ITEM_SEED)(cb);
 }
 export function subscribeHistorySurgeryItems(cb) {
   return subscribeEmptyList("historySurgery", cb);

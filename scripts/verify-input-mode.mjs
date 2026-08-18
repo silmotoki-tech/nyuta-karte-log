@@ -186,7 +186,7 @@ await page.evaluate(async (text) => {
 }, BODY);
 
 await page.waitForFunction(
-  () => document.querySelectorAll("#input-chip-list .input-chip").length >= 4,
+  () => document.querySelectorAll("#input-chip-list .input-chip").length >= 5,
   null,
   { timeout: 5000 }
 );
@@ -202,7 +202,10 @@ const chips = await page.evaluate(() =>
 );
 console.log("CHIPS", chips);
 
-assert.equal(chips.length, 4, `チップが4件ではない: ${chips.length}`);
+// あいまい照合（類義語辞書）により、「腹部エコー」の記載から内訳候補の
+// 「スクリーニング」も提案されるようになった（本文には出てこないが、
+// 検査確認画面と同じ辞書を使った意図的な挙動）。
+assert.equal(chips.length, 5, `チップが5件ではない: ${chips.length}`);
 const chipOf = (label) => chips.find((c) => c.label === label);
 
 assert.equal(chipOf("プレドニゾロン")?.kind, "med", "プレドニゾロンが薬として検出されていない");
@@ -215,6 +218,9 @@ assert.ok(chipOf("エンロフロキサシン").cls.includes("is-new"), "未登�
 assert.equal(chipOf("腹部エコー")?.kind, "exam", "腹部エコーが検査として検出されていない");
 assert.equal(chipOf("腹部エコー")?.registered, true, "予定がある検査が未登録扱い");
 assert.equal(chipOf("CBC")?.registered, false, "予定がない検査が登録済み扱い");
+
+assert.equal(chipOf("スクリーニング")?.kind, "exam", "類義語経由のスクリーニングが検出されていない");
+assert.equal(chipOf("スクリーニング")?.registered, false, "予定がない検査が登録済み扱い");
 
 // マスタにあっても本文にない名前は拾わない
 assert.equal(chipOf("アムロジピン"), undefined, "本文にない薬を検出している");

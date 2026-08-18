@@ -447,6 +447,69 @@ export function scoreExamLabelMatch(query, candidate, targetMeta = null) {
   return Math.min(100, score);
 }
 
+/**
+ * 長文（カルテ本文）中に candidate とほぼ同じ長さの部分文字列がないか総当たりで探す。
+ * scoreExamLabelMatch の部分一致・全体編集距離は「短いクエリ」前提のため、
+ * 本文まるごとを渡すと文字数比の影響でスコアが不安定になる。
+ * ここでは候補の長さ±1の窓をスライドさせ、位置に依存しない類似度だけを見る。
+ */
+export function bestSubstringSimilarity(bodyText, candidate) {
+  const body = normalizeExamLabel(bodyText);
+  const cand = normalizeExamLabel(candidate);
+  if (!body || !cand || cand.length < 2) return 0;
+
+  let best = 0;
+  const lens = new Set(
+    [cand.length - 1, cand.length, cand.length + 1].filter((n) => n >= 2)
+  );
+  for (const len of lens) {
+    for (let start = 0; start + len <= body.length; start += 1) {
+      const sim = levenshteinSimilarity(body.slice(start, start + len), cand);
+      if (sim > best) best = sim;
+      if (best >= 0.999) return best;
+    }
+  }
+  return best;
+}
+
+/**
+ * カルテ本文（長文）中に検査マスタ項目が出現しているかを検出する。
+ * - 完全一致は本文中の位置つきで score 100 を返す（位置は重複検出の解消に使う）
+ * - それ以外は、英数字コードの編集距離（ACTH⇔ACDH等）・臨床表現の類義語辞書
+ *   （血液検査→CBC等）・表記ゆれ向けの総当たり近似一致のいずれかで判定する
+ * 該当なしは null。
+ */
+export function scanExamLabelInText(bodyText, target, { fuzzyThreshold = 0.82 } = {}) {
+  const label = String(target?.label || "").trim();
+  if (!label || label.length < 2) return null;
+  const body = String(bodyText || "");
+
+  const idx = body.indexOf(label);
+  if (idx !== -1) {
+    return { score: 100, exact: true, start: idx, end: idx + label.length };
+  }
+
+  let score = 0;
+
+  const tokenSim = bestTokenSimilarity(body, label);
+  if (tokenSim >= 0.6) score = Math.max(score, Math.round(40 + 60 * tokenSim));
+
+  const leadSim = leadingCodeSimilarity(body, label);
+  if (leadSim >= 0.6) score = Math.max(score, Math.round(42 + 56 * leadSim));
+
+  score = Math.max(score, synonymBoost(body, target));
+
+  if (score < fuzzyThreshold * 100) {
+    const winSim = bestSubstringSimilarity(body, label);
+    if (winSim >= fuzzyThreshold) {
+      score = Math.max(score, Math.round(55 + 40 * winSim));
+    }
+  }
+
+  if (score <= 0) return null;
+  return { score: Math.min(100, score), exact: false, start: -1, end: -1 };
+}
+
 function toExamCandidateRow(t, score = 0) {
   return {
     item: t.item,

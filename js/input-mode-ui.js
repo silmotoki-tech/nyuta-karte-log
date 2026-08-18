@@ -19,9 +19,13 @@ import {
   subscribeMedicationItems,
   subscribeExamItems,
   subscribeTemplates,
+  subscribeHistoryDiseaseItems,
+  subscribePatientHistory,
 } from "./db.js";
 import { listMedicationMatchTargets } from "./med-item-match.js";
 import { listExamMatchTargets } from "./exam-item-match.js";
+import { detectNoteChips } from "./chip-detect.js";
+import { openPatientHistoryAddModal } from "./history-ui.js";
 import { canHandleShortcut } from "./ime-keys.js";
 
 const AUTHORS = [
@@ -47,8 +51,6 @@ const MED_EVENT_TYPES = [
   { id: "stop", label: "中止" },
 ];
 
-/** 検出の最小文字数。1文字のマスタ名は本文中で偶然一致しやすいため対象外にする */
-const MIN_DETECT_LENGTH = 2;
 /** 入力が止まったとみなすまでの待ち時間 */
 const DETECT_IDLE_MS = 1000;
 
@@ -75,6 +77,8 @@ const state = {
   plan: null,
   medItems: [],
   examItems: [],
+  historyMasterItems: [],
+  historyEntries: [],
   templates: [],
   chips: [],
   queue: [],
@@ -223,6 +227,12 @@ export function initInputModeUI(helpers = {}) {
     })
   );
   state.globalUnsubs.push(
+    subscribeHistoryDiseaseItems((items) => {
+      state.historyMasterItems = items || [];
+      runDetection();
+    })
+  );
+  state.globalUnsubs.push(
     subscribeTemplates((templates) => {
       state.templates = templates || [];
       renderTemplateButtons();
@@ -246,6 +256,12 @@ export function enterInputMode(karteNumber) {
       renderChips();
     })
   );
+  state.karteUnsubs.push(
+    subscribePatientHistory(karteNumber, (entries) => {
+      state.historyEntries = entries || [];
+      renderChips();
+    })
+  );
 }
 
 export function leaveInputMode() {
@@ -260,6 +276,7 @@ export function leaveInputMode() {
   state.karteNumber = null;
   state.drugs = [];
   state.plan = null;
+  state.historyEntries = [];
   resetForm();
   closeSheet();
   hideInputMode();
@@ -499,61 +516,53 @@ function requestClose() {
 }
 
 // --- 検出チップ -----------------------------------------------------------
-
-function medMasterLabels() {
-  return listMedicationMatchTargets(state.medItems).map((t) => t.label);
-}
-
-function examMasterLabels() {
-  return listExamMatchTargets(state.examItems).map((t) => t.label);
-}
-
-/**
- * 本文に「そのまま」出てくるマスタ名だけを拾う（表記ゆれは吸収しない）。
- * 別のヒットの一部でしかない名前は、重複表示になるので落とす。
- */
-function matchLabels(body, labels) {
-  const hits = [];
-  const seen = new Set();
-  for (const label of labels) {
-    if (!label || label.length < MIN_DETECT_LENGTH) continue;
-    if (seen.has(label)) continue;
-    if (!body.includes(label)) continue;
-    seen.add(label);
-    hits.push(label);
-  }
-  return hits.filter(
-    (label) => !hits.some((other) => other !== label && other.includes(label))
-  );
-}
+//
+// あいまい照合（編集距離＋類義語辞書）で、本文中の薬剤・検査・既往歴（疾患名）を
+// 検出する。実際の照合ロジックは chip-detect.js（検査は exam-item-match.js、
+// 薬剤は med-item-match.js、既往歴は history-item-match.js）にまとめてあり、
+// AI提案確認画面（ai-suggest-ui.js）の候補提示と共通の仕組み・辞書を使う。
 
 function runDetection() {
   const body = bodyInput?.value || "";
-  const chips = [];
 
-  matchLabels(body, medMasterLabels()).forEach((label) => {
-    const drug = (state.drugs || []).find((d) => (d.name || "").trim() === label);
-    chips.push({
-      kind: "med",
-      label,
-      registered: Boolean(drug),
-      drugId: drug?.id || null,
-    });
+  const hits = detectNoteChips(body, {
+    medItems: state.medItems,
+    examItems: state.examItems,
+    historyItems: state.historyMasterItems,
   });
 
-  matchLabels(body, examMasterLabels()).forEach((label) => {
+  state.chips = hits.map((hit) => {
+    if (hit.kind === "med") {
+      const drug = (state.drugs || []).find((d) => (d.name || "").trim() === hit.label);
+      return {
+        kind: "med",
+        label: hit.label,
+        registered: Boolean(drug),
+        drugId: drug?.id || null,
+      };
+    }
+    if (hit.kind === "history") {
+      const entry = (state.historyEntries || []).find(
+        (e) => (e.title || "").trim() === hit.label
+      );
+      return {
+        kind: "history",
+        label: hit.label,
+        registered: Boolean(entry),
+        entryId: entry?.id || null,
+      };
+    }
     const found = Object.entries(state.plan?.plans || {}).find(
-      ([, p]) => p && (p.item || "").trim() === label
+      ([, p]) => p && (p.item || "").trim() === hit.label
     );
-    chips.push({
+    return {
       kind: "exam",
-      label,
+      label: hit.label,
       registered: Boolean(found),
       planId: found?.[0] || null,
-    });
+    };
   });
 
-  state.chips = chips;
   renderChips();
 }
 
@@ -569,6 +578,12 @@ function renderChips() {
       );
       chip.registered = Boolean(drug);
       chip.drugId = drug?.id || null;
+    } else if (chip.kind === "history") {
+      const entry = (state.historyEntries || []).find(
+        (e) => (e.title || "").trim() === chip.label
+      );
+      chip.registered = Boolean(entry);
+      chip.entryId = entry?.id || null;
     } else {
       const found = Object.entries(state.plan?.plans || {}).find(
         ([, p]) => p && (p.item || "").trim() === chip.label
@@ -595,7 +610,8 @@ function renderChips() {
 
     const kindEl = document.createElement("span");
     kindEl.className = "input-chip__kind";
-    kindEl.textContent = chip.kind === "med" ? "薬" : "検査";
+    kindEl.textContent =
+      chip.kind === "med" ? "薬" : chip.kind === "history" ? "既往" : "検査";
 
     const nameEl = document.createElement("span");
     nameEl.className = "input-chip__name";
@@ -603,7 +619,14 @@ function renderChips() {
 
     const stateEl = document.createElement("span");
     stateEl.className = "input-chip__state";
-    stateEl.textContent = chip.registered ? "登録済 → 追記" : "未登録 → 新規";
+    stateEl.textContent =
+      chip.kind === "history"
+        ? chip.registered
+          ? "登録済み"
+          : "未登録 → 追加"
+        : chip.registered
+          ? "登録済 → 追記"
+          : "未登録 → 新規";
 
     btn.append(kindEl, nameEl, stateEl);
     btn.addEventListener("click", () => handleChipClick(chip));
@@ -619,6 +642,12 @@ function handleChipClick(chip) {
     } else {
       openMedSheet({ mode: "new", name: chip.label });
     }
+    return;
+  }
+  if (chip.kind === "history") {
+    // 既往歴には「今日の登録」に積む専用フローがないため、既存の追加モーダルを
+    // 疾患名で絞り込んだ状態で開く（登録済みでも同じ動線で確認できる）。
+    openPatientHistoryAddModal(chip.label);
     return;
   }
   if (chip.registered && chip.planId) {

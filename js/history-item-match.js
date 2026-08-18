@@ -1,6 +1,6 @@
 // 既往歴マスタの検索候補（疾患・手術の葉／紹介先）
 
-import { formatMasterItemDisplayLabel } from "./exam-item-match.js";
+import { formatMasterItemDisplayLabel, bestSubstringSimilarity } from "./exam-item-match.js";
 
 function normalizeKind(kind) {
   return String(kind || "").trim() === "group" ? "group" : "leaf";
@@ -53,6 +53,28 @@ export function filterHistoryTreeLeavesByQuery(items, query) {
     const hay = `${t.label} ${t.path}`.toLowerCase();
     return hay.includes(q);
   });
+}
+
+/**
+ * カルテ本文（長文）中に既往歴マスタ（疾患・手術の葉）が出現しているかを検出する。
+ * 薬剤同様、完全一致＋表記ゆれ向けの総当たり近似一致のみで判定する。
+ * 該当なしは null。
+ */
+export function scanHistoryLabelInText(bodyText, target, { fuzzyThreshold = 0.82 } = {}) {
+  const label = String(target?.label || "").trim();
+  if (!label || label.length < 2) return null;
+  const body = String(bodyText || "");
+
+  const idx = body.indexOf(label);
+  if (idx !== -1) {
+    return { score: 100, exact: true, start: idx, end: idx + label.length };
+  }
+
+  const winSim = bestSubstringSimilarity(body, label);
+  if (winSim >= fuzzyThreshold) {
+    return { score: Math.round(55 + 40 * winSim), exact: false, start: -1, end: -1 };
+  }
+  return null;
 }
 
 export function filterHistoryReferralByQuery(items, query) {

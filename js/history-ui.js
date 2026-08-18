@@ -369,10 +369,18 @@ export async function deletePatientHistoryEntryById(entryId) {
 
 /**
  * 既往歴の新規追加モーダルを開く（状態モードなど別画面から使う）。
+ * prefillTitle を渡すと、疾患名の検索モードに切り替えてその語で絞り込んだ
+ * 状態で開く（入力モードのチップから遷移する場合など）。
  */
-export function openPatientHistoryAddModal() {
+export function openPatientHistoryAddModal(prefillTitle = "") {
   if (!state.karteNumber) return false;
   openAddModal();
+  const title = String(prefillTitle || "").trim();
+  if (title) {
+    enterSearchMode();
+    state.searchQuery = title;
+    renderHistoryLinearPicker();
+  }
   return true;
 }
 

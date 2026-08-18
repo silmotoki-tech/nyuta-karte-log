@@ -4,7 +4,7 @@
 // - 薬剤名（大分類 > 中項目）例: アモキシシリン（内服薬 > 抗生剤）／コンベニア（注射薬 > 抗生剤）
 // - 中項目なし（点眼など）: ヒアレイン（点眼薬）
 
-import { formatMasterItemDisplayLabel } from "./exam-item-match.js";
+import { formatMasterItemDisplayLabel, bestSubstringSimilarity } from "./exam-item-match.js";
 
 const MED_CATEGORY_LABELS = {
   inject: "注射薬",
@@ -77,6 +77,29 @@ function scoreMedicationLabelMatch(query, candidate) {
   }
   if (c.startsWith(q) || q.startsWith(c)) return 80;
   return 0;
+}
+
+/**
+ * カルテ本文（長文）中に薬剤マスタ項目が出現しているかを検出する。
+ * 薬剤名には検査項目のような英数字コード・類義語辞書がないため、
+ * 完全一致＋表記ゆれ向けの総当たり近似一致（軽い編集距離フォールバック）のみで判定する。
+ * 該当なしは null。
+ */
+export function scanMedicationLabelInText(bodyText, target, { fuzzyThreshold = 0.82 } = {}) {
+  const label = String(target?.label || "").trim();
+  if (!label || label.length < 2) return null;
+  const body = String(bodyText || "");
+
+  const idx = body.indexOf(label);
+  if (idx !== -1) {
+    return { score: 100, exact: true, start: idx, end: idx + label.length };
+  }
+
+  const winSim = bestSubstringSimilarity(body, label);
+  if (winSim >= fuzzyThreshold) {
+    return { score: Math.round(55 + 40 * winSim), exact: false, start: -1, end: -1 };
+  }
+  return null;
 }
 
 function toMedicationCandidateRow(t, score = 0) {
