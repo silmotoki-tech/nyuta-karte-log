@@ -1003,7 +1003,12 @@ function wirePlanModal() {
   planDoneDate?.addEventListener("click", () => {
     if (!planDoneDate.disabled) openDueCalendarPicker(planDoneDate);
   });
-  planDoneCheck?.addEventListener("change", syncPlanDoneBlockVisibility);
+  planDoneCheck?.addEventListener("change", () => {
+    syncPlanDoneBlockVisibility();
+    syncBaselineFromDoneDate();
+  });
+  planDoneDate?.addEventListener("change", syncBaselineFromDoneDate);
+  planDoneDate?.addEventListener("input", syncBaselineFromDoneDate);
 }
 
 /**
@@ -1104,6 +1109,33 @@ function expressDaysAsRelative(days) {
 }
 
 /**
+ * 相対日数計算の基準日。
+ * 「本日実施した内容の記録」に実施日が入力・有効化されていればその日付を、
+ * それ以外（今日のまま／未入力）は今日を基準にする。
+ * exam-item-sheet 経由の編集や完了直後の「次の予定」プリセットでは
+ * state.draft.baselineDate に実施日・完了日が引き継がれている。
+ */
+function dueRelativeBaselineDate() {
+  return state.draft.baselineDate || todayStr();
+}
+
+/**
+ * 「本日実施した内容の記録」の実施日欄が変わったら、相対日数の基準日も
+ * 追従させる。すでに次回予定（相対指定）が入力済みなら、新しい基準日で
+ * 予定日を再計算する。
+ */
+function syncBaselineFromDoneDate() {
+  const usingDone = Boolean(
+    planDoneCheck?.checked && planDoneDate && !planDoneDate.disabled && planDoneDate.value
+  );
+  state.draft.baselineDate = usingDone ? planDoneDate.value : todayStr();
+  if (planDueDate?.value) {
+    syncRelativeFromCalendar(planDueDate.value);
+  }
+  updateWindowNote();
+}
+
+/**
  * カレンダー日付 → 相対指定表示へ反映。
  */
 function syncRelativeFromCalendar(dateStr) {
@@ -1114,7 +1146,7 @@ function syncRelativeFromCalendar(dateStr) {
     syncDueRelativeUI();
     return;
   }
-  const days = daysBetween(todayStr(), dateStr);
+  const days = daysBetween(dueRelativeBaselineDate(), dateStr);
   if (days == null) return;
   if (days < 0) {
     state.draft.dueRelativeUnit = "day";
@@ -1142,7 +1174,7 @@ function applyDueRelativeToCalendar() {
   state.draft.dueRelativeBuffer = String(value);
 
   const days = unitToDays(state.draft.dueRelativeUnit, value);
-  const date = addDays(todayStr(), days);
+  const date = addDays(dueRelativeBaselineDate(), days);
   state.syncingDueFromRelative = true;
   if (sheetDueDate) sheetDueDate.value = date;
   if (planDueDate) planDueDate.value = date;

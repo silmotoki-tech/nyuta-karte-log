@@ -1735,46 +1735,86 @@
         <input id="procedure-plan-history-date" class="input input--date" type="date" />
       </div>
 
-      <div class="field exam-due-field proc-due-field" id="procedure-plan-due-field">
-        <span class="label">予定日</span>
-        <div class="exam-due-compact">
-          <div class="exam-due-compact__date-row">
-            <label class="label label--sub" for="procedure-plan-due-date">カレンダー</label>
-            <input
-              id="procedure-plan-due-date"
-              class="input input--date exam-due-compact__date"
-              type="date"
-              aria-label="予定日（タップでカレンダー）"
-            />
-          </div>
-          <div class="exam-due-compact__relative">
-            <div
-              class="exam-due-compact__units"
-              role="group"
-              aria-label="相対日数の単位"
-            >
-              <p
-                class="interval-value-display interval-value-display--compact"
-                id="procedure-plan-due-display"
-              >
-                0日後
-              </p>
+      <div class="exam-plan-dual" id="procedure-plan-dual">
+        <section
+          class="exam-plan-section exam-plan-section--plan exam-due-field"
+          id="procedure-plan-due-field"
+          aria-labelledby="procedure-plan-section-due-title"
+        >
+          <h3 class="exam-plan-section__title" id="procedure-plan-section-due-title">次回予定の登録（任意）</h3>
+          <div class="exam-due-compact">
+            <div class="exam-due-compact__date-row">
+              <label class="label label--sub" for="procedure-plan-due-date">予定日</label>
+              <input
+                id="procedure-plan-due-date"
+                class="input input--date exam-due-compact__date"
+                type="date"
+                aria-label="予定日（タップでカレンダー）"
+              />
+            </div>
+            <div class="exam-due-compact__relative">
               <div
-                class="interval-unit-buttons interval-unit-buttons--stack"
-                id="procedure-plan-due-units"
+                class="exam-due-compact__units"
                 role="group"
-                aria-label="日・週・月"
+                aria-label="相対日数の単位"
+              >
+                <p
+                  class="interval-value-display interval-value-display--compact"
+                  id="procedure-plan-due-display"
+                >
+                  0日後
+                </p>
+                <div
+                  class="interval-unit-buttons interval-unit-buttons--stack"
+                  id="procedure-plan-due-units"
+                  role="group"
+                  aria-label="日・週・月"
+                ></div>
+              </div>
+              <div
+                class="numpad numpad--compact"
+                id="procedure-plan-due-numpad"
+                aria-label="相対日数の数値入力"
               ></div>
             </div>
-            <div
-              class="numpad numpad--compact"
-              id="procedure-plan-due-numpad"
-              aria-label="相対日数の数値入力"
-            ></div>
+            <p class="field__note" id="procedure-plan-window-note"></p>
           </div>
-          <p class="field__note" id="procedure-plan-window-note"></p>
-        </div>
+        </section>
+
+        <section
+          class="exam-plan-section exam-plan-section--done exam-plan-done-field"
+          id="procedure-plan-done-field"
+          aria-labelledby="procedure-plan-section-done-title"
+        >
+          <h3 class="exam-plan-section__title" id="procedure-plan-section-done-title">本日実施した内容の記録（任意）</h3>
+          <label class="exam-other-check exam-plan-done-check" id="procedure-plan-done-check-row">
+            <input type="checkbox" id="procedure-plan-done-check" />
+            <span>実施履歴に登録する</span>
+          </label>
+          <div class="exam-plan-done-block" id="procedure-plan-done-block">
+            <div class="exam-plan-done-block__row">
+              <label class="label label--sub" for="procedure-plan-done-date">実施日</label>
+              <input
+                id="procedure-plan-done-date"
+                class="input input--date"
+                type="date"
+                disabled
+                aria-label="実施日（タップでカレンダー）"
+              />
+            </div>
+            <label class="label label--sub" for="procedure-plan-done-note">実施メモ（任意）</label>
+            <input
+              id="procedure-plan-done-note"
+              class="input"
+              type="text"
+              placeholder="例）経過良好"
+              autocomplete="off"
+              disabled
+            />
+          </div>
+        </section>
       </div>
+
       <div class="field">
         <label class="label" for="procedure-plan-note">メモ（任意）</label>
         <input

@@ -48,6 +48,9 @@ const state = {
   dueRelativeBuffer: "",
   // 予定登録モーダルの「予定を登録」／「実施を記録」切り替え
   registerMode: "plan",
+  // 相対日数計算の基準日（本日実施した内容の記録に実施日があればそれ、
+  // なければ今日）。
+  baselineDate: null,
 };
 
 const planList = document.getElementById("procedure-plan-list");
@@ -71,6 +74,11 @@ const planDueNumpad = document.getElementById("procedure-plan-due-numpad");
 const planWindowNote = document.getElementById("procedure-plan-window-note");
 const planHistDateField = document.getElementById("procedure-plan-history-date-field");
 const planHistDate = document.getElementById("procedure-plan-history-date");
+const planDoneField = document.getElementById("procedure-plan-done-field");
+const planDoneCheck = document.getElementById("procedure-plan-done-check");
+const planDoneBlock = document.getElementById("procedure-plan-done-block");
+const planDoneDate = document.getElementById("procedure-plan-done-date");
+const planDoneNote = document.getElementById("procedure-plan-done-note");
 const planNote = document.getElementById("procedure-plan-note");
 const planError = document.getElementById("procedure-plan-error");
 const btnPlanSave = document.getElementById("btn-procedure-plan-save");
@@ -157,6 +165,15 @@ export function initProceduresUI(helpers = {}) {
 
   wireDueDateInput(planDueDate);
   planDueDate?.addEventListener("click", () => openDueCalendarPicker(planDueDate));
+  planDoneDate?.addEventListener("click", () => {
+    if (!planDoneDate.disabled) openDueCalendarPicker(planDoneDate);
+  });
+  planDoneCheck?.addEventListener("change", () => {
+    syncPlanDoneBlockVisibility();
+    syncBaselineFromDoneDate();
+  });
+  planDoneDate?.addEventListener("change", syncBaselineFromDoneDate);
+  planDoneDate?.addEventListener("input", syncBaselineFromDoneDate);
 }
 
 export function enterProcedures(karteNumber) {
@@ -485,13 +502,38 @@ function resetDueRelative() {
   state.dueRelativeBuffer = "";
 }
 
+/**
+ * 相対日数計算の基準日。
+ * 「本日実施した内容の記録」に実施日が入力・有効化されていればその日付を、
+ * それ以外（今日のまま／未入力）は今日を基準にする。
+ */
+function dueRelativeBaselineDate() {
+  return state.baselineDate || todayStr();
+}
+
+/**
+ * 「本日実施した内容の記録」の実施日欄が変わったら、相対日数の基準日も
+ * 追従させる。すでに次回予定（相対指定）が入力済みなら、新しい基準日で
+ * 予定日を再計算する。
+ */
+function syncBaselineFromDoneDate() {
+  const usingDone = Boolean(
+    planDoneCheck?.checked && planDoneDate && !planDoneDate.disabled && planDoneDate.value
+  );
+  state.baselineDate = usingDone ? planDoneDate.value : todayStr();
+  if (planDueDate?.value) {
+    syncRelativeFromCalendar(planDueDate.value);
+  }
+  updateWindowNote();
+}
+
 function syncRelativeFromCalendar(dateStr) {
   if (!dateStr) {
     resetDueRelative();
     syncDueRelativeUI();
     return;
   }
-  const days = daysBetween(todayStr(), dateStr);
+  const days = daysBetween(dueRelativeBaselineDate(), dateStr);
   if (days == null) return;
   if (days < 0) {
     state.dueRelativeUnit = "day";
@@ -515,7 +557,7 @@ function applyDueRelativeToCalendar() {
   state.dueRelativeValue = value;
   state.dueRelativeBuffer = String(value);
   const days = unitToDays(state.dueRelativeUnit, value);
-  const date = addDays(todayStr(), days);
+  const date = addDays(dueRelativeBaselineDate(), days);
   state.syncingDueFromRelative = true;
   if (planDueDate) planDueDate.value = date;
   state.syncingDueFromRelative = false;
@@ -596,7 +638,7 @@ function updateWindowNote() {
     planWindowNote.textContent = "";
     return;
   }
-  const info = getDueCountdown(due, todayStr());
+  const info = getDueCountdown(due, dueRelativeBaselineDate());
   planWindowNote.textContent = info
     ? `予定日: ${formatDueCountdown(info)}`
     : "";
@@ -614,6 +656,8 @@ function procedurePlanSaveButtonLabel() {
  * 「予定を登録」／「実施を記録」の切り替え。
  * history では予定日セクションを隠し、実施日のみの単独フォームにする
  * （予定を経由せず、その場で処置の実施だけを記録する場面を想定）。
+ * plan では、次回予定に加えて「本日実施した内容の記録（任意）」も
+ * 同じ画面で入力できる（編集時は対象外、常に予定のみを扱う）。
  */
 function setRegisterMode(mode) {
   const isHistory = mode === "history";
@@ -625,12 +669,21 @@ function setRegisterMode(mode) {
   btnPlanModeHistory?.setAttribute("aria-pressed", String(isHistory));
 
   if (planDueField) planDueField.hidden = isHistory;
+  if (planDoneField) planDoneField.hidden = isHistory || state.editingPlanId != null;
   if (planHistDateField) planHistDateField.hidden = !isHistory;
   if (btnPlanComplete) btnPlanComplete.hidden = isHistory || state.editingPlanId == null;
 
   if (btnPlanSave && !btnPlanSave.disabled) {
     btnPlanSave.textContent = procedurePlanSaveButtonLabel();
   }
+}
+
+/** 「本日実施した内容の記録」の実施日／メモ欄の有効・無効を切り替える。 */
+function syncPlanDoneBlockVisibility() {
+  const on = Boolean(planDoneCheck?.checked);
+  if (planDoneBlock) planDoneBlock.classList.toggle("is-disabled", !on);
+  if (planDoneDate) planDoneDate.disabled = !on;
+  if (planDoneNote) planDoneNote.disabled = !on;
 }
 
 function openPlanModal(mode, plan = null) {
@@ -641,6 +694,7 @@ function openPlanModal(mode, plan = null) {
   }
   if (planContent) planContent.value = plan?.content || "";
   if (planNote) planNote.value = plan?.note || "";
+  state.baselineDate = plan?.baselineDate || todayStr();
   const due = plan?.dueDate || "";
   if (planDueDate) planDueDate.value = due;
   if (due) {
@@ -649,6 +703,10 @@ function openPlanModal(mode, plan = null) {
     resetDueRelative();
     syncDueRelativeUI();
   }
+  if (planDoneCheck) planDoneCheck.checked = false;
+  if (planDoneDate) planDoneDate.value = todayStr();
+  if (planDoneNote) planDoneNote.value = "";
+  syncPlanDoneBlockVisibility();
   updateWindowNote();
   if (planHistDate) planHistDate.value = todayStr();
   // 新規登録時のみ「実施を記録」への切替を出す。編集は常に予定として扱う。
@@ -679,13 +737,26 @@ async function handlePlanSave() {
   }
   const dueDate = planDueDate?.value || "";
   const note = (planNote?.value || "").trim();
+  // 次回予定と実施記録は独立。どちらか一方、または両方で保存できる。
+  const saveDoneHistory =
+    Boolean(planDoneCheck?.checked) && planDoneField && !planDoneField.hidden;
+  const doneDate = planDoneDate?.value || "";
+  const doneNote = (planDoneNote?.value || "").trim();
+  const savePlan = Boolean(dueDate);
 
   if (!content) {
     deps.showError(planError, "処置内容を入力してください。");
     return;
   }
-  if (!dueDate) {
-    deps.showError(planError, "予定日を選択してください。");
+  if (!savePlan && !saveDoneHistory) {
+    deps.showError(
+      planError,
+      "予定日を入力するか、「実施履歴に登録する」にチェックしてください。"
+    );
+    return;
+  }
+  if (saveDoneHistory && !doneDate) {
+    deps.showError(planError, "実施日を選択してください。");
     return;
   }
   if (!state.karteNumber) {
@@ -696,16 +767,34 @@ async function handlePlanSave() {
   deps.showError(planError, "");
   deps.setBusy(btnPlanSave, true, "保存中...", "保存する");
   try {
-    await saveProcedurePlan(state.karteNumber, {
-      planId: state.editingPlanId,
-      content,
-      dueDate,
-      note,
-      baselineDate: todayStr(),
-      source: "manual",
-    });
+    if (savePlan) {
+      await saveProcedurePlan(state.karteNumber, {
+        planId: state.editingPlanId,
+        content,
+        dueDate,
+        note,
+        baselineDate: state.baselineDate || todayStr(),
+        source: "manual",
+      });
+    }
+    if (saveDoneHistory) {
+      await addProcedure(state.karteNumber, {
+        date: doneDate,
+        content,
+        note: doneNote,
+        source: "manual",
+      });
+    }
     closePlanModal();
-    deps.showToast(state.editingPlanId ? "予定を更新しました。" : "予定を登録しました。");
+    deps.showToast(
+      savePlan && saveDoneHistory
+        ? "予定と本日の実施内容を保存しました。"
+        : saveDoneHistory
+          ? "実施内容を保存しました。"
+          : state.editingPlanId
+            ? "予定を更新しました。"
+            : "予定を登録しました。"
+    );
   } catch (err) {
     console.error(err);
     deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
