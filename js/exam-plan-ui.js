@@ -9,6 +9,7 @@ import {
   endExamScheduledPlan,
   reviveExamPlanByItem,
   addExamHistory,
+  addEntry,
   addExamItem,
   deleteExamItem,
   EXAM_ITEM_CATEGORIES,
@@ -57,6 +58,7 @@ let deps = {
   showToast: () => {},
   showError: () => {},
   setBusy: () => {},
+  getSelectedAuthor: () => "",
 };
 
 const state = {
@@ -92,6 +94,8 @@ const state = {
     mode: "create", // create | edit | afterComplete
     /** 登録モーダル内の切り替え。history は予定を作らず実施履歴のみ追加する */
     registerMode: "plan", // plan | history
+    /** 「本日実施した内容の記録」の記録方法。continuous=項目の実施履歴として蓄積、single=時系列に単発イベントとして記録 */
+    doneRecordMode: "continuous", // continuous | single
   },
   /** カレンダー↔相対の同期ループ防止 */
   syncingDueFromRelative: false,
@@ -170,6 +174,10 @@ const planDoneField = document.getElementById("exam-plan-done-field");
 const planDoneCheck = document.getElementById("exam-plan-done-check");
 const planDoneBlock = document.getElementById("exam-plan-done-block");
 const planDoneDate = document.getElementById("exam-plan-done-date");
+const planDoneRecordMode = document.getElementById("exam-plan-done-record-mode");
+const btnDoneModeContinuous = document.getElementById("btn-exam-done-mode-continuous");
+const btnDoneModeSingle = document.getElementById("btn-exam-done-mode-single");
+const planDoneRecordModeNote = document.getElementById("exam-plan-done-record-mode-note");
 const planDoneNote = document.getElementById("exam-plan-done-note");
 const planNote = document.getElementById("exam-plan-note");
 const planError = document.getElementById("exam-plan-error");
@@ -1009,6 +1017,8 @@ function wirePlanModal() {
   });
   planDoneDate?.addEventListener("change", syncBaselineFromDoneDate);
   planDoneDate?.addEventListener("input", syncBaselineFromDoneDate);
+  btnDoneModeContinuous?.addEventListener("click", () => setDoneRecordMode("continuous"));
+  btnDoneModeSingle?.addEventListener("click", () => setDoneRecordMode("single"));
 }
 
 /**
@@ -2250,7 +2260,23 @@ function resetPlanDoneFields(mode) {
   if (planDoneCheck) planDoneCheck.checked = false;
   if (planDoneDate) planDoneDate.value = todayStr();
   if (planDoneNote) planDoneNote.value = "";
+  setDoneRecordMode("continuous");
   syncPlanDoneBlockVisibility();
+}
+
+function setDoneRecordMode(mode) {
+  const normalized = mode === "single" ? "single" : "continuous";
+  state.draft.doneRecordMode = normalized;
+  btnDoneModeContinuous?.classList.toggle("is-active", normalized === "continuous");
+  btnDoneModeContinuous?.setAttribute("aria-pressed", String(normalized === "continuous"));
+  btnDoneModeSingle?.classList.toggle("is-active", normalized === "single");
+  btnDoneModeSingle?.setAttribute("aria-pressed", String(normalized === "single"));
+  if (planDoneRecordModeNote) {
+    planDoneRecordModeNote.textContent =
+      normalized === "single"
+        ? "実施履歴には残さず、中央カラムの時系列にこの日の出来事として記録します。"
+        : "この項目の実施履歴として蓄積され、状態モードの検査ブロックに表示されます。";
+  }
 }
 
 function syncPlanDoneBlockVisibility() {
@@ -2262,6 +2288,8 @@ function syncPlanDoneBlockVisibility() {
   }
   if (planDoneDate) planDoneDate.disabled = !on;
   if (planDoneNote) planDoneNote.disabled = !on;
+  if (btnDoneModeContinuous) btnDoneModeContinuous.disabled = !on;
+  if (btnDoneModeSingle) btnDoneModeSingle.disabled = !on;
 }
 
 function closePlanModal() {
@@ -2338,7 +2366,9 @@ async function handlePlanSave() {
       });
     }
 
-    if (saveDoneHistory) {
+    const doneAsSingleEvent = saveDoneHistory && state.draft.doneRecordMode === "single";
+
+    if (saveDoneHistory && !doneAsSingleEvent) {
       await addExamHistory(state.karteNumber, {
         item,
         date: doneDate,
@@ -2346,12 +2376,29 @@ async function handlePlanSave() {
       });
     }
 
+    if (doneAsSingleEvent) {
+      await addEntry(state.karteNumber, {
+        recordDate: doneDate,
+        headline: `${item}実施`,
+        body: doneNote,
+        category: "none",
+        important: false,
+        changed: false,
+        author: deps.getSelectedAuthor?.() || "",
+        source: "manual",
+      });
+    }
+
     closePlanModal();
     deps.showToast(
       savePlan && saveDoneHistory
-        ? "予定と当日の実施内容を保存しました。"
+        ? doneAsSingleEvent
+          ? "予定を保存し、実施内容を時系列に記録しました。"
+          : "予定と当日の実施内容を保存しました。"
         : saveDoneHistory
-          ? "実施内容を保存しました。"
+          ? doneAsSingleEvent
+            ? "実施内容を時系列に記録しました。"
+            : "実施内容を保存しました。"
           : "予定を保存しました。"
     );
   } catch (err) {

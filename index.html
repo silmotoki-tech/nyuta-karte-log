@@ -1086,6 +1086,33 @@
                 aria-label="実施日（タップでカレンダー）"
               />
             </div>
+            <span class="label label--sub">記録方法</span>
+            <div
+              class="view-toggle exam-plan-done-record-mode"
+              id="exam-plan-done-record-mode"
+              role="group"
+              aria-label="記録方法"
+            >
+              <button
+                type="button"
+                class="view-toggle__btn is-active"
+                id="btn-exam-done-mode-continuous"
+                data-mode="continuous"
+                aria-pressed="true"
+              >
+                継続として記録
+              </button>
+              <button
+                type="button"
+                class="view-toggle__btn"
+                id="btn-exam-done-mode-single"
+                data-mode="single"
+                aria-pressed="false"
+              >
+                単発として記録
+              </button>
+            </div>
+            <p class="field__note" id="exam-plan-done-record-mode-note"></p>
             <label class="label label--sub" for="exam-plan-done-note">実施メモ（任意）</label>
             <input
               id="exam-plan-done-note"
@@ -1802,6 +1829,33 @@
                 aria-label="実施日（タップでカレンダー）"
               />
             </div>
+            <span class="label label--sub">記録方法</span>
+            <div
+              class="view-toggle exam-plan-done-record-mode"
+              id="procedure-plan-done-record-mode"
+              role="group"
+              aria-label="記録方法"
+            >
+              <button
+                type="button"
+                class="view-toggle__btn is-active"
+                id="btn-procedure-done-mode-continuous"
+                data-mode="continuous"
+                aria-pressed="true"
+              >
+                継続として記録
+              </button>
+              <button
+                type="button"
+                class="view-toggle__btn"
+                id="btn-procedure-done-mode-single"
+                data-mode="single"
+                aria-pressed="false"
+              >
+                単発として記録
+              </button>
+            </div>
+            <p class="field__note" id="procedure-plan-done-record-mode-note"></p>
             <label class="label label--sub" for="procedure-plan-done-note">実施メモ（任意）</label>
             <input
               id="procedure-plan-done-note"

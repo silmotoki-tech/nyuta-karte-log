@@ -1098,6 +1098,12 @@ html.is-unlocked .app {
   gap: 2px;
 }
 
+/* 実施記録の「継続として記録／単発として記録」トグル */
+.exam-plan-done-record-mode {
+  align-self: flex-start;
+  margin: 1px 0 0;
+}
+
 .exam-plan-done-block .input--date {
   background-color: var(--color-white);
 }
@@ -4793,6 +4799,11 @@ select.input {
 .view-toggle__btn.is-active {
   background-color: var(--color-green);
   color: var(--color-white);
+}
+
+.view-toggle__btn:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 
 /* 状態モード表示中は3カラムを隠す（.layout の display:grid が [hidden] に勝つため） */

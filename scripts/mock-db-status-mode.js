@@ -326,11 +326,23 @@ export async function getAnimalName() {
 export async function setAnimalName() {}
 
 // 検証スクリプト側から globalThis.__seedEntries でサンプル記録を流し込める
+function currentEntries(karte) {
+  if (!store.entries[karte]) {
+    store.entries[karte] = [...(globalThis.__seedEntries || [])];
+  }
+  return store.entries[karte];
+}
+function notifyEntries(karte) {
+  const list = sortEntriesDescending(currentEntries(karte));
+  (listeners.entries.get(karte) || []).forEach((cb) =>
+    cb(structuredClone(list))
+  );
+}
 export function subscribeEntries(karte, cb) {
   const list = listeners.entries.get(karte) || [];
   list.push(cb);
   listeners.entries.set(karte, list);
-  cb(structuredClone(globalThis.__seedEntries || []));
+  cb(structuredClone(sortEntriesDescending(currentEntries(karte))));
   return () =>
     listeners.entries.set(
       karte,
@@ -342,8 +354,11 @@ export function sortEntriesDescending(entries) {
     String(b.recordDate || "").localeCompare(String(a.recordDate || ""))
   );
 }
-export async function addEntry() {
-  return nid("e");
+export async function addEntry(karte, data = {}) {
+  const id = nid("e");
+  currentEntries(karte).push({ id, ...data });
+  notifyEntries(karte);
+  return id;
 }
 export async function updateEntry() {}
 export async function setEntryImportant() {}

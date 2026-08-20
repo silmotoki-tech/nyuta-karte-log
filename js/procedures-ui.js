@@ -10,6 +10,7 @@ import {
   deleteProcedurePlan,
   completeProcedurePlan,
   reviveProcedurePlan,
+  addEntry,
 } from "./db.js";
 import {
   getDueCountdown,
@@ -32,6 +33,7 @@ let deps = {
   showToast: () => {},
   showError: () => {},
   setBusy: () => {},
+  getSelectedAuthor: () => "",
 };
 
 const state = {
@@ -51,6 +53,8 @@ const state = {
   // 相対日数計算の基準日（本日実施した内容の記録に実施日があればそれ、
   // なければ今日）。
   baselineDate: null,
+  /** 「本日実施した内容の記録」の記録方法。continuous=処置履歴として蓄積、single=時系列に単発イベントとして記録 */
+  doneRecordMode: "continuous", // continuous | single
 };
 
 const planList = document.getElementById("procedure-plan-list");
@@ -78,6 +82,10 @@ const planDoneField = document.getElementById("procedure-plan-done-field");
 const planDoneCheck = document.getElementById("procedure-plan-done-check");
 const planDoneBlock = document.getElementById("procedure-plan-done-block");
 const planDoneDate = document.getElementById("procedure-plan-done-date");
+const planDoneRecordMode = document.getElementById("procedure-plan-done-record-mode");
+const btnDoneModeContinuous = document.getElementById("btn-procedure-done-mode-continuous");
+const btnDoneModeSingle = document.getElementById("btn-procedure-done-mode-single");
+const planDoneRecordModeNote = document.getElementById("procedure-plan-done-record-mode-note");
 const planDoneNote = document.getElementById("procedure-plan-done-note");
 const planNote = document.getElementById("procedure-plan-note");
 const planError = document.getElementById("procedure-plan-error");
@@ -174,6 +182,8 @@ export function initProceduresUI(helpers = {}) {
   });
   planDoneDate?.addEventListener("change", syncBaselineFromDoneDate);
   planDoneDate?.addEventListener("input", syncBaselineFromDoneDate);
+  btnDoneModeContinuous?.addEventListener("click", () => setDoneRecordMode("continuous"));
+  btnDoneModeSingle?.addEventListener("click", () => setDoneRecordMode("single"));
 }
 
 export function enterProcedures(karteNumber) {
@@ -684,6 +694,24 @@ function syncPlanDoneBlockVisibility() {
   if (planDoneBlock) planDoneBlock.classList.toggle("is-disabled", !on);
   if (planDoneDate) planDoneDate.disabled = !on;
   if (planDoneNote) planDoneNote.disabled = !on;
+  if (btnDoneModeContinuous) btnDoneModeContinuous.disabled = !on;
+  if (btnDoneModeSingle) btnDoneModeSingle.disabled = !on;
+}
+
+/** 「継続として記録」／「単発として記録」の切り替え。 */
+function setDoneRecordMode(mode) {
+  const normalized = mode === "single" ? "single" : "continuous";
+  state.doneRecordMode = normalized;
+  btnDoneModeContinuous?.classList.toggle("is-active", normalized === "continuous");
+  btnDoneModeContinuous?.setAttribute("aria-pressed", String(normalized === "continuous"));
+  btnDoneModeSingle?.classList.toggle("is-active", normalized === "single");
+  btnDoneModeSingle?.setAttribute("aria-pressed", String(normalized === "single"));
+  if (planDoneRecordModeNote) {
+    planDoneRecordModeNote.textContent =
+      normalized === "single"
+        ? "処置履歴には残さず、中央カラムの時系列にこの日の出来事として記録します。"
+        : "この処置の実施履歴として蓄積され、状態モードの処置ブロックに表示されます。";
+  }
 }
 
 function openPlanModal(mode, plan = null) {
@@ -706,6 +734,7 @@ function openPlanModal(mode, plan = null) {
   if (planDoneCheck) planDoneCheck.checked = false;
   if (planDoneDate) planDoneDate.value = todayStr();
   if (planDoneNote) planDoneNote.value = "";
+  setDoneRecordMode("continuous");
   syncPlanDoneBlockVisibility();
   updateWindowNote();
   if (planHistDate) planHistDate.value = todayStr();
@@ -777,7 +806,9 @@ async function handlePlanSave() {
         source: "manual",
       });
     }
-    if (saveDoneHistory) {
+    const doneAsSingleEvent = saveDoneHistory && state.doneRecordMode === "single";
+
+    if (saveDoneHistory && !doneAsSingleEvent) {
       await addProcedure(state.karteNumber, {
         date: doneDate,
         content,
@@ -785,12 +816,30 @@ async function handlePlanSave() {
         source: "manual",
       });
     }
+
+    if (doneAsSingleEvent) {
+      await addEntry(state.karteNumber, {
+        recordDate: doneDate,
+        headline: `${content}実施`,
+        body: doneNote,
+        category: "none",
+        important: false,
+        changed: false,
+        author: deps.getSelectedAuthor?.() || "",
+        source: "manual",
+      });
+    }
+
     closePlanModal();
     deps.showToast(
       savePlan && saveDoneHistory
-        ? "予定と本日の実施内容を保存しました。"
+        ? doneAsSingleEvent
+          ? "予定を保存し、実施内容を時系列に記録しました。"
+          : "予定と本日の実施内容を保存しました。"
         : saveDoneHistory
-          ? "実施内容を保存しました。"
+          ? doneAsSingleEvent
+            ? "実施内容を時系列に記録しました。"
+            : "実施内容を保存しました。"
           : state.editingPlanId
             ? "予定を更新しました。"
             : "予定を登録しました。"

@@ -1479,6 +1479,7 @@ initExamPlanUI({
   showToast,
   showError,
   setBusy,
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
 });
 
 initMedsUI({
@@ -1504,6 +1505,7 @@ initProceduresUI({
   showToast,
   showError,
   setBusy,
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
 });
 
 initSpecialNotesUI({
