@@ -931,6 +931,12 @@ html.is-unlocked .app {
   margin: 0;
 }
 
+.exam-plan-last-done {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-brown);
+}
+
 .exam-plan-dual {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);

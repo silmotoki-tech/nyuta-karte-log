@@ -87,6 +87,7 @@ const btnDoneModeContinuous = document.getElementById("btn-procedure-done-mode-c
 const btnDoneModeSingle = document.getElementById("btn-procedure-done-mode-single");
 const planDoneRecordModeNote = document.getElementById("procedure-plan-done-record-mode-note");
 const planDoneNote = document.getElementById("procedure-plan-done-note");
+const planLastDone = document.getElementById("procedure-plan-last-done");
 const planNote = document.getElementById("procedure-plan-note");
 const planError = document.getElementById("procedure-plan-error");
 const btnPlanSave = document.getElementById("btn-procedure-plan-save");
@@ -118,6 +119,39 @@ function ymdFromStr(dateStr) {
   const [y, m, d] = dateStr.split("-");
   if (!y || !m || !d) return dateStr;
   return `${y}/${Number(m)}/${Number(d)}`;
+}
+
+function mdFromStr(dateStr) {
+  if (!dateStr) return "";
+  const [, m, d] = dateStr.split("-");
+  if (!m || !d) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+function latestProcedureHistoryDateForContent(content) {
+  const needle = String(content || "").trim();
+  if (!needle) return "";
+  let latest = "";
+  (state.history || []).forEach((h) => {
+    if (!h) return;
+    if (String(h.content || "").trim() !== needle) return;
+    if ((h.date || "") > latest) latest = h.date;
+  });
+  return latest;
+}
+
+function updateLastDoneHint() {
+  if (!planLastDone) return;
+  const content = (planContent?.value || "").trim();
+  if (!content) {
+    planLastDone.hidden = true;
+    planLastDone.textContent = "";
+    return;
+  }
+  const last = latestProcedureHistoryDateForContent(content);
+  const md = mdFromStr(last);
+  planLastDone.hidden = false;
+  planLastDone.textContent = md ? `前回：${md}` : "初回";
 }
 
 function parseDateStr(dateStr) {
@@ -184,6 +218,8 @@ export function initProceduresUI(helpers = {}) {
   planDoneDate?.addEventListener("input", syncBaselineFromDoneDate);
   btnDoneModeContinuous?.addEventListener("click", () => setDoneRecordMode("continuous"));
   btnDoneModeSingle?.addEventListener("click", () => setDoneRecordMode("single"));
+  planContent?.addEventListener("input", updateLastDoneHint);
+  planContent?.addEventListener("change", updateLastDoneHint);
 }
 
 export function enterProcedures(karteNumber) {
@@ -193,6 +229,7 @@ export function enterProcedures(karteNumber) {
     state.plans = bundle.plans || [];
     state.history = bundle.history || [];
     renderAll();
+    if (planModal && !planModal.hidden) updateLastDoneHint();
   });
 }
 
@@ -744,6 +781,7 @@ function openPlanModal(mode, plan = null) {
   if (btnPlanComplete) btnPlanComplete.hidden = mode !== "edit";
   deps.showError(planError, "");
   if (planModal) planModal.hidden = false;
+  updateLastDoneHint();
   setTimeout(() => planContent?.focus(), 0);
 }
 

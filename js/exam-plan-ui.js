@@ -179,6 +179,7 @@ const btnDoneModeContinuous = document.getElementById("btn-exam-done-mode-contin
 const btnDoneModeSingle = document.getElementById("btn-exam-done-mode-single");
 const planDoneRecordModeNote = document.getElementById("exam-plan-done-record-mode-note");
 const planDoneNote = document.getElementById("exam-plan-done-note");
+const planLastDone = document.getElementById("exam-plan-last-done");
 const planNote = document.getElementById("exam-plan-note");
 const planError = document.getElementById("exam-plan-error");
 const btnPlanSave = document.getElementById("btn-exam-plan-save");
@@ -240,6 +241,56 @@ function historyDateParts(dateStr) {
   const [y, m, d] = dateStr.split("-");
   if (!y || !m || !d) return { year: "", md: dateStr };
   return { year: y, md: `${Number(m)}/${Number(d)}` };
+}
+
+function mdFromStr(dateStr) {
+  if (!dateStr) return "";
+  const parts = historyDateParts(dateStr);
+  return parts.md === "日付未設定" ? "" : parts.md;
+}
+
+function collectExamLastDoneLabels() {
+  const labels = new Set();
+  const add = (raw) => {
+    const text = String(raw || "").trim();
+    if (!text) return;
+    labels.add(text);
+    text.split("・").forEach((part) => {
+      const p = part.trim();
+      if (p) labels.add(p);
+    });
+  };
+  add(state.draft.item);
+  (state.draft.selectedItems || []).forEach((sel) => add(sel.label));
+  return labels;
+}
+
+function latestExamHistoryDateForLabels(labels) {
+  if (!labels.size) return "";
+  let latest = "";
+  Object.values(state.plan?.history || {}).forEach((h) => {
+    if (!h) return;
+    const item = String(h.item || "").trim();
+    if (!item) return;
+    const parts = [item, ...item.split("・").map((p) => p.trim()).filter(Boolean)];
+    if (!parts.some((p) => labels.has(p))) return;
+    if ((h.date || "") > latest) latest = h.date;
+  });
+  return latest;
+}
+
+function updateLastDoneHint() {
+  if (!planLastDone) return;
+  const labels = collectExamLastDoneLabels();
+  if (!labels.size) {
+    planLastDone.hidden = true;
+    planLastDone.textContent = "";
+    return;
+  }
+  const last = latestExamHistoryDateForLabels(labels);
+  const md = mdFromStr(last);
+  planLastDone.hidden = false;
+  planLastDone.textContent = md ? `前回：${md}` : "初回";
 }
 
 function addDays(dateStr, days) {
@@ -491,6 +542,7 @@ export function enterExamPlan(karteNumber) {
   state.unsubscribePlan = subscribeExamPlan(karteNumber, (plan) => {
     state.plan = plan;
     renderExamPlan();
+    if (planModal && !planModal.hidden) updateLastDoneHint();
   });
 }
 
@@ -1475,18 +1527,20 @@ function planNeedsFasting(itemLabel) {
 }
 
 function renderPlanSelectionSummary() {
-  if (!planSelectionSummary) return;
   syncDraftItemFromSelection();
-  const label = (state.draft.item || "").trim();
-  const count = state.draft.selectedItems.length;
-  if (!count || !label) {
-    planSelectionSummary.hidden = true;
-    planSelectionSummary.textContent = "";
-    return;
+  if (planSelectionSummary) {
+    const label = (state.draft.item || "").trim();
+    const count = state.draft.selectedItems.length;
+    if (!count || !label) {
+      planSelectionSummary.hidden = true;
+      planSelectionSummary.textContent = "";
+    } else {
+      planSelectionSummary.hidden = false;
+      planSelectionSummary.textContent =
+        count === 1 ? `選択中: ${label}` : `選択中（${count}件）: ${label}`;
+    }
   }
-  planSelectionSummary.hidden = false;
-  planSelectionSummary.textContent =
-    count === 1 ? `選択中: ${label}` : `選択中（${count}件）: ${label}`;
+  updateLastDoneHint();
 }
 
 function activeExamCategoryId() {
@@ -2250,6 +2304,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
   }
   renderExamLinearPicker();
   updateWindowNote();
+  updateLastDoneHint();
   if (planModal) planModal.hidden = false;
 }
 
@@ -2435,6 +2490,7 @@ async function handleHistoryOnlySave(item) {
     deps.showToast("実施記録を追加しました。");
     if (planDoneNote) planDoneNote.value = "";
     planDoneNote?.focus();
+    updateLastDoneHint();
   } catch (err) {
     console.error(err);
     deps.showError(planError, "保存に失敗しました。もう一度お試しください。");
