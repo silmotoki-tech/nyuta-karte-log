@@ -127,15 +127,16 @@ await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 const dueHiddenOnOpen = await page.locator("#exam-sheet-due-field").isHidden();
 if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレンダーが見えている");
+const doneVisibleOnOpen = await page.locator("#exam-sheet-done-field").isVisible();
+if (!doneVisibleOnOpen) throw new Error("1枚目に実施日の入力欄が出ていない");
+const endBtnLabel = (await page.locator("#btn-exam-sheet-end").innerText()).trim();
+if (endBtnLabel !== "終了として保存") {
+  throw new Error(`1枚目の終了ボタンが「${endBtnLabel}」になっている`);
+}
+await page.fill("#exam-sheet-done-date", "2026-06-01");
 await page.click("#btn-exam-sheet-end");
 const dueHiddenOnEnd = await page.locator("#exam-sheet-due-field").isHidden();
 if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");
-const endSaveLabel = (await page.locator("#btn-exam-sheet-save").innerText()).trim();
-if (endSaveLabel !== "終了として保存") {
-  throw new Error(`終了の確定ボタンが「${endSaveLabel}」になっている`);
-}
-await page.fill("#exam-sheet-done-date", "2026-06-01");
-await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(400);
 
 let plans = await page.locator("#status-exam-plan-list .status-row__title").allTextContents();
@@ -204,7 +205,6 @@ if (sheetOpen) {
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 await page.click("#btn-exam-sheet-end");
-await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(400);
 plans = await page.locator("#status-exam-plan-list .status-row__title").allTextContents();
 historyGroups = await page.locator("#status-exam-history-list .status-group-title").allTextContents();

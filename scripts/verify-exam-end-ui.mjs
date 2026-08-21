@@ -61,7 +61,6 @@ if ((await page.locator("#exam-ended-list").count()) !== 0) throw new Error("end
 // End via sheet
 await page.locator("#exam-plan-list .exam-list-item").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
-page.once("dialog", (d) => d.accept());
 await page.click("#btn-exam-sheet-end");
 await page.waitForTimeout(300);
 
@@ -95,8 +94,9 @@ if (!history.some((t) => t.includes("血液検査"))) throw new Error("history l
 const sheetOpen = await page.isVisible("#exam-item-sheet:not([hidden])");
 if (!sheetOpen) throw new Error("sheet did not open after revive");
 await page.fill("#exam-sheet-due-date", "2026-09-10");
-// 血液検査は絶食の要不要が必須
-await page.click('#exam-sheet-fasting-buttons [data-fasting="none"]');
+if (await page.locator("#exam-sheet-fasting-check").count()) {
+  await page.locator("#exam-sheet-fasting-check").uncheck();
+}
 await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(300);
 const dues2 = await page.locator("#exam-plan-list .exam-list-item__due").allTextContents();

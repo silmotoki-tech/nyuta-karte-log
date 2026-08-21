@@ -729,16 +729,15 @@
           <span class="label">メモ</span>
           <p class="exam-sheet__note exam-sheet__note--readonly" id="exam-sheet-memo">（なし）</p>
         </div>
-      </div>
-
-      <div class="field" id="exam-sheet-done-field" hidden>
-        <label class="label" for="exam-sheet-done-date">実施日</label>
-        <input
-          id="exam-sheet-done-date"
-          class="input input--date"
-          type="date"
-          aria-label="実施日（タップでカレンダー）"
-        />
+        <div class="field" id="exam-sheet-done-field">
+          <label class="label" for="exam-sheet-done-date">実施日</label>
+          <input
+            id="exam-sheet-done-date"
+            class="input input--date"
+            type="date"
+            aria-label="実施日（タップでカレンダー）"
+          />
+        </div>
       </div>
 
       <div class="field exam-due-field" id="exam-sheet-due-field" hidden>
@@ -773,11 +772,11 @@
     <div class="modal__footer">
       <p id="exam-sheet-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="exam-sheet__actions" id="exam-sheet-choose-actions">
-        <button id="btn-exam-sheet-complete" class="btn btn--small btn--primary" type="button">完了</button>
-        <button id="btn-exam-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
+        <button id="btn-exam-sheet-complete" class="btn btn--small btn--primary" type="button">完了として保存</button>
+        <button id="btn-exam-sheet-end" class="btn btn--small btn--outline" type="button">終了として保存</button>
       </div>
       <div class="exam-sheet__actions" id="exam-sheet-save-actions" hidden>
-        <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">完了として保存</button>
+        <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">次回予定を保存</button>
       </div>
     </div>
   </div>
@@ -1903,15 +1902,15 @@
           <span class="label">メモ</span>
           <p class="exam-sheet__note exam-sheet__note--readonly" id="procedure-sheet-memo">（なし）</p>
         </div>
-      </div>
-      <div class="field" id="procedure-sheet-done-field" hidden>
-        <label class="label" for="procedure-sheet-done-date">実施日</label>
-        <input
-          id="procedure-sheet-done-date"
-          class="input input--date"
-          type="date"
-          aria-label="実施日（タップでカレンダー）"
-        />
+        <div class="field" id="procedure-sheet-done-field">
+          <label class="label" for="procedure-sheet-done-date">実施日</label>
+          <input
+            id="procedure-sheet-done-date"
+            class="input input--date"
+            type="date"
+            aria-label="実施日（タップでカレンダー）"
+          />
+        </div>
       </div>
       <div class="field exam-due-field" id="procedure-sheet-due-field" hidden>
         <span class="label">次回予定</span>
@@ -1945,11 +1944,11 @@
     <div class="modal__footer">
       <p id="procedure-sheet-error" class="error-text error-text--banner" role="alert" hidden></p>
       <div class="exam-sheet__actions" id="procedure-sheet-choose-actions">
-        <button id="btn-procedure-sheet-complete" class="btn btn--small btn--primary" type="button">完了</button>
-        <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
+        <button id="btn-procedure-sheet-complete" class="btn btn--small btn--primary" type="button">完了として保存</button>
+        <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了として保存</button>
       </div>
       <div class="exam-sheet__actions" id="procedure-sheet-save-actions" hidden>
-        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">完了として保存</button>
+        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">次回予定を保存</button>
       </div>
     </div>
   </div>

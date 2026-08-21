@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>exam end/revive harness</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<aside class="right-column" style="width:100%;max-width:400px;margin:0 auto;background:var(--color-cream);min-height:100vh">
+  <div id="right-tabs" class="right-tabs">
+    <button type="button" class="right-tab is-active" data-tab="exam">検査予定</button>
+  </div>
+  <p id="right-empty" class="field__note" hidden>カルテを開いてください</p>
+  <div class="right-panel" id="panel-exam" data-panel="exam">
+    <div class="exam-toolbar">
+      <button id="btn-open-exam-items" class="btn btn--small btn--outline" type="button">検査項目の管理</button>
+    </div>
+    <section class="exam-section">
+      <div class="exam-section__head"><h3 class="exam-section__title">検査予定一覧</h3></div>
+      <div class="exam-register-actions">
+        <button id="btn-exam-new" class="btn btn--small btn--primary" type="button">予定を登録</button>
+      </div>
+      <p class="field__note" id="exam-plan-empty">登録された検査予定はありません。</p>
+      <ul class="exam-list" id="exam-plan-list"></ul>
+    </section>
+    <section class="exam-section">
+      <h3 class="exam-section__title">実施履歴</h3>
+      <p class="field__note" id="exam-history-empty">まだ実施履歴がありません。</p>
+      <ul class="exam-list" id="exam-history-list"></ul>
+    </section>
+  </div>
+</aside>
+
+<div class="modal" id="exam-item-sheet" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-item-sheet-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-item-sheet-title">検査予定</h2>
+      <button class="modal__close" id="btn-close-exam-item-sheet" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="exam-sheet__item-row">
+        <p class="exam-sheet__item" id="exam-item-sheet-item"></p>
+        <label class="exam-sheet__fasting-check" id="exam-sheet-fasting-check-wrap" hidden>
+          <input id="exam-sheet-fasting-check" type="checkbox" />
+          絶食
+        </label>
+      </div>
+      <div id="exam-sheet-phase-choose">
+        <div class="field">
+          <span class="label">メモ</span>
+          <p class="exam-sheet__note exam-sheet__note--readonly" id="exam-sheet-memo">（なし）</p>
+        </div>
+        <div class="field" id="exam-sheet-done-field">
+          <label class="label" for="exam-sheet-done-date">実施日</label>
+          <input id="exam-sheet-done-date" class="input input--date" type="date" />
+        </div>
+      </div>
+      <div class="field exam-due-field" id="exam-sheet-due-field" hidden>
+        <span class="label">次回予定</span>
+        <div class="exam-due-calendar">
+          <div class="exam-due-calendar__row exam-due-calendar__row--range">
+            <label class="exam-due-calendar__pair">
+              <span class="label label--sub">目安の始め</span>
+              <input id="exam-sheet-due-date" class="input input--date" type="date" />
+            </label>
+            <span class="exam-due-calendar__tilde" aria-hidden="true">〜</span>
+            <label class="exam-due-calendar__pair">
+              <span class="label label--sub">目安の終わり</span>
+              <input id="exam-sheet-due-date-to" class="input input--date" type="date" />
+            </label>
+          </div>
+        </div>
+        <p class="field__note" id="exam-sheet-window-note"></p>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <p id="exam-sheet-error" class="error-text error-text--banner" role="alert" hidden></p>
+      <div class="exam-sheet__actions" id="exam-sheet-choose-actions">
+        <button id="btn-exam-sheet-complete" class="btn btn--small btn--primary" type="button">完了として保存</button>
+        <button id="btn-exam-sheet-end" class="btn btn--small btn--outline" type="button">終了として保存</button>
+      </div>
+      <div class="exam-sheet__actions" id="exam-sheet-save-actions" hidden>
+        <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">次回予定を保存</button>
+      </div>
+    </div>
+  </div>
+</div><div class="modal" id="exam-plan-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-plan-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-plan-modal-title">次回予定を登録</h2>
+      <button class="modal__close" id="btn-close-exam-plan" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <span class="label">検査項目</span>
+        <div class="exam-item-buttons" id="exam-plan-item-buttons"></div>
+        <label class="exam-other-check">
+          <input type="checkbox" id="exam-plan-other" />
+          <span>その他（フリーテキスト）</span>
+        </label>
+        <input
+          id="exam-plan-custom-item"
+          class="input"
+          type="text"
+          placeholder="検査項目名を入力"
+          hidden
+        />
+      </div>
+
+      <div class="field">
+        <label class="label" for="exam-plan-due-date">予定日</label>
+        <input id="exam-plan-due-date" class="input input--date" type="date" />
+        <span class="label label--sub">今日からの相対指定</span>
+        <div class="interval-unit-buttons" id="exam-plan-due-units" role="group" aria-label="相対指定の単位"></div>
+        <p class="interval-value-display" id="exam-plan-due-display">0日後</p>
+        <div class="numpad" id="exam-plan-due-numpad" aria-label="相対日数の数値入力"></div>
+        <p class="field__note">カレンダーで選ぶか、テンキーで相対日数を指定してください（どちらも連動します）。</p>
+        <p class="field__note" id="exam-plan-window-note"></p>
+      </div>
+
+      <div class="field">
+        <label class="label" for="exam-plan-note">メモ（任意）</label>
+        <input id="exam-plan-note" class="input" type="text" placeholder="例）術後フォロー" />
+      </div>
+
+      <p id="exam-plan-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-exam-plan-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-exam-plan-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div><div class="modal" id="exam-complete-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="exam-complete-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-complete-title">検査を完了として記録</h2>
+      <button class="modal__close" id="btn-close-exam-complete" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <label class="label" for="exam-complete-date">実施日</label>
+        <input id="exam-complete-date" class="input input--date" type="date" />
+      </div>
+      <div class="field">
+        <label class="label" for="exam-complete-note">メモ（任意）</label>
+        <input id="exam-complete-note" class="input" type="text" placeholder="例）異常なし" />
+      </div>
+      <p id="exam-complete-error" class="error-text" role="alert" hidden></p>
+      <div class="tpl-editor__actions">
+        <button id="btn-exam-complete-save" class="btn btn--small btn--primary" type="button">完了として記録</button>
+        <button id="btn-exam-complete-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div><div class="modal" id="exam-after-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="exam-after-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-after-title">次の予定は？</h2>
+      <button class="modal__close" id="btn-close-exam-after" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p class="field__note" id="exam-after-summary" hidden></p>
+      <p class="card__hint">実施を記録しました。次の予定日を入力するか、終了してください。</p>
+      <div class="tpl-editor__actions">
+        <button id="btn-exam-after-next" class="btn btn--small btn--primary" type="button">次の予定を入力する</button>
+        <button id="btn-exam-after-end" class="btn btn--small btn--outline" type="button">終了する</button>
+      </div>
+    </div>
+  </div>
+</div><div class="modal" id="exam-items-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-items-modal-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-items-modal-title">検査項目の管理</h2>
+      <button class="modal__close" id="btn-close-exam-items" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <ul class="tpl-list" id="exam-items-list"></ul>
+      <p class="field__note" id="exam-items-list-empty" hidden>登録された検査項目はありません。</p>
+
+      <div class="tpl-editor">
+        <h3 class="tpl-editor__title" id="exam-item-editor-title">新しい検査項目を追加</h3>
+        <label class="label" for="exam-item-label-input">項目名</label>
+        <input id="exam-item-label-input" class="input" type="text" placeholder="例）血液検査" />
+        <p id="exam-item-error" class="error-text" role="alert" hidden></p>
+        <div class="tpl-editor__actions">
+          <button id="btn-exam-item-save" class="btn btn--small btn--primary" type="button">追加する</button>
+          <button id="btn-exam-item-cancel" class="btn btn--small btn--outline" type="button" hidden>編集をやめる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module">
+import { initExamPlanUI, enterExamPlan } from "/js/exam-plan-ui.js";
+import * as db from "/js/db.js";
+
+initExamPlanUI({
+  showToast: (m) => console.log("toast", m),
+  showError: (el, msg) => { if (el) { el.hidden = !msg; el.textContent = msg || ""; } },
+  setBusy: (btn, busy, busyLabel, idleLabel) => {
+    if (!btn) return;
+    btn.disabled = busy;
+    btn.textContent = busy ? busyLabel : idleLabel;
+  },
+});
+
+enterExamPlan("77771");
+const examPanel = document.getElementById("panel-exam");
+if (examPanel) examPanel.hidden = false;
+
+window.__seedExam = async () => {
+  await db.saveExamScheduledPlan("77771", {
+    item: "血液検査",
+    dueDate: "2026-08-15",
+    note: "メモ",
+  });
+  await db.addExamHistory("77771", {
+    item: "血液検査",
+    date: "2026-06-01",
+    note: "実施",
+  });
+};
+
+window.__examReady = true;
+</script>
+</body>
+</html>

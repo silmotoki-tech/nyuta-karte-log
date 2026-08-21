@@ -141,10 +141,10 @@ const harness = `<!DOCTYPE html>
           <span class="label">メモ</span>
           <p class="exam-sheet__note exam-sheet__note--readonly" id="procedure-sheet-memo">（なし）</p>
         </div>
-      </div>
-      <div class="field" id="procedure-sheet-done-field" hidden>
-        <label class="label" for="procedure-sheet-done-date">実施日</label>
-        <input id="procedure-sheet-done-date" class="input input--date" type="date" />
+        <div class="field" id="procedure-sheet-done-field">
+          <label class="label" for="procedure-sheet-done-date">実施日</label>
+          <input id="procedure-sheet-done-date" class="input input--date" type="date" />
+        </div>
       </div>
       <div class="field exam-due-field" id="procedure-sheet-due-field" hidden>
         <span class="label">次回予定</span>
@@ -167,11 +167,11 @@ const harness = `<!DOCTYPE html>
     <div class="modal__footer">
       <p id="procedure-sheet-error" class="error-text" hidden></p>
       <div class="exam-sheet__actions" id="procedure-sheet-choose-actions">
-        <button id="btn-procedure-sheet-complete" class="btn btn--small btn--primary" type="button">完了</button>
-        <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
+        <button id="btn-procedure-sheet-complete" class="btn btn--small btn--primary" type="button">完了として保存</button>
+        <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了として保存</button>
       </div>
       <div class="exam-sheet__actions" id="procedure-sheet-save-actions" hidden>
-        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">終了として保存</button>
+        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">次回予定を保存</button>
       </div>
     </div>
   </div>
@@ -327,17 +327,18 @@ await page.locator("#procedure-plan-list .exam-list-item").first().click();
 await page.waitForSelector("#procedure-item-sheet:not([hidden])");
 const dueHiddenOnOpen = await page.locator("#procedure-sheet-due-field").isHidden();
 if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレンダーが見えている");
-await page.click("#btn-procedure-sheet-end");
-const dueHiddenOnEnd = await page.locator("#procedure-sheet-due-field").isHidden();
-if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");
-const endLabel = (await page.locator("#btn-procedure-sheet-save").innerText()).trim();
+const doneVisibleOnOpen = await page.locator("#procedure-sheet-done-field").isVisible();
+if (!doneVisibleOnOpen) throw new Error("1枚目に実施日の入力欄が出ていない");
+const endLabel = (await page.locator("#btn-procedure-sheet-end").innerText()).trim();
 if (endLabel !== "終了として保存") {
-  throw new Error(`終了の確定ボタンが「${endLabel}」になっている`);
+  throw new Error(`1枚目の終了ボタンが「${endLabel}」になっている`);
 }
 if (await page.locator("#btn-procedure-sheet-back").count()) {
   throw new Error("戻るボタンが残っている");
 }
-await page.click("#btn-procedure-sheet-save");
+await page.click("#btn-procedure-sheet-end");
+const dueHiddenOnEnd = await page.locator("#procedure-sheet-due-field").isHidden();
+if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");
 await page.waitForTimeout(250);
 
 const planCount = await page.locator("#procedure-plan-list .exam-list-item").count();

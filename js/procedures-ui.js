@@ -87,7 +87,6 @@ const itemSheetTitle = document.getElementById("procedure-item-sheet-title");
 const itemSheetItem = document.getElementById("procedure-item-sheet-item");
 const sheetMemo = document.getElementById("procedure-sheet-memo");
 const sheetDoneDate = document.getElementById("procedure-sheet-done-date");
-const sheetDoneField = document.getElementById("procedure-sheet-done-field");
 const sheetDueField = document.getElementById("procedure-sheet-due-field");
 const sheetDueDate = document.getElementById("procedure-sheet-due-date");
 const sheetDueDateTo = document.getElementById("procedure-sheet-due-date-to");
@@ -186,8 +185,8 @@ export function initProceduresUI(helpers = {}) {
   btnCloseItemSheet?.addEventListener("click", closeItemSheet);
   itemSheet?.querySelector("[data-close-modal]")?.addEventListener("click", closeItemSheet);
   btnSheetSave?.addEventListener("click", handleSheetSave);
-  btnSheetComplete?.addEventListener("click", () => applyProcSheetPhase("complete"));
-  btnSheetEnd?.addEventListener("click", () => applyProcSheetPhase("end"));
+  btnSheetComplete?.addEventListener("click", beginProcComplete);
+  btnSheetEnd?.addEventListener("click", handleProcSheetEnd);
 
   btnCloseHistModal?.addEventListener("click", closeHistModal);
   btnHistCancel?.addEventListener("click", closeHistModal);
@@ -204,10 +203,8 @@ export function initProceduresUI(helpers = {}) {
   bindDueDateCalendar(sheetDueDateTo);
   bindDueDateCalendar(sheetDoneDate);
   sheetDoneDate?.addEventListener("change", () => {
-    if (state.sheetPhase === "complete" || state.sheetPhase === "end") {
-      state.baselineDate = sheetDoneDate.value || todayStr();
-      updateWindowNote();
-    }
+    state.baselineDate = sheetDoneDate.value || todayStr();
+    updateWindowNote();
   });
   planDoneDate?.addEventListener("click", () => {
     if (!planDoneDate.disabled) openDueCalendarPicker(planDoneDate);
@@ -375,7 +372,7 @@ function renderPlanList() {
         {
           action: "delete",
           title: "完了",
-          onClick: () => openItemSheet(plan, { phase: "complete" }),
+          onClick: () => openItemSheet(plan),
         },
       ],
       onActivate: () => openItemSheet(plan),
@@ -649,8 +646,7 @@ function closeItemSheet() {
 }
 
 function procSheetSaveLabel() {
-  if (state.sheetPhase === "complete") return "完了として保存";
-  if (state.sheetPhase === "end") return "終了として保存";
+  if (state.sheetPhase === "complete") return "次回予定を保存";
   return "保存する";
 }
 
@@ -658,23 +654,56 @@ function applyProcSheetPhase(phase) {
   state.sheetPhase = phase || "choose";
   const choose = state.sheetPhase === "choose";
   const complete = state.sheetPhase === "complete";
-  const end = state.sheetPhase === "end";
   const schedule = state.sheetPhase === "schedule";
   if (sheetPhaseChoose) sheetPhaseChoose.hidden = !choose;
   if (sheetChooseActions) sheetChooseActions.hidden = !choose;
   if (sheetSaveActions) sheetSaveActions.hidden = choose;
-  if (sheetDoneField) sheetDoneField.hidden = !(complete || end);
   if (sheetDueField) sheetDueField.hidden = !(complete || schedule);
   if (btnSheetSave) btnSheetSave.textContent = procSheetSaveLabel();
   if (complete) {
     writeDueRangeInputs("", "");
     state.baselineDate = sheetDoneDate?.value || todayStr();
   }
-  if (end) {
-    state.baselineDate = sheetDoneDate?.value || todayStr();
-  }
   updateWindowNote();
   deps.showError(sheetError, "");
+}
+
+function beginProcComplete() {
+  const doneDate = sheetDoneDate?.value || "";
+  if (!doneDate) {
+    deps.showError(sheetError, "実施日を選択してください。");
+    return;
+  }
+  deps.showError(sheetError, "");
+  applyProcSheetPhase("complete");
+}
+
+async function handleProcSheetEnd() {
+  const plan = (state.plans || []).find((p) => p.id === state.editingPlanId);
+  if (!plan || !state.karteNumber) return;
+  const doneDate = sheetDoneDate?.value || "";
+  if (!doneDate) {
+    deps.showError(sheetError, "実施日を選択してください。");
+    return;
+  }
+  deps.showError(sheetError, "");
+  deps.setBusy(btnSheetEnd, true, "保存中...", "終了として保存");
+  try {
+    await addProcedure(state.karteNumber, {
+      date: doneDate,
+      content: plan.content || "",
+      note: plan.note || "",
+      source: "manual",
+    });
+    await deleteProcedurePlan(state.karteNumber, plan.id);
+    closeItemSheet();
+    deps.showToast("実施を記録し、予定を終了しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(sheetError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnSheetEnd, false, "保存中...", "終了として保存");
+  }
 }
 
 async function handleSheetSave() {
@@ -684,32 +713,6 @@ async function handleSheetSave() {
   const content = plan.content || "";
   const note = plan.note || "";
   const doneDate = sheetDoneDate?.value || "";
-
-  if (phase === "end") {
-    if (!doneDate) {
-      deps.showError(sheetError, "実施日を選択してください。");
-      return;
-    }
-    deps.showError(sheetError, "");
-    deps.setBusy(btnSheetSave, true, "保存中...", procSheetSaveLabel());
-    try {
-      await addProcedure(state.karteNumber, {
-        date: doneDate,
-        content,
-        note,
-        source: "manual",
-      });
-      await deleteProcedurePlan(state.karteNumber, plan.id);
-      closeItemSheet();
-      deps.showToast("実施を記録し、予定を終了しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showError(sheetError, "保存に失敗しました。もう一度お試しください。");
-    } finally {
-      deps.setBusy(btnSheetSave, false, "保存中...", procSheetSaveLabel());
-    }
-    return;
-  }
 
   const { from: dueDateFrom, to: dueDateTo } = readDueRangeForSave();
   const dueDate = dueDateTo || dueDateFrom;

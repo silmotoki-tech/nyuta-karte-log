@@ -105,12 +105,27 @@ await page.waitForFunction(
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 
+const doneVisibleOnOpen = await page.locator("#exam-sheet-done-field").isVisible();
+if (!doneVisibleOnOpen) throw new Error("1枚目に実施日の入力欄が出ていない");
+const memoVisible = await page.locator("#exam-sheet-memo").isVisible();
+if (!memoVisible) throw new Error("1枚目にメモが出ていない");
+const completeBtnLabel = (await page.locator("#btn-exam-sheet-complete").innerText()).trim();
+if (completeBtnLabel !== "完了として保存") {
+  throw new Error(`1枚目の完了ボタンが「${completeBtnLabel}」になっている`);
+}
+const endBtnLabel = (await page.locator("#btn-exam-sheet-end").innerText()).trim();
+if (endBtnLabel !== "終了として保存") {
+  throw new Error(`1枚目の終了ボタンが「${endBtnLabel}」になっている`);
+}
+await page.fill("#exam-sheet-done-date", "2026-08-10");
 await page.click("#btn-exam-sheet-complete");
 const dueVisibleOnComplete = await page.locator("#exam-sheet-due-field").isVisible();
 if (!dueVisibleOnComplete) throw new Error("完了を選んでも次回予定カレンダーが出ない");
+const doneHiddenOnComplete = await page.locator("#exam-sheet-done-field").isHidden();
+if (!doneHiddenOnComplete) throw new Error("2枚目で実施日を再度聞いている");
 const completeSaveLabel = (await page.locator("#btn-exam-sheet-save").innerText()).trim();
-if (completeSaveLabel !== "完了として保存") {
-  throw new Error(`完了の確定ボタンが「${completeSaveLabel}」になっている`);
+if (completeSaveLabel !== "次回予定を保存") {
+  throw new Error(`2枚目の保存ボタンが「${completeSaveLabel}」になっている`);
 }
 if (await page.locator("#btn-exam-sheet-back").count()) {
   throw new Error("戻るボタンが残っている");
@@ -118,7 +133,6 @@ if (await page.locator("#btn-exam-sheet-back").count()) {
 if (await page.locator("#btn-exam-sheet-complete").isVisible()) {
   throw new Error("完了フローで完了／終了ボタンが残っている");
 }
-await page.fill("#exam-sheet-done-date", "2026-08-10");
 
 const fastingWrapVisible = await page.locator("#exam-sheet-fasting-check-wrap").isVisible();
 if (!fastingWrapVisible) throw new Error("絶食チェックが検査名の近くに出ていない");
@@ -165,7 +179,6 @@ if (!dues.some((t) => t.includes("あと"))) {
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 await page.click("#btn-exam-sheet-end");
-await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(400);
 const historyAfterEnd = await page
   .locator("#status-exam-history-list .status-group-title")

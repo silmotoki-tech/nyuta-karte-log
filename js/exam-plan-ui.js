@@ -91,7 +91,7 @@ const state = {
     /** 完了直後の「次の予定」。元の予定ID。保存成功まで削除しない */
     afterCompletePlanId: null,
   },
-  /** 予定シートの段階。choose=完了/終了、complete=実施+次回、end=実施のみ、schedule=復活後の次回入力 */
+  /** 予定シートの段階。choose=実施日+完了/終了、complete=次回予定、schedule=復活後の次回入力 */
   sheetPhase: "choose",
   /** カレンダー入力のプログラム書き込みによるループ防止 */
   syncingDueFromRelative: false,
@@ -126,7 +126,6 @@ const sheetDueDateTo = document.getElementById("exam-sheet-due-date-to");
 const sheetWindowNote = document.getElementById("exam-sheet-window-note");
 const sheetMemo = document.getElementById("exam-sheet-memo");
 const sheetDoneDate = document.getElementById("exam-sheet-done-date");
-const sheetDoneField = document.getElementById("exam-sheet-done-field");
 const sheetDueField = document.getElementById("exam-sheet-due-field");
 const sheetPhaseChoose = document.getElementById("exam-sheet-phase-choose");
 const sheetChooseActions = document.getElementById("exam-sheet-choose-actions");
@@ -761,7 +760,7 @@ function renderUnifiedPlanList() {
         {
           action: "delete",
           title: "終了",
-          onClick: () => openExamItemSheet(entry, { phase: "end" }),
+          onClick: () => openExamItemSheet(entry, { phase: "choose" }),
         },
       ],
       onActivate: () => openExamItemSheet(entry),
@@ -811,8 +810,7 @@ function openExamItemSheet(entry, { phase = "choose" } = {}) {
 }
 
 function examSheetSaveLabel() {
-  if (state.sheetPhase === "complete") return "完了として保存";
-  if (state.sheetPhase === "end") return "終了として保存";
+  if (state.sheetPhase === "complete") return "次回予定を保存";
   return "保存する";
 }
 
@@ -820,13 +818,11 @@ function applyExamSheetPhase(phase) {
   state.sheetPhase = phase || "choose";
   const choose = state.sheetPhase === "choose";
   const complete = state.sheetPhase === "complete";
-  const end = state.sheetPhase === "end";
   const schedule = state.sheetPhase === "schedule";
 
   if (sheetPhaseChoose) sheetPhaseChoose.hidden = !choose;
   if (sheetChooseActions) sheetChooseActions.hidden = !choose;
   if (sheetSaveActions) sheetSaveActions.hidden = choose;
-  if (sheetDoneField) sheetDoneField.hidden = !(complete || end);
   if (sheetDueField) sheetDueField.hidden = !(complete || schedule);
   if (btnSheetSave) btnSheetSave.textContent = examSheetSaveLabel();
 
@@ -834,9 +830,6 @@ function applyExamSheetPhase(phase) {
     writeDueRangeInputs("", "");
     state.draft.baselineDate = sheetDoneDate?.value || todayStr();
     if (!state.draft.fasting) applyDefaultFastingFromSelection();
-  }
-  if (end) {
-    state.draft.baselineDate = sheetDoneDate?.value || todayStr();
   }
   if (schedule) {
     writeDueRangeInputs(state.draft.dueDateFrom, state.draft.dueDateTo);
@@ -1021,19 +1014,55 @@ function wireNextPlanActions() {
   btnCloseItemSheet?.addEventListener("click", closeExamItemSheet);
   itemSheet?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamItemSheet);
   btnSheetSave?.addEventListener("click", handleSheetSave);
-  btnSheetComplete?.addEventListener("click", () => applyExamSheetPhase("complete"));
-  btnSheetEnd?.addEventListener("click", () => applyExamSheetPhase("end"));
+  btnSheetComplete?.addEventListener("click", beginExamComplete);
+  btnSheetEnd?.addEventListener("click", handleExamSheetEnd);
   wireDueDateInput(sheetDueDate);
   wireDueDateInput(sheetDueDateTo);
   bindDueDateCalendar(sheetDueDate);
   bindDueDateCalendar(sheetDueDateTo);
   bindDueDateCalendar(sheetDoneDate);
   sheetDoneDate?.addEventListener("change", () => {
-    if (state.sheetPhase === "complete" || state.sheetPhase === "end") {
-      state.draft.baselineDate = sheetDoneDate.value || todayStr();
-      updateWindowNote();
-    }
+    state.draft.baselineDate = sheetDoneDate.value || todayStr();
+    updateWindowNote();
   });
+}
+
+function beginExamComplete() {
+  const doneDate = sheetDoneDate?.value || "";
+  if (!doneDate) {
+    deps.showError(sheetError, "実施日を選択してください。");
+    return;
+  }
+  deps.showError(sheetError, "");
+  applyExamSheetPhase("complete");
+}
+
+async function handleExamSheetEnd() {
+  const planId = state.editingPlanId || state.activePlanId;
+  const plan = planId ? state.plan?.plans?.[planId] : null;
+  if (!planId || !plan) return;
+  const doneDate = sheetDoneDate?.value || "";
+  if (!doneDate) {
+    deps.showError(sheetError, "実施日を選択してください。");
+    return;
+  }
+  const item = plan.item || state.draft.item || "";
+  const note = plan.note || state.draft.note || "";
+  deps.showError(sheetError, "");
+  deps.setBusy(btnSheetEnd, true, "保存中...", "終了として保存");
+  try {
+    await addExamHistory(state.karteNumber, { item, date: doneDate, note });
+    await endExamScheduledPlan(state.karteNumber, planId);
+    if (state.activePlanId === planId) state.activePlanId = null;
+    if (state.editingPlanId === planId) state.editingPlanId = null;
+    closeExamItemSheet();
+    deps.showToast("実施を記録し、予定を終了しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(sheetError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnSheetEnd, false, "保存中...", "終了として保存");
+  }
 }
 
 async function handleSheetSave() {
@@ -1046,29 +1075,6 @@ async function handleSheetSave() {
   const fasting = planNeedsFasting(item) ? readSheetFasting() : "";
   const phase = state.sheetPhase;
   const doneDate = sheetDoneDate?.value || "";
-
-  if (phase === "end") {
-    if (!doneDate) {
-      deps.showError(sheetError, "実施日を選択してください。");
-      return;
-    }
-    deps.showError(sheetError, "");
-    deps.setBusy(btnSheetSave, true, "保存中...", examSheetSaveLabel());
-    try {
-      await addExamHistory(state.karteNumber, { item, date: doneDate, note });
-      await endExamScheduledPlan(state.karteNumber, planId);
-      if (state.activePlanId === planId) state.activePlanId = null;
-      if (state.editingPlanId === planId) state.editingPlanId = null;
-      closeExamItemSheet();
-      deps.showToast("実施を記録し、予定を終了しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showError(sheetError, "保存に失敗しました。もう一度お試しください。");
-    } finally {
-      deps.setBusy(btnSheetSave, false, "保存中...", examSheetSaveLabel());
-    }
-    return;
-  }
 
   const { from: dueDateFrom, to: dueDateTo } = readDueRangeForSave();
   const dueDate = dueDateTo || dueDateFrom;
