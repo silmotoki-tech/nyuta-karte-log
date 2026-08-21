@@ -283,6 +283,14 @@
             >
               移行
             </button>
+            <button
+              id="btn-bulk-register"
+              class="btn btn--small btn--outline"
+              type="button"
+              title="電子カルテからの名前だけ一括登録"
+            >
+              一括登録
+            </button>
             <div class="app-menu" id="app-menu">
               <button
                 id="btn-app-menu"
@@ -1992,6 +2000,41 @@
         <button id="btn-migration-progress-save" class="btn btn--small btn--primary" type="button">保存する</button>
         <button id="btn-migration-progress-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 電子カルテからの過去データ一括登録（名前だけ） -->
+<div class="modal" id="bulk-register-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div
+    class="modal__panel modal__panel--bulk-register"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="bulk-register-modal-title"
+  >
+    <div class="modal__header">
+      <h2 class="modal__title" id="bulk-register-modal-title">一括登録</h2>
+      <button class="modal__close" id="btn-close-bulk-register" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body bulk-register-body">
+      <div class="field bulk-register-paste">
+        <label class="label" for="bulk-register-text">電子カルテのテキスト</label>
+        <textarea
+          id="bulk-register-text"
+          class="textarea bulk-register-text"
+          placeholder="薬・検査・既往歴の名前が含まれる文章を貼り付けてください"
+        ></textarea>
+      </div>
+      <section class="input-chips bulk-register-chips">
+        <div class="input-chips__head">
+          <span class="label">検出された項目</span>
+          <span class="field__note" id="bulk-register-chips-hint">
+            貼り付けると、マスタにある薬剤・検査・既往歴がここに出ます。タップで名前だけ登録します。
+          </span>
+        </div>
+        <ul class="input-chip-list" id="bulk-register-chip-list"></ul>
+      </section>
     </div>
   </div>
 </div>

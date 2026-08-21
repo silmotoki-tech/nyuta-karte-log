@@ -285,6 +285,35 @@ const EXAM_ITEMS_SEED = [
   },
 ];
 
+const MED_ITEMS_SEED = [
+  {
+    id: "seed-med-pred",
+    label: "プレドニゾロン",
+    category: "oral",
+    kind: "leaf",
+    parentId: "",
+    order: 1,
+  },
+  {
+    id: "seed-med-enro",
+    label: "エンロフロキサシン",
+    category: "oral",
+    kind: "leaf",
+    parentId: "",
+    order: 2,
+  },
+];
+
+const HISTORY_DISEASE_SEED = [
+  {
+    id: "seed-hx-dm",
+    label: "糖尿病",
+    kind: "leaf",
+    parentId: "",
+    order: 1,
+  },
+];
+
 
 const store = {
   freeQA: {},
@@ -488,7 +517,7 @@ export async function deleteExamHistory() {}
 
 export function subscribeMedicationItems(cb) {
   listeners.medicationItems.push(cb);
-  cb([]);
+  cb(structuredClone(MED_ITEMS_SEED));
   return () => {
     const i = listeners.medicationItems.indexOf(cb);
     if (i >= 0) listeners.medicationItems.splice(i, 1);
@@ -729,7 +758,13 @@ function subscribeEmptyList(bucket, cb) {
   };
 }
 export function subscribeHistoryDiseaseItems(cb) {
-  return subscribeEmptyList("historyDisease", cb);
+  listeners.historyDisease = listeners.historyDisease || [];
+  listeners.historyDisease.push(cb);
+  cb(structuredClone(HISTORY_DISEASE_SEED));
+  return () => {
+    const i = listeners.historyDisease.indexOf(cb);
+    if (i >= 0) listeners.historyDisease.splice(i, 1);
+  };
 }
 export function subscribeHistorySurgeryItems(cb) {
   return subscribeEmptyList("historySurgery", cb);

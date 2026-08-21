@@ -73,6 +73,11 @@ import {
   enterMigrationProgress,
   leaveMigrationProgress,
 } from "./migration-progress-ui.js";
+import {
+  initBulkRegisterUI,
+  enterBulkRegister,
+  leaveBulkRegister,
+} from "./bulk-register-ui.js";
 import { initSettingsUI } from "./settings-ui.js";
 import { initMasterDeleteUI } from "./master-delete-ui.js";
 import {
@@ -1127,6 +1132,7 @@ function enterMain() {
   enterProcedures(state.karteNumber);
   enterSpecialNotes(state.karteNumber);
   enterMigrationProgress(state.karteNumber);
+  enterBulkRegister(state.karteNumber);
   enterFreeQa(state.karteNumber);
   // 状態モードは同じカルテを別購読で見る。表示切替を即時にするため入場時から購読する。
   enterStatusMode(state.karteNumber);
@@ -1147,6 +1153,7 @@ function leaveMain() {
   leaveProcedures();
   leaveSpecialNotes();
   leaveMigrationProgress();
+  leaveBulkRegister();
   leaveFreeQa();
   leaveStatusMode();
   leaveInputMode();
@@ -1520,6 +1527,10 @@ initMigrationProgressUI({
   showError,
   setBusy,
   getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
+});
+
+initBulkRegisterUI({
+  showToast,
 });
 
 initSettingsUI({

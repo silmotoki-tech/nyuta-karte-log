@@ -3420,7 +3420,8 @@ select.input {
 
 .modal__panel--med-add,
 .modal__panel--med-event,
-.modal__panel--exam-plan {
+.modal__panel--exam-plan,
+.modal__panel--bulk-register {
   max-width: 760px;
 }
 
@@ -5449,6 +5450,43 @@ select.input {
 
 .input-chip.is-registered .input-chip__state {
   color: var(--color-brown);
+}
+
+.bulk-register-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.bulk-register-paste {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bulk-register-text {
+  flex: 1 1 auto;
+  min-height: 180px;
+  resize: vertical;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.bulk-register-chips {
+  flex-shrink: 0;
+}
+
+.bulk-register-chip.is-registered {
+  border-style: solid;
+  border-color: #c8c8c8;
+  background-color: #ececec;
+}
+
+.bulk-register-chip.is-registered .input-chip__name,
+.bulk-register-chip.is-registered .input-chip__state {
+  color: #6b6b6b;
 }
 
 .input-today {
