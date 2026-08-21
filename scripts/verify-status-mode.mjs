@@ -219,10 +219,10 @@ console.log(counts);
 
 assert.equal(counts.meds, 6, "薬剤が全件（6件）出ていない");
 assert.equal(counts.examPlans, 3, "検査予定が3件出ていない");
-assert.equal(counts.examHistory, 3, "検査実施履歴が3件出ていない");
+assert.equal(counts.examHistory, 1, "検査実施履歴（予定なし）が1件出ていない");
 assert.equal(counts.histories, 4, "既往歴が4件出ていない");
 assert.equal(counts.procPlans, 2, "処置予定が2件出ていない");
-assert.equal(counts.procHistory, 2, "処置実施履歴が2件出ていない");
+assert.equal(counts.procHistory, 1, "処置実施履歴（予定なし）が1件出ていない");
 assert.equal(counts.notes, 5, "重要度に関わらず特記が全件（5件）出ていない");
 assert.equal(counts.notesHigh, 2, "重要度「高」の特記が特記ブロックに含まれていない");
 
@@ -246,6 +246,25 @@ assert.ok(
   counts.dueClasses.some((c) => c.includes("exam-due-text--far")),
   "余裕ありの色分けが付いていない"
 );
+
+const overlap = await page.evaluate(() => {
+  const planText = document.getElementById("status-exam-plan-list")?.innerText || "";
+  const examHist = document.getElementById("status-exam-history-list")?.innerText || "";
+  const procPlan = document.getElementById("status-proc-plan-list")?.innerText || "";
+  const procHist = document.getElementById("status-proc-history-list")?.innerText || "";
+  return { planText, examHist, procPlan, procHist };
+});
+assert.ok(overlap.planText.includes("血液検査（腎パネル）"), "予定側に腎パネルが出ていない");
+assert.ok(
+  !overlap.examHist.includes("血液検査（腎パネル）"),
+  "予定がある検査が実施履歴にも出ている"
+);
+assert.ok(!overlap.examHist.includes("腹部エコー"), "予定がある腹部エコーが実施履歴にも出ている");
+assert.ok(overlap.examHist.includes("尿検査（単発）"), "予定のない検査実施が履歴から消えている");
+assert.ok(overlap.procPlan.includes("皮下点滴"), "予定側に皮下点滴が出ていない");
+assert.ok(!overlap.procHist.includes("皮下点滴"), "予定がある処置が実施履歴にも出ている");
+assert.ok(!overlap.procHist.includes("爪切り"), "予定がある爪切りが実施履歴にも出ている");
+assert.ok(overlap.procHist.includes("耳掃除（単発）"), "予定のない処置実施が履歴から消えている");
 
 // --- 4列固定レイアウト: 既往歴 → 検査＋処置 → 薬剤 → 特記 -------------------
 const layout = await page.evaluate(() => {
@@ -388,8 +407,9 @@ assert.ok(
   "処置追加モーダルに登録方法トグルが出ていない"
 );
 await page.click("#btn-procedure-mode-history");
-assert.ok(
-  await page.locator("#procedure-plan-due-field").isHidden(),
+assert.equal(
+  await page.evaluate(() => document.getElementById("procedure-plan-due-field")?.hidden),
+  true,
   "実施を記録モードで予定日欄が隠れていない"
 );
 assert.ok(
@@ -508,6 +528,19 @@ await expectOpens(
   "#procedure-plan-modal",
   "#btn-close-procedure-plan-modal",
   "05-proc-plan"
+);
+await page.locator("#status-proc-plan-list .status-row", { hasText: "皮下点滴" }).click();
+await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
+const lastDone = (await page.locator("#procedure-plan-last-done").innerText()).trim();
+assert.ok(
+  lastDone.includes("8/5") || lastDone.includes("前回"),
+  `予定タップ時に過去の実施が見えない: ${lastDone}`
+);
+await page.click("#btn-close-procedure-plan-modal");
+await page.waitForFunction(
+  (sel) => document.querySelector(sel)?.hasAttribute("hidden"),
+  "#procedure-plan-modal",
+  { timeout: 5000 }
 );
 await expectOpens(
   "#status-proc-history-list .status-row",

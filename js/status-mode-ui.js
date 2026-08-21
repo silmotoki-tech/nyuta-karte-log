@@ -457,13 +457,28 @@ function renderExamPlans() {
   });
 }
 
+function examHistoryItemKey(name) {
+  return (name || "").trim() || "（項目未設定）";
+}
+
+function examActivePlanItemKeys() {
+  const keys = new Set();
+  Object.values(state.plan?.plans || {}).forEach((p) => {
+    if (!p) return;
+    keys.add(examHistoryItemKey(p.item));
+  });
+  return keys;
+}
+
 function renderExamHistory() {
   if (!examHistoryList) return;
   examHistoryList.innerHTML = "";
 
+  const planned = examActivePlanItemKeys();
   const items = Object.entries(state.plan?.history || {})
     .filter(([, h]) => Boolean(h))
-    .map(([id, h]) => ({ id, ...h }));
+    .map(([id, h]) => ({ id, ...h }))
+    .filter((h) => !planned.has(examHistoryItemKey(h.item)));
 
   if (examHistoryEmpty) examHistoryEmpty.hidden = items.length > 0;
   setCount(examHistoryCount, items.length);
@@ -471,7 +486,7 @@ function renderExamHistory() {
 
   const groups = new Map();
   items.forEach((h) => {
-    const key = h.item || "（項目未設定）";
+    const key = examHistoryItemKey(h.item);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(h);
   });
@@ -673,18 +688,34 @@ function renderProcPlans() {
   });
 }
 
+function procHistoryContentKey(name) {
+  return (name || "").trim() || "（内容なし）";
+}
+
+function procActivePlanContentKeys() {
+  const keys = new Set();
+  (state.procPlans || []).forEach((p) => {
+    if (!p) return;
+    keys.add(procHistoryContentKey(p.content));
+  });
+  return keys;
+}
+
 function renderProcHistory() {
   if (!procHistoryList) return;
   procHistoryList.innerHTML = "";
 
-  const items = state.procHistory || [];
+  const planned = procActivePlanContentKeys();
+  const items = (state.procHistory || []).filter(
+    (item) => !planned.has(procHistoryContentKey(item.content))
+  );
   if (procHistoryEmpty) procHistoryEmpty.hidden = items.length > 0;
   setCount(procHistoryCount, items.length);
   if (!items.length) return;
 
   const groups = new Map();
   items.forEach((item) => {
-    const key = (item.content || "").trim() || "（内容なし）";
+    const key = procHistoryContentKey(item.content);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   });

@@ -176,8 +176,8 @@ if (!plans.some((t) => t.includes("血液検査"))) {
 if (!dueTexts.some((t) => t.includes("未設定"))) {
   throw new Error("復活後の次回予定が未設定になっていない");
 }
-if (!historyGroups.some((t) => t.includes("血液検査"))) {
-  throw new Error("復活後に実施履歴が消えた");
+if (historyGroups.some((t) => t.includes("血液検査"))) {
+  throw new Error("復活後も実施履歴セクションに予定あり項目が残っている");
 }
 
 // 詳細シートが開いていれば日付入力して保存
