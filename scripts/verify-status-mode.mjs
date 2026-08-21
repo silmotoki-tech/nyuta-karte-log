@@ -525,21 +525,20 @@ await expectOpens(
 );
 await expectOpens(
   "#status-proc-plan-list .status-row",
-  "#procedure-plan-modal",
-  "#btn-close-procedure-plan-modal",
+  "#procedure-item-sheet",
+  "#btn-close-procedure-item-sheet",
   "05-proc-plan"
 );
 await page.locator("#status-proc-plan-list .status-row", { hasText: "皮下点滴" }).click();
-await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
-const lastDone = (await page.locator("#procedure-plan-last-done").innerText()).trim();
-assert.ok(
-  lastDone.includes("8/5") || lastDone.includes("前回"),
-  `予定タップ時に過去の実施が見えない: ${lastDone}`
-);
-await page.click("#btn-close-procedure-plan-modal");
+await page.waitForSelector("#procedure-item-sheet:not([hidden])", { timeout: 5000 });
+const dueHidden = await page.locator("#procedure-sheet-due-field").isHidden();
+assert.ok(dueHidden, "予定タップ直後に次回予定カレンダーが見えている");
+const chooseVisible = await page.locator("#btn-procedure-sheet-complete").isVisible();
+assert.ok(chooseVisible, "予定タップ直後に完了ボタンが出ていない");
+await page.click("#btn-close-procedure-item-sheet");
 await page.waitForFunction(
   (sel) => document.querySelector(sel)?.hasAttribute("hidden"),
-  "#procedure-plan-modal",
+  "#procedure-item-sheet",
   { timeout: 5000 }
 );
 await expectOpens(

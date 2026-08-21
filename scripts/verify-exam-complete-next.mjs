@@ -94,24 +94,16 @@ await page.waitForFunction(
 
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
+const dueHiddenOnOpen = await page.locator("#exam-sheet-due-field").isHidden();
+if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレンダーが見えている");
+
 await page.click("#btn-exam-sheet-complete");
-await page.waitForSelector("#exam-complete-modal:not([hidden])");
-await page.fill("#exam-complete-date", "2026-08-10");
-await page.click("#btn-exam-complete-save");
-await page.waitForSelector("#exam-after-modal:not([hidden])");
-
-const plansDuringAfter = await page
-  .locator("#status-exam-plan-list .status-row__title")
-  .allTextContents();
-if (!plansDuringAfter.some((t) => t.includes("血液検査"))) {
-  throw new Error("完了直後（次の予定を選ぶ前）に予定一覧から消えている");
-}
-
-await page.click("#btn-exam-after-next");
-await page.waitForSelector("#exam-plan-modal:not([hidden])");
+const dueVisibleOnComplete = await page.locator("#exam-sheet-due-field").isVisible();
+if (!dueVisibleOnComplete) throw new Error("完了を選んでも次回予定カレンダーが出ない");
+await page.fill("#exam-sheet-done-date", "2026-08-10");
 
 const fastingSelected = await page.evaluate(() =>
-  [...document.querySelectorAll("#exam-plan-fasting-buttons .exam-fasting-btn.is-selected")].map(
+  [...document.querySelectorAll("#exam-sheet-fasting-buttons .exam-fasting-btn.is-selected")].map(
     (b) => b.dataset.fasting
   )
 );
@@ -120,9 +112,9 @@ if (!fastingSelected.includes("none") && !fastingSelected.includes("required")) 
   throw new Error("次回予定画面で絶食が自動選択されていない");
 }
 
-await page.click("#btn-exam-plan-save");
+await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(300);
-const emptyDueError = await page.locator("#exam-plan-error").innerText();
+const emptyDueError = await page.locator("#exam-sheet-error").innerText();
 console.log("EMPTY_DUE_ERROR", emptyDueError);
 if (!emptyDueError.includes("次回予定")) {
   throw new Error("日付なし保存でエラーになっていない");
@@ -134,11 +126,11 @@ if (!plansAfterFailedSave.some((t) => t.includes("血液検査"))) {
   throw new Error("次回予定の保存エラーで元の予定が消えた");
 }
 
-await page.fill("#exam-plan-due-date", "2026-09-01");
-await page.fill("#exam-plan-due-date-to", "2026-09-10");
-await page.click("#btn-exam-plan-save");
+await page.fill("#exam-sheet-due-date", "2026-09-01");
+await page.fill("#exam-sheet-due-date-to", "2026-09-10");
+await page.click("#btn-exam-sheet-save");
 await page.waitForFunction(
-  () => document.getElementById("exam-plan-modal")?.hasAttribute("hidden"),
+  () => document.getElementById("exam-item-sheet")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
@@ -157,6 +149,7 @@ if (!dues.some((t) => t.includes("あと"))) {
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 await page.click("#btn-exam-sheet-end");
+await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(400);
 const historyAfterEnd = await page
   .locator("#status-exam-history-list .status-group-title")

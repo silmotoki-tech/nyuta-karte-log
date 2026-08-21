@@ -122,20 +122,17 @@ if (!planTitles.some((t) => t.includes("血液検査"))) {
   throw new Error("予定登録に失敗");
 }
 
-// 実施履歴を1件追加（完了フロー）
+// 実施履歴を1件追加して予定を終了する
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
-await page.click("#btn-exam-sheet-complete");
-await page.waitForSelector("#exam-complete-modal:not([hidden])");
-await page.fill("#exam-complete-date", "2026-06-01");
-await page.click("#btn-exam-complete-save");
+const dueHiddenOnOpen = await page.locator("#exam-sheet-due-field").isHidden();
+if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレンダーが見えている");
+await page.click("#btn-exam-sheet-end");
+const dueHiddenOnEnd = await page.locator("#exam-sheet-due-field").isHidden();
+if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");
+await page.fill("#exam-sheet-done-date", "2026-06-01");
+await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(400);
-// after モーダルで終了（この時点で plans は既に消えている）
-const afterVisible = await page.isVisible("#exam-after-modal:not([hidden])");
-if (afterVisible) {
-  await page.click("#btn-exam-after-end");
-  await page.waitForTimeout(300);
-}
 
 let plans = await page.locator("#status-exam-plan-list .status-row__title").allTextContents();
 let historyGroups = await page.locator("#status-exam-history-list .status-group-title").allTextContents();
@@ -184,6 +181,8 @@ if (historyGroups.some((t) => t.includes("血液検査"))) {
 const sheetOpen = await page.isVisible("#exam-item-sheet:not([hidden])");
 console.log("STEP4 sheet open:", sheetOpen);
 if (sheetOpen) {
+  const dueVisible = await page.locator("#exam-sheet-due-field").isVisible();
+  if (!dueVisible) throw new Error("復活後の次回予定入力でカレンダーが出ない");
   await page.fill("#exam-sheet-due-date", "2026-09-01");
   await page.click('#exam-sheet-fasting-buttons [data-fasting="none"]');
   await page.click("#btn-exam-sheet-save");
@@ -199,6 +198,7 @@ if (sheetOpen) {
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 await page.click("#btn-exam-sheet-end");
+await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(400);
 plans = await page.locator("#status-exam-plan-list .status-row__title").allTextContents();
 historyGroups = await page.locator("#status-exam-history-list .status-group-title").allTextContents();

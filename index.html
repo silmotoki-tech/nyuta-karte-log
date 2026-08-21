@@ -719,6 +719,23 @@
       <p class="exam-sheet__item" id="exam-item-sheet-item"></p>
       <p class="exam-sheet__fasting" id="exam-item-sheet-fasting" hidden></p>
 
+      <div id="exam-sheet-phase-choose">
+        <div class="field">
+          <span class="label">メモ</span>
+          <p class="exam-sheet__note exam-sheet__note--readonly" id="exam-sheet-memo">（なし）</p>
+        </div>
+      </div>
+
+      <div class="field" id="exam-sheet-done-field" hidden>
+        <label class="label" for="exam-sheet-done-date">実施日</label>
+        <input
+          id="exam-sheet-done-date"
+          class="input input--date"
+          type="date"
+          aria-label="実施日（タップでカレンダー）"
+        />
+      </div>
+
       <div class="field" id="exam-sheet-fasting-field" hidden>
         <span class="label">絶食</span>
         <div
@@ -732,7 +749,7 @@
         </div>
       </div>
 
-      <div class="field exam-due-field">
+      <div class="field exam-due-field" id="exam-sheet-due-field" hidden>
         <span class="label">次回予定</span>
         <div class="exam-due-calendar">
           <div class="exam-due-calendar__row exam-due-calendar__row--range">
@@ -760,18 +777,16 @@
         <p class="field__note">片方だけ選べば単一日付になります。</p>
         <p class="field__note" id="exam-sheet-window-note"></p>
       </div>
-
-      <div class="field">
-        <label class="label" for="exam-sheet-note">メモ（任意）</label>
-        <input id="exam-sheet-note" class="input" type="text" placeholder="例）よければ6ヶ月後" />
-      </div>
     </div>
     <div class="modal__footer">
       <p id="exam-sheet-error" class="error-text error-text--banner" role="alert" hidden></p>
-      <div class="exam-sheet__actions" id="exam-item-sheet-actions">
+      <div class="exam-sheet__actions" id="exam-sheet-choose-actions">
+        <button id="btn-exam-sheet-complete" class="btn btn--small btn--primary" type="button">完了</button>
+        <button id="btn-exam-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
+      </div>
+      <div class="exam-sheet__actions" id="exam-sheet-save-actions" hidden>
         <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
-        <button id="btn-exam-sheet-complete" class="btn btn--small btn--outline" type="button">完了</button>
-        <button id="btn-exam-sheet-end" class="btn btn--small btn--danger-outline" type="button">終了</button>
+        <button id="btn-exam-sheet-back" class="btn btn--small btn--outline" type="button">戻る</button>
       </div>
     </div>
   </div>
@@ -1877,6 +1892,74 @@
           完了として記録
         </button>
         <button id="btn-procedure-plan-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 処置予定: 完了／終了シート -->
+<div class="modal" id="procedure-item-sheet" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="procedure-item-sheet-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="procedure-item-sheet-title">処置予定</h2>
+      <button class="modal__close" id="btn-close-procedure-item-sheet" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p class="exam-sheet__item" id="procedure-item-sheet-item"></p>
+      <div id="procedure-sheet-phase-choose">
+        <div class="field">
+          <span class="label">メモ</span>
+          <p class="exam-sheet__note exam-sheet__note--readonly" id="procedure-sheet-memo">（なし）</p>
+        </div>
+      </div>
+      <div class="field" id="procedure-sheet-done-field" hidden>
+        <label class="label" for="procedure-sheet-done-date">実施日</label>
+        <input
+          id="procedure-sheet-done-date"
+          class="input input--date"
+          type="date"
+          aria-label="実施日（タップでカレンダー）"
+        />
+      </div>
+      <div class="field exam-due-field" id="procedure-sheet-due-field" hidden>
+        <span class="label">次回予定</span>
+        <div class="exam-due-calendar">
+          <div class="exam-due-calendar__row exam-due-calendar__row--range">
+            <label class="exam-due-calendar__pair">
+              <span class="label label--sub">目安の始め</span>
+              <input
+                id="procedure-sheet-due-date"
+                class="input input--date exam-due-calendar__input"
+                type="date"
+                aria-label="目安の始め（タップでカレンダー）"
+              />
+            </label>
+            <span class="exam-due-calendar__tilde" aria-hidden="true">〜</span>
+            <label class="exam-due-calendar__pair">
+              <span class="label label--sub">目安の終わり</span>
+              <input
+                id="procedure-sheet-due-date-to"
+                class="input input--date exam-due-calendar__input"
+                type="date"
+                aria-label="目安の終わり（タップでカレンダー）"
+              />
+            </label>
+          </div>
+        </div>
+        <p class="field__note">片方だけ選べば単一日付になります。</p>
+        <p class="field__note" id="procedure-sheet-window-note"></p>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <p id="procedure-sheet-error" class="error-text error-text--banner" role="alert" hidden></p>
+      <div class="exam-sheet__actions" id="procedure-sheet-choose-actions">
+        <button id="btn-procedure-sheet-complete" class="btn btn--small btn--primary" type="button">完了</button>
+        <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
+      </div>
+      <div class="exam-sheet__actions" id="procedure-sheet-save-actions" hidden>
+        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-procedure-sheet-back" class="btn btn--small btn--outline" type="button">戻る</button>
       </div>
     </div>
   </div>

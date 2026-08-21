@@ -127,6 +127,57 @@ const harness = `<!DOCTYPE html>
   </div>
 </div>
 
+<div class="modal" id="procedure-item-sheet" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel">
+    <div class="modal__header">
+      <h2 class="modal__title" id="procedure-item-sheet-title">処置予定</h2>
+      <button class="modal__close" id="btn-close-procedure-item-sheet" type="button">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p class="exam-sheet__item" id="procedure-item-sheet-item"></p>
+      <div id="procedure-sheet-phase-choose">
+        <div class="field">
+          <span class="label">メモ</span>
+          <p class="exam-sheet__note exam-sheet__note--readonly" id="procedure-sheet-memo">（なし）</p>
+        </div>
+      </div>
+      <div class="field" id="procedure-sheet-done-field" hidden>
+        <label class="label" for="procedure-sheet-done-date">実施日</label>
+        <input id="procedure-sheet-done-date" class="input input--date" type="date" />
+      </div>
+      <div class="field exam-due-field" id="procedure-sheet-due-field" hidden>
+        <span class="label">次回予定</span>
+        <div class="exam-due-calendar">
+          <div class="exam-due-calendar__row exam-due-calendar__row--range">
+            <label class="exam-due-calendar__pair">
+              <span class="label label--sub">目安の始め</span>
+              <input id="procedure-sheet-due-date" class="input input--date" type="date" />
+            </label>
+            <span class="exam-due-calendar__tilde">〜</span>
+            <label class="exam-due-calendar__pair">
+              <span class="label label--sub">目安の終わり</span>
+              <input id="procedure-sheet-due-date-to" class="input input--date" type="date" />
+            </label>
+          </div>
+        </div>
+        <p class="field__note" id="procedure-sheet-window-note"></p>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <p id="procedure-sheet-error" class="error-text" hidden></p>
+      <div class="exam-sheet__actions" id="procedure-sheet-choose-actions">
+        <button id="btn-procedure-sheet-complete" class="btn btn--small btn--primary" type="button">完了</button>
+        <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
+      </div>
+      <div class="exam-sheet__actions" id="procedure-sheet-save-actions" hidden>
+        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-procedure-sheet-back" class="btn btn--small btn--outline" type="button">戻る</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="procedure-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel">
@@ -274,8 +325,13 @@ await page.screenshot({
 });
 
 await page.locator("#procedure-plan-list .exam-list-item").first().click();
-await page.waitForSelector("#procedure-plan-modal:not([hidden])");
-await page.click("#btn-procedure-plan-complete");
+await page.waitForSelector("#procedure-item-sheet:not([hidden])");
+const dueHiddenOnOpen = await page.locator("#procedure-sheet-due-field").isHidden();
+if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレンダーが見えている");
+await page.click("#btn-procedure-sheet-end");
+const dueHiddenOnEnd = await page.locator("#procedure-sheet-due-field").isHidden();
+if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");
+await page.click("#btn-procedure-sheet-save");
 await page.waitForTimeout(250);
 
 const planCount = await page.locator("#procedure-plan-list .exam-list-item").count();
@@ -367,6 +423,8 @@ await page.screenshot({
 await page.evaluate(() => {
   const modal = document.getElementById("procedure-plan-modal");
   if (modal) modal.hidden = true;
+  const sheet = document.getElementById("procedure-item-sheet");
+  if (sheet) sheet.hidden = true;
 });
 await page.click("#btn-procedure-plan-add");
 await page.waitForSelector("#procedure-plan-modal:not([hidden])");

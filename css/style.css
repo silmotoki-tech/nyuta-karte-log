@@ -3258,10 +3258,31 @@ select.input {
   color: var(--color-text-muted);
 }
 
-.exam-sheet__note {
-  margin: 0 0 10px;
+.exam-sheet__note--readonly {
+  min-height: 2.4em;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-cream);
+  color: var(--color-text);
   font-size: 0.85rem;
   white-space: pre-wrap;
+}
+
+.exam-sheet__note--readonly.is-empty {
+  color: var(--color-text-muted);
+}
+
+#exam-item-sheet .exam-due-field,
+#procedure-item-sheet .exam-due-field {
+  position: relative;
+  z-index: 1;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+  scroll-margin-top: 12px;
+  background: var(--color-white);
 }
 
 .exam-sheet__actions {
