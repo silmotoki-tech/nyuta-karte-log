@@ -123,28 +123,32 @@ const layout = await page.evaluate(() => {
   const body = document.querySelector("#exam-plan-modal .modal__body");
   const footer = document.querySelector("#exam-plan-modal .modal__footer");
   const calBtn = document.getElementById("btn-exam-plan-due-calendar");
-  const display = document.getElementById("exam-plan-due-display");
+  const from = document.getElementById("exam-plan-due-date");
+  const to = document.getElementById("exam-plan-due-date-to");
+  const fromLabel = document.querySelector('label[for="exam-plan-due-date"]');
+  const toLabel = document.querySelector('label[for="exam-plan-due-date-to"]');
   const doneCheck = document.getElementById("exam-plan-done-check");
   const doneDate = document.getElementById("exam-plan-done-date");
   const saveBtn = document.getElementById("btn-exam-plan-save");
   const dual = document.getElementById("exam-plan-dual");
   const planTitle = document.getElementById("exam-plan-section-plan-title");
   const doneTitle = document.getElementById("exam-plan-section-done-title");
-  const numpad = document.getElementById("exam-plan-due-numpad");
 
   const modalRect = modal.getBoundingClientRect();
   const footerRect = footer.getBoundingClientRect();
   const doneRect = doneCheck.getBoundingClientRect();
   const saveRect = saveBtn.getBoundingClientRect();
-  const displayRect = display.getBoundingClientRect();
   const dualRect = dual.getBoundingClientRect();
+  const fromRect = from.getBoundingClientRect();
+  const toRect = to.getBoundingClientRect();
 
   const bodyStyle = getComputedStyle(body);
-  const displayStyle = getComputedStyle(display);
-  const numpadStyle = getComputedStyle(numpad);
 
   return {
     hasCalendarBtn: Boolean(calBtn),
+    fromLabel: fromLabel?.textContent?.trim(),
+    toLabel: toLabel?.textContent?.trim(),
+    hasNumpad: Boolean(document.getElementById("exam-plan-due-numpad")),
     planTitle: planTitle?.textContent?.trim(),
     doneTitle: doneTitle?.textContent?.trim(),
     modalH: modalRect.height,
@@ -153,10 +157,9 @@ const layout = await page.evaluate(() => {
     saveVisible: saveRect.bottom <= window.innerHeight + 1 && saveRect.top >= 0,
     doneCheckVisible: doneRect.bottom <= window.innerHeight + 1 && doneRect.top >= 0,
     doneDateDisabled: doneDate?.disabled === true,
-    displayW: displayRect.width,
     dualW: dualRect.width,
-    displayIsCompact: display.classList.contains("interval-value-display--compact"),
-    numpadCols: numpadStyle.gridTemplateColumns.split(" ").length,
+    calendarsSideBySide:
+      Math.abs(fromRect.top - toRect.top) <= 4 && toRect.left > fromRect.right - 8,
     bodyOverflowY: bodyStyle.overflowY,
     modalFitsViewport: modalRect.bottom <= window.innerHeight + 2,
   };
@@ -165,19 +168,14 @@ const layout = await page.evaluate(() => {
 console.log("layout", layout);
 
 if (layout.hasCalendarBtn) throw new Error("calendar button should be removed");
+if (layout.hasNumpad) throw new Error("due numpad should be removed");
+if (layout.fromLabel !== "目安の始め") throw new Error("from label missing");
+if (layout.toLabel !== "目安の終わり") throw new Error("to label missing");
 if (layout.planTitle !== "次回予定の登録（任意）") throw new Error("plan section title missing");
 if (layout.doneTitle !== "本日実施した内容の記録（任意）") {
   throw new Error("done section title missing");
 }
-if (!layout.displayIsCompact) throw new Error("due display should be compact");
-if (layout.numpadCols !== 3) {
-  throw new Error("numpad should stay 3-column (3x4), got " + layout.numpadCols);
-}
-if (layout.displayW > layout.dualW * 0.55) {
-  throw new Error(
-    `display box still too wide (${layout.displayW} vs dual ${layout.dualW})`
-  );
-}
+if (!layout.calendarsSideBySide) throw new Error("due calendars should sit side by side");
 if (!layout.footerVisible || !layout.saveVisible) {
   throw new Error("save/cancel footer must stay visible without scroll");
 }

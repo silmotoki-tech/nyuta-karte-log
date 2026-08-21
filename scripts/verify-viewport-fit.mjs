@@ -28,11 +28,11 @@ assert.ok(css.includes("@media (max-height: 720px)"), "短い高さ用 media が
 assert.ok(
   fs
     .readFileSync(path.join(root, "index.html"), "utf8")
-    .includes('id="exam-sheet-due-numpad"') &&
+    .includes('id="exam-sheet-due-date-to"') &&
     fs
       .readFileSync(path.join(root, "index.html"), "utf8")
-      .includes("numpad numpad--compact"),
-  "exam-item-sheet の compact numpad がない"
+      .includes("目安の始め"),
+  "exam-item-sheet のカレンダー2欄（目安の始め）がない"
 );
 
 const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");

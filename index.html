@@ -725,44 +725,31 @@
       </div>
 
       <div class="field exam-due-field">
-        <span class="label">次回予定日</span>
+        <span class="label">次回予定</span>
         <div class="exam-due-calendar">
-          <span class="label label--sub exam-due-calendar__caption">カレンダーで直接選択</span>
           <div class="exam-due-calendar__row exam-due-calendar__row--range">
             <label class="exam-due-calendar__pair">
-              <span class="label label--sub">開始</span>
+              <span class="label label--sub">目安の始め</span>
               <input
                 id="exam-sheet-due-date"
                 class="input input--date exam-due-calendar__input"
                 type="date"
-                aria-label="予定の開始日"
+                aria-label="目安の始め（タップでカレンダー）"
               />
             </label>
             <span class="exam-due-calendar__tilde" aria-hidden="true">〜</span>
             <label class="exam-due-calendar__pair">
-              <span class="label label--sub">終了</span>
+              <span class="label label--sub">目安の終わり</span>
               <input
                 id="exam-sheet-due-date-to"
                 class="input input--date exam-due-calendar__input"
                 type="date"
-                aria-label="予定の終了日"
+                aria-label="目安の終わり（タップでカレンダー）"
               />
             </label>
-            <button
-              id="btn-exam-sheet-due-calendar"
-              class="btn btn--small btn--outline exam-due-calendar__btn"
-              type="button"
-              aria-label="カレンダーを開く"
-            >
-              カレンダー
-            </button>
           </div>
         </div>
-        <span class="label label--sub">今日からの相対指定（開始〜終了）</span>
-        <div class="interval-unit-buttons" id="exam-sheet-due-units" role="group" aria-label="相対指定の単位"></div>
-        <p class="interval-value-display" id="exam-sheet-due-display">0日後</p>
-        <div class="numpad numpad--compact" id="exam-sheet-due-numpad" aria-label="相対日数の数値入力"></div>
-        <p class="field__note">カレンダーで選ぶか、テンキーで相対日数を指定してください（どちらも連動します）。</p>
+        <p class="field__note">片方だけ選べば単一日付になります。</p>
         <p class="field__note" id="exam-sheet-window-note"></p>
       </div>
 
@@ -1037,50 +1024,26 @@
           <div class="exam-due-compact">
             <div class="exam-due-compact__date-row exam-due-compact__date-row--range">
               <div class="exam-due-compact__date-pair" data-due-side="from">
-                <label class="label label--sub" for="exam-plan-due-date">開始</label>
+                <label class="label label--sub" for="exam-plan-due-date">目安の始め</label>
                 <input
                   id="exam-plan-due-date"
                   class="input input--date exam-due-compact__date"
                   type="date"
-                  aria-label="予定の開始日（タップでカレンダー）"
+                  aria-label="目安の始め（タップでカレンダー）"
                 />
               </div>
               <span class="exam-due-compact__date-tilde" aria-hidden="true">〜</span>
               <div class="exam-due-compact__date-pair" data-due-side="to">
-                <label class="label label--sub" for="exam-plan-due-date-to">終了</label>
+                <label class="label label--sub" for="exam-plan-due-date-to">目安の終わり</label>
                 <input
                   id="exam-plan-due-date-to"
                   class="input input--date exam-due-compact__date"
                   type="date"
-                  aria-label="予定の終了日（タップでカレンダー）"
+                  aria-label="目安の終わり（タップでカレンダー）"
                 />
               </div>
             </div>
-            <div class="exam-due-compact__relative">
-              <div
-                class="exam-due-compact__units"
-                role="group"
-                aria-label="相対日数の単位"
-              >
-                <p
-                  class="interval-value-display interval-value-display--compact"
-                  id="exam-plan-due-display"
-                >
-                  0日後
-                </p>
-                <div
-                  class="interval-unit-buttons interval-unit-buttons--stack"
-                  id="exam-plan-due-units"
-                  role="group"
-                  aria-label="日・週・月"
-                ></div>
-              </div>
-              <div
-                class="numpad numpad--compact"
-                id="exam-plan-due-numpad"
-                aria-label="相対日数の数値入力"
-              ></div>
-            </div>
+            <p class="field__note">片方だけ選べば単一日付になります。</p>
             <p class="field__note" id="exam-plan-window-note"></p>
             <label class="label label--sub" for="exam-plan-note">メモ（任意）</label>
             <input
@@ -1802,50 +1765,26 @@
           <div class="exam-due-compact">
             <div class="exam-due-compact__date-row exam-due-compact__date-row--range">
               <div class="exam-due-compact__date-pair" data-due-side="from">
-                <label class="label label--sub" for="procedure-plan-due-date">開始</label>
+                <label class="label label--sub" for="procedure-plan-due-date">目安の始め</label>
                 <input
                   id="procedure-plan-due-date"
                   class="input input--date exam-due-compact__date"
                   type="date"
-                  aria-label="予定の開始日（タップでカレンダー）"
+                  aria-label="目安の始め（タップでカレンダー）"
                 />
               </div>
               <span class="exam-due-compact__date-tilde" aria-hidden="true">〜</span>
               <div class="exam-due-compact__date-pair" data-due-side="to">
-                <label class="label label--sub" for="procedure-plan-due-date-to">終了</label>
+                <label class="label label--sub" for="procedure-plan-due-date-to">目安の終わり</label>
                 <input
                   id="procedure-plan-due-date-to"
                   class="input input--date exam-due-compact__date"
                   type="date"
-                  aria-label="予定の終了日（タップでカレンダー）"
+                  aria-label="目安の終わり（タップでカレンダー）"
                 />
               </div>
             </div>
-            <div class="exam-due-compact__relative">
-              <div
-                class="exam-due-compact__units"
-                role="group"
-                aria-label="相対日数の単位"
-              >
-                <p
-                  class="interval-value-display interval-value-display--compact"
-                  id="procedure-plan-due-display"
-                >
-                  0日後
-                </p>
-                <div
-                  class="interval-unit-buttons interval-unit-buttons--stack"
-                  id="procedure-plan-due-units"
-                  role="group"
-                  aria-label="日・週・月"
-                ></div>
-              </div>
-              <div
-                class="numpad numpad--compact"
-                id="procedure-plan-due-numpad"
-                aria-label="相対日数の数値入力"
-              ></div>
-            </div>
+            <p class="field__note">片方だけ選べば単一日付になります。</p>
             <p class="field__note" id="procedure-plan-window-note"></p>
           </div>
         </section>

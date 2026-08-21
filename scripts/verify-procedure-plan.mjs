@@ -97,18 +97,18 @@ const harness = `<!DOCTYPE html>
         <textarea id="procedure-plan-content" class="textarea" rows="3"></textarea>
       </div>
       <div class="field exam-due-field proc-due-field">
-        <span class="label">予定日</span>
+        <span class="label">次回予定</span>
         <div class="exam-due-compact">
-          <div class="exam-due-compact__date-row">
-            <label class="label label--sub" for="procedure-plan-due-date">カレンダー</label>
-            <input id="procedure-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
-          </div>
-          <div class="exam-due-compact__relative">
-            <div class="exam-due-compact__units" role="group" aria-label="相対日数の単位">
-              <p class="interval-value-display interval-value-display--compact" id="procedure-plan-due-display">0日後</p>
-              <div class="interval-unit-buttons interval-unit-buttons--stack" id="procedure-plan-due-units" role="group" aria-label="日・週・月"></div>
+          <div class="exam-due-compact__date-row exam-due-compact__date-row--range">
+            <div class="exam-due-compact__date-pair">
+              <label class="label label--sub" for="procedure-plan-due-date">目安の始め</label>
+              <input id="procedure-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
             </div>
-            <div class="numpad numpad--compact" id="procedure-plan-due-numpad"></div>
+            <span class="exam-due-compact__date-tilde">〜</span>
+            <div class="exam-due-compact__date-pair">
+              <label class="label label--sub" for="procedure-plan-due-date-to">目安の終わり</label>
+              <input id="procedure-plan-due-date-to" class="input input--date exam-due-compact__date" type="date" />
+            </div>
           </div>
           <p class="field__note" id="procedure-plan-window-note"></p>
         </div>
@@ -221,23 +221,30 @@ await page.screenshot({
 await page.click("#btn-procedure-plan-add");
 await page.waitForSelector("#procedure-plan-modal:not([hidden])");
 
-const numpadCols = await page.evaluate(() => {
-  const el = document.getElementById("procedure-plan-due-numpad");
-  return getComputedStyle(el).gridTemplateColumns.split(" ").filter(Boolean).length;
-});
-if (numpadCols !== 3) {
-  throw new Error("procedure numpad should be 3-column (3x4), got " + numpadCols);
+const dueLabels = await page.evaluate(() => ({
+  from: document.querySelector('label[for="procedure-plan-due-date"]')?.textContent?.trim(),
+  to: document.querySelector('label[for="procedure-plan-due-date-to"]')?.textContent?.trim(),
+  hasNumpad: Boolean(document.getElementById("procedure-plan-due-numpad")),
+}));
+if (dueLabels.from !== "目安の始め" || dueLabels.to !== "目安の終わり") {
+  throw new Error("procedure due labels expected 目安の始め / 目安の終わり, got " + JSON.stringify(dueLabels));
 }
+if (dueLabels.hasNumpad) throw new Error("procedure due numpad should be removed");
 
 await page.fill("#procedure-plan-content", "抜糸");
 await page.fill("#procedure-plan-note", "傷口きれい");
 
-await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "日" }).click();
-await page.locator("#procedure-plan-due-numpad .numpad__btn", { hasText: "7" }).click();
-await page.locator("#procedure-plan-due-numpad .numpad__btn--confirm").click();
+const dueDate = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+})();
+await page.fill("#procedure-plan-due-date", dueDate);
+await page.dispatchEvent("#procedure-plan-due-date", "change");
 await page.waitForTimeout(80);
 const dueVal = await page.inputValue("#procedure-plan-due-date");
-if (!dueVal) throw new Error("due date not set from numpad");
+if (!dueVal) throw new Error("due date not set from calendar");
 
 await page.screenshot({
   path: path.join(root, "tools/proc-plan-02-modal.png"),
@@ -356,7 +363,7 @@ await page.screenshot({
   path: path.join(root, "tools/proc-plan-06-revived.png"),
 });
 
-// 相対入力バッファ: 確定なしで保存してもカレンダーへ反映される
+// 片方のカレンダーだけ指定すれば単一日付として保存される
 await page.evaluate(() => {
   const modal = document.getElementById("procedure-plan-modal");
   if (modal) modal.hidden = true;
@@ -364,10 +371,16 @@ await page.evaluate(() => {
 await page.click("#btn-procedure-plan-add");
 await page.waitForSelector("#procedure-plan-modal:not([hidden])");
 await page.fill("#procedure-plan-content", "バッファ確認");
-await page.fill("#procedure-plan-due-date", "");
-await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "日" }).click();
-await page.locator("#procedure-plan-due-numpad .numpad__btn", { hasText: /^7$/ }).click();
-// 確定を押さずに保存（7日後がカレンダーへ flush されること）
+const singleDue = (() => {
+  const d = new Date();
+  d.setDate(d.getDate() + 7);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+})();
+await page.fill("#procedure-plan-due-date", singleDue);
+await page.dispatchEvent("#procedure-plan-due-date", "change");
+await page.fill("#procedure-plan-due-date-to", "");
+await page.dispatchEvent("#procedure-plan-due-date-to", "change");
 await page.click("#btn-procedure-plan-save");
 await page.waitForFunction(() => document.getElementById("procedure-plan-modal")?.hidden === true);
 const bufferedDue = await page.evaluate(() => {
@@ -379,10 +392,10 @@ const bufferedDue = await page.evaluate(() => {
     due: item?.querySelector(".exam-list-item__due")?.textContent?.trim() || "",
   };
 });
-console.log("buffer flush", bufferedDue);
-if (!bufferedDue.found) throw new Error("buffer-flush save failed to list plan");
+console.log("single calendar save", bufferedDue);
+if (!bufferedDue.found) throw new Error("single-date save failed to list plan");
 if (!bufferedDue.due.includes("あと7日") && !bufferedDue.due.includes("7日")) {
-  throw new Error("relative buffer not flushed on save: " + JSON.stringify(bufferedDue));
+  throw new Error("single calendar date not saved: " + JSON.stringify(bufferedDue));
 }
 
 await browser.close();

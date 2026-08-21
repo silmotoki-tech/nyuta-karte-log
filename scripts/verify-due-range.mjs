@@ -1,5 +1,5 @@
 /**
- * 検査・処置の次回予定を「開始〜終了」の幅で指定・保存・表示できること。
+ * 検査・処置の次回予定をカレンダー2欄（目安の始め〜目安の終わり）で指定・保存・表示できること。
  * 単一日付は従来どおり「あとN日」。色分けは終了日（遅い方）基準。
  */
 import { chromium } from "playwright";
@@ -103,11 +103,16 @@ function startServer(harness) {
   return server;
 }
 
-async function typeNumpad(page, numpadSel, digits) {
-  for (const d of String(digits)) {
-    await page.locator(`${numpadSel} .numpad__btn`, { hasText: d }).first().click();
+async function fillDueRange(page, fromSel, toSel, fromDate, toDate) {
+  await page.fill(fromSel, fromDate);
+  await page.dispatchEvent(fromSel, "change");
+  if (toDate) {
+    await page.fill(toSel, toDate);
+    await page.dispatchEvent(toSel, "change");
+  } else {
+    await page.fill(toSel, "");
+    await page.dispatchEvent(toSel, "change");
   }
-  await page.locator(`${numpadSel} .numpad__btn--confirm`).click();
 }
 
 async function pickExamLeaf(page, index) {
@@ -330,13 +335,21 @@ async function runExamCase() {
       </div>
       <div class="exam-plan-dual" id="exam-plan-dual">
         <section class="exam-plan-section exam-plan-section--plan exam-due-field" id="exam-plan-section-plan">
-          <input id="exam-plan-due-date" class="input input--date" type="date" />
-          <input id="exam-plan-due-date-to" class="input input--date" type="date" />
-          <div class="interval-unit-buttons interval-unit-buttons--stack" id="exam-plan-due-units"></div>
-          <p class="interval-value-display" id="exam-plan-due-display">0日後</p>
-          <div class="numpad" id="exam-plan-due-numpad"></div>
-          <p class="field__note" id="exam-plan-window-note"></p>
-          <input id="exam-plan-note" type="text" />
+          <div class="exam-due-compact">
+            <div class="exam-due-compact__date-row exam-due-compact__date-row--range">
+              <div class="exam-due-compact__date-pair">
+                <label class="label label--sub" for="exam-plan-due-date">目安の始め</label>
+                <input id="exam-plan-due-date" class="input input--date" type="date" />
+              </div>
+              <span class="exam-due-compact__date-tilde">〜</span>
+              <div class="exam-due-compact__date-pair">
+                <label class="label label--sub" for="exam-plan-due-date-to">目安の終わり</label>
+                <input id="exam-plan-due-date-to" class="input input--date" type="date" />
+              </div>
+            </div>
+            <p class="field__note" id="exam-plan-window-note"></p>
+            <input id="exam-plan-note" type="text" />
+          </div>
         </section>
         <section class="exam-plan-section exam-plan-section--done exam-plan-done-field" id="exam-plan-done-field">
           <label class="exam-other-check">
@@ -402,22 +415,31 @@ window.__ready = true;
   await page.click("#btn-exam-new");
   await page.waitForSelector("#exam-plan-modal:not([hidden])");
   await pickExamLeaf(page, 0);
-  await page.locator("#exam-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#exam-plan-due-numpad", "2");
-  await typeNumpad(page, "#exam-plan-due-numpad", "3");
+  await fillDueRange(
+    page,
+    "#exam-plan-due-date",
+    "#exam-plan-due-date-to",
+    addDays(today, 60),
+    addDays(today, 90)
+  );
   await page.waitForTimeout(80);
   const fromVal = await page.inputValue("#exam-plan-due-date");
   const toVal = await page.inputValue("#exam-plan-due-date-to");
-  const display = (await page.locator("#exam-plan-due-display").innerText()).trim();
-  console.log("[exam] range inputs", { fromVal, toVal, display });
+  console.log("[exam] range inputs", { fromVal, toVal });
   if (fromVal !== addDays(today, 60) || toVal !== addDays(today, 90)) {
     throw new Error(
       `exam range dates expected ${addDays(today, 60)}〜${addDays(today, 90)}, got ${fromVal}〜${toVal}`
     );
   }
-  if (!display.includes("2") || !display.includes("3")) {
-    throw new Error("exam relative display should show 2〜3 months, got " + display);
+  const labels = await page.evaluate(() => ({
+    from: document.querySelector('label[for="exam-plan-due-date"]')?.textContent?.trim(),
+    to: document.querySelector('label[for="exam-plan-due-date-to"]')?.textContent?.trim(),
+    hasNumpad: Boolean(document.getElementById("exam-plan-due-numpad")),
+  }));
+  if (labels.from !== "目安の始め" || labels.to !== "目安の終わり") {
+    throw new Error("exam due labels expected 目安の始め / 目安の終わり, got " + JSON.stringify(labels));
   }
+  if (labels.hasNumpad) throw new Error("exam due numpad should be removed");
   await page.click("#btn-exam-plan-save");
   await page.waitForFunction(() => document.getElementById("exam-plan-modal")?.hidden === true);
   const examErr = await page.locator("#exam-plan-error").textContent();
@@ -434,8 +456,13 @@ window.__ready = true;
   await page.click("#btn-exam-new");
   await page.waitForSelector("#exam-plan-modal:not([hidden])");
   await pickExamLeaf(page, 1);
-  await page.locator("#exam-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#exam-plan-due-numpad", "2");
+  await fillDueRange(
+    page,
+    "#exam-plan-due-date",
+    "#exam-plan-due-date-to",
+    addDays(today, 60),
+    ""
+  );
   await page.click("#btn-exam-plan-save");
   await page.waitForFunction(() => document.getElementById("exam-plan-modal")?.hidden === true);
   rows = await listDues(page, "#exam-plan-list");
@@ -524,18 +551,14 @@ async function runProcedureCase() {
           <div class="exam-due-compact">
             <div class="exam-due-compact__date-row exam-due-compact__date-row--range">
               <div class="exam-due-compact__date-pair" data-due-side="from">
+                <label class="label label--sub" for="procedure-plan-due-date">目安の始め</label>
                 <input id="procedure-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
               </div>
+              <span class="exam-due-compact__date-tilde">〜</span>
               <div class="exam-due-compact__date-pair" data-due-side="to">
+                <label class="label label--sub" for="procedure-plan-due-date-to">目安の終わり</label>
                 <input id="procedure-plan-due-date-to" class="input input--date exam-due-compact__date" type="date" />
               </div>
-            </div>
-            <div class="exam-due-compact__relative">
-              <div class="exam-due-compact__units">
-                <p class="interval-value-display interval-value-display--compact" id="procedure-plan-due-display">0日後</p>
-                <div class="interval-unit-buttons interval-unit-buttons--stack" id="procedure-plan-due-units"></div>
-              </div>
-              <div class="numpad numpad--compact" id="procedure-plan-due-numpad"></div>
             </div>
             <p class="field__note" id="procedure-plan-window-note"></p>
           </div>
@@ -603,9 +626,13 @@ window.__ready = true;
   await page.click("#btn-procedure-plan-add");
   await page.waitForSelector("#procedure-plan-modal:not([hidden])");
   await page.fill("#procedure-plan-content", "幅指定点滴");
-  await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#procedure-plan-due-numpad", "2");
-  await typeNumpad(page, "#procedure-plan-due-numpad", "3");
+  await fillDueRange(
+    page,
+    "#procedure-plan-due-date",
+    "#procedure-plan-due-date-to",
+    addDays(today, 60),
+    addDays(today, 90)
+  );
   await page.click("#btn-procedure-plan-save");
   await page.waitForFunction(
     () => document.getElementById("procedure-plan-modal")?.hidden === true
@@ -619,8 +646,13 @@ window.__ready = true;
   await page.click("#btn-procedure-plan-add");
   await page.waitForSelector("#procedure-plan-modal:not([hidden])");
   await page.fill("#procedure-plan-content", "単一日付処置");
-  await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#procedure-plan-due-numpad", "2");
+  await fillDueRange(
+    page,
+    "#procedure-plan-due-date",
+    "#procedure-plan-due-date-to",
+    addDays(today, 60),
+    ""
+  );
   await page.click("#btn-procedure-plan-save");
   await page.waitForFunction(
     () => document.getElementById("procedure-plan-modal")?.hidden === true
@@ -662,6 +694,20 @@ window.__ready = true;
   await browser.close();
   server.close();
   console.log("OK: procedure due range UI");
+}
+
+{
+  const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  if (!html.includes(">目安の始め<") || !html.includes(">目安の終わり<")) {
+    throw new Error("index.html missing 目安の始め / 目安の終わり");
+  }
+  if (
+    html.includes("exam-plan-due-numpad") ||
+    html.includes("exam-sheet-due-numpad") ||
+    html.includes("procedure-plan-due-numpad")
+  ) {
+    throw new Error("due numpad still in index.html");
+  }
 }
 
 await runLogicCase();

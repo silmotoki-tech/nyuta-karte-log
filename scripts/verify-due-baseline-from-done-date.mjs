@@ -1,6 +1,6 @@
 /**
- * 検査・処置の「実施記録を追加」画面: 次回予定の相対テンキーが
- * 「本日実施した内容の記録」の実施日（今日／過去日）を基準に計算されることを検証する。
+ * 検査・処置の「実施記録を追加」画面: カレンダーで選んだ次回予定は
+ * 実施日を変えても書き換わらないこと、予定と実施記録の同時保存ができること。
  */
 import { chromium } from "playwright";
 import fs from "node:fs";
@@ -137,9 +137,7 @@ async function runExamCase() {
     <div id="exam-sheet-fasting-buttons"></div>
   </div>
   <input id="exam-sheet-due-date" type="date" />
-  <div id="exam-sheet-due-units"></div>
-  <p id="exam-sheet-due-display">0日後</p>
-  <div id="exam-sheet-due-numpad"></div>
+  <input id="exam-sheet-due-date-to" type="date" />
   <p id="exam-sheet-window-note"></p>
   <input id="exam-sheet-note" type="text" />
   <p id="exam-sheet-error" hidden></p>
@@ -184,9 +182,7 @@ async function runExamCase() {
       <div class="exam-plan-dual" id="exam-plan-dual">
         <section class="exam-plan-section exam-plan-section--plan exam-due-field">
           <input id="exam-plan-due-date" class="input input--date" type="date" />
-          <div class="interval-unit-buttons interval-unit-buttons--stack" id="exam-plan-due-units"></div>
-          <p class="interval-value-display" id="exam-plan-due-display">0日後</p>
-          <div class="numpad" id="exam-plan-due-numpad"></div>
+          <input id="exam-plan-due-date-to" class="input input--date" type="date" />
           <p class="field__note" id="exam-plan-window-note"></p>
           <input id="exam-plan-note" type="text" />
         </section>
@@ -258,7 +254,7 @@ window.__ready = true;
   await page.locator("#exam-plan-col-leaf-list [role='option']").first().click();
   await page.waitForTimeout(60);
 
-  // 実施日を過去日（7/22相当）に設定してから「3ヶ月後」を指定 → 実施日基準
+  // カレンダーで選んだ日付は、実施日を変えても書き換わらない
   await page.check("#exam-plan-done-check");
   await page.waitForFunction(
     () => document.getElementById("exam-plan-done-date")?.disabled === false
@@ -268,32 +264,24 @@ window.__ready = true;
   await page.dispatchEvent("#exam-plan-done-date", "change");
   await page.waitForTimeout(60);
 
-  await page.locator("#exam-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#exam-plan-due-numpad", "3");
+  const dueFrom = addDays(todayStr(), 45);
+  const dueTo = addDays(todayStr(), 60);
+  await page.fill("#exam-plan-due-date", dueFrom);
+  await page.dispatchEvent("#exam-plan-due-date", "change");
+  await page.fill("#exam-plan-due-date-to", dueTo);
+  await page.dispatchEvent("#exam-plan-due-date-to", "change");
   await page.waitForTimeout(60);
-  const dueFromPast = await page.inputValue("#exam-plan-due-date");
-  const expectFromPast = addMonths(pastDone, 3);
-  console.log("[exam] past-baseline due:", dueFromPast, "expect:", expectFromPast);
-  if (dueFromPast !== expectFromPast) {
-    throw new Error(
-      `exam: expected due date ${expectFromPast} (実施日基準), got ${dueFromPast}`
-    );
-  }
+  console.log("[exam] calendar due:", await page.inputValue("#exam-plan-due-date"));
 
-  // 実施日を今日に戻すと、これまで通り今日基準になること
   await page.fill("#exam-plan-done-date", todayStr());
   await page.dispatchEvent("#exam-plan-done-date", "change");
   await page.waitForTimeout(60);
-  await page.fill("#exam-plan-due-date", "");
-  await page.locator("#exam-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#exam-plan-due-numpad", "2");
-  await page.waitForTimeout(60);
-  const dueFromToday = await page.inputValue("#exam-plan-due-date");
-  const expectFromToday = addMonths(todayStr(), 2);
-  console.log("[exam] today-baseline due:", dueFromToday, "expect:", expectFromToday);
-  if (dueFromToday !== expectFromToday) {
+  const stillFrom = await page.inputValue("#exam-plan-due-date");
+  const stillTo = await page.inputValue("#exam-plan-due-date-to");
+  console.log("[exam] after done-date change:", { stillFrom, stillTo });
+  if (stillFrom !== dueFrom || stillTo !== dueTo) {
     throw new Error(
-      `exam: expected due date ${expectFromToday} (今日基準), got ${dueFromToday}`
+      `exam: calendar dates should stay ${dueFrom}〜${dueTo}, got ${stillFrom}〜${stillTo}`
     );
   }
 
@@ -349,13 +337,7 @@ async function runProcedureCase() {
         <section class="exam-plan-section exam-plan-section--plan exam-due-field" id="procedure-plan-due-field">
           <div class="exam-due-compact">
             <input id="procedure-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
-            <div class="exam-due-compact__relative">
-              <div class="exam-due-compact__units">
-                <p class="interval-value-display interval-value-display--compact" id="procedure-plan-due-display">0日後</p>
-                <div class="interval-unit-buttons interval-unit-buttons--stack" id="procedure-plan-due-units"></div>
-              </div>
-              <div class="numpad numpad--compact" id="procedure-plan-due-numpad"></div>
-            </div>
+            <input id="procedure-plan-due-date-to" class="input input--date exam-due-compact__date" type="date" />
             <p class="field__note" id="procedure-plan-window-note"></p>
           </div>
         </section>
@@ -428,6 +410,9 @@ window.__ready = true;
   await page.fill("#procedure-plan-content", "抜糸");
 
   const pastDone = "2026-07-22";
+  const picked = addDays(todayStr(), 45);
+  await page.fill("#procedure-plan-due-date", picked);
+  await page.dispatchEvent("#procedure-plan-due-date", "change");
   await page.check("#procedure-plan-done-check");
   await page.waitForFunction(
     () => document.getElementById("procedure-plan-done-date")?.disabled === false
@@ -435,33 +420,18 @@ window.__ready = true;
   await page.fill("#procedure-plan-done-date", pastDone);
   await page.dispatchEvent("#procedure-plan-done-date", "change");
   await page.waitForTimeout(60);
-
-  await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#procedure-plan-due-numpad", "3");
-  await page.waitForTimeout(60);
   const dueFromPast = await page.inputValue("#procedure-plan-due-date");
-  const expectFromPast = addMonths(pastDone, 3);
-  console.log("[procedure] past-baseline due:", dueFromPast, "expect:", expectFromPast);
-  if (dueFromPast !== expectFromPast) {
-    throw new Error(
-      `procedure: expected due date ${expectFromPast} (実施日基準), got ${dueFromPast}`
-    );
+  console.log("[procedure] after past done:", dueFromPast, "picked:", picked);
+  if (dueFromPast !== picked) {
+    throw new Error(`procedure: calendar date should stay ${picked}, got ${dueFromPast}`);
   }
 
-  // 実施履歴に登録するチェックを外すと、今日基準に戻ること
   await page.uncheck("#procedure-plan-done-check");
   await page.waitForTimeout(60);
-  await page.fill("#procedure-plan-due-date", "");
-  await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#procedure-plan-due-numpad", "2");
-  await page.waitForTimeout(60);
   const dueFromToday = await page.inputValue("#procedure-plan-due-date");
-  const expectFromToday = addMonths(todayStr(), 2);
-  console.log("[procedure] today-baseline due:", dueFromToday, "expect:", expectFromToday);
-  if (dueFromToday !== expectFromToday) {
-    throw new Error(
-      `procedure: expected due date ${expectFromToday} (今日基準), got ${dueFromToday}`
-    );
+  console.log("[procedure] after uncheck done:", dueFromToday);
+  if (dueFromToday !== picked) {
+    throw new Error(`procedure: calendar date should stay ${picked}, got ${dueFromToday}`);
   }
 
   // 予定＋実施記録を同時保存できること（結合保存の回帰確認）
@@ -471,10 +441,6 @@ window.__ready = true;
   );
   await page.fill("#procedure-plan-done-date", pastDone);
   await page.dispatchEvent("#procedure-plan-done-date", "change");
-  await page.fill("#procedure-plan-due-date", "");
-  await page.locator("#procedure-plan-due-units .interval-unit-btn", { hasText: "月" }).click();
-  await typeNumpad(page, "#procedure-plan-due-numpad", "3");
-  await page.waitForTimeout(60);
   await page.click("#btn-procedure-plan-save");
   await page.waitForFunction(
     () => document.getElementById("procedure-plan-modal")?.hidden === true,

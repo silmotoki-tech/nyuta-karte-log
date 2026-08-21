@@ -1013,7 +1013,7 @@ html.is-unlocked .app {
 
 .exam-due-calendar__row--range {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 6px;
   align-items: end;
 }
@@ -1031,10 +1031,11 @@ html.is-unlocked .app {
   color: var(--color-brown);
 }
 
-.exam-due-compact__date-row .label--sub,
-.exam-plan-section .label--sub {
-  margin-top: 0;
-  margin-bottom: 0;
+.exam-due-compact__date-pair .label--sub,
+.exam-due-calendar__pair .label--sub {
+  font-size: 0.78rem;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .exam-due-compact__date,

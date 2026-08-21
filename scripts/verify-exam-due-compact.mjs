@@ -1,5 +1,5 @@
 /**
- * 検査「次回予定の登録」: 日付枠内収まり／相対指定ラベル削除／縦4タイルを検証する。
+ * 検査「次回予定の登録」: カレンダー2欄（目安の始め／目安の終わり）と枠内収まりを検証する。
  */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -127,66 +127,56 @@ const page = await browser.newPage({
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => window.__ready === true);
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
-await page.waitForSelector("#exam-plan-due-units .interval-unit-btn");
+await page.waitForSelector("#exam-plan-due-date");
+await page.waitForSelector("#exam-plan-due-date-to");
 
 const geo = await page.evaluate(() => {
-  const section = document.querySelector(".exam-plan-section--plan");
-  const date = document.getElementById("exam-plan-due-date");
-  const display = document.getElementById("exam-plan-due-display");
-  const units = [...document.querySelectorAll("#exam-plan-due-units .interval-unit-btn")];
-  const numpad = document.getElementById("exam-plan-due-numpad");
+  const section = document.querySelector("#exam-plan-section-plan");
+  const from = document.getElementById("exam-plan-due-date");
+  const to = document.getElementById("exam-plan-due-date-to");
+  const fromLabel = document.querySelector('label[for="exam-plan-due-date"]');
+  const toLabel = document.querySelector('label[for="exam-plan-due-date-to"]');
   const sr = section.getBoundingClientRect();
-  const dr = date.getBoundingClientRect();
-  const tiles = [display, ...units];
-  const tileRects = tiles.map((el) => el.getBoundingClientRect());
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
   const text = section.innerText;
-  // vertical alignment: each tile below previous, same left
-  let verticalOk = true;
-  for (let i = 1; i < tileRects.length; i++) {
-    const prev = tileRects[i - 1];
-    const cur = tileRects[i];
-    if (cur.top < prev.bottom - 1) verticalOk = false;
-    if (Math.abs(cur.left - prev.left) > 2) verticalOk = false;
-  }
-  const unitLabels = units.map((b) => b.textContent.trim());
-  const numpadR = numpad.getBoundingClientRect();
-  const colRight = Math.max(...tileRects.map((r) => r.right));
+  const inSection = (r) =>
+    r.left >= sr.left - 1 &&
+    r.right <= sr.right + 1 &&
+    r.top >= sr.top - 1 &&
+    r.bottom <= sr.bottom + 1;
   return {
     hasSouai: text.includes("相対指定"),
-    dateInSection:
-      dr.left >= sr.left - 1 &&
-      dr.right <= sr.right + 1 &&
-      dr.top >= sr.top - 1 &&
-      dr.bottom <= sr.bottom + 1,
-    dateOverflowPx: Math.max(0, dr.right - sr.right),
-    verticalOk,
-    tileCount: tiles.length,
-    unitLabels,
-    numpadSeparated: numpadR.left >= colRight - 1,
-    displayText: display.textContent.trim(),
+    fromLabel: fromLabel?.textContent?.trim() || "",
+    toLabel: toLabel?.textContent?.trim() || "",
+    hasNumpad: Boolean(document.getElementById("exam-plan-due-numpad")),
+    fromInSection: inSection(fr),
+    toInSection: inSection(tr),
+    sideBySide: Math.abs(fr.top - tr.top) <= 4 && tr.left > fr.right - 8,
+    fromOverflowPx: Math.max(0, fr.right - sr.right),
+    toOverflowPx: Math.max(0, tr.right - sr.right),
   };
 });
 
 console.log(geo);
 assert.equal(geo.hasSouai, false, "相対指定 label still visible");
-assert.ok(geo.dateInSection, `date overflows by ${geo.dateOverflowPx}px`);
-assert.equal(geo.tileCount, 4, "should be 4 tiles: display+日週月");
-assert.deepEqual(geo.unitLabels, ["日", "週", "月"]);
-assert.ok(geo.displayText.includes("日後"));
-assert.ok(geo.verticalOk, "tiles not in a clean vertical column");
-assert.ok(geo.numpadSeparated, "numpad not separated from unit column");
+assert.equal(geo.fromLabel, "目安の始め");
+assert.equal(geo.toLabel, "目安の終わり");
+assert.equal(geo.hasNumpad, false, "due numpad should be removed");
+assert.ok(geo.fromInSection, `from date overflows by ${geo.fromOverflowPx}px`);
+assert.ok(geo.toInSection, `to date overflows by ${geo.toOverflowPx}px`);
+assert.ok(geo.sideBySide, "two calendars should sit side by side");
 
-await page.locator(".exam-plan-section--plan").screenshot({
+await page.locator("#exam-plan-section-plan").screenshot({
   path: path.join(outDir, "01-plan-block.png"),
 });
 await page.screenshot({
   path: path.join(outDir, "02-exam-plan-modal.png"),
 });
 
-// populate relative a bit for visual
-await page.locator("#exam-plan-due-units .interval-unit-btn", { hasText: "週" }).click();
-await page.locator("#exam-plan-due-numpad .numpad__btn", { hasText: "2" }).click();
-await page.locator(".exam-plan-section--plan").screenshot({
+await page.fill("#exam-plan-due-date", "2026-10-01");
+await page.fill("#exam-plan-due-date-to", "2026-11-01");
+await page.locator("#exam-plan-section-plan").screenshot({
   path: path.join(outDir, "03-plan-block-with-value.png"),
 });
 

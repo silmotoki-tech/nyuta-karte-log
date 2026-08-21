@@ -1,5 +1,5 @@
 /**
- * 検査登録: 相対日数の左4タイルと右テンキーの行高さが揃うことを検証する。
+ * 検査登録: 次回予定のカレンダー2欄が横並びで枠内に収まることを検証する。
  */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -117,66 +117,40 @@ const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => window.__ready === true);
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
-await page.waitForSelector("#exam-plan-due-units .interval-unit-btn");
+await page.waitForSelector("#exam-plan-due-date");
 
 const metrics = await page.evaluate(() => {
-  const root = document.querySelector(".exam-due-compact__relative");
-  const units = document.querySelector(".exam-due-compact__units");
-  const display = document.getElementById("exam-plan-due-display");
-  const unitBtns = [...document.querySelectorAll("#exam-plan-due-units .interval-unit-btn")];
-  const numpad = document.getElementById("exam-plan-due-numpad");
-  const keys = [...numpad.querySelectorAll(".numpad__btn")];
-  const cs = getComputedStyle(root);
-  const leftCells = [display, ...unitBtns].map((el) => {
-    const r = el.getBoundingClientRect();
-    return { top: Math.round(r.top * 10) / 10, h: Math.round(r.height * 10) / 10 };
-  });
-  const rightRows = [0, 1, 2, 3].map((row) => {
-    const el = keys[row * 3];
-    const r = el.getBoundingClientRect();
-    return { top: Math.round(r.top * 10) / 10, h: Math.round(r.height * 10) / 10 };
-  });
-  const unitsH = units.getBoundingClientRect().height;
-  const numpadH = numpad.getBoundingClientRect().height;
+  const row = document.querySelector("#exam-plan-modal .exam-due-compact__date-row--range");
+  const from = document.getElementById("exam-plan-due-date");
+  const to = document.getElementById("exam-plan-due-date-to");
+  const fromLabel = document.querySelector('label[for="exam-plan-due-date"]');
+  const toLabel = document.querySelector('label[for="exam-plan-due-date-to"]');
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
   return {
-    cellH: cs.getPropertyValue("--due-cell-h").trim(),
-    cellGap: cs.getPropertyValue("--due-cell-gap").trim(),
-    leftCells,
-    rightRows,
-    unitsH: Math.round(unitsH * 10) / 10,
-    numpadH: Math.round(numpadH * 10) / 10,
-    leftCount: leftCells.length,
-    keyCount: keys.length,
+    fromLabel: fromLabel?.textContent?.trim() || "",
+    toLabel: toLabel?.textContent?.trim() || "",
+    hasNumpad: Boolean(document.getElementById("exam-plan-due-numpad")),
+    hasRow: Boolean(row),
+    sideBySide: Math.abs(fr.top - tr.top) <= 4 && tr.left > fr.right - 8,
+    heightDiff: Math.abs(fr.height - tr.height),
   };
 });
 console.log(JSON.stringify(metrics, null, 2));
 
-assert.equal(metrics.leftCount, 4);
-assert.equal(metrics.keyCount, 12);
+assert.equal(metrics.fromLabel, "目安の始め");
+assert.equal(metrics.toLabel, "目安の終わり");
+assert.equal(metrics.hasNumpad, false);
+assert.ok(metrics.hasRow);
+assert.ok(metrics.sideBySide, "calendars should sit side by side");
+assert.ok(metrics.heightDiff <= 2, `calendar heights differ: ${metrics.heightDiff}`);
 
-const leftHs = metrics.leftCells.map((c) => c.h);
-const rightHs = metrics.rightRows.map((c) => c.h);
-const allH = [...leftHs, ...rightHs];
-const hMin = Math.min(...allH);
-const hMax = Math.max(...allH);
-assert.ok(hMax - hMin <= 1.5, `cell heights differ: ${JSON.stringify(allH)}`);
-
-for (let i = 0; i < 4; i++) {
-  const dTop = Math.abs(metrics.leftCells[i].top - metrics.rightRows[i].top);
-  assert.ok(dTop <= 1.5, `row ${i} top misaligned by ${dTop}px`);
-}
-
-assert.ok(
-  Math.abs(metrics.unitsH - metrics.numpadH) <= 1.5,
-  `block heights differ L=${metrics.unitsH} R=${metrics.numpadH}`
-);
-
-await page.locator("#exam-plan-modal .exam-due-compact__relative").scrollIntoViewIfNeeded();
+await page.locator("#exam-plan-modal .exam-due-compact__date-row--range").scrollIntoViewIfNeeded();
 await page.screenshot({
   path: path.join(outDir, "01-relative-grid.png"),
   fullPage: false,
 });
-const box = await page.locator("#exam-plan-modal .exam-due-compact__relative").boundingBox();
+const box = await page.locator("#exam-plan-modal .exam-due-compact__date-row--range").boundingBox();
 await page.screenshot({
   path: path.join(outDir, "02-relative-crop.png"),
   clip: {

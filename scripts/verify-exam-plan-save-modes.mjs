@@ -98,9 +98,7 @@ const harness = `<!DOCTYPE html>
     </div>
   </div>
   <input id="exam-sheet-due-date" type="date" />
-  <div id="exam-sheet-due-units"></div>
-  <p id="exam-sheet-due-display"></p>
-  <div id="exam-sheet-due-numpad"></div>
+  <input id="exam-sheet-due-date-to" type="date" />
   <p id="exam-sheet-window-note"></p>
   <input id="exam-sheet-note" type="text" />
   <p id="exam-sheet-error" hidden></p>
@@ -156,10 +154,7 @@ const harness = `<!DOCTYPE html>
         <section class="exam-plan-section">
           <h3 id="exam-plan-section-plan-title">次回予定の登録（任意）</h3>
           <input id="exam-plan-due-date" class="input" type="date" />
-          <button id="btn-exam-plan-due-calendar" type="button" hidden></button>
-          <div id="exam-plan-due-units"></div>
-          <p id="exam-plan-due-display"></p>
-          <div id="exam-plan-due-numpad"></div>
+          <input id="exam-plan-due-date-to" class="input" type="date" />
           <p id="exam-plan-window-note"></p>
           <input id="exam-plan-note" class="input" type="text" />
         </section>

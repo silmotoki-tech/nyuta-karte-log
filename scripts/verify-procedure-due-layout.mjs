@@ -1,5 +1,5 @@
 /**
- * 処置予定登録: モーダル幅を抑え、相対日数テンキーの左右行高さが揃うことを検証する。
+ * 処置予定登録: モーダル幅を抑え、カレンダー2欄が横並びで収まることを検証する。
  */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -124,51 +124,24 @@ const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
 await page.waitForFunction(() => window.__ready === true);
 await page.waitForSelector("#procedure-plan-modal:not([hidden])");
-await page.waitForSelector("#procedure-plan-due-units .interval-unit-btn");
+await page.waitForSelector("#procedure-plan-due-date");
 
 const metrics = await page.evaluate(() => {
   const panel = document.querySelector("#procedure-plan-modal .modal__panel");
-  const rootEl = document.querySelector(
-    "#procedure-plan-modal .exam-due-compact__relative"
-  );
-  const units = document.querySelector(
-    "#procedure-plan-modal .exam-due-compact__units"
-  );
-  const display = document.getElementById("procedure-plan-due-display");
-  const unitBtns = [
-    ...document.querySelectorAll("#procedure-plan-due-units .interval-unit-btn"),
-  ];
-  const numpad = document.getElementById("procedure-plan-due-numpad");
-  const keys = [...numpad.querySelectorAll(".numpad__btn")];
-  const cs = getComputedStyle(rootEl);
-  const leftCells = [display, ...unitBtns].map((el) => {
-    const r = el.getBoundingClientRect();
-    return {
-      top: Math.round(r.top * 10) / 10,
-      h: Math.round(r.height * 10) / 10,
-      text: el.textContent.trim(),
-    };
-  });
-  const rightRows = [0, 1, 2, 3].map((row) => {
-    const el = keys[row * 3];
-    const r = el.getBoundingClientRect();
-    return {
-      top: Math.round(r.top * 10) / 10,
-      h: Math.round(r.height * 10) / 10,
-    };
-  });
+  const from = document.getElementById("procedure-plan-due-date");
+  const to = document.getElementById("procedure-plan-due-date-to");
+  const fromLabel = document.querySelector('label[for="procedure-plan-due-date"]');
+  const toLabel = document.querySelector('label[for="procedure-plan-due-date-to"]');
+  const fr = from.getBoundingClientRect();
+  const tr = to.getBoundingClientRect();
   return {
     panelW: Math.round(panel.getBoundingClientRect().width),
     panelClass: panel.className,
-    cellH: cs.getPropertyValue("--due-cell-h").trim(),
-    leftCells,
-    rightRows,
-    unitsH: Math.round(units.getBoundingClientRect().height * 10) / 10,
-    numpadH: Math.round(numpad.getBoundingClientRect().height * 10) / 10,
-    numpadW: Math.round(numpad.getBoundingClientRect().width),
-    relativeW: Math.round(rootEl.getBoundingClientRect().width),
-    leftCount: leftCells.length,
-    keyCount: keys.length,
+    fromLabel: fromLabel?.textContent?.trim() || "",
+    toLabel: toLabel?.textContent?.trim() || "",
+    hasNumpad: Boolean(document.getElementById("procedure-plan-due-numpad")),
+    sideBySide: Math.abs(fr.top - tr.top) <= 4 && tr.left > fr.right - 8,
+    heightDiff: Math.abs(fr.height - tr.height),
   };
 });
 console.log(JSON.stringify(metrics, null, 2));
@@ -179,33 +152,18 @@ assert.ok(
 );
 assert.ok(metrics.panelW <= 440, `panel too wide: ${metrics.panelW}`);
 assert.ok(metrics.panelW >= 320, `panel unexpectedly narrow: ${metrics.panelW}`);
-assert.ok(metrics.numpadW <= 280, `numpad still stretched: ${metrics.numpadW}`);
-assert.equal(metrics.leftCount, 4);
-assert.equal(metrics.keyCount, 12);
-
-const leftHs = metrics.leftCells.map((c) => c.h);
-const rightHs = metrics.rightRows.map((c) => c.h);
-const allH = [...leftHs, ...rightHs];
-const hMin = Math.min(...allH);
-const hMax = Math.max(...allH);
-assert.ok(hMax - hMin <= 1.5, `cell heights differ: ${JSON.stringify(allH)}`);
-
-for (let i = 0; i < 4; i++) {
-  const dTop = Math.abs(metrics.leftCells[i].top - metrics.rightRows[i].top);
-  assert.ok(dTop <= 1.5, `row ${i} top misaligned by ${dTop}px`);
-}
-
-assert.ok(
-  Math.abs(metrics.unitsH - metrics.numpadH) <= 1.5,
-  `block heights differ L=${metrics.unitsH} R=${metrics.numpadH}`
-);
+assert.equal(metrics.fromLabel, "目安の始め");
+assert.equal(metrics.toLabel, "目安の終わり");
+assert.equal(metrics.hasNumpad, false);
+assert.ok(metrics.sideBySide, "calendars should sit side by side");
+assert.ok(metrics.heightDiff <= 2, `calendar heights differ: ${metrics.heightDiff}`);
 
 await page.screenshot({
   path: path.join(outDir, "01-after-modal.png"),
   fullPage: false,
 });
 const box = await page
-  .locator("#procedure-plan-modal .exam-due-compact__relative")
+  .locator("#procedure-plan-modal .exam-due-compact__date-row--range")
   .boundingBox();
 await page.screenshot({
   path: path.join(outDir, "02-after-relative-crop.png"),
