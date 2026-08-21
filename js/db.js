@@ -27,6 +27,7 @@
 //     ※初期シードは固定ID（seed-*）。無い場合のみ書き込む
 //   examPlan/{カルテ番号}/plans/{planId}
 //     { item, dueDate, baselineDate, dueDateFrom, dueDateTo, note, fasting, source? }
+//     ※dueDate は終了日（期限）。幅指定時は dueDateFrom〜dueDateTo。旧データは dueDate のみ
 //     ※fasting: "required"|"none"|""（血液の絶食。画像・その他は空）
 //     ※source: "manual"|"ai"（登録経路。画面のメモ欄には出さない）
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
@@ -78,7 +79,8 @@
 //   freeQA/{カルテ番号}/{questionId}/askedBy
 //
 //   procedures/{カルテ番号}/plans/{planId}               … 処置予定
-//     { content, dueDate, baselineDate, note, source?, confirmedBy? }
+//     { content, dueDate, dueDateFrom, dueDateTo, baselineDate, note, source?, confirmedBy? }
+//     ※dueDate は終了日（期限）。幅指定時は dueDateFrom〜dueDateTo。旧データは dueDate のみ
 //   procedures/{カルテ番号}/history/{entryId}            … 実施履歴
 //     { schemaVersion, date, content, note, lastEditedAt?, source }
 //   procedures/{カルテ番号}/{entryId}                    … 旧形式の実施履歴（互換。history へは移さず読む）
@@ -1405,14 +1407,32 @@ async function ensureExamPlanRoot(karteNumber) {
   }
 }
 
-function buildPlanRecord({ item, dueDate, note, baselineDate, fasting, source }) {
-  const date = dueDate || "";
+function buildPlanRecord({
+  item,
+  dueDate,
+  dueDateFrom,
+  dueDateTo,
+  note,
+  baselineDate,
+  fasting,
+  source,
+}) {
+  const single = dueDate || "";
+  let from = dueDateFrom || single;
+  let to = dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  const date = to || from || "";
   const record = {
     item: item || "",
     dueDate: date,
     baselineDate: baselineDate || date || "",
-    dueDateFrom: date,
-    dueDateTo: date,
+    dueDateFrom: from || date,
+    dueDateTo: to || date,
     note: note || "",
     fasting: normalizeExamFasting(fasting),
   };
@@ -1429,10 +1449,19 @@ function buildPlanRecord({ item, dueDate, note, baselineDate, fasting, source })
  */
 export async function saveExamScheduledPlan(
   karteNumber,
-  { planId = null, item, dueDate, note, baselineDate, fasting, source }
+  { planId = null, item, dueDate, dueDateFrom, dueDateTo, note, baselineDate, fasting, source }
 ) {
   await ensureExamPlanRoot(karteNumber);
-  const record = buildPlanRecord({ item, dueDate, note, baselineDate, fasting, source });
+  const record = buildPlanRecord({
+    item,
+    dueDate,
+    dueDateFrom,
+    dueDateTo,
+    note,
+    baselineDate,
+    fasting,
+    source,
+  });
   const itemName = (item || "").trim();
 
   // 既存の同名項目を探す（編集対象自身は除く）
@@ -3541,6 +3570,8 @@ function normalizeProcedurePlan(id, raw) {
     id,
     content: "",
     dueDate: "",
+    dueDateFrom: "",
+    dueDateTo: "",
     baselineDate: "",
     note: "",
     confirmedBy: "",
@@ -3548,7 +3579,18 @@ function normalizeProcedurePlan(id, raw) {
   };
   if (!raw || typeof raw !== "object") return plan;
   plan.content = raw.content || "";
-  plan.dueDate = raw.dueDate || raw.targetDate || raw.dueDateFrom || "";
+  const single = raw.dueDate || raw.targetDate || "";
+  let from = raw.dueDateFrom || single;
+  let to = raw.dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  plan.dueDateFrom = from;
+  plan.dueDateTo = to;
+  plan.dueDate = to || from;
   plan.baselineDate = raw.baselineDate || "";
   plan.note = raw.note || "";
   plan.confirmedBy = raw.confirmedBy || "";
@@ -3568,10 +3610,14 @@ function sortProcedureHistory(entries) {
 
 function sortProcedurePlans(plans) {
   return [...plans].sort((a, b) => {
-    const ad = a.dueDate || "9999-99-99";
-    const bd = b.dueDate || "9999-99-99";
+    const ad = a.dueDateFrom || a.dueDate || "9999-99-99";
+    const bd = b.dueDateFrom || b.dueDate || "9999-99-99";
     const rd = ad.localeCompare(bd);
     if (rd !== 0) return rd;
+    const at = a.dueDateTo || a.dueDate || "9999-99-99";
+    const bt = b.dueDateTo || b.dueDate || "9999-99-99";
+    const rt = at.localeCompare(bt);
+    if (rt !== 0) return rt;
     return (a.content || "").localeCompare(b.content || "");
   });
 }
@@ -3656,13 +3702,35 @@ export function subscribeProcedures(karteNumber, callback) {
  */
 export async function saveProcedurePlan(
   karteNumber,
-  { planId = null, content, dueDate, note = "", baselineDate = "", confirmedBy = "", source = "manual" }
+  {
+    planId = null,
+    content,
+    dueDate,
+    dueDateFrom,
+    dueDateTo,
+    note = "",
+    baselineDate = "",
+    confirmedBy = "",
+    source = "manual",
+  }
 ) {
   await authReady;
+  const single = dueDate || "";
+  let from = dueDateFrom || single;
+  let to = dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  const date = to || from || "";
   const record = {
     content: (content || "").trim(),
-    dueDate: dueDate || "",
-    baselineDate: baselineDate || (dueDate ? todayIsoDateProc() : todayIsoDateProc()),
+    dueDate: date,
+    dueDateFrom: from || date,
+    dueDateTo: to || date,
+    baselineDate: baselineDate || (date ? todayIsoDateProc() : todayIsoDateProc()),
     note: note || "",
     confirmedBy: confirmedBy || "",
     source: source === "ai" ? "ai" : "manual",

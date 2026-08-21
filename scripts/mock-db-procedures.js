@@ -22,7 +22,9 @@ function emit() {
       ...raw,
     })),
   ];
-  plans.sort((a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999"));
+  plans.sort((a, b) =>
+    (a.dueDateFrom || a.dueDate || "9999").localeCompare(b.dueDateFrom || b.dueDate || "9999")
+  );
   history.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   listeners.forEach((cb) => cb({ plans, history }));
 }
@@ -70,12 +72,34 @@ export function subscribeProcedures(karte, callback) {
 
 export async function saveProcedurePlan(
   _karte,
-  { planId = null, content, dueDate, note = "", baselineDate = "", confirmedBy = "", source = "manual" }
+  {
+    planId = null,
+    content,
+    dueDate,
+    dueDateFrom,
+    dueDateTo,
+    note = "",
+    baselineDate = "",
+    confirmedBy = "",
+    source = "manual",
+  }
 ) {
   const id = planId || nextId("plan");
+  const single = dueDate || "";
+  let from = dueDateFrom || single;
+  let to = dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  const date = to || from || "";
   store.plans[id] = {
     content: content || "",
-    dueDate: dueDate || "",
+    dueDate: date,
+    dueDateFrom: from || date,
+    dueDateTo: to || date,
     baselineDate: baselineDate || today(),
     note: note || "",
     confirmedBy: confirmedBy || "",

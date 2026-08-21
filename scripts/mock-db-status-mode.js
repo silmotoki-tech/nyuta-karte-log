@@ -420,28 +420,37 @@ export function subscribeExamPlan(karte, cb) {
 }
 export async function saveExamScheduledPlan(
   karte,
-  { planId = null, item, dueDate, note, baselineDate, fasting } = {}
+  { planId = null, item, dueDate, dueDateFrom, dueDateTo, note, baselineDate, fasting } = {}
 ) {
+  const single = dueDate || "";
+  let from = dueDateFrom || single;
+  let to = dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  const date = to || from || "";
+  const row = {
+    item: item || "",
+    dueDate: date,
+    dueDateFrom: from || date,
+    dueDateTo: to || date,
+    baselineDate: baselineDate || date || "2026-08-15",
+    note: note || "",
+    fasting: fasting || "",
+  };
   if (planId && SEED.examPlan.plans[planId]) {
     SEED.examPlan.plans[planId] = {
       ...SEED.examPlan.plans[planId],
-      item: item || "",
-      dueDate: dueDate || "",
-      baselineDate: baselineDate || dueDate || "2026-08-15",
-      note: note || "",
-      fasting: fasting || "",
+      ...row,
     };
     notifyFeed("examPlan", () => SEED.examPlan);
     return planId;
   }
   const id = nid("p");
-  SEED.examPlan.plans[id] = {
-    item: item || "",
-    dueDate: dueDate || "",
-    baselineDate: baselineDate || dueDate || "2026-08-15",
-    note: note || "",
-    fasting: fasting || "",
-  };
+  SEED.examPlan.plans[id] = row;
   notifyFeed("examPlan", () => SEED.examPlan);
   return id;
 }
@@ -741,18 +750,31 @@ export function subscribeProcedureBundle(karte, cb) {
 }
 export async function saveProcedurePlan(
   karte,
-  { planId = null, content, dueDate, note = "", baselineDate = "", confirmedBy = "" } = {}
+  { planId = null, content, dueDate, dueDateFrom, dueDateTo, note = "", baselineDate = "", confirmedBy = "" } = {}
 ) {
+  const single = dueDate || "";
+  let from = dueDateFrom || single;
+  let to = dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  const date = to || from || "";
+  const payload = {
+    content: content || "",
+    dueDate: date,
+    dueDateFrom: from || date,
+    dueDateTo: to || date,
+    baselineDate: baselineDate || date || "2026-08-15",
+    note: note || "",
+    confirmedBy: confirmedBy || "",
+  };
   if (planId) {
     const row = SEED.procedures.plans.find((p) => p.id === planId);
     if (row) {
-      Object.assign(row, {
-        content: content || "",
-        dueDate: dueDate || "",
-        baselineDate: baselineDate || dueDate || "2026-08-15",
-        note: note || "",
-        confirmedBy: confirmedBy || "",
-      });
+      Object.assign(row, payload);
       notifyFeed("procedureBundle", () => SEED.procedures);
       return planId;
     }
@@ -760,11 +782,7 @@ export async function saveProcedurePlan(
   const id = nid("pp");
   SEED.procedures.plans.push({
     id,
-    content: content || "",
-    dueDate: dueDate || "",
-    baselineDate: baselineDate || dueDate || "2026-08-15",
-    note: note || "",
-    confirmedBy: confirmedBy || "",
+    ...payload,
     source: "manual",
   });
   notifyFeed("procedureBundle", () => SEED.procedures);

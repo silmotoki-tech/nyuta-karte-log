@@ -18,10 +18,9 @@ import {
   deleteMedicationById,
 } from "./meds-ui.js";
 import {
-  getDueCountdown,
+  getPlanDueCountdown,
   formatDueCountdown,
-  getPlanDueDate,
-  getPlanBaselineDate,
+  getPlanDueRange,
   openExamPlanEditorById,
   openExamPlanCreateModal,
   reviveExamHistoryEntryById,
@@ -407,14 +406,14 @@ function renderExamPlans() {
   const entries = Object.entries(state.plan?.plans || {})
     .filter(([, p]) => Boolean(p))
     .map(([id, p]) => {
-      const dueDate = getPlanDueDate(p);
+      const range = getPlanDueRange(p);
       return {
         id,
         item: p.item || "（項目未設定）",
         note: p.note || "",
-        dueDate,
-        countdown: getDueCountdown(dueDate, getPlanBaselineDate(p)),
-        sortKey: dueDate || "9999-99-99",
+        dueDate: range.to || range.from,
+        countdown: getPlanDueCountdown(p),
+        sortKey: range.from || range.to || "9999-99-99",
       };
     })
     .sort((a, b) => {
@@ -631,9 +630,11 @@ function renderProcPlans() {
   if (!procPlanList) return;
   procPlanList.innerHTML = "";
 
-  const plans = [...(state.procPlans || [])].sort((a, b) =>
-    (a.dueDate || "9999-99-99").localeCompare(b.dueDate || "9999-99-99")
-  );
+  const plans = [...(state.procPlans || [])].sort((a, b) => {
+    const ad = a.dueDateFrom || a.dueDate || "9999-99-99";
+    const bd = b.dueDateFrom || b.dueDate || "9999-99-99";
+    return ad.localeCompare(bd);
+  });
 
   if (procPlanEmpty) procPlanEmpty.hidden = plans.length > 0;
   setCount(procPlanCount, plans.length);
@@ -648,9 +649,7 @@ function renderProcPlans() {
     title.className = "status-row__title";
     title.textContent = plan.content || "（内容なし）";
 
-    const countdown = plan.dueDate
-      ? getDueCountdown(plan.dueDate, plan.baselineDate || null)
-      : null;
+    const countdown = getPlanDueCountdown(plan);
     const due = document.createElement("span");
     if (countdown) {
       due.className = `status-row__due ${dueLevelClass(countdown.level)}`;

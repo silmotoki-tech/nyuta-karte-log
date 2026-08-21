@@ -439,7 +439,7 @@ export async function addExamItem({ label, order, category, kind = "leaf", paren
 
 export async function saveExamScheduledPlan(
   karte,
-  { planId = null, item, dueDate, note, baselineDate, fasting }
+  { planId = null, item, dueDate, dueDateFrom, dueDateTo, note, baselineDate, fasting }
 ) {
   const plan = ensurePlan(karte);
   let id = planId;
@@ -449,10 +449,21 @@ export async function saveExamScheduledPlan(
     );
     id = found ? found[0] : nid("plan");
   }
-  const date = dueDate || "";
+  const single = dueDate || "";
+  let from = dueDateFrom || single;
+  let to = dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  const date = to || from || "";
   plan.plans[id] = {
     item: item || "",
     dueDate: date,
+    dueDateFrom: from || date,
+    dueDateTo: to || date,
     baselineDate: baselineDate || date,
     note: note || "",
     fasting: normalizeExamFasting(fasting),

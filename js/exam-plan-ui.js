@@ -85,12 +85,18 @@ const state = {
     selectedItems: [],
     customItem: "",
     dueDate: "",
+    dueDateFrom: "",
+    dueDateTo: "",
     note: "",
     fasting: "",
     baselineDate: null,
     dueRelativeUnit: "day",
     dueRelativeValue: 0,
+    dueRelativeValueFrom: 0,
+    dueRelativeValueTo: 0,
     dueRelativeBuffer: "",
+    /** 相対テンキーが書き込む側。from=開始, to=終了 */
+    dueRelativeFocus: "from",
     mode: "create", // create | edit | afterComplete
     /** 登録モーダル内の切り替え。history は予定を作らず実施履歴のみ追加する */
     registerMode: "plan", // plan | history
@@ -126,6 +132,7 @@ const itemSheet = document.getElementById("exam-item-sheet");
 const itemSheetTitle = document.getElementById("exam-item-sheet-title");
 const itemSheetItem = document.getElementById("exam-item-sheet-item");
 const sheetDueDate = document.getElementById("exam-sheet-due-date");
+const sheetDueDateTo = document.getElementById("exam-sheet-due-date-to");
 const sheetDueUnits = document.getElementById("exam-sheet-due-units");
 const sheetDueDisplay = document.getElementById("exam-sheet-due-display");
 const sheetDueNumpad = document.getElementById("exam-sheet-due-numpad");
@@ -165,6 +172,7 @@ const planSearchInput = document.getElementById("exam-plan-search-input");
 const planFastingField = document.getElementById("exam-plan-fasting-field");
 const planFastingButtons = document.getElementById("exam-plan-fasting-buttons");
 const planDueDate = document.getElementById("exam-plan-due-date");
+const planDueDateTo = document.getElementById("exam-plan-due-date-to");
 const btnPlanDueCalendar = document.getElementById("btn-exam-plan-due-calendar");
 const planDueUnits = document.getElementById("exam-plan-due-units");
 const planDueDisplay = document.getElementById("exam-plan-due-display");
@@ -395,20 +403,30 @@ export function expandSingleDate(dateStr, _windowDays = 0) {
 }
 
 /**
- * 予定から予定日（単一）を取り出す。旧 dueDateFrom/To にも対応。
+ * 予定から開始日・終了日を取り出す。
+ * 旧データ（dueDate のみ）は開始＝終了として扱う。
+ */
+export function getPlanDueRange(plan) {
+  if (!plan) return { from: "", to: "" };
+  const single = plan.dueDate || plan.targetDate || "";
+  let from = plan.dueDateFrom || single;
+  let to = plan.dueDateTo || single || from;
+  if (!from) from = to;
+  if (from && to && from > to) {
+    const tmp = from;
+    from = to;
+    to = tmp;
+  }
+  return { from, to };
+}
+
+/**
+ * 予定から期限日（幅の遅い方）を取り出す。旧 dueDateFrom/To にも対応。
  */
 export function getPlanDueDate(nextPlan) {
   if (!nextPlan) return "";
-  if (nextPlan.dueDate) return nextPlan.dueDate;
-  if (nextPlan.targetDate) return nextPlan.targetDate;
-  if (nextPlan.dueDateFrom && nextPlan.dueDateTo) {
-    if (nextPlan.dueDateFrom === nextPlan.dueDateTo) return nextPlan.dueDateFrom;
-    const span = daysBetween(nextPlan.dueDateFrom, nextPlan.dueDateTo);
-    if (span != null && span >= 0) {
-      return addDays(nextPlan.dueDateFrom, Math.floor(span / 2));
-    }
-  }
-  return nextPlan.dueDateFrom || nextPlan.dueDateTo || "";
+  const { from, to } = getPlanDueRange(nextPlan);
+  return to || from || "";
 }
 
 /**
@@ -422,6 +440,7 @@ export function getPlanBaselineDate(nextPlan) {
 /**
  * 残り日数と色レベルを計算する。
  * level: "far" | "near" | "close" | "overdue"
+ * 色分けは dueDate（期限＝幅の終了日）を基準にする。
  */
 export function getDueCountdown(dueDate, baselineDate = null, today = todayStr()) {
   if (!dueDate) return null;
@@ -473,21 +492,51 @@ export function getDueCountdown(dueDate, baselineDate = null, today = todayStr()
 }
 
 /**
- * 「あと○日」／「○日超過」／「本日期日」。
+ * 予定オブジェクトから、幅つきカウントダウンを返す。
+ * 色分けは終了日基準。remainingFrom/To は表示用。
+ */
+export function getPlanDueCountdown(plan, today = todayStr()) {
+  const { from, to } = getPlanDueRange(plan);
+  const end = to || from;
+  if (!end) return null;
+  const start = from || to;
+  const info = getDueCountdown(end, getPlanBaselineDate(plan), today);
+  if (!info) return null;
+  const remainingFrom = start ? daysBetween(today, start) : info.remaining;
+  return {
+    ...info,
+    dueDateFrom: start,
+    dueDateTo: end,
+    remainingFrom: remainingFrom == null ? info.remaining : remainingFrom,
+    remainingTo: info.remaining,
+  };
+}
+
+/**
+ * 「あと○日」／「あと○日〜△日」／「○日超過」／「本日期日」。
  * includeDate=true のときだけ括弧付き日付を付ける（詳細・入力欄用）。
  */
 export function formatDueCountdown(info, { includeDate = true } = {}) {
   if (!info) return "";
+  const remainingTo = info.remainingTo != null ? info.remainingTo : info.remaining;
+  const remainingFrom =
+    info.remainingFrom != null ? info.remainingFrom : remainingTo;
   let text = "";
-  if (info.remaining < 0) {
-    text = `${Math.abs(info.remaining)}日超過`;
-  } else if (info.remaining === 0) {
-    text = "本日期日";
+  if (remainingTo < 0) {
+    text = `${Math.abs(remainingTo)}日超過`;
+  } else if (remainingFrom === remainingTo) {
+    text = remainingTo === 0 ? "本日期日" : `あと${remainingTo}日`;
   } else {
-    text = `あと${info.remaining}日`;
+    const fromShown = Math.max(0, remainingFrom);
+    text = `あと${fromShown}日〜${remainingTo}日`;
   }
   if (!includeDate) return text;
-  const dateLabel = ymdFromStr(info.dueDate);
+  const fromDate = ymdFromStr(info.dueDateFrom || info.dueDate);
+  const toDate = ymdFromStr(info.dueDateTo || info.dueDate);
+  if (fromDate && toDate && fromDate !== toDate) {
+    return `${text}（${fromDate}〜${toDate}）`;
+  }
+  const dateLabel = toDate || fromDate;
   return dateLabel ? `${text}（${dateLabel}）` : text;
 }
 
@@ -647,14 +696,17 @@ function collectUnifiedPlanEntries() {
 
   Object.entries(state.plan.plans || {}).forEach(([id, p]) => {
     if (!p) return;
-    const dueDate = getPlanDueDate(p);
-    const countdown = getDueCountdown(dueDate, getPlanBaselineDate(p));
+    const range = getPlanDueRange(p);
+    const dueDate = range.to || range.from;
+    const countdown = getPlanDueCountdown(p);
     entries.push({
       id,
       kind: "plan",
-      sortKey: dueDate || "9999-99-99",
+      sortKey: range.from || dueDate || "9999-99-99",
       item: p.item || "（項目未設定）",
       dueDate,
+      dueDateFrom: range.from,
+      dueDateTo: range.to,
       countdown,
       note: p.note || "",
       fasting: normalizeExamFasting(p.fasting),
@@ -745,20 +797,24 @@ function openExamItemSheet(entry) {
   state.editingPlanId = entry.id;
   state.draft.mode = "edit";
   state.draft.item = plan.item || entry.item || "";
-  state.draft.dueDate = getPlanDueDate(plan) || entry.dueDate || "";
+  const range = getPlanDueRange(plan);
+  state.draft.dueDateFrom = range.from || entry.dueDate || "";
+  state.draft.dueDateTo = range.to || range.from || entry.dueDate || "";
+  state.draft.dueDate = state.draft.dueDateTo || state.draft.dueDateFrom;
   state.draft.note = plan.note || entry.note || "";
   state.draft.fasting = normalizeExamFasting(plan.fasting ?? entry.fasting);
   state.draft.baselineDate = plan.baselineDate || getPlanBaselineDate(plan) || null;
+  state.draft.dueRelativeFocus = "from";
 
   if (itemSheetTitle) itemSheetTitle.textContent = "検査予定";
   if (itemSheetItem) itemSheetItem.textContent = state.draft.item || "（項目未設定）";
   syncSheetFastingUI();
-  if (sheetDueDate) sheetDueDate.value = state.draft.dueDate || "";
+  writeDueRangeInputs(state.draft.dueDateFrom, state.draft.dueDateTo);
   if (sheetNote) sheetNote.value = state.draft.note || "";
   deps.showError(sheetError, "");
 
-  if (state.draft.dueDate) {
-    syncRelativeFromCalendar(state.draft.dueDate);
+  if (state.draft.dueDateFrom || state.draft.dueDateTo) {
+    syncRelativeFromRange();
   } else {
     resetDraftDueRelative();
     syncDueRelativeUI();
@@ -794,7 +850,7 @@ function openPlanSheetById(planId) {
     dueDate: getPlanDueDate(plan) || "",
     note: plan.note || "",
     fasting: normalizeExamFasting(plan.fasting),
-    countdown: getDueCountdown(getPlanDueDate(plan), getPlanBaselineDate(plan)),
+    countdown: getPlanDueCountdown(plan),
   });
   return true;
 }
@@ -947,7 +1003,8 @@ function wireNextPlanActions() {
     closeExamItemSheet();
     handleEndPlan(id);
   });
-  wireDueDateInput(sheetDueDate);
+  wireDueDateInput(sheetDueDate, "from");
+  wireDueDateInput(sheetDueDateTo, "to");
   btnSheetDueCalendar?.addEventListener("click", () => openDueCalendarPicker(sheetDueDate));
 }
 
@@ -960,7 +1017,8 @@ async function handleSheetSave() {
   if (state.draft.dueRelativeBuffer !== "" && dueBuffered >= 1) {
     applyDueRelativeToCalendar();
   }
-  const dueDate = sheetDueDate?.value || state.draft.dueDate || "";
+  const { from: dueDateFrom, to: dueDateTo } = readDueRangeForSave();
+  const dueDate = dueDateTo || dueDateFrom;
   const note = sheetNote?.value.trim() || "";
   const item = plan.item || state.draft.item || "";
   const fasting = planNeedsFasting(item)
@@ -983,6 +1041,8 @@ async function handleSheetSave() {
       planId,
       item,
       dueDate,
+      dueDateFrom,
+      dueDateTo,
       note,
       fasting,
       baselineDate: state.draft.baselineDate || plan.baselineDate || todayStr(),
@@ -1052,14 +1112,10 @@ function wirePlanModal() {
     syncSheetFastingUI();
   });
 
-  wireDueDateInput(planDueDate);
-  planDueDate?.addEventListener("click", () => openDueCalendarPicker(planDueDate));
-  planDueDate?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      openDueCalendarPicker(planDueDate);
-    }
-  });
+  wireDueDateInput(planDueDate, "from");
+  wireDueDateInput(planDueDateTo, "to");
+  bindDueDateCalendar(planDueDate);
+  bindDueDateCalendar(planDueDateTo);
   planDoneDate?.addEventListener("click", () => {
     if (!planDoneDate.disabled) openDueCalendarPicker(planDoneDate);
   });
@@ -1096,18 +1152,146 @@ function openDueCalendarPicker(inputEl) {
     });
 }
 
+function bindDueDateCalendar(inputEl) {
+  if (!inputEl || inputEl.dataset.dueCalWired === "1") return;
+  inputEl.dataset.dueCalWired = "1";
+  inputEl.addEventListener("click", () => openDueCalendarPicker(inputEl));
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDueCalendarPicker(inputEl);
+    }
+  });
+}
+
+function currentDueRangeFromInputs() {
+  const from = planDueDate?.value || sheetDueDate?.value || "";
+  const to = planDueDateTo?.value || sheetDueDateTo?.value || "";
+  return { from, to };
+}
+
+function writeDueRangeInputs(from, to) {
+  let start = from || "";
+  let end = to || start;
+  if (!start) start = end;
+  if (start && end && start > end) {
+    const tmp = start;
+    start = end;
+    end = tmp;
+    const vf = Number(state.draft.dueRelativeValueFrom) || 0;
+    const vt = Number(state.draft.dueRelativeValueTo) || 0;
+    if (vf > vt) {
+      state.draft.dueRelativeValueFrom = vt;
+      state.draft.dueRelativeValueTo = vf;
+    }
+  }
+  state.syncingDueFromRelative = true;
+  if (sheetDueDate) sheetDueDate.value = start;
+  if (sheetDueDateTo) sheetDueDateTo.value = end;
+  if (planDueDate) planDueDate.value = start;
+  if (planDueDateTo) planDueDateTo.value = end;
+  state.draft.dueDateFrom = start;
+  state.draft.dueDateTo = end;
+  state.draft.dueDate = end || start;
+  state.syncingDueFromRelative = false;
+}
+
+function readDueRangeForSave() {
+  const from =
+    (isSheetOpen() ? sheetDueDate?.value : planDueDate?.value) ||
+    planDueDate?.value ||
+    sheetDueDate?.value ||
+    "";
+  const to =
+    (isSheetOpen() ? sheetDueDateTo?.value : planDueDateTo?.value) ||
+    planDueDateTo?.value ||
+    sheetDueDateTo?.value ||
+    from;
+  let start = from || to;
+  let end = to || from;
+  if (start && end && start > end) {
+    const tmp = start;
+    start = end;
+    end = tmp;
+  }
+  return { from: start, to: end };
+}
+
+function pickSharedRelativeUnit(d1, d2) {
+  const a = Math.max(0, Number(d1) || 0);
+  const b = Math.max(0, Number(d2) || 0);
+  if (
+    (a === 0 || a % DAYS_PER_MONTH === 0) &&
+    (b === 0 || b % DAYS_PER_MONTH === 0) &&
+    (a >= DAYS_PER_MONTH || b >= DAYS_PER_MONTH)
+  ) {
+    return "month";
+  }
+  if (
+    (a === 0 || a % DAYS_PER_WEEK === 0) &&
+    (b === 0 || b % DAYS_PER_WEEK === 0) &&
+    (a >= DAYS_PER_WEEK || b >= DAYS_PER_WEEK)
+  ) {
+    return "week";
+  }
+  return "day";
+}
+
+function daysToUnitValue(unit, days) {
+  const d = Math.max(0, Number(days) || 0);
+  if (unit === "week") return Math.max(0, Math.round(d / DAYS_PER_WEEK));
+  if (unit === "month") return Math.max(0, Math.round(d / DAYS_PER_MONTH));
+  return d;
+}
+
+function focusedRelativeValue() {
+  return state.draft.dueRelativeFocus === "to"
+    ? Number(state.draft.dueRelativeValueTo) || 0
+    : Number(state.draft.dueRelativeValueFrom) || 0;
+}
+
 /**
  * カレンダー日付変更 → 相対指定へ反映（change / input の両方）。
  */
-function wireDueDateInput(inputEl) {
+function wireDueDateInput(inputEl, side) {
   if (!inputEl || inputEl.dataset.dueWired === "1") return;
   inputEl.dataset.dueWired = "1";
+  const key = side === "to" ? "to" : "from";
+  const onFocus = () => {
+    state.draft.dueRelativeFocus = key;
+    const v = focusedRelativeValue();
+    state.draft.dueRelativeValue = v;
+    if (state.draft.dueRelativeBuffer === "") {
+      state.draft.dueRelativeBuffer = v ? String(v) : "";
+    }
+    syncDueRelativeUI();
+  };
   const onPick = () => {
     if (state.syncingDueFromRelative) return;
-    state.draft.dueDate = inputEl.value;
-    syncRelativeFromCalendar(inputEl.value);
+    state.draft.dueRelativeFocus = key;
+    const value = inputEl.value;
+    if (key === "from") {
+      if (planDueDate && inputEl !== planDueDate) planDueDate.value = value;
+      if (sheetDueDate && inputEl !== sheetDueDate) sheetDueDate.value = value;
+      const toVal = planDueDateTo?.value || sheetDueDateTo?.value || "";
+      if (!toVal) {
+        if (planDueDateTo) planDueDateTo.value = value;
+        if (sheetDueDateTo) sheetDueDateTo.value = value;
+      }
+    } else {
+      if (planDueDateTo && inputEl !== planDueDateTo) planDueDateTo.value = value;
+      if (sheetDueDateTo && inputEl !== sheetDueDateTo) sheetDueDateTo.value = value;
+      const fromVal = planDueDate?.value || sheetDueDate?.value || "";
+      if (!fromVal) {
+        if (planDueDate) planDueDate.value = value;
+        if (sheetDueDate) sheetDueDate.value = value;
+      }
+    }
+    syncRelativeFromRange();
     updateWindowNote();
   };
+  inputEl.addEventListener("focus", onFocus);
+  inputEl.addEventListener("click", onFocus);
   inputEl.addEventListener("change", onPick);
   inputEl.addEventListener("input", onPick);
 }
@@ -1151,25 +1335,6 @@ function mountUnitButtons(container, selectedUnit, onSelect) {
   });
 }
 
-function displayRelativeBufferLabel(unit, buffer, confirmedValue) {
-  const shown = buffer !== "" ? buffer : String(confirmedValue ?? "");
-  return formatRelativeOffsetLabel(unit, shown === "" ? 0 : shown);
-}
-
-/**
- * 日数を、できるだけきれいな単位で表現する。
- */
-function expressDaysAsRelative(days) {
-  const d = Math.max(0, Number(days) || 0);
-  if (d > 0 && d % DAYS_PER_MONTH === 0) {
-    return { unit: "month", value: d / DAYS_PER_MONTH };
-  }
-  if (d > 0 && d % DAYS_PER_WEEK === 0) {
-    return { unit: "week", value: d / DAYS_PER_WEEK };
-  }
-  return { unit: "day", value: d };
-}
-
 /**
  * 相対日数計算の基準日。
  * 「本日実施した内容の記録」に実施日が入力・有効化されていればその日付を、
@@ -1191,40 +1356,46 @@ function syncBaselineFromDoneDate() {
     planDoneCheck?.checked && planDoneDate && !planDoneDate.disabled && planDoneDate.value
   );
   state.draft.baselineDate = usingDone ? planDoneDate.value : todayStr();
-  if (planDueDate?.value) {
-    syncRelativeFromCalendar(planDueDate.value);
+  if (planDueDate?.value || planDueDateTo?.value) {
+    syncRelativeFromRange();
   }
   updateWindowNote();
 }
 
 /**
- * カレンダー日付 → 相対指定表示へ反映。
+ * カレンダーの開始・終了 → 相対指定表示へ反映。
  */
-function syncRelativeFromCalendar(dateStr) {
-  if (!dateStr) {
-    state.draft.dueRelativeUnit = "day";
-    state.draft.dueRelativeValue = 0;
-    state.draft.dueRelativeBuffer = "";
+function syncRelativeFromRange() {
+  const { from, to } = currentDueRangeFromInputs();
+  const start = from || to;
+  const end = to || from;
+  state.draft.dueDateFrom = start;
+  state.draft.dueDateTo = end;
+  state.draft.dueDate = end || start;
+  if (!start && !end) {
+    resetDraftDueRelative();
     syncDueRelativeUI();
     return;
   }
-  const days = daysBetween(dueRelativeBaselineDate(), dateStr);
-  if (days == null) return;
-  if (days < 0) {
-    state.draft.dueRelativeUnit = "day";
-    state.draft.dueRelativeValue = 0;
-    state.draft.dueRelativeBuffer = "0";
-  } else {
-    const expressed = expressDaysAsRelative(days);
-    state.draft.dueRelativeUnit = expressed.unit;
-    state.draft.dueRelativeValue = expressed.value;
-    state.draft.dueRelativeBuffer = String(expressed.value);
-  }
+  const base = dueRelativeBaselineDate();
+  const daysFrom = start ? daysBetween(base, start) : 0;
+  const daysTo = end ? daysBetween(base, end) : daysFrom;
+  if (daysFrom == null && daysTo == null) return;
+  const df = Math.max(0, daysFrom || 0);
+  const dt = Math.max(0, daysTo || 0);
+  const unit = pickSharedRelativeUnit(df, dt);
+  state.draft.dueRelativeUnit = unit;
+  state.draft.dueRelativeValueFrom = daysToUnitValue(unit, df);
+  state.draft.dueRelativeValueTo = daysToUnitValue(unit, dt);
+  const focused = focusedRelativeValue();
+  state.draft.dueRelativeValue = focused;
+  state.draft.dueRelativeBuffer = String(focused);
   syncDueRelativeUI();
 }
 
 /**
- * 相対指定 → カレンダー日付へ反映。
+ * 相対指定 → カレンダー日付へ反映（フォーカス中の開始 or 終了）。
+ * 開始を確定したとき終了が未入力／開始と同じなら、終了も同じ日付にして単一指定相当にする。
  */
 function applyDueRelativeToCalendar() {
   const buffered = Number(state.draft.dueRelativeBuffer);
@@ -1232,16 +1403,28 @@ function applyDueRelativeToCalendar() {
     buffered >= 0 && state.draft.dueRelativeBuffer !== ""
       ? buffered
       : Number(state.draft.dueRelativeValue) || 0;
-  state.draft.dueRelativeValue = value;
-  state.draft.dueRelativeBuffer = String(value);
+  const focus = state.draft.dueRelativeFocus === "to" ? "to" : "from";
+  const date = addDays(dueRelativeBaselineDate(), unitToDays(state.draft.dueRelativeUnit, value));
+  const { from: prevFrom, to: prevTo } = currentDueRangeFromInputs();
 
-  const days = unitToDays(state.draft.dueRelativeUnit, value);
-  const date = addDays(dueRelativeBaselineDate(), days);
-  state.syncingDueFromRelative = true;
-  if (sheetDueDate) sheetDueDate.value = date;
-  if (planDueDate) planDueDate.value = date;
-  state.draft.dueDate = date;
-  state.syncingDueFromRelative = false;
+  if (focus === "from") {
+    state.draft.dueRelativeValueFrom = value;
+    const toWasLinked = !prevTo || prevTo === prevFrom;
+    if (toWasLinked) {
+      state.draft.dueRelativeValueTo = value;
+      writeDueRangeInputs(date, date);
+    } else {
+      writeDueRangeInputs(date, prevTo);
+    }
+    state.draft.dueRelativeFocus = "to";
+    state.draft.dueRelativeBuffer = "";
+    state.draft.dueRelativeValue = state.draft.dueRelativeValueTo;
+  } else {
+    state.draft.dueRelativeValueTo = value;
+    writeDueRangeInputs(prevFrom || date, date);
+    state.draft.dueRelativeBuffer = String(value);
+    state.draft.dueRelativeValue = value;
+  }
   updateWindowNote();
   syncDueRelativeUI();
 }
@@ -1286,41 +1469,63 @@ function buildPlanDueRelativeUI() {
 function syncDueRelativeUI() {
   const onUnitSelect = (unit) => {
     const prevUnit = state.draft.dueRelativeUnit;
-    const prevValue =
-      state.draft.dueRelativeBuffer !== ""
-        ? Number(state.draft.dueRelativeBuffer) || 0
-        : Number(state.draft.dueRelativeValue) || 0;
-    const days = unitToDays(prevUnit, prevValue);
-    let nextValue = days;
-    if (unit === "week") nextValue = Math.max(0, Math.round(days / DAYS_PER_WEEK));
-    else if (unit === "month") nextValue = Math.max(0, Math.round(days / DAYS_PER_MONTH));
-    state.draft.dueRelativeUnit = unit;
-    state.draft.dueRelativeValue = nextValue;
-    state.draft.dueRelativeBuffer = nextValue > 0 || days === 0 ? String(nextValue) : "";
-    const hasDate = Boolean(sheetDueDate?.value || planDueDate?.value);
-    if (nextValue > 0 || hasDate) {
-      applyDueRelativeToCalendar();
-    } else {
-      syncDueRelativeUI();
+    if (state.draft.dueRelativeBuffer !== "") {
+      const n = Number(state.draft.dueRelativeBuffer) || 0;
+      if (state.draft.dueRelativeFocus === "to") state.draft.dueRelativeValueTo = n;
+      else state.draft.dueRelativeValueFrom = n;
     }
+    const convert = (v) => daysToUnitValue(unit, unitToDays(prevUnit, v));
+    state.draft.dueRelativeUnit = unit;
+    state.draft.dueRelativeValueFrom = convert(state.draft.dueRelativeValueFrom);
+    state.draft.dueRelativeValueTo = convert(state.draft.dueRelativeValueTo);
+    const focused = focusedRelativeValue();
+    state.draft.dueRelativeValue = focused;
+    const zeroBoth =
+      state.draft.dueRelativeValueFrom === 0 && state.draft.dueRelativeValueTo === 0;
+    state.draft.dueRelativeBuffer = focused > 0 || zeroBoth ? String(focused) : "";
+    const hasDate = Boolean(sheetDueDate?.value || planDueDate?.value);
+    if (state.draft.dueRelativeValueFrom > 0 || state.draft.dueRelativeValueTo > 0 || hasDate) {
+      const base = dueRelativeBaselineDate();
+      writeDueRangeInputs(
+        addDays(base, unitToDays(unit, state.draft.dueRelativeValueFrom)),
+        addDays(base, unitToDays(unit, state.draft.dueRelativeValueTo))
+      );
+      updateWindowNote();
+    }
+    syncDueRelativeUI();
   };
 
   mountUnitButtons(planDueUnits, state.draft.dueRelativeUnit, onUnitSelect);
   mountUnitButtons(sheetDueUnits, state.draft.dueRelativeUnit, onUnitSelect);
 
-  const label = displayRelativeBufferLabel(
-    state.draft.dueRelativeUnit,
-    state.draft.dueRelativeBuffer,
-    state.draft.dueRelativeValue
-  );
+  const unit = state.draft.dueRelativeUnit;
+  const fromN =
+    state.draft.dueRelativeFocus === "from" && state.draft.dueRelativeBuffer !== ""
+      ? state.draft.dueRelativeBuffer
+      : String(state.draft.dueRelativeValueFrom ?? 0);
+  const toN =
+    state.draft.dueRelativeFocus === "to" && state.draft.dueRelativeBuffer !== ""
+      ? state.draft.dueRelativeBuffer
+      : String(state.draft.dueRelativeValueTo ?? 0);
+  const label =
+    String(fromN) === String(toN)
+      ? formatRelativeOffsetLabel(unit, fromN === "" ? 0 : fromN)
+      : `${fromN || 0}〜${formatRelativeOffsetLabel(unit, toN === "" ? 0 : toN)}`;
   if (planDueDisplay) planDueDisplay.textContent = label;
   if (sheetDueDisplay) sheetDueDisplay.textContent = label;
+
+  document.querySelectorAll("#exam-plan-modal .exam-due-compact__date-pair[data-due-side]").forEach((el) => {
+    el.classList.toggle("is-active", el.dataset.dueSide === state.draft.dueRelativeFocus);
+  });
 }
 
 function resetDraftDueRelative() {
   state.draft.dueRelativeUnit = "day";
   state.draft.dueRelativeValue = 0;
+  state.draft.dueRelativeValueFrom = 0;
+  state.draft.dueRelativeValueTo = 0;
   state.draft.dueRelativeBuffer = "";
+  state.draft.dueRelativeFocus = "from";
 }
 
 function examItemCategoryLabel(categoryId) {
@@ -2203,19 +2408,23 @@ async function handleAddExamItemFromPlanModal() {
 }
 
 function updateWindowNote() {
-  const date = isSheetOpen()
-    ? sheetDueDate?.value || state.draft.dueDate
-    : planDueDate?.value || state.draft.dueDate || sheetDueDate?.value;
+  const { from, to } = readDueRangeForSave();
+  const end = to || from;
   const noteEls = [planWindowNote, sheetWindowNote].filter(Boolean);
   noteEls.forEach((el) => {
-    if (!date) {
+    if (!end) {
       el.textContent = "";
       el.className = "field__note";
       el.hidden = true;
       return;
     }
     const baseline = state.draft.baselineDate || todayStr();
-    const info = getDueCountdown(date, baseline);
+    const info = getPlanDueCountdown({
+      dueDate: end,
+      dueDateFrom: from || end,
+      dueDateTo: end,
+      baselineDate: baseline,
+    });
     el.hidden = false;
     el.textContent = `予定日: ${formatDueCountdown(info)}`;
     el.className = `field__note ${dueLevelClass(info?.level || "far")}`;
@@ -2234,7 +2443,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
         dueDate: getPlanDueDate(plan),
         note: plan.note || "",
         fasting: normalizeExamFasting(plan.fasting),
-        countdown: getDueCountdown(getPlanDueDate(plan), getPlanBaselineDate(plan)),
+        countdown: getPlanDueCountdown(plan),
       });
     }
     return;
@@ -2250,7 +2459,10 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     if (planModalTitle) planModalTitle.textContent = "次の予定を登録";
     state.draft.item = preset.item || "";
     state.draft.customItem = "";
-    state.draft.dueDate = preset.dueDate || "";
+    const range = getPlanDueRange(preset);
+    state.draft.dueDateFrom = range.from || preset.dueDate || "";
+    state.draft.dueDateTo = range.to || range.from || preset.dueDate || "";
+    state.draft.dueDate = state.draft.dueDateTo || state.draft.dueDateFrom;
     state.draft.note = preset.note || "";
     state.draft.fasting = normalizeExamFasting(preset.fasting);
     state.draft.baselineDate = preset.baselineDate || todayStr();
@@ -2264,6 +2476,8 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     state.draft.item = "";
     state.draft.customItem = "";
     state.draft.dueDate = "";
+    state.draft.dueDateFrom = "";
+    state.draft.dueDateTo = "";
     state.draft.note = "";
     state.draft.fasting = "";
     state.draft.baselineDate = todayStr();
@@ -2271,14 +2485,14 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
 
   collapseExamItemAddForm();
   deps.showError(planItemError, "");
-  if (planDueDate) planDueDate.value = state.draft.dueDate;
+  writeDueRangeInputs(state.draft.dueDateFrom || "", state.draft.dueDateTo || "");
   if (planNote) planNote.value = state.draft.note;
   // 完了直後の「次の予定」は予定専用の流れなので、切り替えは出さない
   if (planModeToggle) planModeToggle.hidden = mode === "afterComplete";
   setRegisterMode("plan");
   resetPlanDoneFields(mode);
-  if (state.draft.dueDate) {
-    syncRelativeFromCalendar(state.draft.dueDate);
+  if (state.draft.dueDateFrom || state.draft.dueDateTo) {
+    syncRelativeFromRange();
   } else {
     resetDraftDueRelative();
     syncDueRelativeUI();
@@ -2375,7 +2589,8 @@ async function handlePlanSave() {
   if (state.draft.dueRelativeBuffer !== "" && dueBuffered >= 1) {
     applyDueRelativeToCalendar();
   }
-  const dueDate = planDueDate?.value || "";
+  const { from: dueDateFrom, to: dueDateTo } = readDueRangeForSave();
+  const dueDate = dueDateTo || dueDateFrom;
   const note = planNote?.value.trim() || "";
   const fasting = planNeedsFasting(item)
     ? normalizeExamFasting(state.draft.fasting)
@@ -2415,6 +2630,8 @@ async function handlePlanSave() {
         planId: state.draft.mode === "edit" ? state.editingPlanId : null,
         item,
         dueDate,
+        dueDateFrom,
+        dueDateTo,
         note,
         fasting,
         baselineDate: keepBaseline,
