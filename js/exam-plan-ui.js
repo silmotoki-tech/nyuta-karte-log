@@ -5,7 +5,6 @@ import {
   subscribeExamPlan,
   subscribeExamItems,
   saveExamScheduledPlan,
-  deleteExamScheduledPlan,
   endExamScheduledPlan,
   reviveExamPlanByItem,
   addExamHistory,
@@ -89,6 +88,8 @@ const state = {
     registerMode: "plan", // plan | history
     /** 「本日実施した内容の記録」の記録方法。continuous=項目の実施履歴として蓄積、single=時系列に単発イベントとして記録 */
     doneRecordMode: "continuous", // continuous | single
+    /** 完了直後の「次の予定」。元の予定ID。保存成功まで削除しない */
+    afterCompletePlanId: null,
   },
   /** カレンダー入力のプログラム書き込みによるループ防止 */
   syncingDueFromRelative: false,
@@ -2136,10 +2137,14 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     state.draft.note = preset.note || "";
     state.draft.fasting = normalizeExamFasting(preset.fasting);
     state.draft.baselineDate = preset.baselineDate || todayStr();
+    state.draft.afterCompletePlanId = preset.planId || null;
     const matched = findExamItemByLabel(state.draft.item);
     if (matched && !isExamGroup(matched)) {
       state.draft.selectedItems = [toSelectedExamRef(matched)];
       syncDraftItemFromSelection();
+    }
+    if (!state.draft.fasting) {
+      applyDefaultFastingFromSelection();
     }
   } else {
     if (planModalTitle) planModalTitle.textContent = "検査を登録";
@@ -2151,6 +2156,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     state.draft.note = "";
     state.draft.fasting = "";
     state.draft.baselineDate = todayStr();
+    state.draft.afterCompletePlanId = null;
   }
 
   collapseExamItemAddForm();
@@ -2286,8 +2292,14 @@ async function handlePlanSave() {
   try {
     if (savePlan) {
       const keepBaseline = state.draft.baselineDate || todayStr();
+      const planId =
+        state.draft.mode === "edit"
+          ? state.editingPlanId
+          : state.draft.mode === "afterComplete"
+            ? state.draft.afterCompletePlanId
+            : null;
       await saveExamScheduledPlan(state.karteNumber, {
-        planId: state.draft.mode === "edit" ? state.editingPlanId : null,
+        planId,
         item,
         dueDate,
         dueDateFrom,
@@ -2296,6 +2308,9 @@ async function handlePlanSave() {
         fasting,
         baselineDate: keepBaseline,
       });
+      if (state.draft.mode === "afterComplete") {
+        state.draft.afterCompletePlanId = null;
+      }
     }
 
     const doneAsSingleEvent = saveDoneHistory && state.draft.doneRecordMode === "single";
@@ -2420,14 +2435,15 @@ async function handleCompleteSave() {
       date,
       note,
     });
-    await deleteExamScheduledPlan(state.karteNumber, planId);
-    state.activePlanId = null;
     closeCompleteModal();
     deps.showToast("実施を記録しました。");
     openAfterModal({
       item: plan.item,
       dueDate: "",
       baselineDate: date,
+      fasting: plan.fasting || "",
+      note: plan.note || "",
+      planId,
     });
   } catch (err) {
     console.error(err);
@@ -2438,15 +2454,15 @@ async function handleCompleteSave() {
 }
 
 function wireAfterModal() {
-  btnCloseAfterModal?.addEventListener("click", () => closeAfterModal());
-  btnAfterEnd?.addEventListener("click", () => closeAfterModal());
+  btnCloseAfterModal?.addEventListener("click", () => closeAfterModal({ endPlan: true }));
+  btnAfterEnd?.addEventListener("click", () => closeAfterModal({ endPlan: true }));
   btnAfterNext?.addEventListener("click", () => {
     const preset = afterModal?._preset || null;
-    closeAfterModal();
+    closeAfterModal({ endPlan: false });
     openPlanModal("afterComplete", { preset: preset || undefined });
   });
   afterModal?.querySelector("[data-close-modal]")?.addEventListener("click", () =>
-    closeAfterModal()
+    closeAfterModal({ endPlan: true })
   );
 }
 
@@ -2461,10 +2477,27 @@ function openAfterModal(preset) {
   afterModal.hidden = false;
 }
 
-function closeAfterModal() {
+function closeAfterModal({ endPlan = false } = {}) {
+  const planId = afterModal?._preset?.planId || null;
   if (afterModal) {
     afterModal.hidden = true;
     afterModal._preset = null;
+  }
+  if (endPlan) endPlanAfterComplete(planId);
+}
+
+async function endPlanAfterComplete(planId) {
+  if (!planId || !state.karteNumber) return;
+  try {
+    await endExamScheduledPlan(state.karteNumber, planId);
+    if (state.activePlanId === planId) state.activePlanId = null;
+    if (state.editingPlanId === planId) state.editingPlanId = null;
+    if (state.draft.afterCompletePlanId === planId) {
+      state.draft.afterCompletePlanId = null;
+    }
+  } catch (err) {
+    console.error(err);
+    deps.showToast("終了に失敗しました。", { isError: true });
   }
 }
 

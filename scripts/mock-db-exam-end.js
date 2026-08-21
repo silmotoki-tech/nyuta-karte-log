@@ -2,7 +2,7 @@
 
 const store = {
   examItems: {
-    item1: { label: "血液検査", order: 1, category: "blood", kind: "leaf" },
+    item1: { label: "血液検査", order: 1, category: "blood", kind: "leaf", defaultFasting: "required" },
   },
   examPlan: {},
 };
@@ -58,7 +58,7 @@ export function subscribeExamItems(callback) {
 
 export async function saveExamScheduledPlan(
   karteNumber,
-  { planId = null, item, dueDate, note, baselineDate }
+  { planId = null, item, dueDate, note, baselineDate, fasting }
 ) {
   const plan = ensurePlan(karteNumber);
   const itemName = (item || "").trim();
@@ -77,6 +77,7 @@ export async function saveExamScheduledPlan(
     dueDateFrom: date,
     dueDateTo: date,
     note: note || "",
+    fasting: fasting || "",
   };
   if (!targetId) targetId = nextId("plan");
   plan.plans[targetId] = record;
