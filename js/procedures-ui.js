@@ -97,7 +97,6 @@ const sheetChooseActions = document.getElementById("procedure-sheet-choose-actio
 const sheetSaveActions = document.getElementById("procedure-sheet-save-actions");
 const sheetError = document.getElementById("procedure-sheet-error");
 const btnSheetSave = document.getElementById("btn-procedure-sheet-save");
-const btnSheetBack = document.getElementById("btn-procedure-sheet-back");
 const btnSheetComplete = document.getElementById("btn-procedure-sheet-complete");
 const btnSheetEnd = document.getElementById("btn-procedure-sheet-end");
 const btnCloseItemSheet = document.getElementById("btn-close-procedure-item-sheet");
@@ -187,7 +186,6 @@ export function initProceduresUI(helpers = {}) {
   btnCloseItemSheet?.addEventListener("click", closeItemSheet);
   itemSheet?.querySelector("[data-close-modal]")?.addEventListener("click", closeItemSheet);
   btnSheetSave?.addEventListener("click", handleSheetSave);
-  btnSheetBack?.addEventListener("click", () => applyProcSheetPhase("choose"));
   btnSheetComplete?.addEventListener("click", () => applyProcSheetPhase("complete"));
   btnSheetEnd?.addEventListener("click", () => applyProcSheetPhase("end"));
 
@@ -650,6 +648,12 @@ function closeItemSheet() {
   }
 }
 
+function procSheetSaveLabel() {
+  if (state.sheetPhase === "complete") return "完了として保存";
+  if (state.sheetPhase === "end") return "終了として保存";
+  return "保存する";
+}
+
 function applyProcSheetPhase(phase) {
   state.sheetPhase = phase || "choose";
   const choose = state.sheetPhase === "choose";
@@ -659,9 +663,9 @@ function applyProcSheetPhase(phase) {
   if (sheetPhaseChoose) sheetPhaseChoose.hidden = !choose;
   if (sheetChooseActions) sheetChooseActions.hidden = !choose;
   if (sheetSaveActions) sheetSaveActions.hidden = choose;
-  if (btnSheetBack) btnSheetBack.hidden = schedule;
   if (sheetDoneField) sheetDoneField.hidden = !(complete || end);
   if (sheetDueField) sheetDueField.hidden = !(complete || schedule);
+  if (btnSheetSave) btnSheetSave.textContent = procSheetSaveLabel();
   if (complete) {
     writeDueRangeInputs("", "");
     state.baselineDate = sheetDoneDate?.value || todayStr();
@@ -687,7 +691,7 @@ async function handleSheetSave() {
       return;
     }
     deps.showError(sheetError, "");
-    deps.setBusy(btnSheetSave, true, "保存中...", "保存する");
+    deps.setBusy(btnSheetSave, true, "保存中...", procSheetSaveLabel());
     try {
       await addProcedure(state.karteNumber, {
         date: doneDate,
@@ -702,7 +706,7 @@ async function handleSheetSave() {
       console.error(err);
       deps.showError(sheetError, "保存に失敗しました。もう一度お試しください。");
     } finally {
-      deps.setBusy(btnSheetSave, false, "保存中...", "保存する");
+      deps.setBusy(btnSheetSave, false, "保存中...", procSheetSaveLabel());
     }
     return;
   }
@@ -719,7 +723,7 @@ async function handleSheetSave() {
   }
 
   deps.showError(sheetError, "");
-  deps.setBusy(btnSheetSave, true, "保存中...", "保存する");
+  deps.setBusy(btnSheetSave, true, "保存中...", procSheetSaveLabel());
   try {
     if (phase === "complete") {
       await addProcedure(state.karteNumber, {
@@ -749,7 +753,7 @@ async function handleSheetSave() {
     console.error(err);
     deps.showError(sheetError, "保存に失敗しました。もう一度お試しください。");
   } finally {
-    deps.setBusy(btnSheetSave, false, "保存中...", "保存する");
+    deps.setBusy(btnSheetSave, false, "保存中...", procSheetSaveLabel());
   }
 }
 

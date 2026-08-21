@@ -96,20 +96,36 @@ await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
 const dueHiddenOnOpen = await page.locator("#exam-sheet-due-field").isHidden();
 if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレンダーが見えている");
+await page.locator("#exam-item-sheet .modal__backdrop").click({ position: { x: 4, y: 4 } });
+await page.waitForFunction(
+  () => document.getElementById("exam-item-sheet")?.hasAttribute("hidden"),
+  null,
+  { timeout: 3000 }
+);
+await page.locator("#status-exam-plan-list .status-row").first().click();
+await page.waitForSelector("#exam-item-sheet:not([hidden])");
 
 await page.click("#btn-exam-sheet-complete");
 const dueVisibleOnComplete = await page.locator("#exam-sheet-due-field").isVisible();
 if (!dueVisibleOnComplete) throw new Error("完了を選んでも次回予定カレンダーが出ない");
+const completeSaveLabel = (await page.locator("#btn-exam-sheet-save").innerText()).trim();
+if (completeSaveLabel !== "完了として保存") {
+  throw new Error(`完了の確定ボタンが「${completeSaveLabel}」になっている`);
+}
+if (await page.locator("#btn-exam-sheet-back").count()) {
+  throw new Error("戻るボタンが残っている");
+}
+if (await page.locator("#btn-exam-sheet-complete").isVisible()) {
+  throw new Error("完了フローで完了／終了ボタンが残っている");
+}
 await page.fill("#exam-sheet-done-date", "2026-08-10");
 
-const fastingSelected = await page.evaluate(() =>
-  [...document.querySelectorAll("#exam-sheet-fasting-buttons .exam-fasting-btn.is-selected")].map(
-    (b) => b.dataset.fasting
-  )
-);
-console.log("FASTING_AFTER_COMPLETE", fastingSelected);
-if (!fastingSelected.includes("none") && !fastingSelected.includes("required")) {
-  throw new Error("次回予定画面で絶食が自動選択されていない");
+const fastingWrapVisible = await page.locator("#exam-sheet-fasting-check-wrap").isVisible();
+if (!fastingWrapVisible) throw new Error("絶食チェックが検査名の近くに出ていない");
+const fastingChecked = await page.isChecked("#exam-sheet-fasting-check");
+console.log("FASTING_AFTER_COMPLETE", { fastingChecked });
+if (fastingChecked !== false) {
+  throw new Error("以前の絶食「不要」がチェックボックスに引き継がれていない");
 }
 
 await page.click("#btn-exam-sheet-save");

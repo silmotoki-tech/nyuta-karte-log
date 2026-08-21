@@ -171,8 +171,7 @@ const harness = `<!DOCTYPE html>
         <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
       </div>
       <div class="exam-sheet__actions" id="procedure-sheet-save-actions" hidden>
-        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
-        <button id="btn-procedure-sheet-back" class="btn btn--small btn--outline" type="button">戻る</button>
+        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">終了として保存</button>
       </div>
     </div>
   </div>
@@ -331,6 +330,13 @@ if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレン�
 await page.click("#btn-procedure-sheet-end");
 const dueHiddenOnEnd = await page.locator("#procedure-sheet-due-field").isHidden();
 if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");
+const endLabel = (await page.locator("#btn-procedure-sheet-save").innerText()).trim();
+if (endLabel !== "終了として保存") {
+  throw new Error(`終了の確定ボタンが「${endLabel}」になっている`);
+}
+if (await page.locator("#btn-procedure-sheet-back").count()) {
+  throw new Error("戻るボタンが残っている");
+}
 await page.click("#btn-procedure-sheet-save");
 await page.waitForTimeout(250);
 

@@ -130,6 +130,10 @@ if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレン�
 await page.click("#btn-exam-sheet-end");
 const dueHiddenOnEnd = await page.locator("#exam-sheet-due-field").isHidden();
 if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");
+const endSaveLabel = (await page.locator("#btn-exam-sheet-save").innerText()).trim();
+if (endSaveLabel !== "終了として保存") {
+  throw new Error(`終了の確定ボタンが「${endSaveLabel}」になっている`);
+}
 await page.fill("#exam-sheet-done-date", "2026-06-01");
 await page.click("#btn-exam-sheet-save");
 await page.waitForTimeout(400);
@@ -184,7 +188,9 @@ if (sheetOpen) {
   const dueVisible = await page.locator("#exam-sheet-due-field").isVisible();
   if (!dueVisible) throw new Error("復活後の次回予定入力でカレンダーが出ない");
   await page.fill("#exam-sheet-due-date", "2026-09-01");
-  await page.click('#exam-sheet-fasting-buttons [data-fasting="none"]');
+  if (await page.locator("#exam-sheet-fasting-check").count()) {
+    await page.locator("#exam-sheet-fasting-check").uncheck();
+  }
   await page.click("#btn-exam-sheet-save");
   await page.waitForTimeout(400);
   const duesAfter = await page.locator("#status-exam-plan-list .status-row__due").allTextContents();

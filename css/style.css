@@ -3240,10 +3240,47 @@ select.input {
   color: var(--color-danger);
 }
 
+.exam-sheet__item-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
 .exam-sheet__item {
-  margin: 0 0 4px;
+  margin: 0;
   font-size: 1.05rem;
   font-weight: 600;
+  min-width: 0;
+}
+
+.exam-sheet__fasting-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.exam-sheet__fasting-check[hidden] {
+  display: none;
+}
+
+.exam-sheet__fasting-check input {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0;
+  accent-color: var(--color-brown);
+}
+
+.exam-sheet__actions[hidden] {
+  display: none;
 }
 
 .exam-sheet__due {
@@ -3285,7 +3322,7 @@ select.input {
   background: var(--color-white);
 }
 
-.exam-sheet__actions {
+.exam-sheet__actions:not([hidden]) {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;

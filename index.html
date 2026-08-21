@@ -716,8 +716,13 @@
       <button class="modal__close" id="btn-close-exam-item-sheet" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">
-      <p class="exam-sheet__item" id="exam-item-sheet-item"></p>
-      <p class="exam-sheet__fasting" id="exam-item-sheet-fasting" hidden></p>
+      <div class="exam-sheet__item-row">
+        <p class="exam-sheet__item" id="exam-item-sheet-item"></p>
+        <label class="exam-sheet__fasting-check" id="exam-sheet-fasting-check-wrap" hidden>
+          <input id="exam-sheet-fasting-check" type="checkbox" />
+          絶食
+        </label>
+      </div>
 
       <div id="exam-sheet-phase-choose">
         <div class="field">
@@ -734,19 +739,6 @@
           type="date"
           aria-label="実施日（タップでカレンダー）"
         />
-      </div>
-
-      <div class="field" id="exam-sheet-fasting-field" hidden>
-        <span class="label">絶食</span>
-        <div
-          class="exam-fasting-buttons"
-          id="exam-sheet-fasting-buttons"
-          role="group"
-          aria-label="絶食の要不要"
-        >
-          <button type="button" class="exam-fasting-btn" data-fasting="required">必要</button>
-          <button type="button" class="exam-fasting-btn" data-fasting="none">不要</button>
-        </div>
       </div>
 
       <div class="field exam-due-field" id="exam-sheet-due-field" hidden>
@@ -785,8 +777,7 @@
         <button id="btn-exam-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
       </div>
       <div class="exam-sheet__actions" id="exam-sheet-save-actions" hidden>
-        <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
-        <button id="btn-exam-sheet-back" class="btn btn--small btn--outline" type="button">戻る</button>
+        <button id="btn-exam-sheet-save" class="btn btn--small btn--primary" type="button">完了として保存</button>
       </div>
     </div>
   </div>
@@ -1958,8 +1949,7 @@
         <button id="btn-procedure-sheet-end" class="btn btn--small btn--outline" type="button">終了</button>
       </div>
       <div class="exam-sheet__actions" id="procedure-sheet-save-actions" hidden>
-        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">保存する</button>
-        <button id="btn-procedure-sheet-back" class="btn btn--small btn--outline" type="button">戻る</button>
+        <button id="btn-procedure-sheet-save" class="btn btn--small btn--primary" type="button">完了として保存</button>
       </div>
     </div>
   </div>
