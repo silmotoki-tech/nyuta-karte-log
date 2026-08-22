@@ -91,6 +91,7 @@ await page.waitForFunction(
   null,
   { timeout: 5000 }
 );
+await page.waitForSelector("#status-exam-plan-list .status-row", { timeout: 8000 });
 
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
@@ -109,6 +110,10 @@ const doneVisibleOnOpen = await page.locator("#exam-sheet-done-field").isVisible
 if (!doneVisibleOnOpen) throw new Error("1枚目に実施日の入力欄が出ていない");
 const memoVisible = await page.locator("#exam-sheet-memo").isVisible();
 if (!memoVisible) throw new Error("1枚目にメモが出ていない");
+const historyFieldVisible = await page.locator("#exam-sheet-history-field").isVisible();
+if (!historyFieldVisible) throw new Error("1枚目に実施履歴一覧が出ていない");
+const historyEmptyOnOpen = await page.locator("#exam-sheet-history-empty").isVisible();
+if (!historyEmptyOnOpen) throw new Error("履歴なしなのに空表示が出ていない");
 const completeBtnLabel = (await page.locator("#btn-exam-sheet-complete").innerText()).trim();
 if (completeBtnLabel !== "完了として保存") {
   throw new Error(`1枚目の完了ボタンが「${completeBtnLabel}」になっている`);
@@ -178,6 +183,38 @@ if (!dues.some((t) => t.includes("あと"))) {
 
 await page.locator("#status-exam-plan-list .status-row").first().click();
 await page.waitForSelector("#exam-item-sheet:not([hidden])");
+const historyAfterFirst = await page
+  .locator("#exam-sheet-history-list .exam-sheet__history-date")
+  .allTextContents();
+console.log("HISTORY_AFTER_FIRST", historyAfterFirst);
+if (!historyAfterFirst.some((t) => t.includes("2026/8/10"))) {
+  throw new Error("完了後に1枚目の実施履歴へ記録が追加されていない");
+}
+
+await page.fill("#exam-sheet-done-date", "2026-08-20");
+await page.click("#btn-exam-sheet-complete");
+await page.fill("#exam-sheet-due-date", "2026-09-15");
+await page.fill("#exam-sheet-due-date-to", "2026-09-20");
+await page.click("#btn-exam-sheet-save");
+await page.waitForFunction(
+  () => document.getElementById("exam-item-sheet")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+
+await page.locator("#status-exam-plan-list .status-row").first().click();
+await page.waitForSelector("#exam-item-sheet:not([hidden])");
+const historyAfterSecond = await page
+  .locator("#exam-sheet-history-list .exam-sheet__history-date")
+  .allTextContents();
+console.log("HISTORY_AFTER_SECOND", historyAfterSecond);
+if (historyAfterSecond[0] !== "2026/8/20") {
+  throw new Error("実施履歴が新しい順になっていない");
+}
+if (historyAfterSecond[1] !== "2026/8/10") {
+  throw new Error("2回目完了後に以前の実施履歴が残っていない");
+}
+
 await page.click("#btn-exam-sheet-end");
 await page.waitForTimeout(400);
 const historyAfterEnd = await page

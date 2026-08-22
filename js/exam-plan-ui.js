@@ -126,6 +126,8 @@ const sheetDueDateTo = document.getElementById("exam-sheet-due-date-to");
 const sheetWindowNote = document.getElementById("exam-sheet-window-note");
 const sheetMemo = document.getElementById("exam-sheet-memo");
 const sheetDoneDate = document.getElementById("exam-sheet-done-date");
+const sheetHistoryList = document.getElementById("exam-sheet-history-list");
+const sheetHistoryEmpty = document.getElementById("exam-sheet-history-empty");
 const sheetDueField = document.getElementById("exam-sheet-due-field");
 const sheetPhaseChoose = document.getElementById("exam-sheet-phase-choose");
 const sheetChooseActions = document.getElementById("exam-sheet-choose-actions");
@@ -664,6 +666,9 @@ function renderExamPlan() {
   renderUnifiedPlanList();
   renderHistory();
   updateExamTabDueAlert();
+  if (isSheetOpen()) {
+    renderExamSheetHistory(state.draft.item || itemSheetItem?.textContent || "");
+  }
 }
 
 function updateExamTabDueAlert() {
@@ -804,9 +809,42 @@ function openExamItemSheet(entry, { phase = "choose" } = {}) {
   }
   if (sheetDoneDate) sheetDoneDate.value = todayStr();
   writeDueRangeInputs(state.draft.dueDateFrom, state.draft.dueDateTo);
+  renderExamSheetHistory(state.draft.item);
   deps.showError(sheetError, "");
   applyExamSheetPhase(phase);
   itemSheet.hidden = false;
+}
+
+function collectExamSheetHistory(itemName) {
+  const key = (itemName || "").trim();
+  return Object.entries(state.plan?.history || {})
+    .filter(([, h]) => h && (h.item || "").trim() === key)
+    .map(([id, h]) => ({ id, ...h }))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+}
+
+function renderExamSheetHistory(itemName) {
+  if (!sheetHistoryList) return;
+  sheetHistoryList.innerHTML = "";
+  const rows = collectExamSheetHistory(itemName);
+  if (sheetHistoryEmpty) sheetHistoryEmpty.hidden = rows.length > 0;
+  sheetHistoryList.hidden = rows.length === 0;
+  rows.forEach((h) => {
+    const li = document.createElement("li");
+    li.className = "exam-sheet__history-item";
+    const date = document.createElement("span");
+    date.className = "exam-sheet__history-date";
+    date.textContent = ymdFromStr(h.date) || "（日付なし）";
+    li.appendChild(date);
+    const note = (h.note || "").trim();
+    if (note) {
+      const noteEl = document.createElement("span");
+      noteEl.className = "exam-sheet__history-note";
+      noteEl.textContent = note;
+      li.appendChild(noteEl);
+    }
+    sheetHistoryList.appendChild(li);
+  });
 }
 
 function examSheetSaveLabel() {

@@ -145,6 +145,11 @@ const harness = `<!DOCTYPE html>
           <label class="label" for="procedure-sheet-done-date">実施日</label>
           <input id="procedure-sheet-done-date" class="input input--date" type="date" />
         </div>
+        <div class="field" id="procedure-sheet-history-field">
+          <span class="label">実施履歴</span>
+          <ul class="exam-sheet__history-list" id="procedure-sheet-history-list" hidden></ul>
+          <p class="field__note" id="procedure-sheet-history-empty">まだ実施履歴はありません。</p>
+        </div>
       </div>
       <div class="field exam-due-field" id="procedure-sheet-due-field" hidden>
         <span class="label">次回予定</span>
@@ -323,12 +328,37 @@ await page.screenshot({
   path: path.join(root, "tools/proc-plan-03-listed.png"),
 });
 
+async function addProcHistory(date, content, note) {
+  await page.click("#btn-procedure-add");
+  await page.waitForSelector("#procedure-modal:not([hidden])");
+  await page.fill("#procedure-date", date);
+  await page.fill("#procedure-content", content);
+  await page.fill("#procedure-note", note);
+  await page.click("#btn-procedure-save");
+  await page.waitForFunction(
+    () => document.getElementById("procedure-modal")?.hasAttribute("hidden"),
+    null,
+    { timeout: 3000 }
+  );
+}
+
+await addProcHistory("2026-06-01", "抜糸", "前回");
+await addProcHistory("2026-07-15", "抜糸", "中間");
+
 await page.locator("#procedure-plan-list .exam-list-item").first().click();
 await page.waitForSelector("#procedure-item-sheet:not([hidden])");
 const dueHiddenOnOpen = await page.locator("#procedure-sheet-due-field").isHidden();
 if (!dueHiddenOnOpen) throw new Error("タップ直後に次回予定カレンダーが見えている");
 const doneVisibleOnOpen = await page.locator("#procedure-sheet-done-field").isVisible();
 if (!doneVisibleOnOpen) throw new Error("1枚目に実施日の入力欄が出ていない");
+const historyFieldVisible = await page.locator("#procedure-sheet-history-field").isVisible();
+if (!historyFieldVisible) throw new Error("1枚目に実施履歴一覧が出ていない");
+const seededDates = await page
+  .locator("#procedure-sheet-history-list .exam-sheet__history-date")
+  .allTextContents();
+if (seededDates[0] !== "2026/7/15" || seededDates[1] !== "2026/6/1") {
+  throw new Error("1枚目の実施履歴が新しい順になっていない: " + JSON.stringify(seededDates));
+}
 const endLabel = (await page.locator("#btn-procedure-sheet-end").innerText()).trim();
 if (endLabel !== "終了として保存") {
   throw new Error(`1枚目の終了ボタンが「${endLabel}」になっている`);
@@ -336,6 +366,26 @@ if (endLabel !== "終了として保存") {
 if (await page.locator("#btn-procedure-sheet-back").count()) {
   throw new Error("戻るボタンが残っている");
 }
+
+await page.fill("#procedure-sheet-done-date", "2026-08-10");
+await page.click("#btn-procedure-sheet-complete");
+await page.fill("#procedure-sheet-due-date", dueDate);
+await page.click("#btn-procedure-sheet-save");
+await page.waitForFunction(
+  () => document.getElementById("procedure-item-sheet")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+
+await page.locator("#procedure-plan-list .exam-list-item").first().click();
+await page.waitForSelector("#procedure-item-sheet:not([hidden])");
+const afterCompleteDates = await page
+  .locator("#procedure-sheet-history-list .exam-sheet__history-date")
+  .allTextContents();
+if (afterCompleteDates[0] !== "2026/8/10") {
+  throw new Error("完了後に1枚目の実施履歴へ記録が追加されていない: " + JSON.stringify(afterCompleteDates));
+}
+
 await page.click("#btn-procedure-sheet-end");
 const dueHiddenOnEnd = await page.locator("#procedure-sheet-due-field").isHidden();
 if (!dueHiddenOnEnd) throw new Error("終了フローで次回予定カレンダーが見えている");

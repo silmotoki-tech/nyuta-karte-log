@@ -87,6 +87,8 @@ const itemSheetTitle = document.getElementById("procedure-item-sheet-title");
 const itemSheetItem = document.getElementById("procedure-item-sheet-item");
 const sheetMemo = document.getElementById("procedure-sheet-memo");
 const sheetDoneDate = document.getElementById("procedure-sheet-done-date");
+const sheetHistoryList = document.getElementById("procedure-sheet-history-list");
+const sheetHistoryEmpty = document.getElementById("procedure-sheet-history-empty");
 const sheetDueField = document.getElementById("procedure-sheet-due-field");
 const sheetDueDate = document.getElementById("procedure-sheet-due-date");
 const sheetDueDateTo = document.getElementById("procedure-sheet-due-date-to");
@@ -316,6 +318,10 @@ function renderAll() {
   renderPlanList();
   renderHistoryList();
   updateProcTabDueAlert();
+  if (isProcSheetOpen()) {
+    const plan = (state.plans || []).find((p) => p.id === state.editingPlanId);
+    renderProcSheetHistory(plan?.content || itemSheetItem?.textContent || "");
+  }
 }
 
 function updateProcTabDueAlert() {
@@ -632,9 +638,42 @@ function openItemSheet(plan, { phase = "choose" } = {}) {
   if (sheetDoneDate) sheetDoneDate.value = todayStr();
   const range = getPlanDueRange(plan);
   writeDueRangeInputs(range.from || plan.dueDate || "", range.to || range.from || plan.dueDate || "");
+  renderProcSheetHistory(plan.content);
   deps.showError(sheetError, "");
   applyProcSheetPhase(phase);
   itemSheet.hidden = false;
+}
+
+function collectProcSheetHistory(content) {
+  const key = (content || "").trim();
+  return (state.history || [])
+    .filter((h) => h && (h.content || "").trim() === key)
+    .slice()
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+}
+
+function renderProcSheetHistory(content) {
+  if (!sheetHistoryList) return;
+  sheetHistoryList.innerHTML = "";
+  const rows = collectProcSheetHistory(content);
+  if (sheetHistoryEmpty) sheetHistoryEmpty.hidden = rows.length > 0;
+  sheetHistoryList.hidden = rows.length === 0;
+  rows.forEach((h) => {
+    const li = document.createElement("li");
+    li.className = "exam-sheet__history-item";
+    const date = document.createElement("span");
+    date.className = "exam-sheet__history-date";
+    date.textContent = ymdFromStr(h.date) || "（日付なし）";
+    li.appendChild(date);
+    const note = (h.note || "").trim();
+    if (note) {
+      const noteEl = document.createElement("span");
+      noteEl.className = "exam-sheet__history-note";
+      noteEl.textContent = note;
+      li.appendChild(noteEl);
+    }
+    sheetHistoryList.appendChild(li);
+  });
 }
 
 function closeItemSheet() {
