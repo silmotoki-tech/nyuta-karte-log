@@ -341,7 +341,6 @@ async function runExamCase() {
                 <label class="label label--sub" for="exam-plan-due-date">目安の始め</label>
                 <input id="exam-plan-due-date" class="input input--date" type="date" />
               </div>
-              <span class="exam-due-compact__date-tilde">〜</span>
               <div class="exam-due-compact__date-pair">
                 <label class="label label--sub" for="exam-plan-due-date-to">目安の終わり</label>
                 <input id="exam-plan-due-date-to" class="input input--date" type="date" />
@@ -554,7 +553,6 @@ async function runProcedureCase() {
                 <label class="label label--sub" for="procedure-plan-due-date">目安の始め</label>
                 <input id="procedure-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
               </div>
-              <span class="exam-due-compact__date-tilde">〜</span>
               <div class="exam-due-compact__date-pair" data-due-side="to">
                 <label class="label label--sub" for="procedure-plan-due-date-to">目安の終わり</label>
                 <input id="procedure-plan-due-date-to" class="input input--date exam-due-compact__date" type="date" />

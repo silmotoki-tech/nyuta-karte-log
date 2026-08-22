@@ -987,8 +987,8 @@ html.is-unlocked .app {
 
 .exam-due-compact__date-row--range {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
   align-items: end;
 }
 
@@ -1004,17 +1004,10 @@ html.is-unlocked .app {
   box-shadow: 0 0 0 1px var(--color-green);
 }
 
-.exam-due-compact__date-tilde {
-  padding-bottom: 0.55rem;
-  font-weight: 800;
-  color: var(--color-brown);
-  line-height: 1;
-}
-
 .exam-due-calendar__row--range {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
   align-items: end;
 }
 
@@ -1023,12 +1016,6 @@ html.is-unlocked .app {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-}
-
-.exam-due-calendar__tilde {
-  padding-bottom: 0.55rem;
-  font-weight: 800;
-  color: var(--color-brown);
 }
 
 .exam-due-compact__date-pair .label--sub,

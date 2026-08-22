@@ -132,6 +132,7 @@ const metrics = await page.evaluate(() => {
     toLabel: toLabel?.textContent?.trim() || "",
     hasNumpad: Boolean(document.getElementById("exam-plan-due-numpad")),
     hasRow: Boolean(row),
+    hasTilde: /〜/.test(row?.textContent || ""),
     sideBySide: Math.abs(fr.top - tr.top) <= 4 && tr.left > fr.right - 8,
     heightDiff: Math.abs(fr.height - tr.height),
   };
@@ -142,6 +143,7 @@ assert.equal(metrics.fromLabel, "目安の始め");
 assert.equal(metrics.toLabel, "目安の終わり");
 assert.equal(metrics.hasNumpad, false);
 assert.ok(metrics.hasRow);
+assert.equal(metrics.hasTilde, false, "〜 should be removed");
 assert.ok(metrics.sideBySide, "calendars should sit side by side");
 assert.ok(metrics.heightDiff <= 2, `calendar heights differ: ${metrics.heightDiff}`);
 

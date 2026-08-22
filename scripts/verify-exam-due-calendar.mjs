@@ -97,7 +97,6 @@ const harness = `<!DOCTYPE html>
             <span class="label label--sub">目安の始め</span>
             <input id="exam-sheet-due-date" class="input input--date exam-due-calendar__input" type="date" />
           </label>
-          <span class="exam-due-calendar__tilde">〜</span>
           <label class="exam-due-calendar__pair">
             <span class="label label--sub">目安の終わり</span>
             <input id="exam-sheet-due-date-to" class="input input--date exam-due-calendar__input" type="date" />
@@ -161,7 +160,6 @@ const harness = `<!DOCTYPE html>
                 <label class="label label--sub" for="exam-plan-due-date">目安の始め</label>
                 <input id="exam-plan-due-date" class="input input--date exam-due-compact__date" type="date" />
               </div>
-              <span class="exam-due-compact__date-tilde">〜</span>
               <div class="exam-due-compact__date-pair">
                 <label class="label label--sub" for="exam-plan-due-date-to">目安の終わり</label>
                 <input id="exam-plan-due-date-to" class="input input--date exam-due-compact__date" type="date" />
