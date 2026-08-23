@@ -2,6 +2,9 @@
 //
 // データ構造:
 //   karte/{カルテ番号}/animalName                       … 動物名（カナ）
+//   karte/{カルテ番号}/ownerName                        … 飼い主名（カナ。任意）
+//   karteIndex/{カルテ番号}/animalName                  … 名前検索用の軽量索引
+//   karteIndex/{カルテ番号}/ownerName
 //   karte/{カルテ番号}/entries/{entryId}/recordDate      … 記録日（出来事があった日, "YYYY-MM-DD"）
 //   karte/{カルテ番号}/entries/{entryId}/enteredAt       … 実際にシステムへ入力した時刻（サーバータイムスタンプ）
 //   karte/{カルテ番号}/entries/{entryId}/enteredAtIso    … 入力時刻のISO文字列（表示・並び替えのフォールバック）
@@ -120,8 +123,10 @@ import {
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 import { app } from "./firebase-app.js";
-import { authReady } from "./auth.js";
+import { firebaseConfig } from "./firebase-config.js";
+import { authReady, getCurrentUser } from "./auth.js";
 import { HISTORY_DISEASE_SEED } from "./history-disease-seed.js";
+import { filterKartesByName } from "./karte-name-match.js";
 
 const db = getDatabase(app);
 
@@ -230,6 +235,131 @@ export async function getAnimalName(karteNumber) {
 export async function setAnimalName(karteNumber, animalName) {
   await authReady;
   await set(ref(db, `karte/${karteNumber}/animalName`), animalName);
+  await patchKarteIndex(karteNumber, { animalName });
+}
+
+/**
+ * カルテ番号に紐づく飼い主名を取得する。未登録の場合は null。
+ */
+export async function getOwnerName(karteNumber) {
+  await authReady;
+  const snapshot = await get(ref(db, `karte/${karteNumber}/ownerName`));
+  if (!snapshot.exists()) return null;
+  const value = String(snapshot.val() || "").trim();
+  return value || null;
+}
+
+/**
+ * カルテ番号に飼い主名を登録・更新する。空文字で消せる。
+ */
+export async function setOwnerName(karteNumber, ownerName) {
+  await authReady;
+  const value = String(ownerName || "").trim();
+  await set(ref(db, `karte/${karteNumber}/ownerName`), value);
+  await patchKarteIndex(karteNumber, { ownerName: value });
+}
+
+function karteIndexRef(karteNumber) {
+  return ref(db, `karteIndex/${karteNumber}`);
+}
+
+async function readKarteNames(karteNumber) {
+  const [animalSnap, ownerSnap] = await Promise.all([
+    get(ref(db, `karte/${karteNumber}/animalName`)),
+    get(ref(db, `karte/${karteNumber}/ownerName`)),
+  ]);
+  return {
+    animalName: animalSnap.exists() ? String(animalSnap.val() || "").trim() : "",
+    ownerName: ownerSnap.exists() ? String(ownerSnap.val() || "").trim() : "",
+  };
+}
+
+async function patchKarteIndex(karteNumber, patch) {
+  if (!karteNumber) return;
+  try {
+    const current = (await get(karteIndexRef(karteNumber))).val() || {};
+    await set(karteIndexRef(karteNumber), {
+      animalName:
+        patch.animalName != null
+          ? String(patch.animalName || "").trim()
+          : String(current.animalName || "").trim(),
+      ownerName:
+        patch.ownerName != null
+          ? String(patch.ownerName || "").trim()
+          : String(current.ownerName || "").trim(),
+    });
+  } catch (err) {
+    console.error("karteIndex の更新に失敗しました", err);
+  }
+}
+
+async function listKarteNumbersShallow() {
+  const user = getCurrentUser();
+  if (!user || typeof user.getIdToken !== "function") return [];
+  const base = String(firebaseConfig.databaseURL || "").replace(/\/$/, "");
+  if (!base) return [];
+  try {
+    const token = await user.getIdToken();
+    const res = await fetch(
+      `${base}/karte.json?shallow=true&auth=${encodeURIComponent(token)}`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Object.keys(data || {}).filter((key) => /^\d{5}$/.test(key));
+  } catch (err) {
+    console.error("カルテ番号一覧の取得に失敗しました", err);
+    return [];
+  }
+}
+
+function recordsFromIndexValue(value) {
+  return Object.entries(value || {}).map(([karteNumber, row]) => ({
+    karteNumber: String(karteNumber),
+    animalName: String(row?.animalName || "").trim(),
+    ownerName: String(row?.ownerName || "").trim(),
+  }));
+}
+
+/**
+ * 動物名・飼い主名の軽量索引を返す。未索引の既存カルテは初回に補完する。
+ */
+export async function listKarteNameIndex() {
+  await authReady;
+  const indexSnap = await get(ref(db, "karteIndex"));
+  const byNumber = new Map();
+  recordsFromIndexValue(indexSnap.val()).forEach((row) => {
+    byNumber.set(row.karteNumber, row);
+  });
+
+  const missing = (await listKarteNumbersShallow()).filter(
+    (num) => !byNumber.has(num)
+  );
+  const chunkSize = 8;
+  for (let i = 0; i < missing.length; i += chunkSize) {
+    const chunk = missing.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async (num) => {
+        const names = await readKarteNames(num);
+        const row = { karteNumber: num, ...names };
+        byNumber.set(num, row);
+        try {
+          await set(karteIndexRef(num), names);
+        } catch (err) {
+          console.error("karteIndex の補完に失敗しました", err);
+        }
+      })
+    );
+  }
+
+  return [...byNumber.values()];
+}
+
+/**
+ * 動物名または飼い主名の部分一致でカルテを探す。
+ */
+export async function searchKartesByName(query) {
+  const records = await listKarteNameIndex();
+  return filterKartesByName(records, query);
 }
 
 // --- エントリ ------------------------------------------------------------

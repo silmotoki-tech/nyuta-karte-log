@@ -135,6 +135,7 @@ const state = {
   unlocked: false,
   karteNumber: null,
   animalName: null,
+  ownerName: null,
   entries: [],
   unsubscribeEntries: null,
   templates: [],
@@ -180,9 +181,12 @@ const karteNumberInput = document.getElementById("karte-number-input");
 const karteError = document.getElementById("karte-error");
 const btnKarteNext = document.getElementById("btn-karte-next");
 let karteNumpadBound = false;
+let karteNameSearchBound = false;
+let karteNameSearchTimer = 0;
 
 const animalKarteNumberEl = document.getElementById("animal-karte-number");
 const animalNameInput = document.getElementById("animal-name-input");
+const ownerNameInput = document.getElementById("owner-name-input");
 const animalRegisteredHint = document.getElementById("animal-registered-hint");
 const animalError = document.getElementById("animal-error");
 const btnAnimalNext = document.getElementById("btn-animal-next");
@@ -776,6 +780,8 @@ function goToKarte() {
   unlockAppShell();
   showCenterState("karte");
   setupKarteNumpad();
+  setupKarteNameSearch();
+  resetKarteNameSearch();
   // 読取専用欄へは focus しない（通常テキスト欄のキーボード阻害を防ぐ）
   blurDigitGateInputs();
 }
@@ -838,6 +844,177 @@ function setupKarteNumpad() {
   });
 }
 
+function karteNameSearchEls() {
+  return {
+    wrap: document.getElementById("karte-name-search"),
+    input: document.getElementById("karte-name-search-input"),
+    status: document.getElementById("karte-name-search-status"),
+    list: document.getElementById("karte-name-search-results"),
+  };
+}
+
+/**
+ * 名前検索欄を確実に用意する（古いキャッシュ HTML でも JS 側で生成する）。
+ */
+function ensureKarteNameSearchEl() {
+  let wrap = document.getElementById("karte-name-search");
+  if (wrap) return wrap;
+  const pad = document.getElementById("karte-numpad");
+  if (!pad) return null;
+  wrap = document.createElement("div");
+  wrap.id = "karte-name-search";
+  wrap.className = "karte-name-search";
+  wrap.innerHTML = `
+    <label class="label" for="karte-name-search-input">名前で探す</label>
+    <input
+      id="karte-name-search-input"
+      class="input"
+      type="text"
+      autocomplete="off"
+      placeholder="動物名または飼い主名の一部"
+      aria-label="動物名または飼い主名で検索"
+    />
+    <p id="karte-name-search-status" class="card__hint karte-name-search__status" hidden></p>
+    <ul id="karte-name-search-results" class="karte-name-search__list" hidden></ul>
+  `;
+  pad.insertAdjacentElement("afterend", wrap);
+  return wrap;
+}
+
+function setKarteNameSearchStatus(text) {
+  const { status, list } = karteNameSearchEls();
+  if (status) {
+    status.textContent = text || "";
+    status.hidden = !text;
+  }
+  if (list && text) {
+    list.innerHTML = "";
+    list.hidden = true;
+  }
+}
+
+function resetKarteNameSearch() {
+  clearTimeout(karteNameSearchTimer);
+  const { input } = karteNameSearchEls();
+  if (input) input.value = "";
+  setKarteNameSearchStatus("");
+  const { list } = karteNameSearchEls();
+  if (list) {
+    list.innerHTML = "";
+    list.hidden = true;
+  }
+}
+
+function renderKarteNameSearchResults(hits) {
+  const { list } = karteNameSearchEls();
+  if (!list) return;
+  list.innerHTML = "";
+  if (!hits.length) {
+    list.hidden = true;
+    setKarteNameSearchStatus("見つかりません");
+    return;
+  }
+  setKarteNameSearchStatus("");
+  hits.forEach((row) => {
+    const li = document.createElement("li");
+    li.className = "karte-name-search__item";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "karte-name-search__btn";
+    btn.dataset.karteNumber = row.karteNumber;
+
+    const numberEl = document.createElement("span");
+    numberEl.className = "karte-name-search__number";
+    numberEl.textContent = row.karteNumber || "-----";
+
+    const animalEl = document.createElement("span");
+    animalEl.className = "karte-name-search__animal";
+    animalEl.textContent = row.animalName || "（動物名未登録）";
+
+    const ownerEl = document.createElement("span");
+    ownerEl.className = "karte-name-search__owner";
+    ownerEl.textContent = row.ownerName
+      ? `飼い主：${row.ownerName}`
+      : "飼い主：（未登録）";
+
+    btn.append(numberEl, animalEl, ownerEl);
+    li.appendChild(btn);
+    list.appendChild(li);
+  });
+  list.hidden = false;
+}
+
+async function runKarteNameSearch() {
+  const { input } = karteNameSearchEls();
+  const query = (input?.value || "").trim();
+  if (!query) {
+    setKarteNameSearchStatus("");
+    const { list } = karteNameSearchEls();
+    if (list) {
+      list.innerHTML = "";
+      list.hidden = true;
+    }
+    return;
+  }
+  setKarteNameSearchStatus("検索中...");
+  try {
+    const dbMod = await import("./db.js");
+    const hits =
+      typeof dbMod.searchKartesByName === "function"
+        ? await dbMod.searchKartesByName(query)
+        : [];
+    if ((input?.value || "").trim() !== query) return;
+    renderKarteNameSearchResults(hits);
+  } catch (err) {
+    console.error(err);
+    if ((input?.value || "").trim() !== query) return;
+    setKarteNameSearchStatus("検索に失敗しました。もう一度お試しください。");
+  }
+}
+
+function setupKarteNameSearch() {
+  const wrap = ensureKarteNameSearchEl();
+  if (!wrap) return;
+  const { input, list } = karteNameSearchEls();
+  if (!input) return;
+  if (karteNameSearchBound) return;
+  karteNameSearchBound = true;
+  input.addEventListener("input", () => {
+    clearTimeout(karteNameSearchTimer);
+    karteNameSearchTimer = setTimeout(runKarteNameSearch, 180);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      resetKarteNameSearch();
+    }
+  });
+  list?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-karte-number]");
+    if (!btn || !list.contains(btn)) return;
+    const number = btn.getAttribute("data-karte-number") || "";
+    if (!number) return;
+    setKarteNumberDigits(number);
+    handleKarteNext();
+  });
+}
+
+async function loadOwnerNameSafe(karteNumber) {
+  try {
+    const dbMod = await import("./db.js");
+    if (typeof dbMod.getOwnerName !== "function") return "";
+    return (await dbMod.getOwnerName(karteNumber)) || "";
+  } catch (err) {
+    console.error(err);
+    return "";
+  }
+}
+
+async function saveOwnerNameSafe(karteNumber, ownerName) {
+  const dbMod = await import("./db.js");
+  if (typeof dbMod.setOwnerName !== "function") return;
+  await dbMod.setOwnerName(karteNumber, ownerName);
+}
+
 if (karteNumberInput) {
   karteNumberInput.addEventListener("input", () => {
     // readonly でも外部入力や貼り付けに備えて正規化する
@@ -898,11 +1075,14 @@ async function handleKarteNext() {
 
   try {
     const existingName = await getAnimalName(value);
+    const existingOwner = await loadOwnerNameSafe(value);
     state.karteNumber = value;
     state.animalName = existingName;
+    state.ownerName = existingOwner || null;
 
     animalKarteNumberEl.textContent = value;
     animalNameInput.value = existingName || "";
+    if (ownerNameInput) ownerNameInput.value = existingOwner || "";
     animalRegisteredHint.hidden = !existingName;
     showError(animalError, "");
 
@@ -929,6 +1109,14 @@ btnAnimalBack.addEventListener("click", () => {
 animalNameInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !isImeKey(event)) {
     event.preventDefault();
+    if (ownerNameInput) ownerNameInput.focus();
+    else handleAnimalNext();
+  }
+});
+
+ownerNameInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !isImeKey(event)) {
+    event.preventDefault();
     handleAnimalNext();
   }
 });
@@ -941,6 +1129,7 @@ async function handleAnimalNext() {
     showError(animalError, "動物名（カナ）を入力してください。");
     return;
   }
+  const owner = (ownerNameInput?.value || "").trim();
 
   showError(animalError, "");
   setBusy(btnAnimalNext, true, "保存中...", "この内容で次へ");
@@ -949,7 +1138,11 @@ async function handleAnimalNext() {
     if (name !== state.animalName) {
       await setAnimalName(state.karteNumber, name);
     }
+    if (owner !== (state.ownerName || "")) {
+      await saveOwnerNameSafe(state.karteNumber, owner);
+    }
     state.animalName = name;
+    state.ownerName = owner || null;
     enterMain();
   } catch (err) {
     console.error(err);
@@ -1161,6 +1354,7 @@ function leaveMain() {
   closeEntryEdit();
   state.karteNumber = null;
   state.animalName = null;
+  state.ownerName = null;
   state.entries = [];
   state.sessionAuthor = null;
   clearChartSearch();

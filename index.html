@@ -198,7 +198,7 @@
       <div class="center-gate" id="gate-karte">
         <div class="card gate-card">
           <h2 class="card__title">カルテ番号を入力してください</h2>
-          <p class="card__hint">5桁の数字を入力してください</p>
+          <p class="card__hint">5桁の数字、または名前の一部で探せます</p>
           <input
             id="karte-number-input"
             class="input input--large input--center"
@@ -225,6 +225,19 @@
             <button type="button" class="numpad__btn" data-karte-digit="0">0</button>
             <button type="button" class="numpad__btn numpad__btn--action numpad__btn--confirm" data-karte-action="confirm">確定</button>
           </div>
+          <div class="karte-name-search" id="karte-name-search">
+            <label class="label" for="karte-name-search-input">名前で探す</label>
+            <input
+              id="karte-name-search-input"
+              class="input"
+              type="text"
+              autocomplete="off"
+              placeholder="動物名または飼い主名の一部"
+              aria-label="動物名または飼い主名で検索"
+            />
+            <p id="karte-name-search-status" class="card__hint karte-name-search__status" hidden></p>
+            <ul id="karte-name-search-results" class="karte-name-search__list" hidden></ul>
+          </div>
           <p id="karte-error" class="error-text error-text--banner" role="alert" hidden></p>
           <button id="btn-karte-next" class="btn btn--primary btn--block" type="button">
             次へ
@@ -247,6 +260,15 @@
             autocomplete="off"
             placeholder="例）タロウ"
             aria-label="動物名（カナ）"
+          />
+          <label class="label" for="owner-name-input">飼い主名（カナ）</label>
+          <input
+            id="owner-name-input"
+            class="input"
+            type="text"
+            autocomplete="off"
+            placeholder="例）ヤマダ"
+            aria-label="飼い主名（カナ）"
           />
           <p id="animal-registered-hint" class="card__hint" hidden>
             登録済みの動物名です。番号の入力ミスがないか確認してください。

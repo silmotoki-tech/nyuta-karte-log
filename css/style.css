@@ -664,6 +664,75 @@ html.is-unlocked .app {
   min-height: 44px;
 }
 
+.karte-name-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.karte-name-search__status {
+  margin: 0;
+}
+
+.karte-name-search__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.karte-name-search__item {
+  margin: 0;
+}
+
+.karte-name-search__btn {
+  width: 100%;
+  text-align: left;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-cream);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.karte-name-search__btn:hover,
+.karte-name-search__btn:active {
+  background: var(--color-white);
+  border-color: var(--color-green);
+}
+
+.karte-name-search__number {
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-brown);
+  letter-spacing: 0.06em;
+}
+
+.karte-name-search__animal,
+.karte-name-search__owner {
+  font-size: 0.82rem;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+.karte-name-search__owner {
+  color: var(--color-text-muted);
+}
+
 .card {
   background-color: var(--color-white);
   border-radius: var(--radius-lg);
@@ -3575,6 +3644,10 @@ select.input {
     padding: 8px 4px;
     min-height: 36px;
     font-size: 0.92rem;
+  }
+
+  .karte-name-search__list {
+    max-height: 140px;
   }
 
   .med-linear-picker {
