@@ -3351,20 +3351,11 @@ select.input {
   color: var(--color-text-muted);
 }
 
-.exam-sheet__note--readonly {
-  min-height: 2.4em;
+.exam-sheet__note.textarea {
+  min-height: 2.6em;
   margin: 0;
   padding: 8px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-cream);
-  color: var(--color-text);
-  font-size: 0.85rem;
-  white-space: pre-wrap;
-}
-
-.exam-sheet__note--readonly.is-empty {
-  color: var(--color-text-muted);
+  font-size: 0.9rem;
 }
 
 .exam-sheet__history-list {

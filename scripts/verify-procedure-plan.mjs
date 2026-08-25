@@ -137,8 +137,8 @@ const harness = `<!DOCTYPE html>
       <p class="exam-sheet__item" id="procedure-item-sheet-item"></p>
       <div id="procedure-sheet-phase-choose">
         <div class="field">
-          <span class="label">メモ</span>
-          <p class="exam-sheet__note exam-sheet__note--readonly" id="procedure-sheet-memo">（なし）</p>
+          <label class="label" for="procedure-sheet-memo">メモ</label>
+          <textarea id="procedure-sheet-memo" class="textarea exam-sheet__note" rows="2" placeholder="メモ（任意）"></textarea>
         </div>
         <div class="field" id="procedure-sheet-done-field">
           <label class="label" for="procedure-sheet-done-date">実施日</label>

@@ -1,5 +1,5 @@
 /**
- * 予定タップ1枚目の実施履歴を、検査・処置の両方で編集・削除できること。
+ * 予定タップ1枚目のメモをその場で編集でき、実施履歴も編集・削除できること。
  */
 import fs from "node:fs";
 import http from "node:http";
@@ -72,8 +72,8 @@ const procHarness = `<!DOCTYPE html>
       <p class="exam-sheet__item" id="procedure-item-sheet-item"></p>
       <div id="procedure-sheet-phase-choose">
         <div class="field">
-          <span class="label">メモ</span>
-          <p class="exam-sheet__note" id="procedure-sheet-memo"></p>
+          <label class="label" for="procedure-sheet-memo">メモ</label>
+          <textarea id="procedure-sheet-memo" class="textarea exam-sheet__note" rows="2" placeholder="メモ（任意）"></textarea>
         </div>
         <div class="field">
           <label class="label" for="procedure-sheet-done-date">実施日</label>
@@ -112,7 +112,8 @@ const procHarness = `<!DOCTYPE html>
     </div>
     <div class="modal__body">
       <input id="procedure-history-edit-date" class="input input--date" type="date" />
-      <input id="procedure-history-edit-note" class="input" type="text" />
+      <label class="label" for="procedure-history-edit-note">メモ（任意）</label>
+      <textarea id="procedure-history-edit-note" class="textarea exam-sheet__note" rows="2"></textarea>
     </div>
     <div class="modal__footer">
       <p id="procedure-history-edit-error" hidden></p>
@@ -187,6 +188,25 @@ async function verifyExam() {
 
   await page.locator("#exam-plan-list .exam-list-item").first().click();
   await page.waitForSelector("#exam-item-sheet:not([hidden])");
+
+  const memoTag = await page.locator("#exam-sheet-memo").evaluate((el) => el.tagName);
+  if (memoTag !== "TEXTAREA") throw new Error("exam sheet memo is not a textarea: " + memoTag);
+  const memoLocked = await page.locator("#exam-sheet-memo").evaluate((el) => el.readOnly || el.disabled);
+  if (memoLocked) throw new Error("exam sheet memo is locked");
+  const initialMemo = await page.locator("#exam-sheet-memo").inputValue();
+  if (initialMemo !== "メモ") throw new Error("exam plan memo not loaded: " + JSON.stringify(initialMemo));
+  await page.fill("#exam-sheet-memo", "予定メモを訂正");
+  await page.locator("#exam-sheet-done-date").click();
+  await page.waitForTimeout(250);
+  await page.click("#btn-close-exam-item-sheet");
+  await page.waitForSelector("#exam-item-sheet[hidden]", { state: "attached" });
+  await page.locator("#exam-plan-list .exam-list-item").first().click();
+  await page.waitForSelector("#exam-item-sheet:not([hidden])");
+  const savedMemo = await page.locator("#exam-sheet-memo").inputValue();
+  if (savedMemo !== "予定メモを訂正") {
+    throw new Error("exam sheet memo not saved: " + JSON.stringify(savedMemo));
+  }
+
   const before = await rowTexts(page, "#exam-sheet-history-list .exam-sheet__history-item");
   if (before.length < 2) throw new Error("exam history rows missing: " + JSON.stringify(before));
   if (!before[0].includes("2026/7/20") && !before.some((t) => t.includes("2026/7/20"))) {
@@ -195,6 +215,12 @@ async function verifyExam() {
 
   await page.locator("#exam-sheet-history-list .exam-sheet__history-item").first().click();
   await page.waitForSelector("#exam-history-edit-modal:not([hidden])");
+  const examFocused = await page.evaluate(() => document.activeElement?.id || "");
+  if (examFocused === "exam-history-edit-date") {
+    throw new Error("exam history edit auto-focused date field");
+  }
+  const histNoteTag = await page.locator("#exam-history-edit-note").evaluate((el) => el.tagName);
+  if (histNoteTag !== "TEXTAREA") throw new Error("exam history edit note is not a textarea");
   await page.fill("#exam-history-edit-date", "2026-07-22");
   await page.fill("#exam-history-edit-note", "日付を訂正");
   await page.click("#btn-exam-history-edit-save");
@@ -252,11 +278,36 @@ async function verifyProc() {
 
   await page.locator("#procedure-plan-list .exam-list-item").first().click();
   await page.waitForSelector("#procedure-item-sheet:not([hidden])");
+
+  const memoTag = await page.locator("#procedure-sheet-memo").evaluate((el) => el.tagName);
+  if (memoTag !== "TEXTAREA") throw new Error("proc sheet memo is not a textarea: " + memoTag);
+  const memoLocked = await page.locator("#procedure-sheet-memo").evaluate((el) => el.readOnly || el.disabled);
+  if (memoLocked) throw new Error("proc sheet memo is locked");
+  const initialMemo = await page.locator("#procedure-sheet-memo").inputValue();
+  if (initialMemo !== "予定メモ") throw new Error("proc plan memo not loaded: " + JSON.stringify(initialMemo));
+  await page.fill("#procedure-sheet-memo", "予定メモを訂正");
+  await page.locator("#procedure-sheet-done-date").click();
+  await page.waitForTimeout(250);
+  await page.click("#btn-close-procedure-item-sheet");
+  await page.waitForSelector("#procedure-item-sheet[hidden]", { state: "attached" });
+  await page.locator("#procedure-plan-list .exam-list-item").first().click();
+  await page.waitForSelector("#procedure-item-sheet:not([hidden])");
+  const savedMemo = await page.locator("#procedure-sheet-memo").inputValue();
+  if (savedMemo !== "予定メモを訂正") {
+    throw new Error("proc sheet memo not saved: " + JSON.stringify(savedMemo));
+  }
+
   const before = await rowTexts(page, "#procedure-sheet-history-list .exam-sheet__history-item");
   if (before.length < 2) throw new Error("proc history rows missing: " + JSON.stringify(before));
 
   await page.locator("#procedure-sheet-history-list .exam-sheet__history-item").first().click();
   await page.waitForSelector("#procedure-history-edit-modal:not([hidden])");
+  const procFocused = await page.evaluate(() => document.activeElement?.id || "");
+  if (procFocused === "procedure-history-edit-date") {
+    throw new Error("proc history edit auto-focused date field");
+  }
+  const histNoteTag = await page.locator("#procedure-history-edit-note").evaluate((el) => el.tagName);
+  if (histNoteTag !== "TEXTAREA") throw new Error("proc history edit note is not a textarea");
   await page.fill("#procedure-history-edit-date", "2026-08-12");
   await page.fill("#procedure-history-edit-note", "メモ訂正");
   await page.click("#btn-procedure-history-edit-save");
@@ -301,7 +352,7 @@ try {
     console.log("ERRORS", errors);
     throw new Error("page errors");
   }
-  console.log("OK: exam/proc sheet history edit + delete");
+  console.log("OK: exam/proc sheet memo edit + history edit/delete");
 } finally {
   await browser.close();
   server.close();

@@ -596,6 +596,7 @@ export function enterExamPlan(karteNumber) {
 }
 
 export function leaveExamPlan() {
+  closeExamItemSheet();
   if (state.unsubscribePlan) {
     state.unsubscribePlan();
     state.unsubscribePlan = null;
@@ -605,7 +606,6 @@ export function leaveExamPlan() {
   state.activePlanId = null;
   state.editingPlanId = null;
   setRightTabDueAlert("exam", null);
-  closeExamItemSheet();
   closePlanModal();
   closeCompleteModal();
   closeAfterModal();
@@ -815,11 +815,7 @@ function openExamItemSheet(entry, { phase = "choose" } = {}) {
 
   if (itemSheetTitle) itemSheetTitle.textContent = "検査予定";
   if (itemSheetItem) itemSheetItem.textContent = state.draft.item || "（項目未設定）";
-  if (sheetMemo) {
-    const memo = (state.draft.note || "").trim();
-    sheetMemo.textContent = memo || "（なし）";
-    sheetMemo.classList.toggle("is-empty", !memo);
-  }
+  if (sheetMemo) sheetMemo.value = state.draft.note || "";
   if (sheetDoneDate) sheetDoneDate.value = todayStr();
   writeDueRangeInputs(state.draft.dueDateFrom, state.draft.dueDateTo);
   renderExamSheetHistory(state.draft.item);
@@ -904,7 +900,39 @@ function applyExamSheetPhase(phase) {
   deps.showError(sheetError, "");
 }
 
-function closeExamItemSheet() {
+function readSheetMemo() {
+  return (sheetMemo?.value || "").trim();
+}
+
+async function persistExamSheetMemo() {
+  const planId = state.editingPlanId || state.activePlanId;
+  const plan = planId ? state.plan?.plans?.[planId] : null;
+  const karte = state.karteNumber;
+  const note = readSheetMemo();
+  if (!planId || !plan || !karte) return;
+  state.draft.note = note;
+  if (note === (plan.note || "").trim()) return;
+  const range = getPlanDueRange(plan);
+  try {
+    await saveExamScheduledPlan(karte, {
+      planId,
+      item: plan.item,
+      dueDate: range.to || range.from || plan.dueDate || "",
+      dueDateFrom: range.from,
+      dueDateTo: range.to,
+      note,
+      baselineDate: plan.baselineDate,
+      fasting: plan.fasting,
+      source: plan.source,
+    });
+  } catch (err) {
+    console.error(err);
+    deps.showToast("メモの保存に失敗しました。", { isError: true });
+  }
+}
+
+function closeExamItemSheet({ persistMemo = true } = {}) {
+  if (persistMemo) void persistExamSheetMemo();
   closeExamHistoryEdit();
   if (itemSheet) itemSheet.hidden = true;
   state.sheetPhase = "choose";
@@ -1089,6 +1117,12 @@ function wireNextPlanActions() {
     state.draft.baselineDate = sheetDoneDate.value || todayStr();
     updateWindowNote();
   });
+  sheetMemo?.addEventListener("input", () => {
+    state.draft.note = readSheetMemo();
+  });
+  sheetMemo?.addEventListener("blur", () => {
+    void persistExamSheetMemo();
+  });
   bindDueDateCalendar(histEditDate);
   btnCloseHistEdit?.addEventListener("click", closeExamHistoryEdit);
   btnHistEditCancel?.addEventListener("click", closeExamHistoryEdit);
@@ -1104,7 +1138,6 @@ function openExamHistoryEdit(entry) {
   if (histEditNote) histEditNote.value = entry.note || "";
   deps.showError(histEditError, "");
   if (histEditModal) histEditModal.hidden = false;
-  setTimeout(() => histEditDate?.focus(), 0);
 }
 
 function closeExamHistoryEdit() {
@@ -1175,7 +1208,7 @@ async function handleExamSheetEnd() {
     return;
   }
   const item = plan.item || state.draft.item || "";
-  const note = plan.note || state.draft.note || "";
+  const note = sheetMemo ? readSheetMemo() : (state.draft.note || plan.note || "");
   deps.showError(sheetError, "");
   deps.setBusy(btnSheetEnd, true, "保存中...", "終了として保存");
   try {
@@ -1183,7 +1216,7 @@ async function handleExamSheetEnd() {
     await endExamScheduledPlan(state.karteNumber, planId);
     if (state.activePlanId === planId) state.activePlanId = null;
     if (state.editingPlanId === planId) state.editingPlanId = null;
-    closeExamItemSheet();
+    closeExamItemSheet({ persistMemo: false });
     deps.showToast("実施を記録し、予定を終了しました。");
   } catch (err) {
     console.error(err);
@@ -1199,7 +1232,7 @@ async function handleSheetSave() {
   if (!planId || !plan) return;
 
   const item = plan.item || state.draft.item || "";
-  const note = plan.note || state.draft.note || "";
+  const note = sheetMemo ? readSheetMemo() : (state.draft.note || plan.note || "");
   const fasting = planNeedsFasting(item) ? readSheetFasting() : "";
   const phase = state.sheetPhase;
   const doneDate = sheetDoneDate?.value || "";
@@ -1240,7 +1273,7 @@ async function handleSheetSave() {
         plan.baselineDate ||
         todayStr(),
     });
-    closeExamItemSheet();
+    closeExamItemSheet({ persistMemo: false });
     deps.showToast(
       phase === "complete" ? "実施を記録し、次回予定を更新しました。" : "予定を保存しました。"
     );

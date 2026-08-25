@@ -201,6 +201,9 @@ export function initProceduresUI(helpers = {}) {
   btnSheetSave?.addEventListener("click", handleSheetSave);
   btnSheetComplete?.addEventListener("click", beginProcComplete);
   btnSheetEnd?.addEventListener("click", handleProcSheetEnd);
+  sheetMemo?.addEventListener("blur", () => {
+    void persistProcSheetMemo();
+  });
 
   bindDueDateCalendar(sheetHistEditDate);
   btnCloseSheetHistEdit?.addEventListener("click", closeProcHistoryEdit);
@@ -254,6 +257,7 @@ export function enterProcedures(karteNumber) {
 }
 
 export function leaveProcedures() {
+  closeItemSheet();
   if (state.unsubscribe) {
     state.unsubscribe();
     state.unsubscribe = null;
@@ -264,7 +268,6 @@ export function leaveProcedures() {
   setRightTabDueAlert("proc", null);
   closePlanModal();
   closeHistModal();
-  closeItemSheet();
   if (planList) planList.innerHTML = "";
   if (histList) histList.innerHTML = "";
 }
@@ -649,11 +652,7 @@ function openItemSheet(plan, { phase = "choose" } = {}) {
   state.baselineDate = plan.baselineDate || todayStr();
   if (itemSheetTitle) itemSheetTitle.textContent = "処置予定";
   if (itemSheetItem) itemSheetItem.textContent = plan.content || "（内容未設定）";
-  if (sheetMemo) {
-    const memo = (plan.note || "").trim();
-    sheetMemo.textContent = memo || "（なし）";
-    sheetMemo.classList.toggle("is-empty", !memo);
-  }
+  if (sheetMemo) sheetMemo.value = plan.note || "";
   if (sheetDoneDate) sheetDoneDate.value = todayStr();
   const range = getPlanDueRange(plan);
   writeDueRangeInputs(range.from || plan.dueDate || "", range.to || range.from || plan.dueDate || "");
@@ -707,7 +706,37 @@ function renderProcSheetHistory(content) {
   });
 }
 
-function closeItemSheet() {
+function readSheetMemo() {
+  return (sheetMemo?.value || "").trim();
+}
+
+async function persistProcSheetMemo() {
+  const plan = (state.plans || []).find((p) => p.id === state.editingPlanId);
+  const karte = state.karteNumber;
+  const note = readSheetMemo();
+  if (!plan || !karte) return;
+  if (note === (plan.note || "").trim()) return;
+  const range = getPlanDueRange(plan);
+  try {
+    await saveProcedurePlan(karte, {
+      planId: plan.id,
+      content: plan.content || "",
+      dueDate: range.to || range.from || plan.dueDate || "",
+      dueDateFrom: range.from,
+      dueDateTo: range.to,
+      note,
+      baselineDate: plan.baselineDate || state.baselineDate || todayStr(),
+      confirmedBy: plan.confirmedBy || "",
+      source: plan.source,
+    });
+  } catch (err) {
+    console.error(err);
+    deps.showToast("メモの保存に失敗しました。", { isError: true });
+  }
+}
+
+function closeItemSheet({ persistMemo = true } = {}) {
+  if (persistMemo) void persistProcSheetMemo();
   closeProcHistoryEdit();
   if (itemSheet) itemSheet.hidden = true;
   state.sheetPhase = "choose";
@@ -724,7 +753,6 @@ function openProcHistoryEdit(entry) {
   if (sheetHistEditNote) sheetHistEditNote.value = entry.note || "";
   deps.showError(sheetHistEditError, "");
   if (sheetHistEditModal) sheetHistEditModal.hidden = false;
-  setTimeout(() => sheetHistEditDate?.focus(), 0);
 }
 
 function closeProcHistoryEdit() {
@@ -835,11 +863,11 @@ async function handleProcSheetEnd() {
     await addProcedure(state.karteNumber, {
       date: doneDate,
       content: plan.content || "",
-      note: plan.note || "",
+      note: sheetMemo ? readSheetMemo() : (plan.note || ""),
       source: "manual",
     });
     await deleteProcedurePlan(state.karteNumber, plan.id);
-    closeItemSheet();
+    closeItemSheet({ persistMemo: false });
     deps.showToast("実施を記録し、予定を終了しました。");
   } catch (err) {
     console.error(err);
@@ -854,7 +882,7 @@ async function handleSheetSave() {
   if (!plan || !state.karteNumber) return;
   const phase = state.sheetPhase;
   const content = plan.content || "";
-  const note = plan.note || "";
+  const note = sheetMemo ? readSheetMemo() : (plan.note || "");
   const doneDate = sheetDoneDate?.value || "";
 
   const { from: dueDateFrom, to: dueDateTo } = readDueRangeForSave();
@@ -891,7 +919,7 @@ async function handleSheetSave() {
         state.baselineDate ||
         todayStr(),
     });
-    closeItemSheet();
+    closeItemSheet({ persistMemo: false });
     deps.showToast(
       phase === "complete" ? "実施を記録し、次回予定を更新しました。" : "予定を保存しました。"
     );

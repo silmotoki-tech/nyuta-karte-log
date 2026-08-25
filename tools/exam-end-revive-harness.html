@@ -50,8 +50,8 @@
       </div>
       <div id="exam-sheet-phase-choose">
         <div class="field">
-          <span class="label">メモ</span>
-          <p class="exam-sheet__note exam-sheet__note--readonly" id="exam-sheet-memo">（なし）</p>
+          <label class="label" for="exam-sheet-memo">メモ</label>
+          <textarea id="exam-sheet-memo" class="textarea exam-sheet__note" rows="2" placeholder="メモ（任意）"></textarea>
         </div>
         <div class="field" id="exam-sheet-done-field">
           <label class="label" for="exam-sheet-done-date">実施日</label>
@@ -107,7 +107,7 @@
       </div>
       <div class="field">
         <label class="label" for="exam-history-edit-note">メモ（任意）</label>
-        <input id="exam-history-edit-note" class="input" type="text" />
+        <textarea id="exam-history-edit-note" class="textarea exam-sheet__note" rows="2"></textarea>
       </div>
     </div>
     <div class="modal__footer">
