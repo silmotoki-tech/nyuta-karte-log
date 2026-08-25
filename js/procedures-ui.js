@@ -35,6 +35,9 @@ const state = {
   editingHistoryId: null,
   editingHistoryStore: "history",
   editingPlanId: null,
+  /** 1枚目の実施履歴編集モーダルで開いている履歴ID */
+  editingSheetHistoryId: null,
+  editingSheetHistoryStore: "history",
   syncingDueFromRelative: false,
   // 予定登録モーダルの「予定を登録」／「実施を記録」切り替え
   registerMode: "plan",
@@ -101,6 +104,15 @@ const btnSheetSave = document.getElementById("btn-procedure-sheet-save");
 const btnSheetComplete = document.getElementById("btn-procedure-sheet-complete");
 const btnSheetEnd = document.getElementById("btn-procedure-sheet-end");
 const btnCloseItemSheet = document.getElementById("btn-close-procedure-item-sheet");
+
+const sheetHistEditModal = document.getElementById("procedure-history-edit-modal");
+const sheetHistEditDate = document.getElementById("procedure-history-edit-date");
+const sheetHistEditNote = document.getElementById("procedure-history-edit-note");
+const sheetHistEditError = document.getElementById("procedure-history-edit-error");
+const btnSheetHistEditSave = document.getElementById("btn-procedure-history-edit-save");
+const btnSheetHistEditDelete = document.getElementById("btn-procedure-history-edit-delete");
+const btnSheetHistEditCancel = document.getElementById("btn-procedure-history-edit-cancel");
+const btnCloseSheetHistEdit = document.getElementById("btn-close-procedure-history-edit");
 
 const histModal = document.getElementById("procedure-modal");
 const histModalTitle = document.getElementById("procedure-modal-title");
@@ -189,6 +201,13 @@ export function initProceduresUI(helpers = {}) {
   btnSheetSave?.addEventListener("click", handleSheetSave);
   btnSheetComplete?.addEventListener("click", beginProcComplete);
   btnSheetEnd?.addEventListener("click", handleProcSheetEnd);
+
+  bindDueDateCalendar(sheetHistEditDate);
+  btnCloseSheetHistEdit?.addEventListener("click", closeProcHistoryEdit);
+  btnSheetHistEditCancel?.addEventListener("click", closeProcHistoryEdit);
+  sheetHistEditModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeProcHistoryEdit);
+  btnSheetHistEditSave?.addEventListener("click", handleProcHistoryEditSave);
+  btnSheetHistEditDelete?.addEventListener("click", handleProcHistoryEditDelete);
 
   btnCloseHistModal?.addEventListener("click", closeHistModal);
   btnHistCancel?.addEventListener("click", closeHistModal);
@@ -660,7 +679,11 @@ function renderProcSheetHistory(content) {
   sheetHistoryList.hidden = rows.length === 0;
   rows.forEach((h) => {
     const li = document.createElement("li");
-    li.className = "exam-sheet__history-item";
+    li.className = "exam-sheet__history-item exam-sheet__history-item--editable";
+    li.dataset.historyId = h.id;
+    li.setAttribute("role", "button");
+    li.tabIndex = 0;
+    li.title = "タップして編集";
     const date = document.createElement("span");
     date.className = "exam-sheet__history-date";
     date.textContent = ymdFromStr(h.date) || "（日付なし）";
@@ -672,15 +695,96 @@ function renderProcSheetHistory(content) {
       noteEl.textContent = note;
       li.appendChild(noteEl);
     }
+    const open = () => openProcHistoryEdit(h);
+    li.addEventListener("click", open);
+    li.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    });
     sheetHistoryList.appendChild(li);
   });
 }
 
 function closeItemSheet() {
+  closeProcHistoryEdit();
   if (itemSheet) itemSheet.hidden = true;
   state.sheetPhase = "choose";
   if (planModal?.hidden !== false) {
     state.editingPlanId = null;
+  }
+}
+
+function openProcHistoryEdit(entry) {
+  if (!entry?.id) return;
+  state.editingSheetHistoryId = entry.id;
+  state.editingSheetHistoryStore = entry.store || "history";
+  if (sheetHistEditDate) sheetHistEditDate.value = entry.date || "";
+  if (sheetHistEditNote) sheetHistEditNote.value = entry.note || "";
+  deps.showError(sheetHistEditError, "");
+  if (sheetHistEditModal) sheetHistEditModal.hidden = false;
+  setTimeout(() => sheetHistEditDate?.focus(), 0);
+}
+
+function closeProcHistoryEdit() {
+  state.editingSheetHistoryId = null;
+  state.editingSheetHistoryStore = "history";
+  if (sheetHistEditModal) sheetHistEditModal.hidden = true;
+  deps.showError(sheetHistEditError, "");
+}
+
+async function handleProcHistoryEditSave() {
+  const historyId = state.editingSheetHistoryId;
+  if (!historyId || !state.karteNumber) return;
+  const date = sheetHistEditDate?.value || "";
+  const note = (sheetHistEditNote?.value || "").trim();
+  if (!date) {
+    deps.showError(sheetHistEditError, "実施日を選択してください。");
+    return;
+  }
+  const current = (state.history || []).find((h) => h.id === historyId);
+  if (!current) {
+    deps.showError(sheetHistEditError, "この記録は見つかりません。");
+    return;
+  }
+  deps.showError(sheetHistEditError, "");
+  deps.setBusy(btnSheetHistEditSave, true, "保存中...", "保存する");
+  try {
+    await updateProcedure(
+      state.karteNumber,
+      historyId,
+      { date, content: current.content || "", note },
+      { store: state.editingSheetHistoryStore }
+    );
+    closeProcHistoryEdit();
+    deps.showToast("実施履歴を更新しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(sheetHistEditError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnSheetHistEditSave, false, "保存中...", "保存する");
+  }
+}
+
+async function handleProcHistoryEditDelete() {
+  const historyId = state.editingSheetHistoryId;
+  if (!historyId || !state.karteNumber) return;
+  const ok = window.confirm("この実施履歴を削除しますか？");
+  if (!ok) return;
+  deps.showError(sheetHistEditError, "");
+  deps.setBusy(btnSheetHistEditDelete, true, "削除中...", "削除する");
+  try {
+    await deleteProcedure(state.karteNumber, historyId, {
+      store: state.editingSheetHistoryStore,
+    });
+    closeProcHistoryEdit();
+    deps.showToast("実施履歴を削除しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(sheetHistEditError, "削除に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnSheetHistEditDelete, false, "削除中...", "削除する");
   }
 }
 

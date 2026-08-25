@@ -118,6 +118,18 @@ export async function deleteExamHistory(karteNumber, historyId) {
   notify(karteNumber);
 }
 
+export async function updateExamHistory(karteNumber, historyId, { date, note }) {
+  const plan = ensurePlan(karteNumber);
+  const cur = plan.history[historyId];
+  if (!cur) throw new Error("missing");
+  plan.history[historyId] = {
+    ...cur,
+    date: date || "",
+    note: note !== undefined ? note || "" : cur.note || "",
+  };
+  notify(karteNumber);
+}
+
 export async function addExamItem() {
   return nextId("item");
 }
@@ -153,6 +165,14 @@ export async function verifyAdminPasscode(input) {
 export async function getAnimalName() {}
 
 export async function setAnimalName() {}
+
+export async function getOwnerName() {}
+
+export async function setOwnerName() {}
+
+export async function listKarteNameIndex() {}
+
+export async function searchKartesByName() {}
 
 export async function addEntry() {
   return __mockNextId();
@@ -261,6 +281,8 @@ export const MED_INJECT_NEURO_GROUP_ID = "seed-med-inject-neuro";
 export const MED_INJECT_ANTICANCER_GROUP_ID = "seed-med-inject-anticancer";
 
 export const MED_INJECT_CARDIO_RESP_GROUP_ID = "seed-med-inject-cardio-resp";
+
+export const MED_INJECT_SUPPOSITORY_GROUP_ID = "seed-med-inject-suppository";
 
 export const MED_INJECT_OTHER_GROUP_ID = "seed-med-inject-other";
 

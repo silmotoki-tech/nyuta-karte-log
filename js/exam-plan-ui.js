@@ -8,6 +8,8 @@ import {
   endExamScheduledPlan,
   reviveExamPlanByItem,
   addExamHistory,
+  updateExamHistory,
+  deleteExamHistory,
   addEntry,
   addExamItem,
   deleteExamItem,
@@ -93,6 +95,8 @@ const state = {
   },
   /** 予定シートの段階。choose=実施日+完了/終了、complete=次回予定、schedule=復活後の次回入力 */
   sheetPhase: "choose",
+  /** 1枚目の実施履歴編集モーダルで開いている履歴ID */
+  editingSheetHistoryId: null,
   /** カレンダー入力のプログラム書き込みによるループ防止 */
   syncingDueFromRelative: false,
 };
@@ -137,6 +141,15 @@ const btnSheetSave = document.getElementById("btn-exam-sheet-save");
 const btnSheetComplete = document.getElementById("btn-exam-sheet-complete");
 const btnSheetEnd = document.getElementById("btn-exam-sheet-end");
 const btnCloseItemSheet = document.getElementById("btn-close-exam-item-sheet");
+
+const histEditModal = document.getElementById("exam-history-edit-modal");
+const histEditDate = document.getElementById("exam-history-edit-date");
+const histEditNote = document.getElementById("exam-history-edit-note");
+const histEditError = document.getElementById("exam-history-edit-error");
+const btnHistEditSave = document.getElementById("btn-exam-history-edit-save");
+const btnHistEditDelete = document.getElementById("btn-exam-history-edit-delete");
+const btnHistEditCancel = document.getElementById("btn-exam-history-edit-cancel");
+const btnCloseHistEdit = document.getElementById("btn-close-exam-history-edit");
 
 const planModal = document.getElementById("exam-plan-modal");
 const planModalTitle = document.getElementById("exam-plan-modal-title");
@@ -831,7 +844,11 @@ function renderExamSheetHistory(itemName) {
   sheetHistoryList.hidden = rows.length === 0;
   rows.forEach((h) => {
     const li = document.createElement("li");
-    li.className = "exam-sheet__history-item";
+    li.className = "exam-sheet__history-item exam-sheet__history-item--editable";
+    li.dataset.historyId = h.id;
+    li.setAttribute("role", "button");
+    li.tabIndex = 0;
+    li.title = "タップして編集";
     const date = document.createElement("span");
     date.className = "exam-sheet__history-date";
     date.textContent = ymdFromStr(h.date) || "（日付なし）";
@@ -843,6 +860,14 @@ function renderExamSheetHistory(itemName) {
       noteEl.textContent = note;
       li.appendChild(noteEl);
     }
+    const open = () => openExamHistoryEdit(h);
+    li.addEventListener("click", open);
+    li.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    });
     sheetHistoryList.appendChild(li);
   });
 }
@@ -880,6 +905,7 @@ function applyExamSheetPhase(phase) {
 }
 
 function closeExamItemSheet() {
+  closeExamHistoryEdit();
   if (itemSheet) itemSheet.hidden = true;
   state.sheetPhase = "choose";
   if (planModal?.hidden !== false) {
@@ -1063,6 +1089,70 @@ function wireNextPlanActions() {
     state.draft.baselineDate = sheetDoneDate.value || todayStr();
     updateWindowNote();
   });
+  bindDueDateCalendar(histEditDate);
+  btnCloseHistEdit?.addEventListener("click", closeExamHistoryEdit);
+  btnHistEditCancel?.addEventListener("click", closeExamHistoryEdit);
+  histEditModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeExamHistoryEdit);
+  btnHistEditSave?.addEventListener("click", handleExamHistoryEditSave);
+  btnHistEditDelete?.addEventListener("click", handleExamHistoryEditDelete);
+}
+
+function openExamHistoryEdit(entry) {
+  if (!entry?.id) return;
+  state.editingSheetHistoryId = entry.id;
+  if (histEditDate) histEditDate.value = entry.date || "";
+  if (histEditNote) histEditNote.value = entry.note || "";
+  deps.showError(histEditError, "");
+  if (histEditModal) histEditModal.hidden = false;
+  setTimeout(() => histEditDate?.focus(), 0);
+}
+
+function closeExamHistoryEdit() {
+  state.editingSheetHistoryId = null;
+  if (histEditModal) histEditModal.hidden = true;
+  deps.showError(histEditError, "");
+}
+
+async function handleExamHistoryEditSave() {
+  const historyId = state.editingSheetHistoryId;
+  if (!historyId || !state.karteNumber) return;
+  const date = histEditDate?.value || "";
+  const note = (histEditNote?.value || "").trim();
+  if (!date) {
+    deps.showError(histEditError, "実施日を選択してください。");
+    return;
+  }
+  deps.showError(histEditError, "");
+  deps.setBusy(btnHistEditSave, true, "保存中...", "保存する");
+  try {
+    await updateExamHistory(state.karteNumber, historyId, { date, note });
+    closeExamHistoryEdit();
+    deps.showToast("実施履歴を更新しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(histEditError, "保存に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnHistEditSave, false, "保存中...", "保存する");
+  }
+}
+
+async function handleExamHistoryEditDelete() {
+  const historyId = state.editingSheetHistoryId;
+  if (!historyId || !state.karteNumber) return;
+  const ok = window.confirm("この実施履歴を削除しますか？");
+  if (!ok) return;
+  deps.showError(histEditError, "");
+  deps.setBusy(btnHistEditDelete, true, "削除中...", "削除する");
+  try {
+    await deleteExamHistory(state.karteNumber, historyId);
+    closeExamHistoryEdit();
+    deps.showToast("実施履歴を削除しました。");
+  } catch (err) {
+    console.error(err);
+    deps.showError(histEditError, "削除に失敗しました。もう一度お試しください。");
+  } finally {
+    deps.setBusy(btnHistEditDelete, false, "削除中...", "削除する");
+  }
 }
 
 function beginExamComplete() {

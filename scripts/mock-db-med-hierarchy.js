@@ -1003,6 +1003,14 @@ export async function getAnimalName() {}
 
 export async function setAnimalName() {}
 
+export async function getOwnerName() {}
+
+export async function setOwnerName() {}
+
+export async function listKarteNameIndex() {}
+
+export async function searchKartesByName() {}
+
 export async function addEntry() {
   return __mockNextId();
 }
@@ -1056,6 +1064,8 @@ export const EXAM_PLAN_SCHEMA_VERSION = 2;
 export async function setNextExamPlan() {}
 
 export async function clearNextExamPlan() {}
+
+export async function updateExamHistory() {}
 
 export async function deleteExamHistory() {}
 

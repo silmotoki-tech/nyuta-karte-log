@@ -1720,6 +1720,18 @@ export async function addExamHistory(karteNumber, { item, date, note }) {
 }
 
 /**
+ * 実施履歴を上書き更新する（実施日・メモ）。
+ */
+export async function updateExamHistory(karteNumber, historyId, { date, note }) {
+  await authReady;
+  const patch = {
+    date: date || "",
+  };
+  if (note !== undefined) patch.note = note || "";
+  await update(ref(db, `examPlan/${karteNumber}/history/${historyId}`), patch);
+}
+
+/**
  * 実施履歴を削除する。
  */
 export async function deleteExamHistory(karteNumber, historyId) {

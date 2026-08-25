@@ -91,7 +91,36 @@
       </div>
     </div>
   </div>
-</div><div class="modal" id="exam-plan-modal" hidden>
+</div>
+
+<div class="modal modal--stack" id="exam-history-edit-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="exam-history-edit-title">
+    <div class="modal__header">
+      <h2 class="modal__title" id="exam-history-edit-title">実施履歴を編集</h2>
+      <button class="modal__close" id="btn-close-exam-history-edit" type="button" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="field">
+        <label class="label" for="exam-history-edit-date">実施日</label>
+        <input id="exam-history-edit-date" class="input input--date" type="date" />
+      </div>
+      <div class="field">
+        <label class="label" for="exam-history-edit-note">メモ（任意）</label>
+        <input id="exam-history-edit-note" class="input" type="text" />
+      </div>
+    </div>
+    <div class="modal__footer">
+      <p id="exam-history-edit-error" class="error-text error-text--banner" role="alert" hidden></p>
+      <div class="exam-sheet__actions">
+        <button id="btn-exam-history-edit-save" class="btn btn--small btn--primary" type="button">保存する</button>
+        <button id="btn-exam-history-edit-delete" class="btn btn--small btn--danger-outline" type="button">削除する</button>
+        <button id="btn-exam-history-edit-cancel" class="btn btn--small btn--outline" type="button">キャンセル</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal" id="exam-plan-modal" hidden>
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-plan-modal-title">
     <div class="modal__header">

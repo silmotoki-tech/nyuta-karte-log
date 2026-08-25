@@ -3397,6 +3397,15 @@ select.input {
   border-bottom: none;
 }
 
+.exam-sheet__history-item--editable {
+  cursor: pointer;
+}
+
+.exam-sheet__history-item--editable:hover,
+.exam-sheet__history-item--editable:focus-visible {
+  background: rgba(255, 255, 255, 0.7);
+}
+
 .exam-sheet__history-date {
   flex-shrink: 0;
   font-weight: 600;
@@ -3547,6 +3556,10 @@ select.input {
     max(12px, env(safe-area-inset-bottom, 0px))
     max(12px, env(safe-area-inset-left, 0px));
   box-sizing: border-box;
+}
+
+.modal--stack {
+  z-index: 230;
 }
 
 .modal[hidden] {
