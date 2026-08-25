@@ -646,7 +646,7 @@ function handleChipClick(chip) {
   }
   if (chip.kind === "history") {
     // 既往歴には「今日の登録」に積む専用フローがないため、既存の追加モーダルを
-    // 疾患名で絞り込んだ状態で開く（登録済みでも同じ動線で確認できる）。
+    // 名称を入れた状態で開く（登録済みでも同じ動線で確認できる）。
     openPatientHistoryAddModal(chip.label);
     return;
   }

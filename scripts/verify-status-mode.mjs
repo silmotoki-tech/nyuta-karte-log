@@ -340,9 +340,7 @@ await page.waitForSelector("#history-add-modal:not([hidden])", { timeout: 5000 }
 await page
   .locator("#history-add-type-buttons .exam-item-btn", { hasText: "紹介・専門治療歴" })
   .click();
-await page.click("#btn-history-add-toggle");
-await page.fill("#history-add-new-item", ADD_HISTORY);
-await page.click("#btn-history-add-new-item");
+await page.fill("#history-add-title", ADD_HISTORY);
 await page.click("#btn-history-add-save");
 await page.waitForFunction(
   () => document.getElementById("history-add-modal")?.hasAttribute("hidden"),

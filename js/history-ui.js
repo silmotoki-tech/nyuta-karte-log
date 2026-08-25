@@ -1,6 +1,8 @@
-// 右カラム「既往歴」タブのUIと操作ロジック。
-// 疾患・手術はマスタ階層（大→中→小）のリニア選択、紹介先はフラット選択。
-// 手動追加に加え、将来のAI提案フローからも db.addPatientHistoryEntry(..., { source: "ai" })
+// 既往歴の追加・編集UI。
+// 追加時の名称はフリーワード。種別（疾患／手術歴／紹介）と、
+// 詳細での状態（進行中／終了）切替は従来どおり。
+// 疾患名マスタのシード・管理APIは db.js 側に残し、入力画面では使わない。
+// 将来のAI提案フローからも db.addPatientHistoryEntry(..., { source: "ai" })
 // で同じデータ構造に登録できる想定。
 
 import {
@@ -11,28 +13,9 @@ import {
   appendPatientHistoryNote,
   deletePatientHistoryNote,
   deletePatientHistoryEntry,
-  subscribeHistoryDiseaseItems,
-  subscribeHistorySurgeryItems,
-  subscribeHistoryReferralItems,
-  addHistoryDiseaseItem,
-  addHistorySurgeryItem,
-  addHistoryReferralItem,
-  deleteHistoryDiseaseItem,
-  deleteHistorySurgeryItem,
-  deleteHistoryReferralItem,
-  normalizeHistoryMasterKind,
 } from "./db.js";
-import {
-  filterHistoryTreeLeavesByQuery,
-  filterHistoryReferralByQuery,
-} from "./history-item-match.js";
 import { enableRowGestures } from "./row-gestures.js";
-import {
-  createMasterPickerGroupSelectItem,
-  createSwipeableMasterPickerItem,
-  requestMasterDelete,
-} from "./master-delete-ui.js";
-import { canHandleShortcut, isImeKey } from "./ime-keys.js";
+import { canHandleShortcut } from "./ime-keys.js";
 
 const HISTORY_TYPES = [
   { id: "disease", label: "疾患" },
@@ -51,12 +34,6 @@ const state = {
   karteNumber: null,
   entries: [],
   unsubscribe: null,
-  unsubscribeDisease: null,
-  unsubscribeSurgery: null,
-  unsubscribeReferral: null,
-  diseaseItems: [],
-  surgeryItems: [],
-  referralItems: [],
   expandedIds: new Set(),
   addDraft: {
     title: "",
@@ -64,12 +41,6 @@ const state = {
     firstNoted: "",
     noteText: "",
   },
-  /** 階層選択: 大分類 id / 中分類 id（疾患・手術） */
-  pickTopId: null,
-  pickMidId: null,
-  searchMode: false,
-  searchQuery: "",
-  itemAddOpen: false,
 };
 
 // --- DOM -----------------------------------------------------------------
@@ -79,33 +50,15 @@ const historyEmpty = document.getElementById("patient-history-empty");
 const btnHistoryAdd = document.getElementById("btn-history-add");
 
 const addModal = document.getElementById("history-add-modal");
-const addPickerLabel = document.getElementById("history-add-picker-label");
+const addTitleLabel = document.getElementById("history-add-title-label");
+const addTitleInput = document.getElementById("history-add-title");
 const addTypeButtons = document.getElementById("history-add-type-buttons");
 const addFirstNoted = document.getElementById("history-add-first-noted");
 const addNote = document.getElementById("history-add-note");
 const addError = document.getElementById("history-add-error");
-const addSelectedNote = document.getElementById("history-add-selected");
 const btnAddSave = document.getElementById("btn-history-add-save");
 const btnAddCancel = document.getElementById("btn-history-add-cancel");
 const btnCloseAddModal = document.getElementById("btn-close-history-add");
-
-const addLinearPicker = document.getElementById("history-add-linear-picker");
-const addColCategory = document.getElementById("history-add-col-category");
-const addColCategoryList = document.getElementById("history-add-col-category-list");
-const addColGroup = document.getElementById("history-add-col-group");
-const addColGroupList = document.getElementById("history-add-col-group-list");
-const addColLeaf = document.getElementById("history-add-col-leaf");
-const addColLeafList = document.getElementById("history-add-col-leaf-list");
-const addColLeafHeadLabel = document.getElementById("history-add-col-leaf-head-label");
-const addSearchWrap = document.getElementById("history-add-search");
-const addSearchInput = document.getElementById("history-add-search-input");
-const addItemsEmpty = document.getElementById("history-add-items-empty");
-const btnAddToggle = document.getElementById("btn-history-add-toggle");
-const addItemAdd = document.getElementById("history-add-item-add");
-const addNewItemLabel = document.getElementById("history-add-new-item-label");
-const addNewItemInput = document.getElementById("history-add-new-item");
-const btnAddNewItem = document.getElementById("btn-history-add-new-item");
-const addItemError = document.getElementById("history-add-item-error");
 
 const noteModal = document.getElementById("history-note-modal");
 const noteModalTitle = document.getElementById("history-note-modal-title");
@@ -140,8 +93,16 @@ function typeLabel(type) {
   return HISTORY_TYPES.find((t) => t.id === type)?.label || type || "";
 }
 
-function isGroup(item) {
-  return normalizeHistoryMasterKind(item?.kind) === "group";
+function titleFieldLabel(type) {
+  if (type === "surgery") return "手術名";
+  if (type === "referral") return "紹介先";
+  return "疾患名";
+}
+
+function titlePlaceholder(type) {
+  if (type === "surgery") return "例）避妊手術";
+  if (type === "referral") return "例）○○動物病院";
+  return "例）僧帽弁閉鎖不全症";
 }
 
 function sortNotes(notesObj) {
@@ -165,30 +126,10 @@ function sortedEntries(entries) {
   });
 }
 
-function treeItemsForType(type) {
-  if (type === "surgery") return state.surgeryItems;
-  return state.diseaseItems;
-}
-
-function topGroups(items) {
-  return items.filter((i) => isGroup(i) && !i.parentId);
-}
-
-function midGroups(items, topId) {
-  return items.filter((i) => isGroup(i) && i.parentId === topId);
-}
-
-function leavesUnder(items, parentId) {
-  return items.filter((i) => !isGroup(i) && i.parentId === parentId);
-}
-
-/** 大分類直下に小分類があり、中分類が無い（または未選択で直下葉を出す）か */
-function topHasDirectLeaves(items, topId) {
-  return leavesUnder(items, topId).length > 0;
-}
-
-function topHasMidGroups(items, topId) {
-  return midGroups(items, topId).length > 0;
+function syncTitleFieldChrome() {
+  const type = state.addDraft.type;
+  if (addTitleLabel) addTitleLabel.textContent = titleFieldLabel(type);
+  if (addTitleInput) addTitleInput.placeholder = titlePlaceholder(type);
 }
 
 // --- 公開API --------------------------------------------------------------
@@ -199,25 +140,6 @@ export function initHistoryUI(helpers = {}) {
   wireAddModal();
   wireNoteModal();
   buildTypeButtons();
-
-  state.unsubscribeDisease = subscribeHistoryDiseaseItems((items) => {
-    state.diseaseItems = items;
-    if (addModal && !addModal.hidden && state.addDraft.type === "disease") {
-      renderHistoryLinearPicker();
-    }
-  });
-  state.unsubscribeSurgery = subscribeHistorySurgeryItems((items) => {
-    state.surgeryItems = items;
-    if (addModal && !addModal.hidden && state.addDraft.type === "surgery") {
-      renderHistoryLinearPicker();
-    }
-  });
-  state.unsubscribeReferral = subscribeHistoryReferralItems((items) => {
-    state.referralItems = items;
-    if (addModal && !addModal.hidden && state.addDraft.type === "referral") {
-      renderHistoryLinearPicker();
-    }
-  });
 }
 
 export function enterHistory(karteNumber) {
@@ -250,13 +172,39 @@ export async function addHistoryFromExternal(karteNumber, payload) {
   });
 }
 
+/**
+ * 既往歴の新規追加モーダルを開く（状態モードなど別画面から使う）。
+ * prefillTitle を渡すと、名称欄にその語を入れて開く。
+ */
+export function openPatientHistoryAddModal(prefillTitle = "") {
+  if (!state.karteNumber) return false;
+  openAddModal();
+  const title = String(prefillTitle || "").trim();
+  if (title) {
+    state.addDraft.title = title;
+    if (addTitleInput) addTitleInput.value = title;
+  }
+  queueMicrotask(() => addTitleInput?.focus({ preventScroll: true }));
+  return true;
+}
+
+/**
+ * 既往歴の編集UI（右カラムで展開しているものと同じDOM）を組み立てて返す。
+ * 状態モードなど別画面から、同じ編集操作をポップアップ内で使うための入口。
+ */
+export function buildHistoryDetailNode(entryId) {
+  const entry = (state.entries || []).find((e) => e.id === entryId);
+  if (!entry) return null;
+  return { title: entry.title || "（タイトル未設定）", node: createHistoryDetail(entry) };
+}
+
 // --- 描画 ----------------------------------------------------------------
 
 function renderHistoryList() {
   if (!historyList) return;
   historyList.innerHTML = "";
   const entries = sortedEntries(state.entries);
-  historyEmpty.hidden = entries.length > 0;
+  if (historyEmpty) historyEmpty.hidden = entries.length > 0;
 
   let lastGroup = null;
   entries.forEach((entry) => {
@@ -365,33 +313,6 @@ export async function deletePatientHistoryEntryById(entryId) {
     console.error(err);
     deps.showToast("削除に失敗しました。", { isError: true });
   }
-}
-
-/**
- * 既往歴の新規追加モーダルを開く（状態モードなど別画面から使う）。
- * prefillTitle を渡すと、疾患名の検索モードに切り替えてその語で絞り込んだ
- * 状態で開く（入力モードのチップから遷移する場合など）。
- */
-export function openPatientHistoryAddModal(prefillTitle = "") {
-  if (!state.karteNumber) return false;
-  openAddModal();
-  const title = String(prefillTitle || "").trim();
-  if (title) {
-    enterSearchMode();
-    state.searchQuery = title;
-    renderHistoryLinearPicker();
-  }
-  return true;
-}
-
-/**
- * 既往歴の編集UI（右カラムで展開しているものと同じDOM）を組み立てて返す。
- * 状態モードなど別画面から、同じ編集操作をポップアップ内で使うための入口。
- */
-export function buildHistoryDetailNode(entryId) {
-  const entry = (state.entries || []).find((e) => e.id === entryId);
-  if (!entry) return null;
-  return { title: entry.title || "（タイトル未設定）", node: createHistoryDetail(entry) };
 }
 
 function createHistoryDetail(entry) {
@@ -559,519 +480,7 @@ function createNoteItem(entry, note) {
   return li;
 }
 
-// --- リニアピッカー -------------------------------------------------------
-
-function createLinearItemButton({ label, selected, onClick }) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "med-linear-picker__item";
-  if (selected) btn.classList.add("is-selected");
-  btn.setAttribute("role", "option");
-  btn.setAttribute("aria-selected", selected ? "true" : "false");
-  const text = document.createElement("span");
-  text.className = "med-linear-picker__item-label";
-  text.textContent = label;
-  btn.appendChild(text);
-  if (selected) {
-    const check = document.createElement("span");
-    check.className = "med-linear-picker__check";
-    check.textContent = "✓";
-    btn.appendChild(check);
-  }
-  btn.addEventListener("click", onClick);
-  return btn;
-}
-
-function historyMasterDeleteFn(type) {
-  if (type === "surgery") return deleteHistorySurgeryItem;
-  if (type === "referral") return deleteHistoryReferralItem;
-  return deleteHistoryDiseaseItem;
-}
-
-function askDeleteHistoryMasterItem(item, type) {
-  if (!item?.id) return;
-  const label = (item.label || "").trim() || "この項目";
-  requestMasterDelete({
-    label,
-    performDelete: async () => {
-      await historyMasterDeleteFn(type)(item.id);
-      if (type === "referral") {
-        if (state.addDraft.title === label) state.addDraft.title = "";
-      } else {
-        if (state.pickTopId === item.id) {
-          state.pickTopId = null;
-          state.pickMidId = null;
-          state.addDraft.title = "";
-        } else if (state.pickMidId === item.id) {
-          state.pickMidId = null;
-          state.addDraft.title = "";
-        } else if (state.addDraft.title === label) {
-          state.addDraft.title = "";
-        }
-      }
-      renderHistoryLinearPicker();
-      deps.showToast(`「${label}」をマスタから削除しました。`);
-    },
-  });
-}
-
-function appendHistoryMasterItem(
-  listEl,
-  item,
-  { selected, open, onSelect, type, label }
-) {
-  listEl.appendChild(
-    createSwipeableMasterPickerItem({
-      label: label || item.label,
-      selected,
-      open,
-      onSelect,
-      onDelete: () => askDeleteHistoryMasterItem(item, type),
-    })
-  );
-}
-
-function fillPlaceholder(listEl, message) {
-  if (!listEl) return;
-  listEl.innerHTML = "";
-  const hint = document.createElement("p");
-  hint.className = "med-linear-picker__hint";
-  hint.textContent = message;
-  listEl.appendChild(hint);
-}
-
-function setColState(colEl, stateName) {
-  if (!colEl) return;
-  colEl.classList.toggle("is-placeholder", stateName === "placeholder");
-  colEl.hidden = stateName === "absent";
-}
-
-function exitSearchMode() {
-  state.searchMode = false;
-  state.searchQuery = "";
-  if (addSearchInput) addSearchInput.value = "";
-}
-
-function enterSearchMode() {
-  state.searchMode = true;
-  state.pickTopId = null;
-  state.pickMidId = null;
-  state.addDraft.title = "";
-  setItemAddOpen(false);
-  renderHistoryLinearPicker();
-  queueMicrotask(() => addSearchInput?.focus({ preventScroll: true }));
-}
-
-function resetPickerSelection() {
-  state.pickTopId = null;
-  state.pickMidId = null;
-  state.addDraft.title = "";
-  exitSearchMode();
-  setItemAddOpen(false);
-}
-
-function setItemAddOpen(open) {
-  state.itemAddOpen = Boolean(open);
-  if (addItemAdd) addItemAdd.hidden = !state.itemAddOpen;
-  if (btnAddToggle) {
-    btnAddToggle.setAttribute("aria-expanded", state.itemAddOpen ? "true" : "false");
-  }
-  if (!state.itemAddOpen && addNewItemInput) addNewItemInput.value = "";
-  deps.showError(addItemError, "");
-}
-
-function canAddMasterItem() {
-  const type = state.addDraft.type;
-  if (state.searchMode) return false;
-  if (type === "referral") return true;
-  if (!state.pickTopId) return false;
-  return true;
-}
-
-function updateLeafAddUI() {
-  const show = canAddMasterItem();
-  if (btnAddToggle) btnAddToggle.hidden = !show;
-  if (!show) setItemAddOpen(false);
-
-  const type = state.addDraft.type;
-  const items =
-    type === "disease" || type === "surgery" ? treeItemsForType(type) : [];
-  // 大分類直下に小分類を持つ（＝中分類を使わない）大分類のときだけ小分類を足す。
-  // それ以外は中分類の追加として扱い、最初の中分類も作れるようにする。
-  const addingLeafUnderTop =
-    Boolean(state.pickTopId) &&
-    !state.pickMidId &&
-    topHasDirectLeaves(items, state.pickTopId);
-
-  if (addNewItemLabel) {
-    if (type === "referral") {
-      addNewItemLabel.textContent = "新しい紹介先を追加";
-    } else if (state.pickMidId || addingLeafUnderTop) {
-      addNewItemLabel.textContent = "新しい小分類を追加";
-    } else {
-      addNewItemLabel.textContent = "新しい中分類を追加";
-    }
-  }
-  if (addNewItemInput) {
-    addNewItemInput.placeholder =
-      type === "referral"
-        ? "例）○○動物病院"
-        : state.pickMidId || addingLeafUnderTop
-          ? "例）僧帽弁閉鎖不全症"
-          : "例）心疾患";
-  }
-}
-
-function updateSelectedNote() {
-  if (!addSelectedNote) return;
-  const title = (state.addDraft.title || "").trim();
-  if (!title) {
-    addSelectedNote.hidden = true;
-    addSelectedNote.textContent = "";
-    return;
-  }
-  addSelectedNote.hidden = false;
-  addSelectedNote.textContent = `選択中: ${title}`;
-}
-
-function renderHistoryLinearPicker() {
-  const type = state.addDraft.type;
-  const hierarchical = type === "disease" || type === "surgery";
-  const searching = Boolean(state.searchMode);
-
-  if (addPickerLabel) {
-    addPickerLabel.textContent =
-      type === "surgery" ? "手術名" : type === "referral" ? "紹介先" : "疾患名";
-  }
-
-  if (!hierarchical) {
-    // 紹介先: 2カラム（モード / 一覧）
-    if (addLinearPicker) addLinearPicker.dataset.cols = "2";
-    setColState(addColGroup, "absent");
-    setColState(addColLeaf, "active");
-    if (addColCategory?.querySelector(".med-linear-picker__head")) {
-      addColCategory.querySelector(".med-linear-picker__head").textContent = "選択";
-    }
-    if (addColLeafHeadLabel) {
-      addColLeafHeadLabel.textContent = searching ? "検索結果" : "紹介先";
-    }
-  } else {
-    if (addColCategory?.querySelector(".med-linear-picker__head")) {
-      addColCategory.querySelector(".med-linear-picker__head").textContent = "大分類";
-    }
-    const midState = searching
-      ? "absent"
-      : state.pickTopId
-        ? "active"
-        : "placeholder";
-    // 大分類選択後は小分類列を操作可能にし、＋で中分類／小分類を追加できるようにする
-    // （is-placeholder だと CSS で ＋ が display:none になる）
-    const leafState = searching || state.pickTopId ? "active" : "placeholder";
-    if (addLinearPicker) addLinearPicker.dataset.cols = midState === "absent" ? "2" : "3";
-    setColState(addColGroup, midState);
-    setColState(addColLeaf, leafState);
-    if (addColLeafHeadLabel) {
-      addColLeafHeadLabel.textContent = searching ? "検索結果" : "小分類";
-    }
-  }
-
-  if (addSearchWrap) addSearchWrap.hidden = !searching;
-  if (searching && addSearchInput && addSearchInput.value !== state.searchQuery) {
-    addSearchInput.value = state.searchQuery || "";
-  }
-
-  // 左列
-  if (addColCategoryList) {
-    addColCategoryList.innerHTML = "";
-    if (!hierarchical) {
-      addColCategoryList.appendChild(
-        createLinearItemButton({
-          label: "紹介先",
-          selected: !searching,
-          onClick: () => {
-            exitSearchMode();
-            state.addDraft.title = "";
-            renderHistoryLinearPicker();
-          },
-        })
-      );
-    } else {
-      const items = treeItemsForType(type);
-      topGroups(items).forEach((group) => {
-        appendHistoryMasterItem(addColCategoryList, group, {
-          type,
-          selected: !searching && state.pickTopId === group.id,
-          onSelect: () => {
-            const changed = state.searchMode || state.pickTopId !== group.id;
-            exitSearchMode();
-            state.pickTopId = group.id;
-            if (changed) {
-              state.pickMidId = null;
-              state.addDraft.title = "";
-            }
-            renderHistoryLinearPicker();
-          },
-        });
-      });
-    }
-    addColCategoryList.appendChild(
-      createLinearItemButton({
-        label: "検索",
-        selected: searching,
-        onClick: () => {
-          if (searching) {
-            queueMicrotask(() => addSearchInput?.focus({ preventScroll: true }));
-            return;
-          }
-          enterSearchMode();
-        },
-      })
-    );
-  }
-
-  // 中列（疾患・手術）
-  if (hierarchical && addColGroupList) {
-    if (!state.pickTopId || searching) {
-      if (!searching) fillPlaceholder(addColGroupList, "大分類を選ぶと表示されます");
-      else addColGroupList.innerHTML = "";
-    } else {
-      addColGroupList.innerHTML = "";
-      const items = treeItemsForType(type);
-      const mids = midGroups(items, state.pickTopId);
-      if (!mids.length && topHasDirectLeaves(items, state.pickTopId)) {
-        fillPlaceholder(addColGroupList, "中項目なし（右列で小項目を選択）");
-      } else {
-        mids.forEach((group) => {
-          appendHistoryMasterItem(addColGroupList, group, {
-            type,
-            selected: state.addDraft.title === group.label,
-            open: state.pickMidId === group.id,
-            // 中分類のタップは中身を開くだけ。中分類自体の登録は右列先頭のボタンで行う
-            onSelect: () => {
-              state.pickMidId = group.id;
-              renderHistoryLinearPicker();
-            },
-          });
-        });
-      }
-    }
-  }
-
-  // 右列（葉 / 紹介先 / 検索）
-  if (addColLeafList) {
-    if (searching) {
-      renderSearchResults();
-    } else if (!hierarchical) {
-      addColLeafList.innerHTML = "";
-      const list = state.referralItems;
-      if (addItemsEmpty) addItemsEmpty.hidden = list.length > 0;
-      list.forEach((item) => {
-        appendHistoryMasterItem(addColLeafList, item, {
-          type: "referral",
-          selected: state.addDraft.title === item.label,
-          onSelect: () => {
-            state.addDraft.title = item.label;
-            renderHistoryLinearPicker();
-          },
-        });
-      });
-    } else if (!state.pickTopId) {
-      fillPlaceholder(addColLeafList, "大分類を選ぶと表示されます");
-      if (addItemsEmpty) addItemsEmpty.hidden = true;
-    } else {
-      const items = treeItemsForType(type);
-      const leafParentId = state.pickMidId || state.pickTopId;
-      const showDirectLeaves =
-        !state.pickMidId && topHasDirectLeaves(items, state.pickTopId);
-      const showMidLeaves = Boolean(state.pickMidId);
-      if (!showDirectLeaves && !showMidLeaves) {
-        fillPlaceholder(
-          addColLeafList,
-          "中分類を選ぶと表示されます（＋で中分類を追加）"
-        );
-        if (addItemsEmpty) addItemsEmpty.hidden = true;
-      } else {
-        addColLeafList.innerHTML = "";
-        const openMid = state.pickMidId
-          ? items.find((i) => i.id === state.pickMidId)
-          : null;
-        if (openMid) {
-          addColLeafList.appendChild(
-            createMasterPickerGroupSelectItem({
-              groupLabel: openMid.label,
-              selected: state.addDraft.title === openMid.label,
-              onSelect: () => {
-                state.addDraft.title = openMid.label;
-                renderHistoryLinearPicker();
-              },
-            })
-          );
-        }
-        const leafs = leavesUnder(items, leafParentId);
-        if (addItemsEmpty) addItemsEmpty.hidden = leafs.length > 0;
-        leafs.forEach((item) => {
-          appendHistoryMasterItem(addColLeafList, item, {
-            type,
-            selected: state.addDraft.title === item.label,
-            onSelect: () => {
-              state.addDraft.title = item.label;
-              renderHistoryLinearPicker();
-            },
-          });
-        });
-      }
-    }
-  }
-
-  updateLeafAddUI();
-  updateSelectedNote();
-}
-
-function renderSearchResults() {
-  if (!addColLeafList) return;
-  addColLeafList.innerHTML = "";
-  const type = state.addDraft.type;
-  let rows = [];
-  if (type === "referral") {
-    rows = filterHistoryReferralByQuery(state.referralItems, state.searchQuery);
-  } else {
-    rows = filterHistoryTreeLeavesByQuery(treeItemsForType(type), state.searchQuery);
-  }
-  if (addItemsEmpty) addItemsEmpty.hidden = true;
-  if (!state.searchQuery.trim()) {
-    fillPlaceholder(addColLeafList, "キーワードを入力してください");
-    return;
-  }
-  if (!rows.length) {
-    fillPlaceholder(addColLeafList, "一致する項目がありません");
-    return;
-  }
-  rows.forEach((row) => {
-    const item =
-      type === "referral"
-        ? state.referralItems.find((i) => i.id === row.id) || {
-            id: row.id,
-            label: row.label,
-          }
-        : treeItemsForType(type).find((i) => i.id === row.id) || {
-            id: row.id,
-            label: row.label,
-          };
-    appendHistoryMasterItem(addColLeafList, item, {
-      type,
-      label: row.displayLabel || row.label,
-      selected: state.addDraft.title === row.label,
-      onSelect: () => {
-        state.addDraft.title = row.label;
-        if (type !== "referral") {
-          const items = treeItemsForType(type);
-          const leaf = items.find((i) => i.id === row.id);
-          const parent = leaf
-            ? items.find((i) => i.id === leaf.parentId)
-            : null;
-          if (parent && isGroup(parent) && !parent.parentId) {
-            // 大分類直下の小分類
-            state.pickTopId = parent.id;
-            state.pickMidId = null;
-          } else {
-            state.pickMidId = parent?.id || null;
-            state.pickTopId = parent?.parentId || null;
-          }
-        }
-        renderHistoryLinearPicker();
-      },
-    });
-  });
-}
-
-async function handleAddMasterItem() {
-  if (!canAddMasterItem()) return;
-  const label = addNewItemInput?.value.trim() || "";
-  if (!label) {
-    deps.showError(addItemError, "名称を入力してください。");
-    return;
-  }
-  const type = state.addDraft.type;
-  deps.showError(addItemError, "");
-  deps.setBusy(btnAddNewItem, true, "追加中...", "追加");
-  try {
-    if (type === "referral") {
-      const exists = state.referralItems.find(
-        (i) => (i.label || "").trim() === label
-      );
-      if (exists) {
-        state.addDraft.title = label;
-        setItemAddOpen(false);
-        renderHistoryLinearPicker();
-        deps.showToast("既存の紹介先を選択しました。");
-        return;
-      }
-      await addHistoryReferralItem({ label });
-      state.addDraft.title = label;
-      deps.showToast(`「${label}」を紹介先に追加しました。`);
-    } else {
-      const items = treeItemsForType(type);
-      const addFn =
-        type === "surgery" ? addHistorySurgeryItem : addHistoryDiseaseItem;
-      const addLeafUnderTop =
-        !state.pickMidId && topHasDirectLeaves(items, state.pickTopId);
-      if (state.pickMidId || addLeafUnderTop) {
-        // 小分類（葉）…中項目配下、または中項目なし大分類の直下
-        const parentId = state.pickMidId || state.pickTopId;
-        const exists = items.find(
-          (i) =>
-            !isGroup(i) &&
-            (i.label || "").trim() === label &&
-            i.parentId === parentId
-        );
-        if (exists) {
-          state.addDraft.title = label;
-          setItemAddOpen(false);
-          renderHistoryLinearPicker();
-          deps.showToast("既存の項目を選択しました。");
-          return;
-        }
-        await addFn({ label, kind: "leaf", parentId });
-        state.addDraft.title = label;
-        deps.showToast(`「${label}」を小分類に追加しました。`);
-      } else {
-        // 中分類（グループ）
-        const exists = items.find(
-          (i) =>
-            isGroup(i) &&
-            (i.label || "").trim() === label &&
-            i.parentId === state.pickTopId
-        );
-        // ＋から足すのは目の前の記録のためなので、追加した中分類はそのまま選択する
-        if (exists) {
-          state.pickMidId = exists.id;
-          state.addDraft.title = label;
-          setItemAddOpen(false);
-          renderHistoryLinearPicker();
-          deps.showToast("既存の中分類を選択しました。");
-          return;
-        }
-        const id = await addFn({
-          label,
-          kind: "group",
-          parentId: state.pickTopId,
-        });
-        state.pickMidId = id;
-        state.addDraft.title = label;
-        deps.showToast(`「${label}」を中分類に追加・選択しました。`);
-      }
-    }
-    setItemAddOpen(false);
-    renderHistoryLinearPicker();
-  } catch (err) {
-    console.error(err);
-    deps.showError(addItemError, "追加に失敗しました。もう一度お試しください。");
-  } finally {
-    deps.setBusy(btnAddNewItem, false, "追加中...", "追加");
-  }
-}
-
-// --- ツールバー・モーダル -------------------------------------------------
+// --- 追加モーダル ---------------------------------------------------------
 
 function wireToolbar() {
   btnHistoryAdd?.addEventListener("click", openAddModal);
@@ -1089,9 +498,8 @@ function buildTypeButtons() {
     btn.addEventListener("click", () => {
       if (state.addDraft.type === t.id) return;
       state.addDraft.type = t.id;
-      resetPickerSelection();
       renderAddTypeSelection();
-      renderHistoryLinearPicker();
+      syncTitleFieldChrome();
     });
     addTypeButtons.appendChild(btn);
   });
@@ -1108,27 +516,8 @@ function wireAddModal() {
   btnAddCancel?.addEventListener("click", closeAddModal);
   addModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeAddModal);
   btnAddSave?.addEventListener("click", handleAddSave);
-
-  btnAddToggle?.addEventListener("click", () => {
-    if (!canAddMasterItem()) return;
-    setItemAddOpen(!state.itemAddOpen);
-    if (state.itemAddOpen) {
-      queueMicrotask(() => addNewItemInput?.focus({ preventScroll: true }));
-    }
-    updateLeafAddUI();
-  });
-  btnAddNewItem?.addEventListener("click", () => {
-    handleAddMasterItem();
-  });
-  addNewItemInput?.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter") return;
-    if (isImeKey(e)) return;
-    e.preventDefault();
-    handleAddMasterItem();
-  });
-  addSearchInput?.addEventListener("input", () => {
-    state.searchQuery = addSearchInput.value || "";
-    renderHistoryLinearPicker();
+  addTitleInput?.addEventListener("input", () => {
+    state.addDraft.title = addTitleInput.value || "";
   });
 }
 
@@ -1139,27 +528,26 @@ function openAddModal() {
     firstNoted: todayStr(),
     noteText: "",
   };
-  resetPickerSelection();
-  addFirstNoted.value = todayStr();
-  addNote.value = "";
+  if (addTitleInput) addTitleInput.value = "";
+  if (addFirstNoted) addFirstNoted.value = todayStr();
+  if (addNote) addNote.value = "";
   deps.showError(addError, "");
   renderAddTypeSelection();
-  renderHistoryLinearPicker();
-  addModal.hidden = false;
+  syncTitleFieldChrome();
+  if (addModal) addModal.hidden = false;
 }
 
 function closeAddModal() {
   if (addModal) addModal.hidden = true;
-  setItemAddOpen(false);
 }
 
 async function handleAddSave() {
-  const title = (state.addDraft.title || "").trim();
-  const firstNoted = addFirstNoted.value;
-  const noteText = addNote.value.trim();
+  const title = (addTitleInput?.value || state.addDraft.title || "").trim();
+  const firstNoted = addFirstNoted?.value || "";
+  const noteText = addNote?.value.trim() || "";
 
   if (!title) {
-    deps.showError(addError, "マスタから項目を選択するか、＋で追加してください。");
+    deps.showError(addError, `${titleFieldLabel(state.addDraft.type)}を入力してください。`);
     return;
   }
   if (!firstNoted) {
@@ -1238,7 +626,7 @@ async function handleNoteSave() {
     deps.showToast("メモを追記しました。");
   } catch (err) {
     console.error(err);
-    deps.showError(noteError, "保存に失敗しました。もう一度お試しください。");
+    deps.showError(noteError, "保存に失敗しました。", { isError: true });
   } finally {
     deps.setBusy(btnNoteSave, false, "保存中...", "追記する");
   }
