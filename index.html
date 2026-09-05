@@ -1291,127 +1291,13 @@
         <div class="med-category-buttons" id="med-add-category-buttons"></div>
       </div>
       <div class="field">
-        <span class="label">投与頻度（任意）</span>
-        <div class="med-linear-picker med-linear-picker--freq" id="med-add-freq-picker" aria-label="投与頻度の選択" data-cols="2">
-          <div class="med-linear-picker__col" data-col="mode">
-            <div class="med-linear-picker__head">指定方法</div>
-            <div
-              class="med-linear-picker__list"
-              id="med-add-freq-modes"
-              role="listbox"
-              aria-label="頻度の指定方法"
-            ></div>
-          </div>
-          <div
-            class="med-linear-picker__col med-linear-picker__col--leaf"
-            id="med-add-freq-detail"
-            data-col="detail"
-            hidden
-          >
-            <div class="med-linear-picker__head" id="med-add-freq-detail-head">内容</div>
-            <div class="freq-linear-detail">
-              <div id="med-add-freq-panel-preset" hidden>
-                <div class="med-linear-picker__list" id="med-add-freq-presets"></div>
-              </div>
-              <div id="med-add-freq-panel-every-n" hidden>
-                <div class="med-linear-picker__list" id="med-add-freq-every-n-presets" role="listbox" aria-label="○日に○回の選択肢"></div>
-                <div id="med-add-freq-every-n-other" hidden>
-                  <div class="freq-dual-fields">
-                    <button type="button" class="interval-value-display freq-field" id="med-add-freq-period">日数: 3</button>
-                    <button type="button" class="interval-value-display freq-field" id="med-add-freq-times">回数: 1</button>
-                  </div>
-                  <div class="numpad" id="med-add-freq-every-n-numpad" aria-label="○日に○回の数値入力"></div>
-                  <p class="field__note">日数・回数の欄を選んでからテンキーで入力し、「確定」してください。</p>
-                </div>
-              </div>
-              <div id="med-add-freq-panel-weekly" hidden>
-                <div class="med-linear-picker__list" id="med-add-freq-weekly-presets" role="listbox" aria-label="週○回の選択肢"></div>
-              </div>
-              <div id="med-add-freq-panel-weekdays" hidden>
-                <div class="med-linear-picker__list" id="med-add-freq-weekdays" role="group" aria-label="曜日選択"></div>
-              </div>
-              <div id="med-add-freq-panel-other" hidden>
-                <input id="med-add-freq-other-input" class="input" type="text" placeholder="頻度を自由に入力" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="field" id="med-add-dose">
-        <span class="label">投与量（任意）</span>
-        <div
-          class="med-linear-picker med-linear-picker--freq med-linear-picker--dose"
-          id="med-add-dose-picker"
-          aria-label="投与量の選択"
-          data-cols="2"
-        >
-          <div class="med-linear-picker__col" data-col="mode">
-            <div class="med-linear-picker__head">指定方法</div>
-            <div
-              class="med-linear-picker__list"
-              id="med-add-dose-modes"
-              role="listbox"
-              aria-label="投与量の指定方法"
-            ></div>
-          </div>
-          <div
-            class="med-linear-picker__col med-linear-picker__col--leaf"
-            id="med-add-dose-detail"
-            data-col="detail"
-            hidden
-          >
-            <div class="med-linear-picker__head" id="med-add-dose-detail-head">内容</div>
-            <div class="freq-linear-detail">
-              <div id="med-add-dose-panel-integer" hidden>
-                <div
-                  class="med-linear-picker__list"
-                  id="med-add-dose-integer"
-                  role="listbox"
-                  aria-label="錠数の選択肢"
-                ></div>
-              </div>
-              <div id="med-add-dose-panel-fraction" hidden>
-                <div
-                  class="med-linear-picker__list"
-                  id="med-add-dose-fraction"
-                  role="listbox"
-                  aria-label="分数の選択肢"
-                ></div>
-              </div>
-              <div id="med-add-dose-panel-other" hidden>
-                <input
-                  id="med-add-dose-other-input"
-                  class="input"
-                  type="text"
-                  placeholder="例）0.5ml、1滴、朝1錠夕半錠"
-                  autocomplete="off"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="field med-add-meta">
-        <div class="med-add-meta__row">
-          <div class="med-add-meta__cell">
-            <label class="label" for="med-add-date">開始日</label>
-            <input
-              id="med-add-date"
-              class="input input--date"
-              type="date"
-              aria-label="開始日（タップでカレンダー）"
-            />
-          </div>
-          <div class="med-add-meta__cell">
-            <label class="label" for="med-add-expiry">期限（任意）</label>
-            <input
-              id="med-add-expiry"
-              class="input input--date"
-              type="date"
-              aria-label="期限（タップでカレンダー）"
-            />
-          </div>
-        </div>
+        <label class="label" for="med-add-expiry">期限（任意）</label>
+        <input
+          id="med-add-expiry"
+          class="input input--date"
+          type="date"
+          aria-label="期限（タップでカレンダー）"
+        />
       </div>
       <div class="field">
         <label class="label" for="med-add-note">メモ（任意）</label>
@@ -1419,7 +1305,7 @@
           id="med-add-note"
           class="textarea"
           rows="2"
-          placeholder="例）食欲低下に注意"
+          placeholder="例）1日2回・1回0.5錠、食欲低下に注意"
         ></textarea>
       </div>
     </div>

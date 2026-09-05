@@ -57,9 +57,12 @@ async function launchBrowser() {
   return chromium.launch({ headless: true });
 }
 
-const css = fs.readFileSync(path.join(root, "css/style.css"), "utf8");
-assert.match(css, /\.med-add-meta__row\s*\{[^}]*flex-direction:\s*column/s);
-assert.match(css, /min-width:\s*min\(12\.5rem,\s*100%\)/);
+const indexSrc = fs.readFileSync(path.join(root, "index.html"), "utf8");
+assert.ok(indexSrc.includes('id="med-add-expiry"'), "expiry field missing");
+assert.ok(indexSrc.includes('id="med-add-note"'), "note field missing");
+assert.ok(!indexSrc.includes('id="med-add-date"'), "start date still in add modal");
+assert.ok(!indexSrc.includes('id="med-add-freq-picker"'), "freq picker still in add modal");
+assert.ok(!indexSrc.includes('id="med-add-dose-picker"'), "dose picker still in add modal");
 
 const mockDb = fs.readFileSync(
   path.join(__dirname, "mock-db-med-hierarchy.js"),
@@ -125,63 +128,29 @@ async function check(label, contextOpts, shotName) {
   await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => window.__ready === true);
   await page.waitForSelector("#med-add-modal:not([hidden])");
-  await page.locator(".med-add-meta__row").scrollIntoViewIfNeeded();
+  await page.locator("#med-add-expiry").scrollIntoViewIfNeeded();
 
   const metrics = await page.evaluate(() => {
-    const start = document.getElementById("med-add-date");
     const exp = document.getElementById("med-add-expiry");
-    const row = document.querySelector(".med-add-meta__row");
-    const a = start.getBoundingClientRect();
-    const b = exp.getBoundingClientRect();
-    const overlap = !(
-      a.right <= b.left + 1 ||
-      b.right <= a.left + 1 ||
-      a.bottom <= b.top + 1 ||
-      b.bottom <= a.top + 1
-    );
-    const csRow = getComputedStyle(row);
+    const note = document.getElementById("med-add-note");
     return {
-      flexDir: csRow.flexDirection,
-      panelW: Math.round(
-        document.querySelector("#med-add-modal .modal__panel").getBoundingClientRect()
-          .width
-      ),
-      a: {
-        top: Math.round(a.top),
-        bottom: Math.round(a.bottom),
-        w: Math.round(a.width),
-      },
-      b: {
-        top: Math.round(b.top),
-        bottom: Math.round(b.bottom),
-        w: Math.round(b.width),
-      },
-      vGap: Math.round(b.top - a.bottom),
-      overlap,
+      hasStart: Boolean(document.getElementById("med-add-date")),
+      hasFreq: Boolean(document.getElementById("med-add-freq-picker")),
+      hasDose: Boolean(document.getElementById("med-add-dose")),
+      expVisible: Boolean(exp) && exp.type === "date",
+      noteVisible: Boolean(note),
     };
   });
   console.log(label, metrics);
-  assert.equal(metrics.flexDir, "column", `${label}: not stacked`);
-  assert.equal(metrics.overlap, false, `${label}: dates overlap`);
-  assert.ok(metrics.vGap >= 4, `${label}: vertical gap too small (${metrics.vGap})`);
-  assert.ok(
-    metrics.a.bottom <= metrics.b.top + 1,
-    `${label}: start not above expiry`
-  );
+  assert.equal(metrics.hasStart, false, `${label}: start date still present`);
+  assert.equal(metrics.hasFreq, false, `${label}: freq picker still present`);
+  assert.equal(metrics.hasDose, false, `${label}: dose picker still present`);
+  assert.ok(metrics.expVisible, `${label}: expiry missing`);
+  assert.ok(metrics.noteVisible, `${label}: note missing`);
 
   await page.screenshot({
     path: path.join(outDir, `${shotName}-modal.png`),
     fullPage: false,
-  });
-  const box = await page.locator(".med-add-meta__row").boundingBox();
-  await page.screenshot({
-    path: path.join(outDir, `${shotName}-dates-crop.png`),
-    clip: {
-      x: Math.max(0, box.x - 8),
-      y: Math.max(0, box.y - 8),
-      width: box.width + 16,
-      height: box.height + 16,
-    },
   });
   await context.close();
   return metrics;
@@ -210,5 +179,5 @@ await check(
 
 await browser.close();
 server.close();
-console.log("OK: med-add start/expiry never overlap");
+console.log("OK: med-add keeps expiry/note and drops freq/dose/start");
 console.log("shots:", outDir);

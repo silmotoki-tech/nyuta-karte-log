@@ -543,7 +543,10 @@ document.getElementById("panel-exam").hidden = false;
 window.__ready = true;
 </script>`);
 
-const medHarness = makeHarness(`<script type="module">
+const medHarness = makeHarness(`<p id="meds-empty" hidden></p>
+<ul class="meds-list" id="meds-list"></ul>
+<button id="btn-med-add" type="button">薬剤を追加</button>
+<script type="module">
 import { initMedsUI, enterMeds } from "/js/meds-ui.js";
 initMedsUI({
   showToast: () => {},
@@ -557,8 +560,6 @@ document.getElementById("app-shell")?.removeAttribute("hidden");
 document.documentElement.classList.add("is-unlocked");
 document.getElementById("gate-karte")?.setAttribute("hidden", "");
 document.getElementById("center-main")?.removeAttribute("hidden");
-document.querySelectorAll(".right-panel").forEach((p) => { p.hidden = true; });
-document.getElementById("panel-meds").hidden = false;
 window.__ready = true;
 </script>`);
 
@@ -622,8 +623,7 @@ mode = "med";
   const add = await page.evaluate(() => {
     const body = document.querySelector("#med-add-modal .modal__body");
     const text = body.innerText;
-    const freq = document.getElementById("med-add-freq-picker");
-    const dose = document.getElementById("med-add-dose");
+    const exp = document.getElementById("med-add-expiry");
     const note = document.getElementById("med-add-note");
     const name = document.getElementById("med-add-name");
     const fields = [...body.querySelectorAll(":scope > .field")];
@@ -632,23 +632,28 @@ mode = "med";
       text,
       hasNameInput: Boolean(name) && name.tagName === "INPUT" && !name.readOnly,
       hasHierarchyPicker: Boolean(document.getElementById("med-add-linear-picker")),
+      hasFreq: Boolean(document.getElementById("med-add-freq-picker")),
+      hasDose: Boolean(document.getElementById("med-add-dose")),
+      hasStart: Boolean(document.getElementById("med-add-date")),
+      hasExpiry: Boolean(exp) && exp.type === "date",
       hasExplanation: text.includes("A=治療の主力"),
       hasOldMemo: text.includes("副作用・問題"),
       hasOldExpiry: text.includes("効果／処方"),
       hasC: text.includes("C（過去に使用）"),
-      doseAfterFreq:
-        freq.getBoundingClientRect().bottom <= dose.getBoundingClientRect().top + 2,
       memoLast: last.contains(note),
     };
   });
   console.log("add", add);
   assert.ok(add.hasNameInput, "med name text input missing");
   assert.equal(add.hasHierarchyPicker, false, "hierarchy picker still in add modal");
+  assert.equal(add.hasFreq, false, "freq picker still in add modal");
+  assert.equal(add.hasDose, false, "dose picker still in add modal");
+  assert.equal(add.hasStart, false, "start date still in add modal");
+  assert.ok(add.hasExpiry, "expiry input missing");
   assert.equal(add.hasExplanation, false);
   assert.equal(add.hasOldMemo, false);
   assert.equal(add.hasOldExpiry, false);
   assert.ok(add.hasC);
-  assert.ok(add.doseAfterFreq);
   assert.ok(add.memoLast);
 
   await page.screenshot({ path: path.join(outDir, "02-med-add-full.png") });
@@ -666,37 +671,31 @@ mode = "med";
   const detail = await page.evaluate(() => {
     const root = document.querySelector("#med-detail-sheet-body .med-sheet__detail");
     const text = root.innerText;
-    const start = document.querySelector(".med-detail-meta__start input");
+    const startInput = document.querySelector(".med-detail-meta__start input");
     const exp = document.querySelector(".med-detail-meta__expiry input");
     const children = [...root.children];
     const last = children[children.length - 1];
-    const a = start.getBoundingClientRect();
-    const b = exp.getBoundingClientRect();
-    const overlap = !(
-      a.right <= b.left + 1 ||
-      b.right <= a.left + 1 ||
-      a.bottom <= b.top + 1 ||
-      b.bottom <= a.top + 1
-    );
     return {
       text,
-      hasStart: text.includes("開始日"),
+      hasStartLabel: text.includes("開始日"),
+      hasStartInput: Boolean(startInput),
       hasExpiryLabel: text.includes("期限"),
+      hasExpiryInput: Boolean(exp) && exp.type === "date",
       hasOldExpiry: text.includes("効果／処方"),
       hasOldMemo: text.includes("副作用・問題"),
       hasC: text.includes("過去に使用"),
       memoLast: last.classList.contains("med-detail-meta__note"),
-      overlap,
     };
   });
   console.log("detail", detail);
-  assert.ok(detail.hasStart);
+  assert.ok(detail.hasStartLabel, "existing start date should still display");
+  assert.equal(detail.hasStartInput, false, "start date input still on detail");
   assert.ok(detail.hasExpiryLabel);
+  assert.ok(detail.hasExpiryInput);
   assert.equal(detail.hasOldExpiry, false);
   assert.equal(detail.hasOldMemo, false);
   assert.ok(detail.hasC);
   assert.ok(detail.memoLast);
-  assert.equal(detail.overlap, false);
 
   await page.screenshot({
     path: path.join(outDir, "05-med-detail-dates-no-overlap.png"),

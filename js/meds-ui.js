@@ -782,44 +782,37 @@ function createDrugDetail(drug) {
   prnRow.appendChild(prnLabel);
   detail.appendChild(prnRow);
 
-  // 開始日・期限（独立セル。狭い画面では縦積み）
+  // 期限は入力のまま。開始日・頻度は過去データがあるときだけ表示する。
   const datesGrid = document.createElement("div");
   datesGrid.className = "med-detail-meta__dates";
 
   const startEvent = findStartEvent(drug);
-  const startBlock = document.createElement("div");
-  startBlock.className = "field med-detail-meta__start";
-  const startLabel = document.createElement("label");
-  startLabel.className = "label";
-  startLabel.textContent = "開始日";
-  const startInput = document.createElement("input");
-  startInput.type = "date";
-  startInput.className = "input input--date";
-  startInput.value = startEvent?.date || "";
-  startInput.addEventListener("change", async () => {
-    const next = startInput.value || "";
-    if (!next) {
-      startInput.value = startEvent?.date || "";
-      deps.showToast("開始日は必須です。", { isError: true });
-      return;
-    }
-    if (!startEvent?.id) {
-      deps.showToast("開始日を変更できる出来事がありません。", { isError: true });
-      return;
-    }
-    if (next === (startEvent.date || "")) return;
-    try {
-      await updateMedicationEvent(state.karteNumber, drug.id, startEvent.id, {
-        date: next,
-      });
-      deps.showToast("開始日を保存しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("開始日の保存に失敗しました。", { isError: true });
-      startInput.value = startEvent.date || "";
-    }
-  });
-  startBlock.append(startLabel, startInput);
+  if (startEvent?.date) {
+    const startBlock = document.createElement("div");
+    startBlock.className = "field med-detail-meta__start";
+    const startLabel = document.createElement("span");
+    startLabel.className = "label";
+    startLabel.textContent = "開始日";
+    const startVal = document.createElement("p");
+    startVal.className = "field__note med-detail-meta__start-value";
+    startVal.textContent = ymdFromStr(startEvent.date);
+    startBlock.append(startLabel, startVal);
+    datesGrid.appendChild(startBlock);
+  }
+
+  const freqText = currentFrequencyText(drug);
+  if (freqText) {
+    const freqBlock = document.createElement("div");
+    freqBlock.className = "field med-detail-meta__freq";
+    const freqLabel = document.createElement("span");
+    freqLabel.className = "label";
+    freqLabel.textContent = "投与頻度";
+    const freqVal = document.createElement("p");
+    freqVal.className = "field__note";
+    freqVal.textContent = freqText;
+    freqBlock.append(freqLabel, freqVal);
+    datesGrid.appendChild(freqBlock);
+  }
 
   const expBlock = document.createElement("div");
   expBlock.className = "field med-detail-meta__expiry";
@@ -884,7 +877,7 @@ function createDrugDetail(drug) {
     expBlock.appendChild(note);
   }
 
-  datesGrid.append(startBlock, expBlock);
+  datesGrid.appendChild(expBlock);
   detail.appendChild(datesGrid);
 
   // 出来事の種類（詳細シート上で明示的に選ぶ）
@@ -1055,15 +1048,17 @@ function wireToolbar() {
 // --- 薬剤追加モーダル -----------------------------------------------------
 
 function initFrequencyPickers() {
-  addFreqPicker = bindFrequencyPicker(addFreqEls, {
-    getDraft: () => state.addDraft.freq,
-    setDraft: (next) => {
-      state.addDraft.freq = next;
-    },
-    getPresets: () => FREQ_PRESETS_ABSOLUTE,
-    showError: (msg) => deps.showError(addError, msg),
-  });
-  addFreqPicker.init();
+  if (addFreqEls.modes) {
+    addFreqPicker = bindFrequencyPicker(addFreqEls, {
+      getDraft: () => state.addDraft.freq,
+      setDraft: (next) => {
+        state.addDraft.freq = next;
+      },
+      getPresets: () => FREQ_PRESETS_ABSOLUTE,
+      showError: (msg) => deps.showError(addError, msg),
+    });
+    addFreqPicker.init();
+  }
 
   eventFreqPicker = bindFrequencyPicker(eventFreqEls, {
     getDraft: () => state.eventDraft.freq,
@@ -1788,14 +1783,13 @@ function openAddModal() {
   if (addNewItemInput) addNewItemInput.value = "";
   deps.showError(addItemError, "");
   if (addFreqEls.otherInput) addFreqEls.otherInput.value = "";
-  if (addDate) addDate.value = todayStr();
   if (addExpiry) addExpiry.value = "";
   if (addNote) addNote.value = "";
   if (addDoseOtherInput) addDoseOtherInput.value = "";
   deps.showError(addError, "");
   if (addLinearPicker) renderMedLinearPicker();
   renderAddCategorySelection();
-  renderAddDosePicker();
+  if (addDoseModes) renderAddDosePicker();
   addFreqPicker?.render();
   addModal.hidden = false;
   setTimeout(() => addNameInput?.focus(), 0);
@@ -1814,12 +1808,6 @@ async function handleAddSave() {
     return;
   }
 
-  const freqResolved = resolveFrequencyDraft(state.addDraft.freq, { required: false });
-  if (!freqResolved.ok) {
-    deps.showError(addError, freqResolved.message);
-    return;
-  }
-
   // 同名の重複チェック（警告のみ）
   if (state.drugs.some((d) => d.name === name)) {
     const ok = window.confirm(
@@ -1831,20 +1819,18 @@ async function handleAddSave() {
   deps.showError(addError, "");
   deps.setBusy(btnAddSave, true, "保存中...", "追加する");
   try {
-    const eventDate = (addDate?.value || "").trim() || todayStr();
     const expiryEstimate = (addExpiry?.value || "").trim();
     const sideEffectNote = (addNote?.value || "").trim();
-    const amountChange = resolveAddDose();
     await addMedication(state.karteNumber, {
       name,
       category: state.addDraft.category,
       sideEffectNote,
       expiryEstimate,
       changedBy: deps.getSelectedAuthor() || "",
-      eventDate,
-      frequencyChange: freqResolved.frequencyChange || "",
-      frequency: freqResolved.frequency || null,
-      amountChange,
+      eventDate: todayStr(),
+      frequencyChange: "",
+      frequency: null,
+      amountChange: "",
     });
     closeAddModal();
     deps.showToast("薬剤を追加しました。");
