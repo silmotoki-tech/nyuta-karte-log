@@ -5838,3 +5838,10 @@ select.input {
   font-size: 0.72rem;
   color: var(--color-text-muted);
 }
+
+#med-add-name-suggest:not([hidden]) {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
+  padding: 2px 6px;
+}

@@ -371,10 +371,7 @@ await assertContains("#status-exam-plan-list", ADD_EXAM, "検査予定・状態�
 // 薬剤
 await page.click("#btn-status-meds-add");
 await page.waitForSelector("#med-add-modal:not([hidden])", { timeout: 5000 });
-await page.locator("#med-add-col-category-list .med-linear-picker__item").first().click();
-await page.click("#btn-med-add-toggle");
-await page.fill("#med-add-new-item", ADD_MED);
-await page.click("#btn-med-add-new-item");
+await page.fill("#med-add-name", ADD_MED);
 await page.click("#btn-med-add-save");
 await page.waitForFunction(
   () => document.getElementById("med-add-modal")?.hasAttribute("hidden"),

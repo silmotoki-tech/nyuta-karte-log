@@ -1267,95 +1267,24 @@
     </div>
     <div class="modal__body">
       <div class="field">
-        <span class="label">薬剤名</span>
-        <div
-          class="med-linear-picker"
-          id="med-add-linear-picker"
-          data-cols="3"
-          aria-label="薬剤の階層選択"
-        >
-          <div class="med-linear-picker__col" id="med-add-col-category" data-col="category">
-            <div class="med-linear-picker__head">大項目</div>
-            <div
-              class="med-linear-picker__list"
-              id="med-add-col-category-list"
-              role="listbox"
-              aria-label="大項目"
-            ></div>
-          </div>
-          <div
-            class="med-linear-picker__col is-placeholder"
-            id="med-add-col-group"
-            data-col="group"
-          >
-            <div class="med-linear-picker__head">中項目</div>
-            <div
-              class="med-linear-picker__list"
-              id="med-add-col-group-list"
-              role="listbox"
-              aria-label="中項目"
-            ></div>
-          </div>
-          <div
-            class="med-linear-picker__col med-linear-picker__col--leaf is-placeholder"
-            id="med-add-col-leaf"
-            data-col="leaf"
-          >
-            <div class="med-linear-picker__head">
-              <span class="med-linear-picker__head-label" id="med-add-col-leaf-head-label">薬剤名</span>
-              <button
-                type="button"
-                class="exam-item-add__toggle"
-                id="btn-med-add-toggle"
-                hidden
-                aria-expanded="false"
-                aria-controls="med-add-item-add"
-                aria-label="新しい薬剤を追加"
-                title="新しい薬剤を追加"
-              >
-                ＋
-              </button>
-            </div>
-            <div class="med-linear-picker__search" id="med-add-search" hidden>
-              <label class="visually-hidden" for="med-add-search-input">薬剤名を検索</label>
-              <input
-                id="med-add-search-input"
-                class="input med-linear-picker__search-input"
-                type="search"
-                placeholder="薬剤名の一部を入力"
-                autocomplete="off"
-                enterkeyhint="search"
-              />
-            </div>
-            <div
-              class="med-linear-picker__list"
-              id="med-add-col-leaf-list"
-              role="listbox"
-              aria-label="薬剤名"
-            ></div>
-            <p class="field__note med-linear-picker__empty" id="med-add-items-empty" hidden>
-              この分類にはまだ薬剤がありません。＋から追加できます。
-            </p>
-            <div class="exam-item-add" id="med-add-item-add" hidden>
-              <label class="label label--sub" for="med-add-new-item" id="med-add-new-item-label">
-                新しい薬剤を追加
-              </label>
-              <div class="exam-item-add__row">
-                <input
-                  id="med-add-new-item"
-                  class="input"
-                  type="text"
-                  placeholder="例）アモキシシリン"
-                  autocomplete="off"
-                />
-                <button id="btn-med-add-new-item" class="btn btn--small btn--outline" type="button">
-                  追加
-                </button>
-              </div>
-              <p id="med-add-item-error" class="error-text error-text--banner" role="alert" hidden></p>
-            </div>
-          </div>
-        </div>
+        <label class="label" for="med-add-name">薬剤名</label>
+        <input
+          id="med-add-name"
+          class="input"
+          type="text"
+          autocomplete="off"
+          placeholder="例）アモキシシリン"
+          aria-label="薬剤名"
+          aria-autocomplete="list"
+          aria-controls="med-add-name-suggest"
+        />
+        <ul
+          class="input-picker-list"
+          id="med-add-name-suggest"
+          role="listbox"
+          aria-label="薬剤名の候補"
+          hidden
+        ></ul>
       </div>
       <div class="field">
         <span class="label">重要度</span>

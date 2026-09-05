@@ -1,4 +1,6 @@
 // 右カラム「薬剤情報」タブのUIと操作ロジック。
+// 追加時の薬剤名はフリーワード。入力中はマスタから部分一致の候補を出す。
+// 階層ピッカーは入力画面から外したが、マスタのシード・購読はサジェスト用に残す。
 // 使用状況は出来事履歴の最新イベントから導出する（別途の状態保存はしない）。
 
 import {
@@ -168,6 +170,8 @@ const btnCloseDetailSheet = document.getElementById("btn-close-med-detail-sheet"
 const btnDetailSheetClose = document.getElementById("btn-med-detail-sheet-close");
 
 const addModal = document.getElementById("med-add-modal");
+const addNameInput = document.getElementById("med-add-name");
+const addNameSuggest = document.getElementById("med-add-name-suggest");
 const addLinearPicker = document.getElementById("med-add-linear-picker");
 const addColCategoryList = document.getElementById("med-add-col-category-list");
 const addColGroup = document.getElementById("med-add-col-group");
@@ -417,12 +421,13 @@ export function initMedsUI(helpers = {}) {
   buildAmountPresets();
   buildAddCategoryButtons();
   initFrequencyPickers();
-  renderMedLinearPicker();
+  if (addLinearPicker) renderMedLinearPicker();
 
   state.unsubscribeItems = subscribeMedicationItems((items) => {
     state.medicationItems = items;
     if (addModal && !addModal.hidden) {
-      renderMedLinearPicker();
+      renderMedNameSuggest();
+      if (addLinearPicker) renderMedLinearPicker();
     }
   });
 }
@@ -1219,11 +1224,72 @@ function fillMedLinearPlaceholder(listEl, message) {
   listEl.appendChild(hint);
 }
 
+function readAddName() {
+  return (addNameInput?.value || state.addDraft.name || "").trim();
+}
+
+function writeAddName(value) {
+  if (addNameInput) addNameInput.value = value || "";
+  state.addDraft.name = (value || "").trim();
+}
+
+function clearMedNameSuggest() {
+  if (!addNameSuggest) return;
+  addNameSuggest.innerHTML = "";
+  addNameSuggest.hidden = true;
+}
+
+function renderMedNameSuggest() {
+  if (!addNameSuggest) return;
+  const q = (addNameInput?.value || "").trim();
+  addNameSuggest.innerHTML = "";
+  if (!q) {
+    addNameSuggest.hidden = true;
+    return;
+  }
+  const rows = filterMedicationLeavesByQuery(q, state.medicationItems, { limit: 12 });
+  if (!rows.length) {
+    addNameSuggest.hidden = true;
+    return;
+  }
+  rows.forEach((row) => {
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "input-picker-item";
+    btn.setAttribute("role", "option");
+    const name = document.createElement("span");
+    name.className = "input-picker-item__label";
+    name.textContent = row.label;
+    const path = document.createElement("span");
+    path.className = "input-picker-item__path";
+    path.textContent = [row.categoryLabel, row.parentLabel].filter(Boolean).join(" › ");
+    btn.append(name, path);
+    btn.addEventListener("mousedown", (e) => e.preventDefault());
+    btn.addEventListener("click", () => {
+      writeAddName(row.label);
+      clearMedNameSuggest();
+    });
+    li.appendChild(btn);
+    addNameSuggest.appendChild(li);
+  });
+  addNameSuggest.hidden = false;
+}
+
 function wireAddModal() {
   btnCloseAddModal?.addEventListener("click", closeAddModal);
   btnAddCancel?.addEventListener("click", closeAddModal);
   addModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeAddModal);
   btnAddSave?.addEventListener("click", handleAddSave);
+  addNameInput?.addEventListener("input", () => {
+    state.addDraft.name = (addNameInput.value || "").trim();
+    renderMedNameSuggest();
+  });
+  addNameInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      clearMedNameSuggest();
+    }
+  });
   btnAddNewItem?.addEventListener("click", handleAddMedicationItemFromModal);
   btnAddToggle?.addEventListener("click", () => {
     const open = addItemAdd && !addItemAdd.hidden;
@@ -1489,6 +1555,7 @@ function renderMedSearchResults() {
 }
 
 function renderMedLinearPicker() {
+  if (!addLinearPicker) return;
   const searching = Boolean(state.medItemSearchMode);
   const category = searching ? null : activeMedCategoryId();
   const usesMid = Boolean(category && categorySupportsMedMidGroups(category));
@@ -1716,6 +1783,8 @@ function openAddModal() {
   state.medItemCategory = null;
   state.medItemParentId = null;
   exitMedSearchMode();
+  writeAddName("");
+  clearMedNameSuggest();
   if (addNewItemInput) addNewItemInput.value = "";
   deps.showError(addItemError, "");
   if (addFreqEls.otherInput) addFreqEls.otherInput.value = "";
@@ -1724,21 +1793,24 @@ function openAddModal() {
   if (addNote) addNote.value = "";
   if (addDoseOtherInput) addDoseOtherInput.value = "";
   deps.showError(addError, "");
-  renderMedLinearPicker();
+  if (addLinearPicker) renderMedLinearPicker();
   renderAddCategorySelection();
   renderAddDosePicker();
   addFreqPicker?.render();
   addModal.hidden = false;
+  setTimeout(() => addNameInput?.focus(), 0);
 }
 
 function closeAddModal() {
   if (addModal) addModal.hidden = true;
+  clearMedNameSuggest();
 }
 
 async function handleAddSave() {
-  const name = (state.addDraft.name || "").trim();
+  const name = readAddName();
+  state.addDraft.name = name;
   if (!name) {
-    deps.showError(addError, "薬剤名を選ぶか、新しい薬剤を追加してください。");
+    deps.showError(addError, "薬剤名を入力してください。");
     return;
   }
 

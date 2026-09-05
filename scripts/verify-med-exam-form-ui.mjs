@@ -625,12 +625,13 @@ mode = "med";
     const freq = document.getElementById("med-add-freq-picker");
     const dose = document.getElementById("med-add-dose");
     const note = document.getElementById("med-add-note");
-    const picker = document.getElementById("med-add-linear-picker");
+    const name = document.getElementById("med-add-name");
     const fields = [...body.querySelectorAll(":scope > .field")];
     const last = fields[fields.length - 1];
     return {
       text,
-      pickerH: picker.getBoundingClientRect().height,
+      hasNameInput: Boolean(name) && name.tagName === "INPUT" && !name.readOnly,
+      hasHierarchyPicker: Boolean(document.getElementById("med-add-linear-picker")),
       hasExplanation: text.includes("A=治療の主力"),
       hasOldMemo: text.includes("副作用・問題"),
       hasOldExpiry: text.includes("効果／処方"),
@@ -641,7 +642,8 @@ mode = "med";
     };
   });
   console.log("add", add);
-  assert.ok(add.pickerH >= 240, "med picker too short");
+  assert.ok(add.hasNameInput, "med name text input missing");
+  assert.equal(add.hasHierarchyPicker, false, "hierarchy picker still in add modal");
   assert.equal(add.hasExplanation, false);
   assert.equal(add.hasOldMemo, false);
   assert.equal(add.hasOldExpiry, false);

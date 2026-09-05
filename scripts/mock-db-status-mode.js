@@ -287,6 +287,14 @@ const EXAM_ITEMS_SEED = [
 
 const MED_ITEMS_SEED = [
   {
+    id: "seed-med-abx",
+    label: "抗生剤",
+    category: "oral",
+    kind: "group",
+    parentId: "",
+    order: 0,
+  },
+  {
     id: "seed-med-pred",
     label: "プレドニゾロン",
     category: "oral",
@@ -301,6 +309,22 @@ const MED_ITEMS_SEED = [
     kind: "leaf",
     parentId: "",
     order: 2,
+  },
+  {
+    id: "seed-med-amox",
+    label: "アモキシシリン",
+    category: "oral",
+    kind: "leaf",
+    parentId: "seed-med-abx",
+    order: 3,
+  },
+  {
+    id: "seed-med-amox-clav",
+    label: "クラブラン酸/アモキシシリン",
+    category: "oral",
+    kind: "leaf",
+    parentId: "seed-med-abx",
+    order: 4,
   },
 ];
 

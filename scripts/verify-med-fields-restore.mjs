@@ -734,29 +734,27 @@ const addOrderOk = await page.evaluate(() => {
   );
 });
 if (!addOrderOk) throw new Error("add modal field order incorrect");
-// リスト高さ
-const pickerH = await page.locator("#med-add-linear-picker").evaluate((el) => el.getBoundingClientRect().height);
-if (pickerH < 200) throw new Error("med picker too short: " + pickerH);
+if (!(await page.locator("#med-add-name").isVisible())) {
+  throw new Error("med name text input missing");
+}
 const startDate = await page.locator("#med-add-date").inputValue();
 if (startDate !== T) throw new Error("add date not defaulted to today: " + startDate);
 
-// pick oral > 抗菌薬 > アモキシシリン
-await page.getByRole("option", { name: "内服薬" }).click();
-await page.getByRole("option", { name: "抗菌薬" }).click();
-await page.getByRole("option", { name: "アモキシシリン" }).click();
+await page.fill("#med-add-name", "アモキ");
+await page.waitForSelector("#med-add-name-suggest:not([hidden])");
+await page
+  .locator("#med-add-name-suggest .input-picker-item__label", { hasText: /^アモキシシリン$/ })
+  .click();
+const selectedName = await page.locator("#med-add-name").inputValue();
+console.log("selected name", selectedName);
+if (selectedName !== "アモキシシリン") {
+  throw new Error("drug not confirmed before save: " + selectedName);
+}
 await page.locator("#med-add-expiry").fill(later);
 await page.getByRole("option", { name: "錠数（整数）" }).click();
 await page.getByRole("option", { name: "1錠" }).click();
 await page.locator("#med-add-note").fill("胃腸障害に注意");
 await page.locator("#med-add-date").fill(addDays(T, -2));
-const selectedName = await page.evaluate(() => {
-  const sel = document.querySelector("#med-add-col-leaf-list .is-selected, #med-add-col-leaf-list [aria-selected='true']");
-  return sel?.textContent?.trim() || "";
-});
-console.log("selected leaf", selectedName);
-if (!selectedName.includes("アモキシシリン")) {
-  throw new Error("drug not selected before save: " + selectedName);
-}
 await page.screenshot({
   path: path.join(root, "tools/med-fields-restore-add.png"),
 });
