@@ -1,6 +1,7 @@
 /**
  * 入力モードを「書くこと」に寄せた改修を、本番 index.html + app.js 経路で検証する。
- * - 左カラムの見出し一覧が入力中も残り、タップで見出し・本文が写ること（続きから選ぶ）
+ * - 左カラムの見出し一覧が入力中も残り、タップで見出しだけが写ること（続きから選ぶ）
+ * - 本文は写さず、すでに書いてあればそのまま残ること
  * - 写した後も編集でき、別の記録を何度でも選び直せること
  * - 「変化あり」で保存すると changed が付き、時系列の該当行に印が出ること
  * - 本文欄が記入面の高さの大半を占め、「今日の登録」が畳まれていること
@@ -260,45 +261,50 @@ const fields = () =>
     target: document.querySelector("#headline-list .hl-item__btn.is-target")?.textContent.trim(),
   }));
 
-// 空の状態から写す
+// 空の状態から写す（見出しだけ。本文は空のまま）
 await pick(1);
 let now = await fields();
 assert.equal(now.headline, ENTRIES[0].headline, "見出しが写っていない");
-assert.equal(now.body, ENTRIES[0].body, "本文が写っていない");
+assert.equal(now.body, "", "本文まで写っている");
+assert.ok(
+  !now.body.includes("プレドニゾロン") && !now.body.includes("痒みは軽度"),
+  "過去の本文が混ざっている"
+);
 assert.ok(now.target?.includes(ENTRIES[0].headline), "選んだ項目に印が付いていない");
 await shot("12-copied-from-left");
 
-// 写した内容はそのまま編集できる
-await page.click("#input-body-text");
-await page.keyboard.press("End");
-await page.type("#input-body-text", "\n本日は痒みが消失。");
+// 本文は自分で書く。見出しもその場で直せる
+await page.fill("#input-body-text", "本日は痒みが消失。");
 now = await fields();
-assert.ok(now.body.endsWith("本日は痒みが消失。"), "写した本文を編集できない");
+assert.equal(now.body, "本日は痒みが消失。", "本文を書けない");
 await page.fill("#input-headline", "皮膚炎の経過観察（改善）");
 await shot("13-edited-after-copy");
 
-// 自分で書き換えた後でも、タップしたら必ず写る（ここが空振りしていた）
+// 自分で書き換えた後でも、見出しは必ず写る。本文は消さない
 await pick(3);
 now = await fields();
 assert.equal(now.headline, ENTRIES[2].headline, "編集後のタップが反映されていない");
-assert.equal(now.body, ENTRIES[2].body, "編集後のタップで本文が反映されていない");
+assert.equal(now.body, "本日は痒みが消失。", "選び直しで本文が上書きされた");
 assert.ok(now.target?.includes(ENTRIES[2].headline), "印が選び直した項目に移っていない");
 
-// 本文にカーソルを置いたまま（キーボードが出ている状態）でも写る
+// 本文にカーソルを置いたまま（キーボードが出ている状態）でも見出しは写る
 await page.click("#input-body-text");
+await page.keyboard.press("End");
 await page.type("#input-body-text", "追記。");
 await pick(2);
 now = await fields();
 assert.equal(now.headline, ENTRIES[1].headline, "本文編集中のタップが反映されていない");
-assert.equal(now.body, ENTRIES[1].body, "本文編集中のタップで本文が反映されていない");
+assert.equal(now.body, "本日は痒みが消失。追記。", "本文編集中のタップで本文が消えた");
 
-// 4回目・5回目も同じように選び直せる
+// 4回目・5回目も同じように見出しを選び直せる
 await pick(1);
 now = await fields();
 assert.equal(now.headline, ENTRIES[0].headline, "4回目の写しが反映されていない");
+assert.equal(now.body, "本日は痒みが消失。追記。", "4回目の写しで本文が消えた");
 await pick(3);
 now = await fields();
 assert.equal(now.headline, ENTRIES[2].headline, "5回目の写しが反映されていない");
+assert.equal(now.body, "本日は痒みが消失。追記。", "5回目の写しで本文が消えた");
 
 // 写した後もそこから自由に編集できる
 await page.fill("#input-headline", `${ENTRIES[2].headline}（追記）`);
@@ -307,7 +313,7 @@ await page.keyboard.press("End");
 await page.type("#input-body-text", "\n跛行は改善傾向。");
 now = await fields();
 assert.equal(now.headline, `${ENTRIES[2].headline}（追記）`, "写した後の見出しを編集できない");
-assert.ok(now.body.startsWith(ENTRIES[2].body), "編集で写した本文が消えている");
+assert.ok(now.body.startsWith("本日は痒みが消失。追記。"), "編集で書いていた本文が消えている");
 assert.ok(now.body.endsWith("跛行は改善傾向。"), "写した後の本文に追記できない");
 
 assert.equal(dialogCount, 0, `続きから選ぶで確認ダイアログが出た（${dialogCount}回）`);
@@ -468,7 +474,7 @@ await page
   .tap();
 now = await fields();
 assert.equal(now.headline, ENTRIES[0].headline, "3カラム経由で見出しが写らない");
-assert.equal(now.body, ENTRIES[0].body, "3カラム経由で本文が写らない");
+assert.equal(now.body, "", "3カラム経由で本文まで写っている");
 
 // 検出チップ（本文の薬剤名を拾う）
 await page.fill("#input-body-text", "エンロフロキサシンを開始。CBCを予定。");

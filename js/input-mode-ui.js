@@ -336,18 +336,17 @@ export function isInputModeVisible() {
 }
 
 /**
- * 左カラムで選んだ記録の見出し・本文を写す（「続きから選ぶ」）。
+ * 左カラムで選んだ記録の見出しだけを写す（「続きから選ぶ」）。
+ * 本文は毎回書き直す運用なので写さない。すでに書いてあればそのまま残す。
  * 確認は挟まない。タップが空振りに見えるのが一番困るので、
- * 何度選び直しても必ず写し、写したことはトーストで知らせる。
+ * 何度選び直しても見出しは必ず写し、写したことはトーストで知らせる。
  * @returns {boolean} 写したかどうか
  */
 export function copyEntryToInput(entry) {
   if (!state.visible || !entry) return false;
 
   const headline = entry.headline || "";
-  const body = entry.body || "";
   if (headlineInput) headlineInput.value = headline;
-  if (bodyInput) bodyInput.value = body;
   showError(errorEl, "");
   runDetection();
   bodyInput?.focus();
