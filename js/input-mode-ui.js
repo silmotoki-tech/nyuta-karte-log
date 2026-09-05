@@ -777,6 +777,19 @@ function masterPicker(targets, initialValue, onPick) {
   return wrap;
 }
 
+function textField(labelText, placeholder, initial, onInput) {
+  const wrap = fieldBlock(labelText);
+  const input = document.createElement("input");
+  input.className = "input";
+  input.type = "text";
+  input.autocomplete = "off";
+  input.placeholder = placeholder || "";
+  input.value = initial || "";
+  input.addEventListener("input", () => onInput(input.value));
+  wrap.appendChild(input);
+  return wrap;
+}
+
 function textareaField(labelText, placeholder, initial, onInput) {
   const wrap = fieldBlock(labelText);
   const ta = document.createElement("textarea");
@@ -935,7 +948,7 @@ function openExamSheet({ mode, item = "", planId = null, note = "" }) {
         body.appendChild(wrap);
       } else {
         body.appendChild(
-          masterPicker(listExamMatchTargets(state.examItems), item, (v) => {
+          textField("検査項目", "例）肝スク（絶食）", item, (v) => {
             draft.item = v;
           })
         );
@@ -963,21 +976,6 @@ function openExamSheet({ mode, item = "", planId = null, note = "" }) {
           draft.dueDate = v;
         })
       );
-      const fastWrap = fieldBlock("絶食");
-      fastWrap.appendChild(
-        buttonGroup(
-          [
-            { id: "", label: "指定なし" },
-            { id: "required", label: "必要" },
-            { id: "none", label: "不要" },
-          ],
-          "",
-          (v) => {
-            draft.fasting = v;
-          }
-        )
-      );
-      planFields.appendChild(fastWrap);
       body.appendChild(planFields);
 
       body.appendChild(

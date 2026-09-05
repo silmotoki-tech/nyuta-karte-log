@@ -740,10 +740,6 @@
     <div class="modal__body">
       <div class="exam-sheet__item-row">
         <p class="exam-sheet__item" id="exam-item-sheet-item"></p>
-        <label class="exam-sheet__fasting-check" id="exam-sheet-fasting-check-wrap" hidden>
-          <input id="exam-sheet-fasting-check" type="checkbox" />
-          絶食
-        </label>
       </div>
 
       <div id="exam-sheet-phase-choose">
@@ -963,95 +959,15 @@
     </div>
     <div class="modal__body">
       <div class="field exam-plan-items-field">
-        <span class="label">検査項目</span>
-        <div
-          class="med-linear-picker"
-          id="exam-plan-linear-picker"
-          data-cols="3"
-          aria-label="検査項目の階層選択"
-        >
-          <div class="med-linear-picker__col" id="exam-plan-col-category" data-col="category">
-            <div class="med-linear-picker__head">大項目</div>
-            <div
-              class="med-linear-picker__list"
-              id="exam-plan-col-category-list"
-              role="listbox"
-              aria-label="大項目"
-            ></div>
-          </div>
-          <div
-            class="med-linear-picker__col is-placeholder"
-            id="exam-plan-col-group"
-            data-col="group"
-          >
-            <div class="med-linear-picker__head">中項目</div>
-            <div
-              class="med-linear-picker__list"
-              id="exam-plan-col-group-list"
-              role="listbox"
-              aria-label="中項目"
-            ></div>
-          </div>
-          <div
-            class="med-linear-picker__col med-linear-picker__col--leaf is-placeholder"
-            id="exam-plan-col-leaf"
-            data-col="leaf"
-          >
-            <div class="med-linear-picker__head">
-              <span class="med-linear-picker__head-label" id="exam-plan-col-leaf-head-label">検査項目</span>
-              <button
-                type="button"
-                class="exam-item-add__toggle"
-                id="btn-exam-plan-add-toggle"
-                hidden
-                aria-expanded="false"
-                aria-controls="exam-plan-item-add-default"
-                aria-label="新しい項目を追加"
-                title="新しい項目を追加"
-              >
-                ＋
-              </button>
-            </div>
-            <div class="med-linear-picker__search" id="exam-plan-search" hidden>
-              <label class="visually-hidden" for="exam-plan-search-input">検査項目を検索</label>
-              <input
-                id="exam-plan-search-input"
-                class="input med-linear-picker__search-input"
-                type="search"
-                placeholder="検査項目名の一部を入力"
-                autocomplete="off"
-                enterkeyhint="search"
-              />
-            </div>
-            <div
-              class="med-linear-picker__list"
-              id="exam-plan-col-leaf-list"
-              role="listbox"
-              aria-label="検査項目"
-            ></div>
-            <p class="field__note med-linear-picker__empty" id="exam-plan-items-empty" hidden>
-              この分類にはまだ項目がありません。＋から追加できます。
-            </p>
-            <div class="exam-item-add" id="exam-plan-item-add-default" hidden>
-              <label class="label label--sub" for="exam-plan-new-item" id="exam-plan-new-item-label">
-                新しい項目を追加
-              </label>
-              <div class="exam-item-add__row">
-                <input
-                  id="exam-plan-new-item"
-                  class="input"
-                  type="text"
-                  placeholder="例）レントゲン"
-                  autocomplete="off"
-                />
-                <button id="btn-exam-plan-add-item" class="btn btn--small btn--outline" type="button">
-                  追加
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <p class="field__note exam-plan-selection-summary" id="exam-plan-selection-summary" hidden></p>
+        <label class="label" for="exam-plan-item">検査項目</label>
+        <input
+          id="exam-plan-item"
+          class="input"
+          type="text"
+          autocomplete="off"
+          placeholder="例）肝スク（絶食）"
+          aria-label="検査項目名"
+        />
         <p id="exam-plan-item-error" class="error-text error-text--banner" role="alert" hidden></p>
       </div>
 
@@ -1079,20 +995,6 @@
         >
           実施記録を追加
         </button>
-      </div>
-
-      <div class="field" id="exam-plan-fasting-field" hidden>
-        <span class="label">絶食</span>
-        <div
-          class="exam-fasting-buttons"
-          id="exam-plan-fasting-buttons"
-          role="group"
-          aria-label="絶食の要不要"
-        >
-          <button type="button" class="exam-fasting-btn" data-fasting="required">必要</button>
-          <button type="button" class="exam-fasting-btn" data-fasting="none">不要</button>
-        </div>
-        <p class="field__note">血液検査の予定では絶食の要不要を選びます。マスタに既定値がある項目は自動選択されます。</p>
       </div>
 
       <p class="field__note exam-plan-last-done" id="exam-plan-last-done" hidden></p>

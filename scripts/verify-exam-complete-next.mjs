@@ -1,5 +1,5 @@
 /**
- * 検査完了 → 次の予定: 絶食の引き継ぎ、保存失敗時に予定が残ること、成功時の更新。
+ * 検査完了 → 次の予定: フリーワード登録、保存失敗時に予定が残ること、成功時の更新。
  */
 import { launchBrowser } from "./launch-browser.js";
 import { applyAuthStub, enterPasscode, readMockDb } from "./auth-stub.js";
@@ -62,29 +62,13 @@ await page.waitForSelector("#center-main:not([hidden])", { timeout: 15000 });
 const authorBtn = page.locator("#author-buttons-vet button").first();
 if (await authorBtn.count()) await authorBtn.click();
 
-async function pickLinear(listSelector, label) {
-  const items = page.locator(`${listSelector} .med-linear-picker__item`);
-  await items.first().waitFor({ timeout: 5000 });
-  const count = await items.count();
-  for (let i = 0; i < count; i += 1) {
-    const text = await items.nth(i).locator(".med-linear-picker__item-label").innerText();
-    if (text.trim() === label) {
-      await items.nth(i).click();
-      return;
-    }
-  }
-  throw new Error(`${listSelector} に「${label}」が見つからない`);
-}
-
 await page.click("#btn-view-status");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 
 await page.click("#btn-status-exam-add");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
-await pickLinear("#exam-plan-col-category-list", "血液");
-await pickLinear("#exam-plan-col-leaf-list", "血液検査");
+await page.fill("#exam-plan-item", "血液検査");
 await page.fill("#exam-plan-due-date", "2026-08-15");
-await page.click('#exam-plan-fasting-buttons [data-fasting="none"]');
 await page.click("#btn-exam-plan-save");
 await page.waitForFunction(
   () => document.getElementById("exam-plan-modal")?.hasAttribute("hidden"),
@@ -139,12 +123,11 @@ if (await page.locator("#btn-exam-sheet-complete").isVisible()) {
   throw new Error("完了フローで完了／終了ボタンが残っている");
 }
 
-const fastingWrapVisible = await page.locator("#exam-sheet-fasting-check-wrap").isVisible();
-if (!fastingWrapVisible) throw new Error("絶食チェックが検査名の近くに出ていない");
-const fastingChecked = await page.isChecked("#exam-sheet-fasting-check");
-console.log("FASTING_AFTER_COMPLETE", { fastingChecked });
-if (fastingChecked !== false) {
-  throw new Error("以前の絶食「不要」がチェックボックスに引き継がれていない");
+if (await page.locator("#exam-sheet-fasting-check-wrap").count()) {
+  throw new Error("絶食チェックが検査シートに残っている");
+}
+if (await page.locator("#exam-plan-fasting-field").count()) {
+  throw new Error("絶食選択欄が登録モーダルに残っている");
 }
 
 await page.click("#btn-exam-sheet-save");
@@ -224,6 +207,6 @@ if (!historyAfterEnd.some((t) => t.includes("血液検査"))) {
   throw new Error("完了時の実施履歴が残っていない");
 }
 
-console.log("OK: complete → next due fasting inherit, failed save keeps plan, success updates due");
+console.log("OK: complete → next due, failed save keeps plan, success updates due");
 await browser.close();
 server.close();

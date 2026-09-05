@@ -1,5 +1,6 @@
 // 右カラム「検査予定」タブのUIと操作ロジック。
-// AI解析には頼らず、手動操作で完結する。
+// 追加時の項目名はフリーワード。階層マスタ選択と絶食の入力は使わない。
+// 検査項目マスタのシード・管理APIは db.js 側に残し、入力画面では使わない。
 
 import {
   subscribeExamPlan,
@@ -153,6 +154,7 @@ const btnCloseHistEdit = document.getElementById("btn-close-exam-history-edit");
 
 const planModal = document.getElementById("exam-plan-modal");
 const planModalTitle = document.getElementById("exam-plan-modal-title");
+const planItemInput = document.getElementById("exam-plan-item");
 const planLinearPicker = document.getElementById("exam-plan-linear-picker");
 const planModeToggle = document.getElementById("exam-plan-mode-toggle");
 const btnPlanModePlan = document.getElementById("btn-exam-mode-plan");
@@ -573,8 +575,8 @@ export function initExamPlanUI(helpers = {}) {
 
   state.unsubscribeItems = subscribeExamItems((items) => {
     state.examItems = items;
-    // 予定登録モーダルが開いているときだけ描画（起動時の不要なDOM更新を避ける）
-    if (planModal && !planModal.hidden) {
+    // 階層ピッカーは入力画面から外したが、照合・シード用の購読は残す
+    if (planLinearPicker && planModal && !planModal.hidden) {
       renderExamLinearPicker();
     }
   });
@@ -1233,7 +1235,7 @@ async function handleSheetSave() {
 
   const item = plan.item || state.draft.item || "";
   const note = sheetMemo ? readSheetMemo() : (state.draft.note || plan.note || "");
-  const fasting = planNeedsFasting(item) ? readSheetFasting() : "";
+  const fasting = plan.fasting || state.draft.fasting || "";
   const phase = state.sheetPhase;
   const doneDate = sheetDoneDate?.value || "";
 
@@ -1246,10 +1248,6 @@ async function handleSheetSave() {
   }
   if (!dueDate) {
     deps.showError(sheetError, "次回予定日を入力してください。");
-    return;
-  }
-  if (planNeedsFasting(item) && !fasting) {
-    deps.showError(sheetError, "絶食の要不要を選んでください。");
     return;
   }
 
@@ -1306,6 +1304,20 @@ async function handleEndPlan(planId) {
 
 // --- 予定編集モーダル -----------------------------------------------------
 
+function readPlanItem() {
+  return (planItemInput?.value || state.draft.item || "").trim();
+}
+
+function syncPlanItemFromInput() {
+  state.draft.item = (planItemInput?.value || "").trim();
+  updateLastDoneHint();
+}
+
+function writePlanItemInput(value) {
+  if (planItemInput) planItemInput.value = value || "";
+  state.draft.item = (value || "").trim();
+}
+
 function wirePlanModal() {
   btnClosePlanModal?.addEventListener("click", closePlanModal);
   btnPlanCancel?.addEventListener("click", closePlanModal);
@@ -1313,6 +1325,7 @@ function wirePlanModal() {
   btnPlanSave?.addEventListener("click", handlePlanSave);
   btnPlanModePlan?.addEventListener("click", () => setRegisterMode("plan"));
   btnPlanModeHistory?.addEventListener("click", () => setRegisterMode("history"));
+  planItemInput?.addEventListener("input", syncPlanItemFromInput);
   btnPlanAddItem?.addEventListener("click", () => handleAddExamItemFromPlanModal());
   btnPlanAddToggle?.addEventListener("click", () => {
     const open = planItemAddDefault && !planItemAddDefault.hidden;
@@ -1865,16 +1878,7 @@ function paintFastingButtons(container, selected) {
 }
 
 function renderPlanFastingButtons() {
-  // 実施記録のみのモードでは、絶食は次回予定の絡みでしか使わないため出さない
-  if (state.draft.registerMode === "history") {
-    if (planFastingField) planFastingField.hidden = true;
-    return;
-  }
-  const hasSelection =
-    state.draft.selectedItems.length > 0 || Boolean((state.draft.item || "").trim());
-  const needs = hasSelection && planNeedsFasting(state.draft.item);
-  if (planFastingField) planFastingField.hidden = !needs;
-  paintFastingButtons(planFastingButtons, state.draft.fasting);
+  if (planFastingField) planFastingField.hidden = true;
 }
 
 /** 登録モーダルの保存ボタンに出す文言。モードで意味が変わるため合わせる。 */
@@ -1930,14 +1934,7 @@ function readSheetFasting() {
 }
 
 function syncSheetFastingUI() {
-  const item = state.draft.item || "";
-  const needs = Boolean(item) && planNeedsFasting(item);
-  const phase = state.sheetPhase;
-  const showEdit = (phase === "complete" || phase === "schedule") && needs;
-  if (itemSheetFastingCheckWrap) itemSheetFastingCheckWrap.hidden = !showEdit;
-  if (itemSheetFastingCheck) {
-    itemSheetFastingCheck.checked = normalizeExamFasting(state.draft.fasting) === "required";
-  }
+  if (itemSheetFastingCheckWrap) itemSheetFastingCheckWrap.hidden = true;
 }
 
 /**
@@ -2108,6 +2105,7 @@ function renderExamSearchResults() {
 }
 
 function renderExamLinearPicker() {
+  if (!planLinearPicker) return;
   const searching = Boolean(state.examItemSearchMode);
   const category = searching ? null : activeExamCategoryId();
   const usesMid = Boolean(category && categorySupportsExamDrilldown(category));
@@ -2427,6 +2425,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
 
   collapseExamItemAddForm();
   deps.showError(planItemError, "");
+  writePlanItemInput(state.draft.item);
   writeDueRangeInputs(state.draft.dueDateFrom || "", state.draft.dueDateTo || "");
   if (planNote) planNote.value = state.draft.note;
   // 完了直後の「次の予定」は予定専用の流れなので、切り替えは出さない
@@ -2452,10 +2451,13 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
     state.examItemCategory = null;
     state.examBloodParentId = null;
   }
-  renderExamLinearPicker();
+  if (planLinearPicker) renderExamLinearPicker();
   updateWindowNote();
   updateLastDoneHint();
   if (planModal) planModal.hidden = false;
+  if (planItemInput && !state.draft.item) {
+    setTimeout(() => planItemInput.focus(), 0);
+  }
 }
 
 function resetPlanDoneFields(mode) {
@@ -2507,11 +2509,11 @@ function closePlanModal() {
 }
 
 async function handlePlanSave() {
-  syncDraftItemFromSelection();
-  const item = (state.draft.item || "").trim();
+  syncPlanItemFromInput();
+  const item = readPlanItem();
 
   if (!item) {
-    deps.showError(planError, "検査項目を選ぶか、新しい項目を追加してください。");
+    deps.showError(planError, "検査項目を入力してください。");
     return;
   }
 
@@ -2524,9 +2526,7 @@ async function handlePlanSave() {
   const { from: dueDateFrom, to: dueDateTo } = readDueRangeForSave();
   const dueDate = dueDateTo || dueDateFrom;
   const note = planNote?.value.trim() || "";
-  const fasting = planNeedsFasting(item)
-    ? normalizeExamFasting(state.draft.fasting)
-    : "";
+  const fasting = normalizeExamFasting(state.draft.fasting);
   const saveDoneHistory =
     Boolean(planDoneCheck?.checked) &&
     planDoneField &&
@@ -2541,10 +2541,6 @@ async function handlePlanSave() {
       planError,
       "次回予定日を入力するか、「実施履歴に登録する」にチェックしてください。"
     );
-    return;
-  }
-  if (savePlan && planNeedsFasting(item) && !fasting) {
-    deps.showError(planError, "絶食の要不要を選んでください。");
     return;
   }
   if (saveDoneHistory && !doneDate) {
