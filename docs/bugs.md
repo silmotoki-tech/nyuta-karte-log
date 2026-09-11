@@ -12,10 +12,6 @@
 - **既往歴のメモが追記型になっている**: 過去のメモが積み重なる形式だが、書き直したい
   場面が多く、この形式は運用に合っていない。1つのテキスト欄として上書き編集できる形に
   変更する予定。既存の複数メモは改行でつないで1つにまとめる方針。
-- **Service Worker のプリキャッシュ漏れ**: `service-worker.js` のプリキャッシュ一覧に
-  `js/chip-detect.js` と `js/bulk-register-ui.js` が入っていない。どちらも `js/app.js`
-  から実際に読み込まれているモジュールのため、オフライン時やキャッシュ更新時に取りこぼす
-  可能性がある。
 - **旧右カラムのDOMを前提にした検証スクリプト**: `verify-med-exam-form-ui` /
   `verify-med-fields-restore` / `verify-med-freq-dose-balance` / `verify-disease-seed-ui` /
   `verify-history-master-ui` の5本が `#panel-meds` `#btn-med-add` などの旧DOMに依存して
@@ -33,6 +29,10 @@
 
 ## 解決済み
 
+- **Service Worker のプリキャッシュ漏れ**（2026-09-11）: `js/app.js` から辿れるモジュールと
+  `APP_SHELL_FILES` を突き合わせ、漏れていた `js/chip-detect.js` と `js/bulk-register-ui.js`
+  を追加した。キャッシュは `v207`。`js/procedures-ui.js` は本番から外れているが、削除判断は
+  別課題（未対応の「本番から外れた処置UI」）に残す。
 - **検査と処置で予定の確認先が2箇所に割れていた**（2026-09-11）: 同じ列の上下に分けていた
   ブロックを「検査・処置」1つにまとめ、予定一覧・実施履歴一覧もそれぞれ1本にした。
   既存の処置データは `procedures/` を残したまま読み取り時にマージする。
