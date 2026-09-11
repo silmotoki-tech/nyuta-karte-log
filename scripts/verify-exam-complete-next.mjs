@@ -144,8 +144,8 @@ if (!plansAfterFailedSave.some((t) => t.includes("血液検査"))) {
   throw new Error("次回予定の保存エラーで元の予定が消えた");
 }
 
-await page.fill("#exam-sheet-due-date", "2026-09-01");
-await page.fill("#exam-sheet-due-date-to", "2026-09-10");
+await page.fill("#exam-sheet-due-date", "2026-09-20");
+await page.fill("#exam-sheet-due-date-to", "2026-09-30");
 await page.click("#btn-exam-sheet-save");
 await page.waitForFunction(
   () => document.getElementById("exam-item-sheet")?.hasAttribute("hidden"),
@@ -176,8 +176,8 @@ if (!historyAfterFirst.some((t) => t.includes("2026/8/10"))) {
 
 await page.fill("#exam-sheet-done-date", "2026-08-20");
 await page.click("#btn-exam-sheet-complete");
-await page.fill("#exam-sheet-due-date", "2026-09-15");
-await page.fill("#exam-sheet-due-date-to", "2026-09-20");
+await page.fill("#exam-sheet-due-date", "2026-10-15");
+await page.fill("#exam-sheet-due-date-to", "2026-10-20");
 await page.click("#btn-exam-sheet-save");
 await page.waitForFunction(
   () => document.getElementById("exam-item-sheet")?.hasAttribute("hidden"),

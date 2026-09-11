@@ -2,7 +2,7 @@
  * 検査・処置の「実施記録を追加」画面（本日実施した内容の記録）に追加した
  * 「継続として記録」／「単発として記録」トグルを検証する。
  * - 継続: これまで通りその項目の実施履歴として蓄積され、状態モードの
- *   検査／処置ブロックに表示される
+ *   検査・処置ブロックに表示される
  * - 単発: 実施履歴には残さず、中央カラムの時系列にその日の出来事として
  *   記録される
  */
@@ -140,15 +140,6 @@ await page.waitForSelector("#center-main:not([hidden])", { timeout: 10000 });
 await page.click("#btn-view-status");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 
-async function clickLinear(listSelector, label) {
-  await page
-    .locator(`${listSelector} .med-linear-picker__item .med-linear-picker__item-label`, {
-      hasText: label,
-    })
-    .first()
-    .click();
-}
-
 async function goHistoryView() {
   await page.click("#btn-view-history");
   await page.waitForFunction(
@@ -186,8 +177,7 @@ const examHistBefore = await page
 
 await page.click("#btn-status-exam-add");
 await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
-await clickLinear("#exam-plan-col-category-list", "血液");
-await clickLinear("#exam-plan-col-leaf-list", "CBC");
+await page.fill("#exam-plan-item", "CBC");
 await page.check("#exam-plan-done-check");
 await page.waitForFunction(
   () => document.getElementById("exam-plan-done-date")?.disabled === false
@@ -245,8 +235,7 @@ await goStatusView();
 // ---------------------------------------------------------------------
 await page.click("#btn-status-exam-add");
 await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
-await clickLinear("#exam-plan-col-category-list", "血液");
-await clickLinear("#exam-plan-col-leaf-list", "CBC");
+await page.fill("#exam-plan-item", "CBC");
 await page.check("#exam-plan-done-check");
 await page.waitForFunction(
   () => document.getElementById("exam-plan-done-date")?.disabled === false
@@ -283,57 +272,57 @@ assert.ok(
 );
 
 // ---------------------------------------------------------------------
-// 3) 処置: 単発として記録 → 実施履歴には残らず、時系列にのみ記録される
+// 3) 検査・処置: 単発として記録（フリーワード項目）
 // ---------------------------------------------------------------------
 const procHistBefore = await page
-  .locator("#status-proc-history-list .status-row")
+  .locator("#status-exam-history-list .status-row")
   .count();
 
 const PROC_SINGLE = "処置単発検証テスト";
-await page.click("#btn-status-proc-add");
-await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
-await page.fill("#procedure-plan-content", PROC_SINGLE);
-await page.check("#procedure-plan-done-check");
+await page.click("#btn-status-exam-add");
+await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
+await page.fill("#exam-plan-item", PROC_SINGLE);
+await page.check("#exam-plan-done-check");
 await page.waitForFunction(
-  () => document.getElementById("procedure-plan-done-date")?.disabled === false
+  () => document.getElementById("exam-plan-done-date")?.disabled === false
 );
-await page.fill("#procedure-plan-done-date", "2026-08-18");
-await page.dispatchEvent("#procedure-plan-done-date", "change");
+await page.fill("#exam-plan-done-date", "2026-08-18");
+await page.dispatchEvent("#exam-plan-done-date", "change");
 
 const procModeDefault = await page.evaluate(() => ({
   continuousActive: document
-    .getElementById("btn-procedure-done-mode-continuous")
+    .getElementById("btn-exam-done-mode-continuous")
     ?.classList.contains("is-active"),
   singleActive: document
-    .getElementById("btn-procedure-done-mode-single")
+    .getElementById("btn-exam-done-mode-single")
     ?.classList.contains("is-active"),
 }));
 console.log("PROC_MODE_DEFAULT", procModeDefault);
-assert.equal(procModeDefault.continuousActive, true, "処置: 既定は「継続として記録」ではない");
-assert.equal(procModeDefault.singleActive, false, "処置: 既定で「単発」が選ばれている");
+assert.equal(procModeDefault.continuousActive, true, "検査・処置: 既定は「継続として記録」ではない");
+assert.equal(procModeDefault.singleActive, false, "検査・処置: 既定で「単発」が選ばれている");
 
-await page.click("#btn-procedure-done-mode-single");
-await page.fill("#procedure-plan-done-note", "単発処置検証メモ");
-await page.click("#btn-procedure-plan-save");
+await page.click("#btn-exam-done-mode-single");
+await page.fill("#exam-plan-done-note", "単発処置検証メモ");
+await page.click("#btn-exam-plan-save");
 await page.waitForFunction(
-  () => document.getElementById("procedure-plan-modal")?.hasAttribute("hidden"),
+  () => document.getElementById("exam-plan-modal")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
 
 const procHistAfterSingle = await page
-  .locator("#status-proc-history-list .status-row")
+  .locator("#status-exam-history-list .status-row")
   .count();
 console.log("PROC_HIST_COUNT after single", procHistAfterSingle, "before", procHistBefore);
 assert.equal(
   procHistAfterSingle,
   procHistBefore,
-  "処置: 単発として記録したのに実施履歴（状態モード）が増えている"
+  "検査・処置: 単発として記録したのに実施履歴（状態モード）が増えている"
 );
-const procStatusText = await page.locator("#status-proc-history-list").innerText();
+const procStatusText = await page.locator("#status-exam-history-list").innerText();
 assert.ok(
   !procStatusText.includes(PROC_SINGLE),
-  "処置: 単発として記録した内容が状態モードの処置ブロックに出てしまっている"
+  "検査・処置: 単発として記録した内容が状態モードの実施履歴に出てしまっている"
 );
 
 await goHistoryView();
@@ -341,39 +330,38 @@ const headlinesAfterProcSingle = await timelineHeadlines();
 console.log("TIMELINE after proc single", headlinesAfterProcSingle);
 assert.ok(
   headlinesAfterProcSingle.some((t) => t.includes(`${PROC_SINGLE}実施`)),
-  "処置: 単発として記録した内容が中央カラムの時系列に出ていない"
+  "検査・処置: 単発として記録した内容が中央カラムの時系列に出ていない"
 );
 const procSingleBody = await timelineBodyFor(`${PROC_SINGLE}実施`);
 assert.ok(
   (procSingleBody || "").includes("単発処置検証メモ"),
-  "処置: 時系列エントリに実施メモが反映されていない"
+  "検査・処置: 時系列エントリに実施メモが反映されていない"
 );
 await goStatusView();
 
 // ---------------------------------------------------------------------
-// 4) 処置: 継続として記録（既定） → これまで通り実施履歴に蓄積される
+// 4) 検査・処置: 継続として記録（フリーワード項目）
 // ---------------------------------------------------------------------
 const PROC_CONTINUOUS = "処置継続検証テスト";
-await page.click("#btn-status-proc-add");
-await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
-await page.fill("#procedure-plan-content", PROC_CONTINUOUS);
-await page.check("#procedure-plan-done-check");
+await page.click("#btn-status-exam-add");
+await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
+await page.fill("#exam-plan-item", PROC_CONTINUOUS);
+await page.check("#exam-plan-done-check");
 await page.waitForFunction(
-  () => document.getElementById("procedure-plan-done-date")?.disabled === false
+  () => document.getElementById("exam-plan-done-date")?.disabled === false
 );
-await page.fill("#procedure-plan-done-date", "2026-08-19");
-await page.dispatchEvent("#procedure-plan-done-date", "change");
-// 「継続として記録」は既定のままクリックしない
-await page.fill("#procedure-plan-done-note", "継続処置検証メモ");
-await page.click("#btn-procedure-plan-save");
+await page.fill("#exam-plan-done-date", "2026-08-19");
+await page.dispatchEvent("#exam-plan-done-date", "change");
+await page.fill("#exam-plan-done-note", "継続処置検証メモ");
+await page.click("#btn-exam-plan-save");
 await page.waitForFunction(
-  () => document.getElementById("procedure-plan-modal")?.hasAttribute("hidden"),
+  () => document.getElementById("exam-plan-modal")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
 
 const procHistAfterContinuous = await page
-  .locator("#status-proc-history-list .status-row")
+  .locator("#status-exam-history-list .status-row")
   .count();
 console.log(
   "PROC_HIST_COUNT after continuous",
@@ -384,12 +372,12 @@ console.log(
 assert.equal(
   procHistAfterContinuous,
   procHistBefore + 1,
-  "処置: 継続として記録したのに実施履歴（状態モード）が増えていない"
+  "検査・処置: 継続として記録したのに実施履歴（状態モード）が増えていない"
 );
-const procStatusTextAfter = await page.locator("#status-proc-history-list").innerText();
+const procStatusTextAfter = await page.locator("#status-exam-history-list").innerText();
 assert.ok(
   procStatusTextAfter.includes(PROC_CONTINUOUS),
-  "処置: 継続として記録した内容が状態モードの処置ブロックに出ていない"
+  "検査・処置: 継続として記録した内容が状態モードに出ていない"
 );
 
 const outDir = path.join(root, "tools");

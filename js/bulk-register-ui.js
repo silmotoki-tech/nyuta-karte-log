@@ -109,7 +109,7 @@ function renderChips() {
     const kindEl = document.createElement("span");
     kindEl.className = "input-chip__kind";
     kindEl.textContent =
-      chip.kind === "med" ? "薬" : chip.kind === "history" ? "既往" : "検査";
+      chip.kind === "med" ? "薬" : chip.kind === "history" ? "既往" : "検査・処置";
 
     const nameEl = document.createElement("span");
     nameEl.className = "input-chip__name";

@@ -59,11 +59,6 @@ import {
 } from "./history-ui.js";
 import { clearRightTabAlerts } from "./right-tab-alerts.js";
 import {
-  initProceduresUI,
-  enterProcedures,
-  leaveProcedures,
-} from "./procedures-ui.js";
-import {
   initSpecialNotesUI,
   enterSpecialNotes,
   leaveSpecialNotes,
@@ -1322,7 +1317,6 @@ function enterMain() {
   enterExamPlan(state.karteNumber);
   enterMeds(state.karteNumber);
   enterHistory(state.karteNumber);
-  enterProcedures(state.karteNumber);
   enterSpecialNotes(state.karteNumber);
   enterMigrationProgress(state.karteNumber);
   enterBulkRegister(state.karteNumber);
@@ -1343,7 +1337,6 @@ function leaveMain() {
   leaveExamPlan();
   leaveMeds();
   leaveHistory();
-  leaveProcedures();
   leaveSpecialNotes();
   leaveMigrationProgress();
   leaveBulkRegister();
@@ -1700,13 +1693,6 @@ initHistoryUI({
 initMasterDeleteUI({
   showError,
   setBusy,
-});
-
-initProceduresUI({
-  showToast,
-  showError,
-  setBusy,
-  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
 });
 
 initSpecialNotesUI({

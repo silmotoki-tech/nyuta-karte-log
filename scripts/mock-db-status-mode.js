@@ -481,8 +481,48 @@ export async function fetchExamItemsOnce() {
 }
 
 export const EXAM_PLAN_SCHEMA_VERSION = 2;
+export const PROC_PLAN_ID_PREFIX = "proc-plan:";
+export const PROC_HIST_ID_PREFIX = "proc-hist:";
+export const PROC_LEGACY_ID_PREFIX = "proc-legacy:";
+
+function mergedExamPlan() {
+  const plans = { ...(SEED.examPlan.plans || {}) };
+  const history = { ...(SEED.examPlan.history || {}) };
+  for (const p of SEED.procedures?.plans || []) {
+    if (!p?.id) continue;
+    plans[`${PROC_PLAN_ID_PREFIX}${p.id}`] = {
+      item: p.content || "",
+      dueDate: p.dueDate || "",
+      dueDateFrom: p.dueDateFrom || p.dueDate || "",
+      dueDateTo: p.dueDateTo || p.dueDate || "",
+      baselineDate: p.baselineDate || "",
+      note: p.note || "",
+      fasting: "",
+    };
+  }
+  for (const h of SEED.procedures?.history || []) {
+    if (!h?.id) continue;
+    const prefix =
+      h.store === "legacy" ? PROC_LEGACY_ID_PREFIX : PROC_HIST_ID_PREFIX;
+    history[`${prefix}${h.id}`] = {
+      item: h.content || "",
+      date: h.date || "",
+      note: h.note || "",
+    };
+  }
+  return { ...SEED.examPlan, plans, history };
+}
+
+function notifyExamPlanMerged() {
+  notifyFeed("examPlan", mergedExamPlan);
+}
+
+export function mergeExamPlanWithProcedures(examPlan, procedureBundle) {
+  return mergedExamPlan();
+}
+
 export function subscribeExamPlan(karte, cb) {
-  return feed("examPlan", () => SEED.examPlan)(cb);
+  return feed("examPlan", mergedExamPlan)(cb);
 }
 export async function saveExamScheduledPlan(
   karte,
@@ -507,20 +547,48 @@ export async function saveExamScheduledPlan(
     note: note || "",
     fasting: fasting || "",
   };
+  if (planId && String(planId).startsWith(PROC_PLAN_ID_PREFIX)) {
+    const raw = planId.slice(PROC_PLAN_ID_PREFIX.length);
+    const proc = (SEED.procedures.plans || []).find((p) => p.id === raw);
+    if (proc) {
+      Object.assign(proc, {
+        content: item || proc.content,
+        dueDate: date,
+        dueDateFrom: from || date,
+        dueDateTo: to || date,
+        baselineDate: baselineDate || proc.baselineDate || date,
+        note: note || "",
+      });
+      notifyFeed("procedureBundle", () => SEED.procedures);
+      notifyExamPlanMerged();
+      return planId;
+    }
+  }
   if (planId && SEED.examPlan.plans[planId]) {
     SEED.examPlan.plans[planId] = {
       ...SEED.examPlan.plans[planId],
       ...row,
     };
-    notifyFeed("examPlan", () => SEED.examPlan);
+    notifyExamPlanMerged();
     return planId;
   }
   const id = nid("p");
   SEED.examPlan.plans[id] = row;
-  notifyFeed("examPlan", () => SEED.examPlan);
+  notifyExamPlanMerged();
   return id;
 }
-export async function deleteExamScheduledPlan() {}
+export async function deleteExamScheduledPlan(karte, planId) {
+  if (!planId) return;
+  if (String(planId).startsWith(PROC_PLAN_ID_PREFIX)) {
+    const raw = planId.slice(PROC_PLAN_ID_PREFIX.length);
+    SEED.procedures.plans = (SEED.procedures.plans || []).filter((p) => p.id !== raw);
+    notifyFeed("procedureBundle", () => SEED.procedures);
+    notifyExamPlanMerged();
+    return;
+  }
+  delete SEED.examPlan.plans[planId];
+  notifyExamPlanMerged();
+}
 export async function endExamScheduledPlan() {}
 export async function reviveExamPlanByItem() {
   return nid("ep");
@@ -534,7 +602,7 @@ export async function addExamHistory(karte, { item, date, note } = {}) {
     date: date || "2026-08-15",
     note: note || "",
   };
-  notifyFeed("examPlan", () => SEED.examPlan);
+  notifyExamPlanMerged();
   return id;
 }
 export async function deleteExamHistory() {}
@@ -748,6 +816,7 @@ export async function addProcedure(karte, { date, content, note, source } = {}) 
     source: source || "manual",
   });
   notifyFeed("procedureBundle", () => SEED.procedures);
+  notifyExamPlanMerged();
   return id;
 }
 export async function updateProcedure() {}
@@ -848,6 +917,7 @@ export async function saveProcedurePlan(
     if (row) {
       Object.assign(row, payload);
       notifyFeed("procedureBundle", () => SEED.procedures);
+      notifyExamPlanMerged();
       return planId;
     }
   }
@@ -858,6 +928,7 @@ export async function saveProcedurePlan(
     source: "manual",
   });
   notifyFeed("procedureBundle", () => SEED.procedures);
+  notifyExamPlanMerged();
   return id;
 }
 export async function deleteProcedurePlan() {}

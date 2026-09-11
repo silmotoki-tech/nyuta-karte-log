@@ -202,8 +202,7 @@ const counts = await page.evaluate(() => ({
   examPlans: document.querySelectorAll("#status-exam-plan-list .status-row").length,
   examHistory: document.querySelectorAll("#status-exam-history-list .status-row").length,
   histories: document.querySelectorAll("#status-history-list .status-row").length,
-  procPlans: document.querySelectorAll("#status-proc-plan-list .status-row").length,
-  procHistory: document.querySelectorAll("#status-proc-history-list .status-row").length,
+  procBlock: Boolean(document.getElementById("status-block-proc")),
   notes: document.querySelectorAll("#status-notes-list .status-row").length,
   notesHigh: document.querySelectorAll(
     "#status-notes-list .note-card__importance--high"
@@ -214,15 +213,16 @@ const counts = await page.evaluate(() => ({
   dueClasses: [...document.querySelectorAll("#status-exam-plan-list .status-row__due")].map(
     (el) => el.className
   ),
+  examTitle: document.querySelector("#status-block-exam .status-block__title")?.textContent || "",
 }));
 console.log(counts);
 
 assert.equal(counts.meds, 6, "薬剤が全件（6件）出ていない");
-assert.equal(counts.examPlans, 3, "検査予定が3件出ていない");
-assert.equal(counts.examHistory, 1, "検査実施履歴（予定なし）が1件出ていない");
+assert.equal(counts.examPlans, 5, "検査・処置の予定が5件（検査3+処置2）出ていない");
+assert.equal(counts.examHistory, 2, "検査・処置の実施履歴（予定なし）が2件出ていない");
 assert.equal(counts.histories, 4, "既往歴が4件出ていない");
-assert.equal(counts.procPlans, 2, "処置予定が2件出ていない");
-assert.equal(counts.procHistory, 1, "処置実施履歴（予定なし）が1件出ていない");
+assert.equal(counts.procBlock, false, "処置専用ブロックが残っている");
+assert.equal(counts.examTitle, "検査・処置", "状態モードの見出しが「検査・処置」になっていない");
 assert.equal(counts.notes, 5, "重要度に関わらず特記が全件（5件）出ていない");
 assert.equal(counts.notesHigh, 2, "重要度「高」の特記が特記ブロックに含まれていない");
 
@@ -250,9 +250,7 @@ assert.ok(
 const overlap = await page.evaluate(() => {
   const planText = document.getElementById("status-exam-plan-list")?.innerText || "";
   const examHist = document.getElementById("status-exam-history-list")?.innerText || "";
-  const procPlan = document.getElementById("status-proc-plan-list")?.innerText || "";
-  const procHist = document.getElementById("status-proc-history-list")?.innerText || "";
-  return { planText, examHist, procPlan, procHist };
+  return { planText, examHist };
 });
 assert.ok(overlap.planText.includes("血液検査（腎パネル）"), "予定側に腎パネルが出ていない");
 assert.ok(
@@ -261,20 +259,18 @@ assert.ok(
 );
 assert.ok(!overlap.examHist.includes("腹部エコー"), "予定がある腹部エコーが実施履歴にも出ている");
 assert.ok(overlap.examHist.includes("尿検査（単発）"), "予定のない検査実施が履歴から消えている");
-assert.ok(overlap.procPlan.includes("皮下点滴"), "予定側に皮下点滴が出ていない");
-assert.ok(!overlap.procHist.includes("皮下点滴"), "予定がある処置が実施履歴にも出ている");
-assert.ok(!overlap.procHist.includes("爪切り"), "予定がある爪切りが実施履歴にも出ている");
-assert.ok(overlap.procHist.includes("耳掃除（単発）"), "予定のない処置実施が履歴から消えている");
+assert.ok(overlap.planText.includes("皮下点滴"), "予定側に皮下点滴が出ていない");
+assert.ok(!overlap.examHist.includes("皮下点滴"), "予定がある処置が実施履歴にも出ている");
+assert.ok(!overlap.examHist.includes("爪切り"), "予定がある爪切りが実施履歴にも出ている");
+assert.ok(overlap.examHist.includes("耳掃除（単発）"), "予定のない処置実施が履歴から消えている");
 
-// --- 4列固定レイアウト: 既往歴 → 検査＋処置 → 薬剤 → 特記 -------------------
+// --- 4列固定レイアウト: 既往歴 → 検査・処置 → 薬剤 → 特記 -------------------
 const layout = await page.evaluate(() => {
   const rectOf = (id) => document.getElementById(id)?.getBoundingClientRect();
   return {
     cols: ["status-col-history", "status-col-exam-proc", "status-col-meds", "status-col-notes"].map(
       (id) => rectOf(id)?.x
     ),
-    examTop: rectOf("status-block-exam")?.y,
-    procTop: rectOf("status-block-proc")?.y,
   };
 });
 console.log("LAYOUT", layout);
@@ -283,25 +279,12 @@ assert.ok(
   xHistory < xExamProc && xExamProc < xMeds && xMeds < xNotes,
   `4列の左右順が指示通りでない: ${JSON.stringify(layout.cols)}`
 );
-assert.ok(
-  layout.examTop < layout.procTop,
-  "同じ列内で検査が処置より上に来ていない"
-);
 
 const ADD_HISTORY = "状態モード検証紹介先";
 const ADD_EXAM = "CBC";
 const ADD_MED = "状態モード検証薬";
 const ADD_PROC = "状態モード検証処置";
 const ADD_NOTE = "状態モード検証特記";
-
-async function clickLinear(listSelector, label) {
-  await page
-    .locator(`${listSelector} .med-linear-picker__item .med-linear-picker__item-label`, {
-      hasText: label,
-    })
-    .first()
-    .click();
-}
 
 async function goHistoryView() {
   await page.click("#btn-view-history");
@@ -327,7 +310,6 @@ const addBtnIds = [
   "btn-status-history-add",
   "btn-status-exam-add",
   "btn-status-meds-add",
-  "btn-status-proc-add",
   "btn-status-notes-add",
 ];
 for (const id of addBtnIds) {
@@ -349,16 +331,14 @@ await page.waitForFunction(
 );
 await assertContains("#status-history-list", ADD_HISTORY, "既往歴・状態モード");
 
-// 検査（予定として登録。モード切替も利用可能）
+// 検査・処置（予定として登録）
 await page.click("#btn-status-exam-add");
 await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
 assert.ok(
   await page.locator("#exam-plan-mode-toggle").isVisible(),
-  "検査追加モーダルに登録方法トグルが出ていない"
+  "追加モーダルに登録方法トグルが出ていない"
 );
-await clickLinear("#exam-plan-col-category-list", "血液");
-await clickLinear("#exam-plan-col-leaf-list", ADD_EXAM);
-await page.locator('#exam-plan-fasting-buttons [data-fasting="none"]').click();
+await page.fill("#exam-plan-item", ADD_EXAM);
 await page.fill("#exam-plan-due-date", "2026-09-01");
 await page.click("#btn-exam-plan-save");
 await page.waitForFunction(
@@ -366,7 +346,7 @@ await page.waitForFunction(
   null,
   { timeout: 5000 }
 );
-await assertContains("#status-exam-plan-list", ADD_EXAM, "検査予定・状態モード");
+await assertContains("#status-exam-plan-list", ADD_EXAM, "検査・処置予定・状態モード");
 
 // 薬剤
 await page.click("#btn-status-meds-add");
@@ -380,54 +360,46 @@ await page.waitForFunction(
 );
 await assertContains("#status-meds-list", ADD_MED, "薬剤・状態モード");
 
-// 処置
-await page.click("#btn-status-proc-add");
-await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
-await page.fill("#procedure-plan-content", ADD_PROC);
-await page.fill("#procedure-plan-due-date", "2026-09-15");
-await page.click("#btn-procedure-plan-save");
+// 検査・処置（予定として登録）
+await page.click("#btn-status-exam-add");
+await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
+await page.fill("#exam-plan-item", ADD_PROC);
+await page.fill("#exam-plan-due-date", "2026-09-15");
+await page.click("#btn-exam-plan-save");
 await page.waitForFunction(
-  () => document.getElementById("procedure-plan-modal")?.hasAttribute("hidden"),
+  () => document.getElementById("exam-plan-modal")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
-await assertContains("#status-proc-plan-list", ADD_PROC, "処置予定・状態モード");
+await assertContains("#status-exam-plan-list", ADD_PROC, "検査・処置予定・状態モード");
 
-// 処置:「実施を記録」への切替（予定を経由せず実施履歴にだけ追加する）
+// 検査・処置:「実施を記録」への切替（予定を経由せず実施履歴にだけ追加する）
 const ADD_PROC_HIST = "状態モード検証処置（実施のみ）";
-await page.click("#btn-status-proc-add");
-await page.waitForSelector("#procedure-plan-modal:not([hidden])", { timeout: 5000 });
+await page.click("#btn-status-exam-add");
+await page.waitForSelector("#exam-plan-modal:not([hidden])", { timeout: 5000 });
 assert.ok(
-  await page.locator("#procedure-plan-mode-toggle").isVisible(),
-  "処置追加モーダルに登録方法トグルが出ていない"
+  await page.locator("#exam-plan-mode-toggle").isVisible(),
+  "追加モーダルに登録方法トグルが出ていない"
 );
-await page.click("#btn-procedure-mode-history");
-assert.equal(
-  await page.evaluate(() => document.getElementById("procedure-plan-due-field")?.hidden),
-  true,
-  "実施を記録モードで予定日欄が隠れていない"
-);
-assert.ok(
-  await page.locator("#procedure-plan-history-date-field").isVisible(),
-  "実施を記録モードで実施日欄が出ていない"
-);
-await page.fill("#procedure-plan-content", ADD_PROC_HIST);
-await page.fill("#procedure-plan-history-date", "2026-08-20");
-await page.click("#btn-procedure-plan-save");
+await page.click("#btn-exam-mode-history");
+await page.fill("#exam-plan-item", ADD_PROC_HIST);
+await page.fill("#exam-plan-done-date", "2026-08-20");
+await page.click("#btn-exam-plan-save");
+await page.click("#btn-exam-plan-cancel");
 await page.waitForFunction(
-  () => document.getElementById("procedure-plan-modal")?.hasAttribute("hidden"),
+  () => document.getElementById("exam-plan-modal")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
 await assertContains(
-  "#status-proc-history-list",
+  "#status-exam-history-list",
   ADD_PROC_HIST,
-  "処置実施履歴・状態モード（実施を記録トグル）"
+  "検査・処置実施履歴・状態モード（実施を記録トグル）"
 );
-const procPlansAfterHistOnly = await page
-  .locator("#status-proc-plan-list .status-row")
+const examPlansAfterHistOnly = await page
+  .locator("#status-exam-plan-list .status-row")
   .count();
-assert.equal(procPlansAfterHistOnly, 3, "「実施を記録」モードなのに処置予定が増えている");
+assert.equal(examPlansAfterHistOnly, 7, "「実施を記録」モードなのに予定が増えている");
 
 // 特記
 await page.click("#btn-status-notes-add");
@@ -446,14 +418,12 @@ const countsAfterAdd = await page.evaluate(() => ({
   meds: document.querySelectorAll("#status-meds-list .status-row").length,
   examPlans: document.querySelectorAll("#status-exam-plan-list .status-row").length,
   histories: document.querySelectorAll("#status-history-list .status-row").length,
-  procPlans: document.querySelectorAll("#status-proc-plan-list .status-row").length,
   notes: document.querySelectorAll("#status-notes-list .status-row").length,
 }));
 console.log("COUNTS_AFTER_ADD", countsAfterAdd);
 assert.equal(countsAfterAdd.histories, 5, "既往歴が1件増えていない");
-assert.equal(countsAfterAdd.examPlans, 4, "検査予定が1件増えていない");
+assert.equal(countsAfterAdd.examPlans, 7, "検査・処置予定が2件増えていない");
 assert.equal(countsAfterAdd.meds, 7, "薬剤が1件増えていない");
-assert.equal(countsAfterAdd.procPlans, 3, "処置予定が1件増えていない");
 assert.equal(countsAfterAdd.notes, 6, "特記が1件増えていない");
 
 // --- 右カラム: 5タブ・5パネルが削除され、検索専用スペースになっていること ---
@@ -518,29 +488,17 @@ await expectOpens(
   "#btn-close-status-detail",
   "04-history"
 );
-await expectOpens(
-  "#status-proc-plan-list .status-row",
-  "#procedure-item-sheet",
-  "#btn-close-procedure-item-sheet",
-  "05-proc-plan"
-);
-await page.locator("#status-proc-plan-list .status-row", { hasText: "皮下点滴" }).click();
-await page.waitForSelector("#procedure-item-sheet:not([hidden])", { timeout: 5000 });
-const dueHidden = await page.locator("#procedure-sheet-due-field").isHidden();
+await page.locator("#status-exam-plan-list .status-row", { hasText: "皮下点滴" }).click();
+await page.waitForSelector("#exam-item-sheet:not([hidden])", { timeout: 5000 });
+const dueHidden = await page.locator("#exam-sheet-due-field").isHidden();
 assert.ok(dueHidden, "予定タップ直後に次回予定カレンダーが見えている");
-const chooseVisible = await page.locator("#btn-procedure-sheet-complete").isVisible();
+const chooseVisible = await page.locator("#btn-exam-sheet-complete").isVisible();
 assert.ok(chooseVisible, "予定タップ直後に完了ボタンが出ていない");
-await page.click("#btn-close-procedure-item-sheet");
+await page.click("#btn-close-exam-item-sheet");
 await page.waitForFunction(
   (sel) => document.querySelector(sel)?.hasAttribute("hidden"),
-  "#procedure-item-sheet",
+  "#exam-item-sheet",
   { timeout: 5000 }
-);
-await expectOpens(
-  "#status-proc-history-list .status-row",
-  "#procedure-modal",
-  "#btn-close-procedure-modal",
-  "06-proc-history"
 );
 // 特記は重要度に関わらず1つのブロックに入る（DB側で高→中→低の順にソート
 // されているため、先頭は重要度「高」のはず）。そのタップで編集ポップアップが
@@ -669,16 +627,10 @@ await assertSwipeOpaque("#status-history-list .status-row", "swipe-01-history", 
 await assertSwipeOpaque(
   "#status-exam-history-list .status-row",
   "swipe-02-exam-history",
-  "検査実施履歴",
+  "検査・処置の実施履歴",
   "edit"
 );
 await assertSwipeOpaque("#status-meds-list .status-row", "swipe-03-meds", "薬剤", "delete");
-await assertSwipeOpaque(
-  "#status-proc-history-list .status-row",
-  "swipe-04-proc-history",
-  "処置実施履歴",
-  "delete"
-);
 await assertSwipeOpaque("#status-notes-list .status-row", "swipe-05-notes", "特記", "delete");
 
 // --- 状態 ⇄ 履歴 の切り替え ---------------------------------------------

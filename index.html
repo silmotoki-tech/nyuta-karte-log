@@ -387,7 +387,7 @@
               placeholder="例）エコー / 肝臓 / アモキシ"
             />
             <p class="field__note" id="chart-search-hint">
-              見出し・本文、検査の予定・実施履歴、薬剤の出来事を横断検索します。
+              見出し・本文、検査・処置の予定・実施履歴、薬剤の出来事を横断検索します。
             </p>
             <p class="field__note" id="chart-search-empty" hidden>一致する記録はありません。</p>
             <ul class="chart-search-results" id="chart-search-results"></ul>
@@ -472,46 +472,24 @@
         <div class="status-col" id="status-col-exam-proc">
           <section class="status-block" id="status-block-exam">
             <div class="status-block__head">
-              <h2 class="status-block__title">検査</h2>
+              <h2 class="status-block__title">検査・処置</h2>
               <button
                 type="button"
                 class="status-block__add"
                 id="btn-status-exam-add"
-                aria-label="検査予定を追加"
+                aria-label="検査・処置を追加"
               >＋</button>
             </div>
             <h3 class="status-block__subtitle">
               予定<span class="status-block__count" id="status-exam-plan-count"></span>
             </h3>
-            <p class="field__note status-block__empty" id="status-exam-plan-empty">検査予定はありません。</p>
+            <p class="field__note status-block__empty" id="status-exam-plan-empty">予定はありません。</p>
             <ul class="status-list" id="status-exam-plan-list"></ul>
             <h3 class="status-block__subtitle">
               実施履歴<span class="status-block__count" id="status-exam-history-count"></span>
             </h3>
             <p class="field__note status-block__empty" id="status-exam-history-empty">実施履歴はありません。</p>
             <ul class="status-list" id="status-exam-history-list"></ul>
-          </section>
-
-          <section class="status-block" id="status-block-proc">
-            <div class="status-block__head">
-              <h2 class="status-block__title">処置</h2>
-              <button
-                type="button"
-                class="status-block__add"
-                id="btn-status-proc-add"
-                aria-label="処置予定を追加"
-              >＋</button>
-            </div>
-            <h3 class="status-block__subtitle">
-              予定<span class="status-block__count" id="status-proc-plan-count"></span>
-            </h3>
-            <p class="field__note status-block__empty" id="status-proc-plan-empty">処置予定はありません。</p>
-            <ul class="status-list" id="status-proc-plan-list"></ul>
-            <h3 class="status-block__subtitle">
-              実施履歴<span class="status-block__count" id="status-proc-history-count"></span>
-            </h3>
-            <p class="field__note status-block__empty" id="status-proc-history-empty">実施履歴はありません。</p>
-            <ul class="status-list" id="status-proc-history-list"></ul>
           </section>
         </div>
 
@@ -666,10 +644,7 @@
                   ＋ 薬
                 </button>
                 <button id="btn-input-add-exam" class="btn btn--small btn--outline" type="button">
-                  ＋ 検査
-                </button>
-                <button id="btn-input-add-proc" class="btn btn--small btn--outline" type="button">
-                  ＋ 処置
+                  ＋ 検査・処置
                 </button>
               </div>
               <p class="field__note" id="input-today-note"></p>
@@ -734,7 +709,7 @@
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="exam-item-sheet-title">
     <div class="modal__header">
-      <h2 class="modal__title" id="exam-item-sheet-title">検査予定</h2>
+      <h2 class="modal__title" id="exam-item-sheet-title">検査・処置</h2>
       <button class="modal__close" id="btn-close-exam-item-sheet" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">
@@ -954,19 +929,19 @@
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel modal__panel--exam-plan" role="dialog" aria-modal="true" aria-labelledby="exam-plan-modal-title">
     <div class="modal__header">
-      <h2 class="modal__title" id="exam-plan-modal-title">検査を登録</h2>
+      <h2 class="modal__title" id="exam-plan-modal-title">検査・処置を登録</h2>
       <button class="modal__close" id="btn-close-exam-plan" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">
       <div class="field exam-plan-items-field">
-        <label class="label" for="exam-plan-item">検査項目</label>
+        <label class="label" for="exam-plan-item">項目名</label>
         <input
           id="exam-plan-item"
           class="input"
           type="text"
           autocomplete="off"
-          placeholder="例）肝スク（絶食）"
-          aria-label="検査項目名"
+          placeholder="例）肝スク（絶食）／皮下点滴"
+          aria-label="検査・処置の項目名"
         />
         <p id="exam-plan-item-error" class="error-text error-text--banner" role="alert" hidden></p>
       </div>
@@ -1116,7 +1091,7 @@
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel modal__panel--sm" role="dialog" aria-modal="true" aria-labelledby="exam-complete-title">
     <div class="modal__header">
-      <h2 class="modal__title" id="exam-complete-title">検査を完了として記録</h2>
+      <h2 class="modal__title" id="exam-complete-title">完了として記録</h2>
       <button class="modal__close" id="btn-close-exam-complete" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">

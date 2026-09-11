@@ -815,7 +815,7 @@ function openExamItemSheet(entry, { phase = "choose" } = {}) {
     state.draft.selectedItems = [toSelectedExamRef(matched)];
   }
 
-  if (itemSheetTitle) itemSheetTitle.textContent = "検査予定";
+  if (itemSheetTitle) itemSheetTitle.textContent = "検査・処置";
   if (itemSheetItem) itemSheetItem.textContent = state.draft.item || "（項目未設定）";
   if (sheetMemo) sheetMemo.value = state.draft.note || "";
   if (sheetDoneDate) sheetDoneDate.value = todayStr();
@@ -982,12 +982,12 @@ async function handleReviveFromHistory(itemName, note = "") {
   const label = itemName || "予定";
   const existing = findActivePlanByItemName(itemName);
   if (existing) {
-    deps.showToast("すでに検査予定一覧にあります。次回予定を入力してください。");
+    deps.showToast("すでに予定一覧にあります。次回予定を入力してください。");
     openPlanSheetById(existing.id, { phase: "schedule" });
     return;
   }
   const ok = window.confirm(
-    `「${label}」を検査予定一覧に戻しますか？\n次回予定日は未設定のまま戻ります（実施履歴はそのまま残ります）。`
+    `「${label}」を予定一覧に戻しますか？\n次回予定日は未設定のまま戻ります（実施履歴はそのまま残ります）。`
   );
   if (!ok) return;
   try {
@@ -1288,7 +1288,7 @@ async function handleEndPlan(planId) {
   const plan = state.plan?.plans?.[planId];
   const label = plan?.item || "予定";
   const ok = window.confirm(
-    `「${label}」の予定を終了しますか？\n検査予定一覧からは消えます。実施履歴は残り、そこから「予定に戻す」ができます。`
+    `「${label}」の予定を終了しますか？\n予定一覧からは消えます。実施履歴は残り、そこから「予定に戻す」ができます。`
   );
   if (!ok) return;
   try {
@@ -2411,7 +2411,7 @@ function openPlanModal(mode, { planId = null, preset = null } = {}) {
       applyDefaultFastingFromSelection();
     }
   } else {
-    if (planModalTitle) planModalTitle.textContent = "検査を登録";
+    if (planModalTitle) planModalTitle.textContent = "検査・処置を登録";
     state.draft.item = "";
     state.draft.customItem = "";
     state.draft.dueDate = "";
@@ -2482,7 +2482,7 @@ function setDoneRecordMode(mode) {
     planDoneRecordModeNote.textContent =
       normalized === "single"
         ? "実施履歴には残さず、中央カラムの時系列にこの日の出来事として記録します。"
-        : "この項目の実施履歴として蓄積され、状態モードの検査ブロックに表示されます。";
+        : "この項目の実施履歴として蓄積され、状態モードの検査・処置ブロックに表示されます。";
   }
 }
 
@@ -2513,7 +2513,7 @@ async function handlePlanSave() {
   const item = readPlanItem();
 
   if (!item) {
-    deps.showError(planError, "検査項目を入力してください。");
+    deps.showError(planError, "項目名を入力してください。");
     return;
   }
 
@@ -2828,7 +2828,7 @@ export function getExamSearchItems() {
     out.push({
       id,
       kind: "plan",
-      kindLabel: "検査予定",
+      kindLabel: "検査・処置（予定）",
       item: p.item || "",
       note: p.note || "",
       date: p.dueDate || p.baselineDate || "",
@@ -2839,7 +2839,7 @@ export function getExamSearchItems() {
     out.push({
       id,
       kind: "history",
-      kindLabel: "検査実施",
+      kindLabel: "検査・処置（実施）",
       item: h.item || "",
       note: h.note || "",
       date: h.date || "",

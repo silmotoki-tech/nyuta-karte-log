@@ -12,8 +12,6 @@ import {
   saveExamScheduledPlan,
   addExamHistory,
   deleteExamScheduledPlan,
-  saveProcedurePlan,
-  addProcedure,
   subscribeMedications,
   subscribeExamPlan,
   subscribeMedicationItems,
@@ -128,7 +126,6 @@ const todayCount = document.getElementById("input-today-count");
 const todayNote = document.getElementById("input-today-note");
 const btnAddMed = document.getElementById("btn-input-add-med");
 const btnAddExam = document.getElementById("btn-input-add-exam");
-const btnAddProc = document.getElementById("btn-input-add-proc");
 
 const btnSave = document.getElementById("btn-input-save");
 const btnSaveNext = document.getElementById("btn-input-save-next");
@@ -201,7 +198,6 @@ export function initInputModeUI(helpers = {}) {
 
   btnAddMed?.addEventListener("click", () => openMedSheet({ mode: "new" }));
   btnAddExam?.addEventListener("click", () => openExamSheet({ mode: "plan" }));
-  btnAddProc?.addEventListener("click", () => openProcSheet());
 
   btnSave?.addEventListener("click", () => handleSave({ next: false }));
   btnSaveNext?.addEventListener("click", () => handleSave({ next: true }));
@@ -610,7 +606,7 @@ function renderChips() {
     const kindEl = document.createElement("span");
     kindEl.className = "input-chip__kind";
     kindEl.textContent =
-      chip.kind === "med" ? "薬" : chip.kind === "history" ? "既往" : "検査";
+      chip.kind === "med" ? "薬" : chip.kind === "history" ? "既往" : "検査・処置";
 
     const nameEl = document.createElement("span");
     nameEl.className = "input-chip__name";
@@ -933,13 +929,13 @@ function openExamSheet({ mode, item = "", planId = null, note = "" }) {
     note,
   };
   const isComplete = mode === "complete";
-  const title = isComplete ? `${item} の実施を記録` : "検査を追加";
+  const title = isComplete ? `${item} の実施を記録` : "検査・処置を追加";
 
   openSheet(
     title,
     (body) => {
       if (isComplete) {
-        const wrap = fieldBlock("検査項目");
+        const wrap = fieldBlock("項目名");
         const p = document.createElement("p");
         p.className = "input-sheet__fixed";
         p.textContent = `${item}（予定あり。実施を記録すると予定から外れます）`;
@@ -947,7 +943,7 @@ function openExamSheet({ mode, item = "", planId = null, note = "" }) {
         body.appendChild(wrap);
       } else {
         body.appendChild(
-          textField("検査項目", "例）肝スク（絶食）", item, (v) => {
+          textField("項目名", "例）肝スク（絶食）／皮下点滴", item, (v) => {
             draft.item = v;
           })
         );
@@ -987,7 +983,7 @@ function openExamSheet({ mode, item = "", planId = null, note = "" }) {
     () => {
       const finalItem = (isComplete ? item : draft.item).trim();
       if (!finalItem) {
-        showError(sheetError, "検査項目を入力してください。");
+        showError(sheetError, "項目名を入力してください。");
         return false;
       }
       const action = isComplete
@@ -1011,81 +1007,9 @@ function openExamSheet({ mode, item = "", planId = null, note = "" }) {
         dueDate: draft.dueDate,
         fasting: draft.fasting,
         note: draft.note.trim(),
-        badge: "検査",
+        badge: "検査・処置",
         title: finalItem,
         summary: [summary, draft.note.trim()].filter(Boolean).join(" · "),
-      });
-      return true;
-    }
-  );
-}
-
-function openProcSheet() {
-  const draft = { content: "", mode: "history", dueDate: "", note: "" };
-
-  openSheet(
-    "処置を追加",
-    (body) => {
-      body.appendChild(
-        textareaField("処置内容", "例）皮下点滴 150mL", "", (v) => {
-          draft.content = v;
-        })
-      );
-
-      const modeWrap = fieldBlock("登録の種類");
-      modeWrap.appendChild(
-        buttonGroup(
-          [
-            { id: "history", label: "実施として記録" },
-            { id: "plan", label: "予定として登録" },
-          ],
-          draft.mode,
-          (v) => {
-            draft.mode = v;
-            planFields.hidden = v !== "plan";
-          }
-        )
-      );
-      body.appendChild(modeWrap);
-
-      const planFields = document.createElement("div");
-      planFields.hidden = draft.mode !== "plan";
-      planFields.appendChild(
-        dateField("次回予定日", "", (v) => {
-          draft.dueDate = v;
-        })
-      );
-      body.appendChild(planFields);
-
-      body.appendChild(
-        textareaField("メモ", "", "", (v) => {
-          draft.note = v;
-        })
-      );
-      body.appendChild(appliedNote());
-    },
-    () => {
-      const content = draft.content.trim();
-      if (!content) {
-        showError(sheetError, "処置内容を入力してください。");
-        return false;
-      }
-      pushQueue({
-        kind: "proc",
-        action: draft.mode,
-        content,
-        dueDate: draft.dueDate,
-        note: draft.note.trim(),
-        badge: "処置",
-        title: content,
-        summary: [
-          draft.mode === "plan"
-            ? `予定として登録${draft.dueDate ? ` · 予定日 ${ymdFromStr(draft.dueDate)}` : ""}`
-            : "実施を記録",
-          draft.note.trim(),
-        ]
-          .filter(Boolean)
-          .join(" · "),
       });
       return true;
     }
@@ -1280,23 +1204,5 @@ async function commitQueueItem(item, { recordDate, author }) {
       await deleteExamScheduledPlan(karte, item.planId);
     }
     return;
-  }
-
-  if (item.kind === "proc") {
-    if (item.action === "plan") {
-      await saveProcedurePlan(karte, {
-        content: item.content,
-        dueDate: item.dueDate,
-        note: item.note,
-        baselineDate: recordDate,
-        confirmedBy: author,
-      });
-      return;
-    }
-    await addProcedure(karte, {
-      date: recordDate,
-      content: item.content,
-      note: item.note,
-    });
   }
 }

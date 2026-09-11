@@ -81,36 +81,16 @@ await page.waitForSelector("#center-main:not([hidden])", { timeout: 15000 });
 const authorBtn = page.locator("#author-buttons-vet button").first();
 if (await authorBtn.count()) await authorBtn.click();
 
-/** 階層ピッカーの1列から、ラベルが一致する項目を押す */
-async function pickLinear(listSelector, label) {
-  const items = page.locator(`${listSelector} .med-linear-picker__item`);
-  await items.first().waitFor({ timeout: 5000 });
-  const count = await items.count();
-  for (let i = 0; i < count; i += 1) {
-    const text = await items.nth(i).locator(".med-linear-picker__item-label").innerText();
-    if (text.trim() === label) {
-      await items.nth(i).click();
-      return;
-    }
-  }
-  throw new Error(`${listSelector} に「${label}」が見つからない`);
-}
-
 // 状態モードへ切り替え、検査予定を状態モードの「＋」から登録する
-// （右カラムの5タブは削除済みのため、検査の追加・編集は状態モードから行う）
 await page.click("#btn-view-status");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 
 // 予定登録
 await page.click("#btn-status-exam-add");
 await page.waitForSelector("#exam-plan-modal:not([hidden])");
-// 大項目「血液」→ 小項目「血液検査」の順に辿る（階層ピッカー）
-await pickLinear("#exam-plan-col-category-list", "血液");
-await pickLinear("#exam-plan-col-leaf-list", "血液検査");
+await page.fill("#exam-plan-item", "血液検査");
 const due = "2026-08-15";
 await page.fill("#exam-plan-due-date", due);
-// 血液検査は絶食の要不要が必須
-await page.click('#exam-plan-fasting-buttons [data-fasting="none"]');
 await page.click("#btn-exam-plan-save");
 await page.waitForTimeout(400);
 
@@ -188,7 +168,7 @@ console.log("STEP4 sheet open:", sheetOpen);
 if (sheetOpen) {
   const dueVisible = await page.locator("#exam-sheet-due-field").isVisible();
   if (!dueVisible) throw new Error("復活後の次回予定入力でカレンダーが出ない");
-  await page.fill("#exam-sheet-due-date", "2026-09-01");
+  await page.fill("#exam-sheet-due-date", "2026-10-01");
   if (await page.locator("#exam-sheet-fasting-check").count()) {
     await page.locator("#exam-sheet-fasting-check").uncheck();
   }
@@ -196,7 +176,7 @@ if (sheetOpen) {
   await page.waitForTimeout(400);
   const duesAfter = await page.locator("#status-exam-plan-list .status-row__due").allTextContents();
   console.log("STEP4 dues after save:", duesAfter);
-  if (!duesAfter.some((t) => t.includes("2026-09-01") || t.includes("あと"))) {
+  if (!duesAfter.some((t) => t.includes("2026-10-01") || t.includes("あと"))) {
     throw new Error("次回予定日の保存が反映されない");
   }
 }

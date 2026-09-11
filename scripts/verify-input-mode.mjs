@@ -297,10 +297,11 @@ await page.waitForFunction(() =>
   document.getElementById("input-sheet-modal").hasAttribute("hidden")
 );
 
-// --- 手動追加（+ 処置） ---------------------------------------------------
-await page.click("#btn-input-add-proc");
+// --- 手動追加（+ 検査・処置） ---------------------------------------------
+await page.click("#btn-input-add-exam");
 await page.waitForSelector("#input-sheet-modal:not([hidden])", { timeout: 5000 });
-await page.fill("#input-sheet-body textarea", "皮下点滴 150mL");
+await page.fill("#input-sheet-body input.input", "皮下点滴 150mL");
+await page.click('#input-sheet-body .exam-item-btn:has-text("実施として記録")');
 await page.click("#btn-input-sheet-add");
 await page.waitForFunction(() =>
   document.getElementById("input-sheet-modal").hasAttribute("hidden")
@@ -323,7 +324,7 @@ assert.deepEqual(
     "med:new:エンロフロキサシン",
     "exam:plan:CBC",
     "exam:complete:腹部エコー",
-    "proc:history:皮下点滴 150mL",
+    "exam:history:皮下点滴 150mL",
   ],
   "今日の登録の中身が想定と違う"
 );
@@ -342,7 +343,7 @@ await shot("03-today-queue");
 
 // --- 取り消しができる -----------------------------------------------------
 await page.click(
-  '#input-today-list .input-today-item[data-queue-kind="proc"] .input-today-item__remove'
+  '#input-today-list .input-today-item[data-queue-kind="exam"][data-queue-action="history"] .input-today-item__remove'
 );
 assert.equal(
   await page.locator("#input-today-list .input-today-item").count(),
@@ -350,9 +351,10 @@ assert.equal(
   "取り消しが効いていない"
 );
 // 検証は5件で行うので戻す
-await page.click("#btn-input-add-proc");
+await page.click("#btn-input-add-exam");
 await page.waitForSelector("#input-sheet-modal:not([hidden])", { timeout: 5000 });
-await page.fill("#input-sheet-body textarea", "皮下点滴 150mL");
+await page.fill("#input-sheet-body input.input", "皮下点滴 150mL");
+await page.click('#input-sheet-body .exam-item-btn:has-text("実施として記録")');
 await page.click("#btn-input-sheet-add");
 await page.waitForFunction(() =>
   document.getElementById("input-sheet-modal").hasAttribute("hidden")
@@ -402,18 +404,19 @@ assert.equal(examPlans.length, 1, "検査予定の登録が1件ではない");
 assert.equal(examPlans[0].item, "CBC", "CBCが予定として登録されていない");
 
 const examHist = writes.filter((w) => w.op === "addExamHistory");
-assert.equal(examHist.length, 1, "検査実施の記録が1件ではない");
-assert.equal(examHist[0].item, "腹部エコー", "腹部エコーの実施が記録されていない");
-assert.equal(examHist[0].date, todayStr, "検査実施に記録日が引き継がれていない");
+assert.equal(examHist.length, 2, "検査・処置の実施記録が2件ではない");
+assert.ok(
+  examHist.some((w) => w.item === "腹部エコー" && w.date === todayStr),
+  "腹部エコーの実施が記録されていない"
+);
+assert.ok(
+  examHist.some((w) => w.item === "皮下点滴 150mL" && w.date === todayStr),
+  "皮下点滴の実施が記録されていない"
+);
 assert.ok(
   writes.some((w) => w.op === "deleteExamScheduledPlan" && w.planId === "p2"),
   "実施した検査が予定から外れていない"
 );
-
-const procs = writes.filter((w) => w.op === "addProcedure");
-assert.equal(procs.length, 1, "処置の記録が1件ではない");
-assert.equal(procs[0].content, "皮下点滴 150mL", "処置の内容が保存されていない");
-assert.equal(procs[0].date, todayStr, "処置に記録日が引き継がれていない");
 
 // --- 保存後は状態モードに戻り、登録が反映されている ------------------------
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
@@ -449,6 +452,10 @@ assert.ok(
   afterStatus.examHistoryText.includes("腹部エコー") &&
     afterStatus.examHistoryText.includes(todayLabelJp),
   `実施した検査が履歴に出ていない: ${afterStatus.examHistoryText}`
+);
+assert.ok(
+  afterStatus.examHistoryText.includes("皮下点滴 150mL"),
+  `実施した処置が統合後の履歴に出ていない: ${afterStatus.examHistoryText}`
 );
 await shot("04-after-save-status");
 

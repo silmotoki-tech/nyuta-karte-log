@@ -35,6 +35,8 @@
 //     ※source: "manual"|"ai"（登録経路。画面のメモ欄には出さない）
 //   examPlan/{カルテ番号}/history/{id}                   … 実施履歴
 //     { item, date, note }
+//     ※検査と処置は 2026-09-11 以降ひとつの機能。新規の予定・実施履歴は examPlan に書く。
+//       旧 procedures/ は読み取り時にマージし、既存IDの更新・削除だけ元パスへ返す。
 //
 //   medicationItems/{itemId}/label                      … 薬剤マスタの表示名
 //   medicationItems/{itemId}/category                   … "inject"|"oral"|"topical"|"eye"|"supplement"|"food"（注射薬／内服薬／外用薬／点眼薬／サプリメント・商品／フード）
@@ -1451,6 +1453,82 @@ export async function deleteExamItem(itemId) {
 
 export const EXAM_PLAN_SCHEMA_VERSION = 2;
 
+/** 旧 procedures/ 由来の予定・履歴を examPlan のマップへ載せるときの ID 接頭辞 */
+export const PROC_PLAN_ID_PREFIX = "proc-plan:";
+export const PROC_HIST_ID_PREFIX = "proc-hist:";
+export const PROC_LEGACY_ID_PREFIX = "proc-legacy:";
+
+function isProcPlanId(id) {
+  return typeof id === "string" && id.startsWith(PROC_PLAN_ID_PREFIX);
+}
+
+function isProcLegacyHistId(id) {
+  return typeof id === "string" && id.startsWith(PROC_LEGACY_ID_PREFIX);
+}
+
+function isProcHistId(id) {
+  return (
+    typeof id === "string" &&
+    (id.startsWith(PROC_LEGACY_ID_PREFIX) || id.startsWith(PROC_HIST_ID_PREFIX))
+  );
+}
+
+function rawProcId(id) {
+  if (isProcLegacyHistId(id)) return id.slice(PROC_LEGACY_ID_PREFIX.length);
+  if (typeof id === "string" && id.startsWith(PROC_HIST_ID_PREFIX)) {
+    return id.slice(PROC_HIST_ID_PREFIX.length);
+  }
+  if (isProcPlanId(id)) return id.slice(PROC_PLAN_ID_PREFIX.length);
+  return id;
+}
+
+/**
+ * 正規化済み examPlan に、旧処置（procedures）の予定・実施履歴を混ぜる。
+ * 画面上は区別せず 1 リストとして扱う。
+ */
+export function mergeExamPlanWithProcedures(examPlan, procedureBundle) {
+  const base = examPlan && typeof examPlan === "object" ? examPlan : emptyExamPlan();
+  const plans = { ...(base.plans || {}) };
+  const history = { ...(base.history || {}) };
+
+  const procPlans = Array.isArray(procedureBundle?.plans)
+    ? procedureBundle.plans
+    : [];
+  procPlans.forEach((p) => {
+    if (!p || !p.id) return;
+    plans[`${PROC_PLAN_ID_PREFIX}${p.id}`] = {
+      item: p.content || p.item || "",
+      dueDate: p.dueDate || "",
+      dueDateFrom: p.dueDateFrom || p.dueDate || "",
+      dueDateTo: p.dueDateTo || p.dueDate || "",
+      baselineDate: p.baselineDate || "",
+      note: p.note || "",
+      fasting: "",
+      source: p.source === "ai" ? "ai" : undefined,
+    };
+  });
+
+  const procHistory = Array.isArray(procedureBundle?.history)
+    ? procedureBundle.history
+    : [];
+  procHistory.forEach((h) => {
+    if (!h || !h.id) return;
+    const prefix =
+      h.store === "legacy" ? PROC_LEGACY_ID_PREFIX : PROC_HIST_ID_PREFIX;
+    history[`${prefix}${h.id}`] = {
+      item: h.content || h.item || "",
+      date: h.date || "",
+      note: h.note || "",
+    };
+  });
+
+  return {
+    ...base,
+    plans,
+    history,
+  };
+}
+
 function examPlanRef(karteNumber) {
   return ref(db, `examPlan/${karteNumber}`);
 }
@@ -1495,29 +1573,57 @@ function normalizeExamPlan(raw) {
 }
 
 /**
- * 検査予定をリアルタイム監視する。
+ * 検査・処置の予定＋実施履歴をリアルタイム監視する。
+ * 旧 procedures/ も読んで 1 つの examPlan 形にマージする。
  */
 export function subscribeExamPlan(karteNumber, callback) {
-  const r = examPlanRef(karteNumber);
+  const examR = examPlanRef(karteNumber);
+  const procR = proceduresRootRef(karteNumber);
   let unsubscribed = false;
-  let listener = null;
+  let examListener = null;
+  let procListener = null;
+  let examVal = null;
+  let procVal = null;
+  let examReady = false;
+  let procReady = false;
+
+  function emit() {
+    if (unsubscribed || !examReady || !procReady) return;
+    callback(
+      mergeExamPlanWithProcedures(
+        normalizeExamPlan(examVal),
+        parseProceduresRoot(procVal)
+      )
+    );
+  }
 
   authReady
     .then(() => {
       if (unsubscribed) return;
-      listener = onValue(r, (snapshot) => {
-        callback(normalizeExamPlan(snapshot.val()));
+      examListener = onValue(examR, (snapshot) => {
+        examVal = snapshot.val();
+        examReady = true;
+        emit();
+      });
+      procListener = onValue(procR, (snapshot) => {
+        procVal = snapshot.val();
+        procReady = true;
+        emit();
       });
     })
     .catch((err) => {
-      console.error("検査予定の監視開始に失敗しました", err);
+      console.error("検査・処置の監視開始に失敗しました", err);
     });
 
   return () => {
     unsubscribed = true;
-    if (listener) {
-      off(r, "value", listener);
-      listener = null;
+    if (examListener) {
+      off(examR, "value", examListener);
+      examListener = null;
+    }
+    if (procListener) {
+      off(procR, "value", procListener);
+      procListener = null;
     }
   };
 }
@@ -1581,6 +1687,25 @@ export async function saveExamScheduledPlan(
   karteNumber,
   { planId = null, item, dueDate, dueDateFrom, dueDateTo, note, baselineDate, fasting, source }
 ) {
+  const itemName = (item || "").trim();
+  const procPayload = {
+    content: itemName,
+    dueDate,
+    dueDateFrom,
+    dueDateTo,
+    note,
+    baselineDate,
+    source: source === "ai" ? "ai" : "manual",
+  };
+
+  if (isProcPlanId(planId)) {
+    await saveProcedurePlan(karteNumber, {
+      ...procPayload,
+      planId: rawProcId(planId),
+    });
+    return planId;
+  }
+
   await ensureExamPlanRoot(karteNumber);
   const record = buildPlanRecord({
     item,
@@ -1592,7 +1717,6 @@ export async function saveExamScheduledPlan(
     fasting,
     source,
   });
-  const itemName = (item || "").trim();
 
   // 既存の同名項目を探す（編集対象自身は除く）
   const snap = await get(ref(db, `examPlan/${karteNumber}/plans`));
@@ -1603,6 +1727,22 @@ export async function saveExamScheduledPlan(
       ([id, p]) => id && p && (p.item || "").trim() === itemName
     );
     if (found) targetId = found[0];
+  }
+
+  if (!targetId && itemName) {
+    const procSnap = await get(procedurePlansRef(karteNumber));
+    const procExisting =
+      procSnap.exists() && typeof procSnap.val() === "object" ? procSnap.val() : {};
+    const foundProc = Object.entries(procExisting).find(
+      ([id, p]) => id && p && (p.content || "").trim() === itemName
+    );
+    if (foundProc) {
+      await saveProcedurePlan(karteNumber, {
+        ...procPayload,
+        planId: foundProc[0],
+      });
+      return `${PROC_PLAN_ID_PREFIX}${foundProc[0]}`;
+    }
   }
 
   if (targetId) {
@@ -1649,6 +1789,10 @@ async function clearLegacyEndedPlansByItemName(karteNumber, itemName) {
 export async function deleteExamScheduledPlan(karteNumber, planId) {
   await authReady;
   if (!planId) return;
+  if (isProcPlanId(planId)) {
+    await deleteProcedurePlan(karteNumber, rawProcId(planId));
+    return;
+  }
   await remove(ref(db, `examPlan/${karteNumber}/plans/${planId}`));
 }
 
@@ -1666,7 +1810,7 @@ export async function endExamScheduledPlan(karteNumber, planId) {
  */
 export async function reviveExamPlanByItem(karteNumber, { item, note = "", fasting = "" }) {
   const itemName = (item || "").trim();
-  if (!itemName) throw new Error("検査項目名が必要です");
+  if (!itemName) throw new Error("項目名が必要です");
   return saveExamScheduledPlan(karteNumber, {
     item: itemName,
     dueDate: "",
@@ -1724,10 +1868,21 @@ export async function addExamHistory(karteNumber, { item, date, note }) {
  */
 export async function updateExamHistory(karteNumber, historyId, { date, note }) {
   await authReady;
+  if (!historyId) return;
   const patch = {
     date: date || "",
   };
   if (note !== undefined) patch.note = note || "";
+  if (isProcLegacyHistId(historyId)) {
+    patch.lastEditedAt = new Date().toISOString();
+    await update(procedureLegacyEntryRef(karteNumber, rawProcId(historyId)), patch);
+    return;
+  }
+  if (isProcHistId(historyId)) {
+    patch.lastEditedAt = new Date().toISOString();
+    await update(procedureHistoryEntryRef(karteNumber, rawProcId(historyId)), patch);
+    return;
+  }
   await update(ref(db, `examPlan/${karteNumber}/history/${historyId}`), patch);
 }
 
@@ -1736,6 +1891,13 @@ export async function updateExamHistory(karteNumber, historyId, { date, note }) 
  */
 export async function deleteExamHistory(karteNumber, historyId) {
   await authReady;
+  if (!historyId) return;
+  if (isProcHistId(historyId)) {
+    await deleteProcedure(karteNumber, rawProcId(historyId), {
+      store: isProcLegacyHistId(historyId) ? "legacy" : "history",
+    });
+    return;
+  }
   await remove(ref(db, `examPlan/${karteNumber}/history/${historyId}`));
 }
 

@@ -5,7 +5,6 @@
 import {
   subscribeMedications,
   subscribeExamPlan,
-  subscribeProcedureBundle,
   subscribePatientHistory,
   subscribeSpecialNotes,
 } from "./db.js";
@@ -25,13 +24,6 @@ import {
   openExamPlanCreateModal,
   reviveExamHistoryEntryById,
 } from "./exam-plan-ui.js";
-import {
-  openProcedurePlanEditorById,
-  openProcedureHistoryEditorById,
-  openProcedurePlanCreateModal,
-  reviveProcedureHistoryById,
-  deleteProcedureHistoryById,
-} from "./procedures-ui.js";
 import {
   openSpecialNoteEditorById,
   openSpecialNoteCreateModal,
@@ -55,8 +47,6 @@ const state = {
   visible: false,
   drugs: [],
   plan: null,
-  procPlans: [],
-  procHistory: [],
   historyEntries: [],
   notes: [],
   unsubscribes: [],
@@ -86,13 +76,6 @@ const histList = document.getElementById("status-history-list");
 const histEmpty = document.getElementById("status-history-empty");
 const histCount = document.getElementById("status-history-count");
 
-const procPlanList = document.getElementById("status-proc-plan-list");
-const procPlanEmpty = document.getElementById("status-proc-plan-empty");
-const procHistoryList = document.getElementById("status-proc-history-list");
-const procHistoryEmpty = document.getElementById("status-proc-history-empty");
-const procPlanCount = document.getElementById("status-proc-plan-count");
-const procHistoryCount = document.getElementById("status-proc-history-count");
-
 const notesList = document.getElementById("status-notes-list");
 const notesEmpty = document.getElementById("status-notes-empty");
 const notesCount = document.getElementById("status-notes-count");
@@ -100,7 +83,6 @@ const notesCount = document.getElementById("status-notes-count");
 const btnStatusHistoryAdd = document.getElementById("btn-status-history-add");
 const btnStatusExamAdd = document.getElementById("btn-status-exam-add");
 const btnStatusMedsAdd = document.getElementById("btn-status-meds-add");
-const btnStatusProcAdd = document.getElementById("btn-status-proc-add");
 const btnStatusNotesAdd = document.getElementById("btn-status-notes-add");
 
 const detailModal = document.getElementById("status-detail-modal");
@@ -148,7 +130,6 @@ export function initStatusModeUI(helpers = {}) {
   btnStatusHistoryAdd?.addEventListener("click", () => openPatientHistoryAddModal());
   btnStatusExamAdd?.addEventListener("click", () => openExamPlanCreateModal());
   btnStatusMedsAdd?.addEventListener("click", () => openMedicationAddModal());
-  btnStatusProcAdd?.addEventListener("click", () => openProcedurePlanCreateModal());
   btnStatusNotesAdd?.addEventListener("click", () => openSpecialNoteCreateModal());
 
   btnCloseDetail?.addEventListener("click", closeDetailModal);
@@ -172,13 +153,6 @@ export function enterStatusMode(karteNumber) {
     subscribeExamPlan(karteNumber, (plan) => {
       state.plan = plan;
       renderExam();
-    })
-  );
-  state.unsubscribes.push(
-    subscribeProcedureBundle(karteNumber, (bundle) => {
-      state.procPlans = bundle?.plans || [];
-      state.procHistory = bundle?.history || [];
-      renderProcedures();
     })
   );
   state.unsubscribes.push(
@@ -209,8 +183,6 @@ export function leaveStatusMode() {
   state.karteNumber = null;
   state.drugs = [];
   state.plan = null;
-  state.procPlans = [];
-  state.procHistory = [];
   state.historyEntries = [];
   state.notes = [];
   closeDetailModal();
@@ -253,7 +225,6 @@ function renderAll() {
   renderMeds();
   renderExam();
   renderPatientHistory();
-  renderProcedures();
   renderNotes();
 }
 
@@ -632,144 +603,6 @@ function closeDetailModal() {
   if (!detailModal) return;
   detailModal.hidden = true;
   if (detailBody) detailBody.innerHTML = "";
-}
-
-// --- 処置 ----------------------------------------------------------------
-
-function renderProcedures() {
-  renderProcPlans();
-  renderProcHistory();
-}
-
-function renderProcPlans() {
-  if (!procPlanList) return;
-  procPlanList.innerHTML = "";
-
-  const plans = [...(state.procPlans || [])].sort((a, b) => {
-    const ad = a.dueDateFrom || a.dueDate || "9999-99-99";
-    const bd = b.dueDateFrom || b.dueDate || "9999-99-99";
-    return ad.localeCompare(bd);
-  });
-
-  if (procPlanEmpty) procPlanEmpty.hidden = plans.length > 0;
-  setCount(procPlanCount, plans.length);
-
-  plans.forEach((plan) => {
-    const li = createRow({ onOpen: () => openProcedurePlanEditorById(plan.id) });
-
-    const head = document.createElement("div");
-    head.className = "status-row__head";
-
-    const title = document.createElement("span");
-    title.className = "status-row__title";
-    title.textContent = plan.content || "（内容なし）";
-
-    const countdown = getPlanDueCountdown(plan);
-    const due = document.createElement("span");
-    if (countdown) {
-      due.className = `status-row__due ${dueLevelClass(countdown.level)}`;
-      due.textContent = formatDueCountdown(countdown, { includeDate: false });
-    } else {
-      due.className = "status-row__due";
-      due.textContent = "予定日未設定";
-    }
-
-    head.append(title, due);
-    li.appendChild(head);
-
-    if (plan.note) {
-      const note = document.createElement("div");
-      note.className = "status-row__note";
-      note.textContent = plan.note;
-      li.appendChild(note);
-    }
-
-    procPlanList.appendChild(li);
-  });
-}
-
-function procHistoryContentKey(name) {
-  return (name || "").trim() || "（内容なし）";
-}
-
-function procActivePlanContentKeys() {
-  const keys = new Set();
-  (state.procPlans || []).forEach((p) => {
-    if (!p) return;
-    keys.add(procHistoryContentKey(p.content));
-  });
-  return keys;
-}
-
-function renderProcHistory() {
-  if (!procHistoryList) return;
-  procHistoryList.innerHTML = "";
-
-  const planned = procActivePlanContentKeys();
-  const items = (state.procHistory || []).filter(
-    (item) => !planned.has(procHistoryContentKey(item.content))
-  );
-  if (procHistoryEmpty) procHistoryEmpty.hidden = items.length > 0;
-  setCount(procHistoryCount, items.length);
-  if (!items.length) return;
-
-  const groups = new Map();
-  items.forEach((item) => {
-    const key = procHistoryContentKey(item.content);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(item);
-  });
-
-  [...groups.keys()]
-    .sort((a, b) => a.localeCompare(b, "ja"))
-    .forEach((content) => {
-      const rows = groups
-        .get(content)
-        .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-
-      const head = document.createElement("li");
-      head.className = "status-group-title";
-      head.textContent = `${content}（${rows.length}件）`;
-      procHistoryList.appendChild(head);
-
-      rows.forEach((item) => {
-        const li = createRow({
-          onOpen: () => openProcedureHistoryEditorById(item.id),
-          handleClick: false,
-        });
-        li.classList.add("status-row--compact");
-
-        const date = document.createElement("span");
-        date.className = "status-row__date";
-        date.textContent = ymdFromStr(item.date) || "（日付なし）";
-        li.appendChild(date);
-
-        if (item.note) {
-          const note = document.createElement("span");
-          note.className = "status-row__note";
-          note.textContent = item.note;
-          li.appendChild(note);
-        }
-
-        enableRowGestures(li, {
-          actions: [
-            {
-              action: "refresh",
-              title: "予定に戻す",
-              onClick: () => reviveProcedureHistoryById(item.id),
-            },
-            {
-              action: "delete",
-              title: "削除",
-              onClick: () => deleteProcedureHistoryById(item.id, item.store || "history"),
-            },
-          ],
-          onActivate: () => openProcedureHistoryEditorById(item.id),
-        });
-
-        procHistoryList.appendChild(li);
-      });
-    });
 }
 
 // --- 特記（重要度に関わらずすべて） -----------------------------------------

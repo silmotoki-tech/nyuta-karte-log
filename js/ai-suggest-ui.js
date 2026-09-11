@@ -9,12 +9,12 @@ import {
 } from "./anthropic.js";
 import { hasApiKey } from "./api-key.js";
 import { addHistoryFromExternal } from "./history-ui.js";
-import { addProcedureFromExternal } from "./procedures-ui.js";
 import {
   addExamPlanFromExternal,
   unitToDays,
   getExamItemsSnapshot,
 } from "./exam-plan-ui.js";
+import { addExamHistory } from "./db.js";
 import {
   ensureMedicationNameFromExternal,
   focusMedicationByName,
@@ -37,9 +37,9 @@ import { ENABLE_AI_SUGGEST_AFTER_SAVE } from "./feature-flags.js";
 import { mountNumpad } from "./freq-picker.js";
 
 const KIND_LABELS = {
-  exam: "検査予定",
+  exam: "検査・処置",
   medication: "薬剤情報",
-  procedure: "処置ログ",
+  procedure: "検査・処置",
   history: "既往歴",
   followup_date: "次回／切れ目安日",
 };
@@ -1128,10 +1128,10 @@ async function applySuggestion(suggestion, data) {
   }
 
   if (suggestion.kind === "procedure") {
-    await addProcedureFromExternal(karte, {
+    await addExamHistory(karte, {
+      item: data.content || suggestion.summary,
       date: data.date || recordDate,
-      content: data.content || suggestion.summary,
-      source: "ai",
+      note: data.note || "",
     });
     return;
   }
