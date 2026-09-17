@@ -1690,6 +1690,7 @@ initHistoryUI({
   setBusy,
   getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
   onEntryDeleted: () => closeStatusDetailModal(),
+  onEntrySaved: () => closeStatusDetailModal(),
 });
 
 initMasterDeleteUI({

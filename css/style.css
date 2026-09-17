@@ -2913,6 +2913,20 @@ html.is-unlocked .app {
   background-color: transparent;
 }
 
+.hist-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hist-edit-form .exam-item-buttons {
+  flex-wrap: wrap;
+}
+
+.hist-edit-form .tpl-editor__actions {
+  margin-top: 4px;
+}
+
 .hist-type {
   display: inline-flex;
   align-items: center;

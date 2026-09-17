@@ -226,6 +226,42 @@ assert.equal(counts.examTitle, "検査・処置", "状態モードの見出し�
 assert.equal(counts.notes, 5, "重要度に関わらず特記が全件（5件）出ていない");
 assert.equal(counts.notesHigh, 2, "重要度「高」の特記が特記ブロックに含まれていない");
 
+const histMarks = await page.evaluate(() => {
+  const list = document.getElementById("status-history-list");
+  const groups = [...(list?.querySelectorAll(".status-group-title") || [])].map(
+    (el) => el.textContent.trim()
+  );
+  const rows = [...(list?.querySelectorAll(".status-row") || [])].map((el) => ({
+    type: el.querySelector(".hist-type")?.textContent,
+    status: el.querySelector(".hist-status")?.textContent,
+    text: el.innerText,
+  }));
+  return {
+    listText: list?.innerText || "",
+    groups,
+    rows,
+  };
+});
+assert.equal(histMarks.listText.includes("🟢"), false, "既往歴に🟢が残っている");
+assert.ok(histMarks.groups.includes("進行中"), "進行中のグループ見出しが無い");
+assert.ok(histMarks.groups.includes("終了"), "終了のグループ見出しが無い");
+assert.ok(
+  histMarks.rows.some((r) => r.status === "進行中"),
+  "行末の「進行中」が無い"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.status === "終了"),
+  "行末の「終了」が無い"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.type === "疾"),
+  "種別バッジ（疾）が無い"
+);
+assert.ok(
+  histMarks.rows.every((r) => !r.text.includes("🟢")),
+  "既往歴の行に🟢が残っている"
+);
+
 // 並び順: 継続 → 一時的 → 投与難 → 休薬中 → 中止
 const statusSeq = counts.medOrder.map((t) =>
   ["継続", "一時的", "投与難", "休薬中", "中止"].find((s) => t.includes(s))
@@ -530,6 +566,48 @@ const editedText = await page.locator("#status-notes-list .status-row").first().
 console.log("EDITED", editedText.replace(/\s+/g, " "));
 assert.ok(editedText.includes("状態モードから編集"), "特記の編集結果が状態モードに反映されない");
 await shot("09-after-edit");
+
+// --- 既往歴を詳細から編集できること ---------------------------------------
+const hxRow = page.locator("#status-history-list .status-row", {
+  hasText: "僧帽弁閉鎖不全症（ACVIM B2）",
+});
+await hxRow.click();
+await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
+await page.waitForSelector("#hist-edit-title", { timeout: 5000 });
+const joinedMemo = await page.locator("#hist-edit-note").inputValue();
+assert.equal(
+  joinedMemo,
+  "心拡大の進行あり。内服継続。\nピモベンダン追加。",
+  "既存の複数メモが1つにまとまっていない"
+);
+await page.fill("#hist-edit-title", "僧帽弁閉鎖不全症（編集）");
+await page.locator("#hist-edit-type-buttons .exam-item-btn", { hasText: "手術歴" }).click();
+await page.locator("#hist-edit-status-buttons .exam-item-btn", { hasText: "終了" }).click();
+await page.fill("#hist-edit-note", "上書きしたメモ");
+await page.click("#hist-edit-save");
+await page.waitForFunction(
+  () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+const editedHx = await page
+  .locator("#status-history-list .status-row", { hasText: "僧帽弁閉鎖不全症（編集）" })
+  .innerText();
+assert.ok(editedHx.includes("術"), "種別の変更が一覧に反映されない");
+assert.ok(editedHx.includes("終了"), "状態の変更が一覧に反映されない");
+assert.ok(!editedHx.includes("進行中"), "終了にしても進行中が残っている");
+
+await page.locator("#status-history-list .status-row", { hasText: "僧帽弁閉鎖不全症（編集）" }).click();
+await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
+const overwritten = await page.locator("#hist-edit-note").inputValue();
+assert.equal(overwritten, "上書きしたメモ", "メモが上書きされず追記になっている");
+assert.ok(!overwritten.includes("心拡大"), "旧メモが残っている");
+await page.click("#btn-close-status-detail");
+await page.waitForFunction(
+  () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
 
 // --- スワイプ削除アイコンが前面に透けないこと ----------------------------
 function parseAlpha(color) {

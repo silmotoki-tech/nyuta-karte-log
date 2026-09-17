@@ -1,6 +1,6 @@
 // 既往歴の追加・編集UI。
-// 追加時の名称はフリーワード。種別（疾患／手術歴／紹介）と、
-// 詳細での状態（進行中／終了）切替は従来どおり。
+// 名称はフリーワード。種別（疾患／手術歴／紹介）と状態（進行中／終了）は
+// ボタン選択。メモは1つのテキスト欄で上書きする（追記型ではない）。
 // 疾患名マスタのシード・管理APIは db.js 側に残し、入力画面では使わない。
 // 将来のAI提案フローからも db.addPatientHistoryEntry(..., { source: "ai" })
 // で同じデータ構造に登録できる想定。
@@ -9,9 +9,6 @@ import {
   subscribePatientHistory,
   addPatientHistoryEntry,
   updatePatientHistoryEntry,
-  setPatientHistoryStatus,
-  appendPatientHistoryNote,
-  deletePatientHistoryNote,
   deletePatientHistoryEntry,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
@@ -23,12 +20,18 @@ const HISTORY_TYPES = [
   { id: "referral", label: "紹介・専門治療歴" },
 ];
 
+const HISTORY_STATUS_OPTIONS = [
+  { id: "active", label: "進行中" },
+  { id: "resolved", label: "終了" },
+];
+
 let deps = {
   showToast: () => {},
   showError: () => {},
   setBusy: () => {},
   getSelectedAuthor: () => "",
   onEntryDeleted: () => {},
+  onEntrySaved: () => {},
 };
 
 const state = {
@@ -61,16 +64,6 @@ const btnAddSave = document.getElementById("btn-history-add-save");
 const btnAddCancel = document.getElementById("btn-history-add-cancel");
 const btnCloseAddModal = document.getElementById("btn-close-history-add");
 
-const noteModal = document.getElementById("history-note-modal");
-const noteModalTitle = document.getElementById("history-note-modal-title");
-const noteDate = document.getElementById("history-note-date");
-const noteText = document.getElementById("history-note-text");
-const noteError = document.getElementById("history-note-error");
-const btnNoteSave = document.getElementById("btn-history-note-save");
-const btnNoteCancel = document.getElementById("btn-history-note-cancel");
-const btnCloseNoteModal = document.getElementById("btn-close-history-note");
-
-let noteTargetEntryId = null;
 
 // --- ユーティリティ -------------------------------------------------------
 
@@ -106,14 +99,18 @@ function titlePlaceholder(type) {
   return "例）僧帽弁閉鎖不全症";
 }
 
-function sortNotes(notesObj) {
-  return Object.entries(notesObj || {})
-    .map(([id, n]) => ({ id, ...n }))
+/** 既存の複数メモを日付順に改行でつなぐ（表示・上書き編集用。内容は落とさない）。 */
+function joinedNoteText(entry) {
+  return Object.entries(entry?.notes || {})
+    .map(([id, n]) => ({ id, ...(n || {}) }))
     .sort((a, b) => {
-      const rd = (b.date || "").localeCompare(a.date || "");
-      if (rd !== 0) return rd;
-      return (b.id || "").localeCompare(a.id || "");
-    });
+      const d = (a.date || "").localeCompare(b.date || "");
+      if (d !== 0) return d;
+      return (a.id || "").localeCompare(b.id || "");
+    })
+    .map((n) => String(n.text || "").trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 function sortedEntries(entries) {
@@ -139,7 +136,6 @@ export function initHistoryUI(helpers = {}) {
   deps = { ...deps, ...helpers };
   wireToolbar();
   wireAddModal();
-  wireNoteModal();
   buildTypeButtons();
 }
 
@@ -162,7 +158,6 @@ export function leaveHistory() {
   state.entries = [];
   state.expandedIds = new Set();
   closeAddModal();
-  closeNoteModal();
   if (historyList) historyList.innerHTML = "";
 }
 
@@ -327,93 +322,98 @@ export async function deletePatientHistoryEntryById(entryId, karteNumber) {
   }
 }
 
+function createChoiceButtons(items, selectedId, onPick) {
+  const wrap = document.createElement("div");
+  wrap.className = "exam-item-buttons";
+  const paint = (current) => {
+    wrap.querySelectorAll(".exam-item-btn").forEach((btn) => {
+      btn.classList.toggle("is-selected", btn.dataset.id === current);
+    });
+  };
+  items.forEach((item) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "exam-item-btn";
+    btn.dataset.id = item.id;
+    btn.textContent = item.label;
+    btn.addEventListener("click", () => {
+      onPick(item.id);
+      paint(item.id);
+    });
+    wrap.appendChild(btn);
+  });
+  paint(selectedId);
+  return wrap;
+}
+
 function createHistoryDetail(entry) {
   const detail = document.createElement("div");
-  detail.className = "hist-card__detail";
+  detail.className = "hist-edit-form";
 
-  const statusRow = document.createElement("div");
-  statusRow.className = "med-detail-row";
-  const statusLabel = document.createElement("span");
-  statusLabel.className = "label";
-  statusLabel.textContent = "状態";
-  const statusBtn = document.createElement("button");
-  statusBtn.type = "button";
-  statusBtn.className =
-    entry.status === "active"
-      ? "btn btn--small btn--outline hist-status-toggle"
-      : "btn btn--small btn--primary hist-status-toggle";
-  statusBtn.textContent =
-    entry.status === "active" ? "🟢 進行中 → 終了にする" : "⚪ 終了 → 進行中に戻す";
-  statusBtn.addEventListener("click", async () => {
-    const next = entry.status === "active" ? "resolved" : "active";
-    try {
-      await setPatientHistoryStatus(state.karteNumber, entry.id, next);
-      deps.showToast(next === "resolved" ? "終了にしました。" : "進行中に戻しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("状態の更新に失敗しました。", { isError: true });
-    }
-  });
-  statusRow.append(statusLabel, statusBtn);
-  detail.appendChild(statusRow);
+  const draft = {
+    type: HISTORY_TYPES.some((t) => t.id === entry.type) ? entry.type : "disease",
+    status: entry.status === "resolved" ? "resolved" : "active",
+  };
 
   const typeRow = document.createElement("div");
   typeRow.className = "field";
   const typeLabelEl = document.createElement("span");
   typeLabelEl.className = "label";
   typeLabelEl.textContent = "種別";
-  const typeBtns = document.createElement("div");
-  typeBtns.className = "exam-item-buttons";
-  HISTORY_TYPES.forEach((t) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "exam-item-btn";
-    btn.textContent = t.label;
-    btn.classList.toggle("is-selected", entry.type === t.id);
-    btn.addEventListener("click", async () => {
-      if (entry.type === t.id) return;
-      try {
-        await updatePatientHistoryEntry(state.karteNumber, entry.id, { type: t.id });
-        deps.showToast("種別を変更しました。");
-      } catch (err) {
-        console.error(err);
-        deps.showToast("種別の更新に失敗しました。", { isError: true });
-      }
-    });
-    typeBtns.appendChild(btn);
+  const typeBtns = createChoiceButtons(HISTORY_TYPES, draft.type, (id) => {
+    draft.type = id;
+    syncEditTitleChrome();
   });
+  typeBtns.id = "hist-edit-type-buttons";
   typeRow.append(typeLabelEl, typeBtns);
   detail.appendChild(typeRow);
+
+  const statusRow = document.createElement("div");
+  statusRow.className = "field";
+  const statusLabel = document.createElement("span");
+  statusLabel.className = "label";
+  statusLabel.textContent = "状態";
+  const statusBtns = createChoiceButtons(HISTORY_STATUS_OPTIONS, draft.status, (id) => {
+    draft.status = id;
+  });
+  statusBtns.id = "hist-edit-status-buttons";
+  statusRow.append(statusLabel, statusBtns);
+  detail.appendChild(statusRow);
 
   const titleBlock = document.createElement("div");
   titleBlock.className = "field";
   const titleLabel = document.createElement("label");
   titleLabel.className = "label";
-  titleLabel.textContent = "タイトル";
+  titleLabel.htmlFor = "hist-edit-title";
   const titleInput = document.createElement("input");
+  titleInput.id = "hist-edit-title";
   titleInput.className = "input";
   titleInput.type = "text";
+  titleInput.autocomplete = "off";
   titleInput.value = entry.title || "";
-  const titleSave = document.createElement("button");
-  titleSave.type = "button";
-  titleSave.className = "btn btn--small btn--outline";
-  titleSave.textContent = "タイトルを保存";
-  titleSave.addEventListener("click", async () => {
-    const title = titleInput.value.trim();
-    if (!title) {
-      deps.showToast("タイトルを入力してください。", { isError: true });
-      return;
-    }
-    try {
-      await updatePatientHistoryEntry(state.karteNumber, entry.id, { title });
-      deps.showToast("タイトルを保存しました。");
-    } catch (err) {
-      console.error(err);
-      deps.showToast("保存に失敗しました。", { isError: true });
-    }
-  });
-  titleBlock.append(titleLabel, titleInput, titleSave);
+  titleBlock.append(titleLabel, titleInput);
   detail.appendChild(titleBlock);
+
+  function syncEditTitleChrome() {
+    titleLabel.textContent = titleFieldLabel(draft.type);
+    titleInput.placeholder = titlePlaceholder(draft.type);
+  }
+  syncEditTitleChrome();
+
+  const noteBlock = document.createElement("div");
+  noteBlock.className = "field";
+  const noteLabel = document.createElement("label");
+  noteLabel.className = "label";
+  noteLabel.htmlFor = "hist-edit-note";
+  noteLabel.textContent = "メモ";
+  const noteInput = document.createElement("textarea");
+  noteInput.id = "hist-edit-note";
+  noteInput.className = "textarea";
+  noteInput.rows = 4;
+  noteInput.placeholder = "経過や詳細など、補足があれば記入";
+  noteInput.value = joinedNoteText(entry);
+  noteBlock.append(noteLabel, noteInput);
+  detail.appendChild(noteBlock);
 
   const dates = document.createElement("p");
   dates.className = "field__note";
@@ -422,36 +422,54 @@ function createHistoryDetail(entry) {
   }`;
   detail.appendChild(dates);
 
-  const notesHead = document.createElement("div");
-  notesHead.className = "exam-section__head";
-  const notesTitle = document.createElement("h4");
-  notesTitle.className = "exam-section__title";
-  notesTitle.textContent = "メモ（追記型）";
-  const addNoteBtn = document.createElement("button");
-  addNoteBtn.type = "button";
-  addNoteBtn.className = "btn btn--small btn--primary";
-  addNoteBtn.textContent = "メモを追記";
-  addNoteBtn.addEventListener("click", () => openNoteModal(entry));
-  notesHead.append(notesTitle, addNoteBtn);
-  detail.appendChild(notesHead);
+  const error = document.createElement("p");
+  error.className = "error-text error-text--banner";
+  error.hidden = true;
+  error.id = "hist-edit-error";
+  detail.appendChild(error);
 
-  const notes = sortNotes(entry.notes);
-  if (notes.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "field__note";
-    empty.textContent = "まだメモがありません。";
-    detail.appendChild(empty);
-  } else {
-    const ul = document.createElement("ul");
-    ul.className = "exam-list";
-    notes.forEach((n) => {
-      ul.appendChild(createNoteItem(entry, n));
-    });
-    detail.appendChild(ul);
-  }
-
-  const deleteRow = document.createElement("div");
-  deleteRow.className = "field";
+  const actions = document.createElement("div");
+  actions.className = "tpl-editor__actions";
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.id = "hist-edit-save";
+  saveBtn.className = "btn btn--small btn--primary";
+  saveBtn.textContent = "保存する";
+  saveBtn.addEventListener("click", async () => {
+    const title = titleInput.value.trim();
+    if (!title) {
+      error.textContent = `${titleFieldLabel(draft.type)}を入力してください。`;
+      error.hidden = false;
+      return;
+    }
+    error.hidden = true;
+    const trimmedNote = noteInput.value.replace(/^\n+|\n+$/g, "");
+    const notes = {};
+    if (trimmedNote) {
+      notes.memo = {
+        date: todayStr(),
+        text: trimmedNote,
+        author: deps.getSelectedAuthor() || "",
+      };
+    }
+    deps.setBusy(saveBtn, true, "保存中...", "保存する");
+    try {
+      await updatePatientHistoryEntry(state.karteNumber, entry.id, {
+        title,
+        type: draft.type,
+        status: draft.status,
+        notes,
+      });
+      deps.showToast("既往歴を保存しました。");
+      deps.onEntrySaved?.(entry.id);
+    } catch (err) {
+      console.error(err);
+      error.textContent = "保存に失敗しました。もう一度お試しください。";
+      error.hidden = false;
+    } finally {
+      deps.setBusy(saveBtn, false, "保存中...", "保存する");
+    }
+  });
   const deleteBtn = document.createElement("button");
   deleteBtn.type = "button";
   deleteBtn.className = "btn btn--small btn--danger-outline";
@@ -459,49 +477,10 @@ function createHistoryDetail(entry) {
   deleteBtn.addEventListener("click", async () => {
     await deletePatientHistoryEntryById(entry.id);
   });
-  deleteRow.appendChild(deleteBtn);
-  detail.appendChild(deleteRow);
+  actions.append(saveBtn, deleteBtn);
+  detail.appendChild(actions);
 
   return detail;
-}
-
-function createNoteItem(entry, note) {
-  const li = document.createElement("li");
-  li.className = "exam-list-item";
-
-  const info = document.createElement("div");
-  info.className = "exam-list-item__info";
-  const title = document.createElement("div");
-  title.className = "exam-list-item__title";
-  title.textContent = ymdFromStr(note.date) || "（日付なし）";
-  const body = document.createElement("div");
-  body.className = "exam-list-item__meta";
-  body.style.whiteSpace = "pre-wrap";
-  const authorPart = note.author ? `\n記入: ${note.author}` : "";
-  body.textContent = `${note.text || ""}${authorPart}`;
-  info.append(title, body);
-  li.appendChild(info);
-
-  enableRowGestures(li, {
-    actions: [
-      {
-        action: "delete",
-        title: "削除",
-        onClick: async () => {
-          const ok = window.confirm("このメモを削除しますか？");
-          if (!ok) return;
-          try {
-            await deletePatientHistoryNote(state.karteNumber, entry.id, note.id);
-            deps.showToast("メモを削除しました。");
-          } catch (err) {
-            console.error(err);
-            deps.showToast("削除に失敗しました。", { isError: true });
-          }
-        },
-      },
-    ],
-  });
-  return li;
 }
 
 // --- 追加モーダル ---------------------------------------------------------
@@ -600,58 +579,5 @@ async function handleAddSave() {
     deps.showError(addError, "追加に失敗しました。もう一度お試しください。");
   } finally {
     deps.setBusy(btnAddSave, false, "保存中...", "追加する");
-  }
-}
-
-function wireNoteModal() {
-  btnCloseNoteModal?.addEventListener("click", closeNoteModal);
-  btnNoteCancel?.addEventListener("click", closeNoteModal);
-  noteModal?.querySelector("[data-close-modal]")?.addEventListener("click", closeNoteModal);
-  btnNoteSave?.addEventListener("click", handleNoteSave);
-}
-
-function openNoteModal(entry) {
-  noteTargetEntryId = entry.id;
-  noteModalTitle.textContent = `メモを追記 — ${entry.title || ""}`;
-  noteDate.value = todayStr();
-  noteText.value = "";
-  deps.showError(noteError, "");
-  noteModal.hidden = false;
-  setTimeout(() => noteText.focus(), 0);
-}
-
-function closeNoteModal() {
-  noteTargetEntryId = null;
-  if (noteModal) noteModal.hidden = true;
-}
-
-async function handleNoteSave() {
-  const text = noteText.value.trim();
-  const date = noteDate.value;
-  if (!text) {
-    deps.showError(noteError, "メモ内容を入力してください。");
-    return;
-  }
-  if (!date) {
-    deps.showError(noteError, "日付を選択してください。");
-    return;
-  }
-  if (!noteTargetEntryId) return;
-
-  deps.showError(noteError, "");
-  deps.setBusy(btnNoteSave, true, "保存中...", "追記する");
-  try {
-    await appendPatientHistoryNote(state.karteNumber, noteTargetEntryId, {
-      date,
-      text,
-      author: deps.getSelectedAuthor() || "",
-    });
-    closeNoteModal();
-    deps.showToast("メモを追記しました。");
-  } catch (err) {
-    console.error(err);
-    deps.showError(noteError, "保存に失敗しました。", { isError: true });
-  } finally {
-    deps.setBusy(btnNoteSave, false, "保存中...", "追記する");
   }
 }

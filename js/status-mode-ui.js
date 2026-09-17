@@ -532,7 +532,7 @@ function renderPatientHistory() {
       lastGroup = group;
       const heading = document.createElement("li");
       heading.className = "status-group-title";
-      heading.textContent = group === "active" ? "🟢 進行中" : "⚪ 終了";
+      heading.textContent = group === "active" ? "進行中" : "終了";
       histList.appendChild(heading);
     }
 

@@ -184,6 +184,7 @@ const SEED = {
       source: "manual",
       notes: {
         n1: { date: "2026-07-01", text: "心拡大の進行あり。内服継続。", author: "大野" },
+        n2: { date: "2026-08-01", text: "ピモベンダン追加。", author: "山本" },
       },
     },
     {

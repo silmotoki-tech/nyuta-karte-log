@@ -3634,7 +3634,8 @@ export async function addPatientHistoryEntry(
 }
 
 /**
- * タイトル・種別など基本情報を更新する（メモ本文は追記専用のためここには含めない）。
+ * タイトル・種別・状態・メモを更新する。
+ * メモは notes ごと置き換えて上書きする（追記しない）。
  */
 export async function updatePatientHistoryEntry(karteNumber, entryId, fields) {
   await authReady;
@@ -3646,7 +3647,13 @@ export async function updatePatientHistoryEntry(karteNumber, entryId, fields) {
   if (fields.type != null) {
     payload.type = HISTORY_TYPES.includes(fields.type) ? fields.type : "disease";
   }
+  if (fields.status != null) {
+    payload.status = HISTORY_STATUSES.includes(fields.status) ? fields.status : "active";
+  }
   if (fields.firstNoted != null) payload.firstNoted = fields.firstNoted;
+  if (fields.notes != null) {
+    payload.notes = fields.notes && typeof fields.notes === "object" ? fields.notes : {};
+  }
   await update(patientHistoryEntryRef(karteNumber, entryId), payload);
 }
 
