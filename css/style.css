@@ -2927,6 +2927,11 @@ html.is-unlocked .app {
   margin-top: 4px;
 }
 
+.hist-edit-form .input--date {
+  min-width: 12.5rem;
+  max-width: 16rem;
+}
+
 .hist-type {
   display: inline-flex;
   align-items: center;

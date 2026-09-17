@@ -71,7 +71,7 @@
 //   history/{カルテ番号}/{entryId}/title
 //   history/{カルテ番号}/{entryId}/type                  … "disease"|"surgery"|"referral"
 //   history/{カルテ番号}/{entryId}/status                … "active"|"resolved"
-//   history/{カルテ番号}/{entryId}/firstNoted            … "YYYY-MM-DD"
+//   history/{カルテ番号}/{entryId}/firstNoted            … 開始日 "YYYY-MM-DD"（未設定は空）
 //   history/{カルテ番号}/{entryId}/lastUpdated           … "YYYY-MM-DD"
 //   history/{カルテ番号}/{entryId}/source                … "manual"|"ai"（登録経路。将来のAI連携用）
 //   history/{カルテ番号}/{entryId}/notes/{noteId}
@@ -3634,7 +3634,8 @@ export async function addPatientHistoryEntry(
 }
 
 /**
- * タイトル・種別・状態・メモを更新する。
+ * タイトル・種別・状態・開始日・メモを更新する。
+ * 開始日（firstNoted）は空文字を許可する（未設定のまま残せる）。
  * メモは notes ごと置き換えて上書きする（追記しない）。
  */
 export async function updatePatientHistoryEntry(karteNumber, entryId, fields) {

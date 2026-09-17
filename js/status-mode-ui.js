@@ -569,7 +569,7 @@ function renderPatientHistory() {
 
     const meta = document.createElement("div");
     meta.className = "status-row__note";
-    meta.textContent = `初回 ${ymdFromStr(entry.firstNoted) || "—"}　更新 ${
+    meta.textContent = `開始日 ${ymdFromStr(entry.firstNoted) || "—"}　更新 ${
       ymdFromStr(entry.lastUpdated) || "—"
     }`;
     li.appendChild(meta);

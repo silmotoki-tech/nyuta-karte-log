@@ -261,6 +261,14 @@ assert.ok(
   histMarks.rows.every((r) => !r.text.includes("🟢")),
   "既往歴の行に🟢が残っている"
 );
+assert.ok(
+  histMarks.listText.includes("開始日"),
+  "既往歴一覧に開始日が出ていない"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.text.includes("慢性腎臓病") && r.text.includes("開始日 —")),
+  "開始日未設定の既往歴が空欄になっていない"
+);
 
 // 並び順: 継続 → 一時的 → 投与難 → 休薬中 → 中止
 const statusSeq = counts.medOrder.map((t) =>
@@ -580,10 +588,16 @@ assert.equal(
   "心拡大の進行あり。内服継続。\nピモベンダン追加。",
   "既存の複数メモが1つにまとまっていない"
 );
+assert.equal(
+  await page.locator("#hist-edit-start-date").inputValue(),
+  "2023-04-01",
+  "開始日の初期値が既存の firstNoted になっていない"
+);
 await page.fill("#hist-edit-title", "僧帽弁閉鎖不全症（編集）");
 await page.locator("#hist-edit-type-buttons .exam-item-btn", { hasText: "手術歴" }).click();
 await page.locator("#hist-edit-status-buttons .exam-item-btn", { hasText: "終了" }).click();
 await page.fill("#hist-edit-note", "上書きしたメモ");
+await page.fill("#hist-edit-start-date", "2018-05-01");
 await page.click("#hist-edit-save");
 await page.waitForFunction(
   () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
@@ -596,18 +610,52 @@ const editedHx = await page
 assert.ok(editedHx.includes("術"), "種別の変更が一覧に反映されない");
 assert.ok(editedHx.includes("終了"), "状態の変更が一覧に反映されない");
 assert.ok(!editedHx.includes("進行中"), "終了にしても進行中が残っている");
+assert.ok(editedHx.includes("開始日"), "開始日のラベルが一覧に無い");
+assert.ok(editedHx.includes("2018/5/1"), "開始日の変更が一覧に反映されない");
+assert.ok(!editedHx.includes("2023/4/1"), "変更前の開始日が一覧に残っている");
 
 await page.locator("#status-history-list .status-row", { hasText: "僧帽弁閉鎖不全症（編集）" }).click();
 await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
 const overwritten = await page.locator("#hist-edit-note").inputValue();
 assert.equal(overwritten, "上書きしたメモ", "メモが上書きされず追記になっている");
 assert.ok(!overwritten.includes("心拡大"), "旧メモが残っている");
+assert.equal(
+  await page.locator("#hist-edit-start-date").inputValue(),
+  "2018-05-01",
+  "保存した開始日が詳細に残っていない"
+);
 await page.click("#btn-close-status-detail");
 await page.waitForFunction(
   () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
+
+// 開始日が未設定の既存データは空欄のまま開け、後から入れられること
+const emptyDateRow = page.locator("#status-history-list .status-row", {
+  hasText: "慢性腎臓病 IRIS ステージ2",
+});
+const emptyDateListText = await emptyDateRow.innerText();
+assert.ok(emptyDateListText.includes("開始日 —"), "開始日未設定の行が空欄になっていない");
+await emptyDateRow.click();
+await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
+assert.equal(
+  await page.locator("#hist-edit-start-date").inputValue(),
+  "",
+  "開始日未設定なのに日付欄に値が入っている"
+);
+await page.fill("#hist-edit-start-date", "2020-01-15");
+await page.click("#hist-edit-save");
+await page.waitForFunction(
+  () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+const filledDateHx = await page
+  .locator("#status-history-list .status-row", { hasText: "慢性腎臓病 IRIS ステージ2" })
+  .innerText();
+assert.ok(filledDateHx.includes("2020/1/15"), "空だった開始日の入力が一覧に反映されない");
+assert.ok(!filledDateHx.includes("開始日 —"), "開始日を入れても空欄表示が残っている");
 
 // --- スワイプ削除アイコンが前面に透けないこと ----------------------------
 function parseAlpha(color) {

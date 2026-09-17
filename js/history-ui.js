@@ -1,6 +1,7 @@
 // 既往歴の追加・編集UI。
 // 名称はフリーワード。種別（疾患／手術歴／紹介）と状態（進行中／終了）は
-// ボタン選択。メモは1つのテキスト欄で上書きする（追記型ではない）。
+// ボタン選択。開始日（firstNoted）はカレンダーで直せる。未設定は空のまま残せる。
+// メモは1つのテキスト欄で上書きする（追記型ではない）。
 // 疾患名マスタのシード・管理APIは db.js 側に残し、入力画面では使わない。
 // 将来のAI提案フローからも db.addPatientHistoryEntry(..., { source: "ai" })
 // で同じデータ構造に登録できる想定。
@@ -81,6 +82,10 @@ function ymdFromStr(dateStr) {
   const [y, m, d] = dateStr.split("-");
   if (!y || !m || !d) return dateStr;
   return `${y}/${Number(m)}/${Number(d)}`;
+}
+
+function dateInputValue(dateStr) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || "")) ? dateStr : "";
 }
 
 function typeLabel(type) {
@@ -254,7 +259,7 @@ function createHistoryCard(entry) {
 
   const meta = document.createElement("p");
   meta.className = "hist-card__meta";
-  meta.textContent = `初回 ${ymdFromStr(entry.firstNoted) || "—"}　更新 ${
+  meta.textContent = `開始日 ${ymdFromStr(entry.firstNoted) || "—"}　更新 ${
     ymdFromStr(entry.lastUpdated) || "—"
   }`;
   li.appendChild(meta);
@@ -400,6 +405,21 @@ function createHistoryDetail(entry) {
   }
   syncEditTitleChrome();
 
+  const startBlock = document.createElement("div");
+  startBlock.className = "field";
+  const startLabel = document.createElement("label");
+  startLabel.className = "label";
+  startLabel.htmlFor = "hist-edit-start-date";
+  startLabel.textContent = "開始日";
+  const startInput = document.createElement("input");
+  startInput.id = "hist-edit-start-date";
+  startInput.className = "input input--date";
+  startInput.type = "date";
+  startInput.value = dateInputValue(entry.firstNoted);
+  startInput.setAttribute("aria-label", "開始日");
+  startBlock.append(startLabel, startInput);
+  detail.appendChild(startBlock);
+
   const noteBlock = document.createElement("div");
   noteBlock.className = "field";
   const noteLabel = document.createElement("label");
@@ -417,9 +437,7 @@ function createHistoryDetail(entry) {
 
   const dates = document.createElement("p");
   dates.className = "field__note";
-  dates.textContent = `初回記載日: ${ymdFromStr(entry.firstNoted) || "—"}　／　最終更新日: ${
-    ymdFromStr(entry.lastUpdated) || "—"
-  }`;
+  dates.textContent = `最終更新日: ${ymdFromStr(entry.lastUpdated) || "—"}`;
   detail.appendChild(dates);
 
   const error = document.createElement("p");
@@ -458,6 +476,7 @@ function createHistoryDetail(entry) {
         title,
         type: draft.type,
         status: draft.status,
+        firstNoted: startInput.value || "",
         notes,
       });
       deps.showToast("既往歴を保存しました。");
@@ -554,7 +573,7 @@ async function handleAddSave() {
     return;
   }
   if (!firstNoted) {
-    deps.showError(addError, "初回記載日を選択してください。");
+    deps.showError(addError, "開始日を選択してください。");
     return;
   }
 

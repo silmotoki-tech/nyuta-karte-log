@@ -193,7 +193,7 @@ const SEED = {
       title: "慢性腎臓病 IRIS ステージ2",
       type: "disease",
       status: "active",
-      firstNoted: "2025-02-14",
+      firstNoted: "",
       lastUpdated: "2026-05-15",
       source: "manual",
       notes: {},
