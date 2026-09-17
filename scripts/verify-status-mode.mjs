@@ -633,6 +633,75 @@ await assertSwipeOpaque(
 await assertSwipeOpaque("#status-meds-list .status-row", "swipe-03-meds", "薬剤", "delete");
 await assertSwipeOpaque("#status-notes-list .status-row", "swipe-05-notes", "特記", "delete");
 
+// 既往歴は左スワイプでも同じゴミ箱が出ること（左端カラムの右スワイプが端末操作と衝突しやすい）
+await swipeOpen("#status-history-list .status-row", "edit");
+const historyLeftSwipe = await page.locator("#status-history-list .status-row").first().evaluate((row) => {
+  const panel = row.querySelector(".swipeable__actions--delete.swipeable__actions--end");
+  const btn = panel?.querySelector(".icon-btn--delete");
+  const front = row.querySelector(".swipeable__front");
+  if (!panel || !btn || !front) return { ok: false, reason: "left-swipe delete DOM missing" };
+  const rowBox = row.getBoundingClientRect();
+  const frontBox = front.getBoundingClientRect();
+  const panelCs = getComputedStyle(panel);
+  return {
+    ok: true,
+    open: row.classList.contains("is-actions-open-edit"),
+    shift: Math.round(frontBox.left - rowBox.left),
+    panelBg: panelCs.backgroundColor,
+  };
+});
+console.log("SWIPE 既往歴 left-delete", historyLeftSwipe);
+assert.equal(historyLeftSwipe.ok, true, `既往歴左スワイプ: ${historyLeftSwipe.reason || "削除DOMがない"}`);
+assert.equal(historyLeftSwipe.open, true, "既往歴: 左スワイプで削除操作が開いていない");
+assert.ok(historyLeftSwipe.shift <= -50, `既往歴左スワイプ: 前面が左にずれていない (shift=${historyLeftSwipe.shift})`);
+assert.ok(parseAlpha(historyLeftSwipe.panelBg) >= 1, `既往歴左スワイプ: 削除パネルの背景が透明 (${historyLeftSwipe.panelBg})`);
+await closeOpenSwipe();
+
+const historyDeleteBtn = () =>
+  page
+    .locator("#status-history-list .status-row")
+    .first()
+    .locator(".swipeable__actions--delete:not(.swipeable__actions--end) .icon-btn--delete");
+
+const titlesBefore = await page.locator("#status-history-list .status-row .status-row__title").allInnerTexts();
+assert.ok(titlesBefore.length > 0, "既往歴の行がない");
+const removeTitle = titlesBefore[0];
+
+await swipeOpen("#status-history-list .status-row", "delete");
+page.once("dialog", (d) => d.dismiss());
+await historyDeleteBtn().click();
+await page.waitForTimeout(200);
+const titlesAfterCancel = await page
+  .locator("#status-history-list .status-row .status-row__title")
+  .allInnerTexts();
+assert.deepEqual(titlesAfterCancel, titlesBefore, "確認をキャンセルしたのに既往歴が消えている");
+await closeOpenSwipe();
+
+await swipeOpen("#status-history-list .status-row", "delete");
+page.once("dialog", (d) => {
+  assert.match(d.message(), /削除しますか/);
+  return d.accept();
+});
+await historyDeleteBtn().click();
+await page.waitForFunction(
+  (title) => {
+    const titles = [...document.querySelectorAll("#status-history-list .status-row .status-row__title")].map(
+      (el) => el.textContent
+    );
+    return !titles.includes(title);
+  },
+  removeTitle,
+  { timeout: 5000 }
+);
+const titlesAfterDelete = await page
+  .locator("#status-history-list .status-row .status-row__title")
+  .allInnerTexts();
+assert.equal(titlesAfterDelete.length, titlesBefore.length - 1, "既往歴の件数が1件減っていない");
+assert.ok(!titlesAfterDelete.includes(removeTitle), "削除した既往歴が一覧に残っている");
+
+await assertSwipeOpaque("#status-meds-list .status-row", "swipe-03b-meds-after-hx-delete", "薬剤（既往歴削除後）", "delete");
+await assertSwipeOpaque("#status-notes-list .status-row", "swipe-05b-notes-after-hx-delete", "特記（既往歴削除後）", "delete");
+
 // --- 状態 ⇄ 履歴 の切り替え ---------------------------------------------
 await page.click("#btn-view-history");
 await page.waitForFunction(

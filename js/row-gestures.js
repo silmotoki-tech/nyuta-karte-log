@@ -125,7 +125,10 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
     (a) => a.action === "edit" || a.action === "refresh"
   );
   const deleteActions = filtered.filter((a) => a.action === "delete");
-  rowEl.dataset.editActionCount = String(editActions.length);
+  const deleteOnly = deleteActions.length > 0 && editActions.length === 0;
+  rowEl.dataset.editActionCount = String(
+    deleteOnly ? deleteActions.length : editActions.length
+  );
   rowEl.dataset.deleteActionCount = String(deleteActions.length);
 
   const editW = sideWidth(rowEl, "edit");
@@ -145,6 +148,12 @@ export function enableRowGestures(rowEl, { actions = [], onActivate = null } = {
   }
   if (editActions.length) {
     parts.push(buildActionsPanel("edit", editActions));
+  } else if (deleteOnly) {
+    // 削除だけの行は、左スワイプでも同じゴミ箱が出るようにする。
+    // 左端カラムでは右スワイプが端末の戻る操作と衝突しやすいため。
+    const endPanel = buildActionsPanel("delete", deleteActions);
+    endPanel.classList.add("swipeable__actions--end");
+    parts.push(endPanel);
   }
   rowEl.append(...parts, front);
 

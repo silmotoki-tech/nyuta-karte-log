@@ -40,6 +40,7 @@ import {
   hideStatusMode,
   isStatusModeVisible,
   updatePatientHeader as updateStatusPatientHeader,
+  closeStatusDetailModal,
 } from "./status-mode-ui.js";
 import {
   initInputModeUI,
@@ -1688,6 +1689,7 @@ initHistoryUI({
   showError,
   setBusy,
   getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
+  onEntryDeleted: () => closeStatusDetailModal(),
 });
 
 initMasterDeleteUI({

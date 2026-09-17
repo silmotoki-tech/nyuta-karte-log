@@ -3139,6 +3139,11 @@ select.input {
   background: rgba(168, 107, 98, 0.12);
 }
 
+.swipeable__actions--delete.swipeable__actions--end {
+  left: auto;
+  right: 0;
+}
+
 /* スワイプ時のみ大きくする（通常の .icon-btn 28px には影響しない） */
 .swipeable__action-btn.icon-btn {
   width: 56px;

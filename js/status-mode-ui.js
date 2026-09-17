@@ -579,7 +579,7 @@ function renderPatientHistory() {
         {
           action: "delete",
           title: "削除",
-          onClick: () => deletePatientHistoryEntryById(entry.id),
+          onClick: () => deletePatientHistoryEntryById(entry.id, state.karteNumber),
         },
       ],
       onActivate: () => openHistoryDetail(entry.id),
@@ -597,6 +597,10 @@ function openHistoryDetail(entryId) {
   if (detailTitle) detailTitle.textContent = built.title;
   detailModal.hidden = false;
   return true;
+}
+
+export function closeStatusDetailModal() {
+  closeDetailModal();
 }
 
 function closeDetailModal() {

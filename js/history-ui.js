@@ -28,6 +28,7 @@ let deps = {
   showError: () => {},
   setBusy: () => {},
   getSelectedAuthor: () => "",
+  onEntryDeleted: () => {},
 };
 
 const state = {
@@ -299,19 +300,30 @@ function createHistoryCard(entry) {
 
 /**
  * 既往歴IDを指定して削除する（確認ダイアログ付き。状態モードなど別画面から使う）。
+ * @param {string} entryId
+ * @param {string} [karteNumber] 省略時は history-ui が購読中のカルテ番号
+ * @returns {Promise<boolean>} 削除したら true
  */
-export async function deletePatientHistoryEntryById(entryId) {
-  const entry = state.entries.find((e) => e.id === entryId);
+export async function deletePatientHistoryEntryById(entryId, karteNumber) {
+  const karte = karteNumber || state.karteNumber;
+  if (!karte || !entryId) {
+    deps.showToast("削除に失敗しました。", { isError: true });
+    return false;
+  }
+  const entry = (state.entries || []).find((e) => e.id === entryId);
   const label = entry?.title || "この既往歴";
   const ok = window.confirm(`「${label}」を削除しますか？メモもまとめて削除されます。`);
-  if (!ok) return;
+  if (!ok) return false;
   try {
-    await deletePatientHistoryEntry(state.karteNumber, entryId);
+    await deletePatientHistoryEntry(karte, entryId);
     state.expandedIds.delete(entryId);
     deps.showToast("既往歴を削除しました。");
+    deps.onEntryDeleted?.(entryId);
+    return true;
   } catch (err) {
     console.error(err);
     deps.showToast("削除に失敗しました。", { isError: true });
+    return false;
   }
 }
 
@@ -437,6 +449,18 @@ function createHistoryDetail(entry) {
     });
     detail.appendChild(ul);
   }
+
+  const deleteRow = document.createElement("div");
+  deleteRow.className = "field";
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "btn btn--small btn--danger-outline";
+  deleteBtn.textContent = "この既往歴を削除";
+  deleteBtn.addEventListener("click", async () => {
+    await deletePatientHistoryEntryById(entry.id);
+  });
+  deleteRow.appendChild(deleteBtn);
+  detail.appendChild(deleteRow);
 
   return detail;
 }

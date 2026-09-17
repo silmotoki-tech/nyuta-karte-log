@@ -733,7 +733,10 @@ export async function appendPatientHistoryNote() {
   return nid("phn");
 }
 export async function deletePatientHistoryNote() {}
-export async function deletePatientHistoryEntry() {}
+export async function deletePatientHistoryEntry(karte, id) {
+  SEED.history = (SEED.history || []).filter((x) => x.id !== id);
+  notifyFeed("patientHistory", () => SEED.history);
+}
 
 export const FREE_QA_SCHEMA_VERSION = 1;
 export function subscribeFreeQA(karte, cb) {
