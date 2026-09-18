@@ -567,13 +567,6 @@ function renderPatientHistory() {
 
     li.appendChild(head);
 
-    const meta = document.createElement("div");
-    meta.className = "status-row__note";
-    meta.textContent = `開始日 ${ymdFromStr(entry.firstNoted) || "—"}　更新 ${
-      ymdFromStr(entry.lastUpdated) || "—"
-    }`;
-    li.appendChild(meta);
-
     enableRowGestures(li, {
       actions: [
         {

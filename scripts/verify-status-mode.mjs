@@ -236,10 +236,22 @@ const histMarks = await page.evaluate(() => {
     status: el.querySelector(".hist-status")?.textContent,
     text: el.innerText,
   }));
+  const first = list?.querySelector(".status-row");
+  const typeEl = first?.querySelector(".hist-type");
+  const titleEl = first?.querySelector(".status-row__title");
+  const statusEl = first?.querySelector(".hist-status");
+  const mid = (el) => {
+    const b = el.getBoundingClientRect();
+    return b.top + b.height / 2;
+  };
   return {
     listText: list?.innerText || "",
     groups,
     rows,
+    noteCount: list?.querySelectorAll(".status-row__note").length || 0,
+    hasHead: Boolean(typeEl && titleEl && statusEl),
+    sameRow:
+      typeEl && statusEl ? Math.abs(mid(typeEl) - mid(statusEl)) < 10 : false,
   };
 });
 assert.equal(histMarks.listText.includes("🟢"), false, "既往歴に🟢が残っている");
@@ -261,14 +273,16 @@ assert.ok(
   histMarks.rows.every((r) => !r.text.includes("🟢")),
   "既往歴の行に🟢が残っている"
 );
-assert.ok(
-  histMarks.listText.includes("開始日"),
-  "既往歴一覧に開始日が出ていない"
+assert.ok(!histMarks.listText.includes("開始日"), "既往歴一覧に開始日が残っている");
+assert.ok(!histMarks.listText.includes("更新"), "既往歴一覧に更新日が残っている");
+assert.equal(
+  histMarks.rows.some((r) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(r.text)),
+  false,
+  "既往歴一覧に日付が残っている"
 );
-assert.ok(
-  histMarks.rows.some((r) => r.text.includes("慢性腎臓病") && r.text.includes("開始日 —")),
-  "開始日未設定の既往歴が空欄になっていない"
-);
+assert.equal(histMarks.noteCount, 0, "既往歴カードに日付行が残っている");
+assert.equal(histMarks.hasHead, true, "既往歴カードの種別・タイトル・状態が欠けている");
+assert.equal(histMarks.sameRow, true, "既往歴カードの種別バッジと進行中／終了が同じ行に並んでいない");
 
 // 並び順: 継続 → 一時的 → 投与難 → 休薬中 → 中止
 const statusSeq = counts.medOrder.map((t) =>
@@ -610,8 +624,8 @@ const editedHx = await page
 assert.ok(editedHx.includes("術"), "種別の変更が一覧に反映されない");
 assert.ok(editedHx.includes("終了"), "状態の変更が一覧に反映されない");
 assert.ok(!editedHx.includes("進行中"), "終了にしても進行中が残っている");
-assert.ok(editedHx.includes("開始日"), "開始日のラベルが一覧に無い");
-assert.ok(editedHx.includes("2018/5/1"), "開始日の変更が一覧に反映されない");
+assert.ok(!editedHx.includes("開始日"), "一覧から外した開始日が表示されている");
+assert.ok(!editedHx.includes("2018/5/1"), "開始日が一覧に出ている");
 assert.ok(!editedHx.includes("2023/4/1"), "変更前の開始日が一覧に残っている");
 
 await page.locator("#status-history-list .status-row", { hasText: "僧帽弁閉鎖不全症（編集）" }).click();
@@ -631,12 +645,14 @@ await page.waitForFunction(
   { timeout: 5000 }
 );
 
-// 開始日が未設定の既存データは空欄のまま開け、後から入れられること
+// 開始日が未設定の既存データは詳細が空欄のまま開け、後から入れられること
 const emptyDateRow = page.locator("#status-history-list .status-row", {
   hasText: "慢性腎臓病 IRIS ステージ2",
 });
-const emptyDateListText = await emptyDateRow.innerText();
-assert.ok(emptyDateListText.includes("開始日 —"), "開始日未設定の行が空欄になっていない");
+assert.ok(
+  !(await emptyDateRow.innerText()).includes("開始日"),
+  "開始日未設定の行に日付ラベルが出ている"
+);
 await emptyDateRow.click();
 await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
 assert.equal(
@@ -654,8 +670,20 @@ await page.waitForFunction(
 const filledDateHx = await page
   .locator("#status-history-list .status-row", { hasText: "慢性腎臓病 IRIS ステージ2" })
   .innerText();
-assert.ok(filledDateHx.includes("2020/1/15"), "空だった開始日の入力が一覧に反映されない");
-assert.ok(!filledDateHx.includes("開始日 —"), "開始日を入れても空欄表示が残っている");
+assert.ok(!filledDateHx.includes("2020/1/15"), "開始日が一覧に出ている");
+await page.locator("#status-history-list .status-row", { hasText: "慢性腎臓病 IRIS ステージ2" }).click();
+await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
+assert.equal(
+  await page.locator("#hist-edit-start-date").inputValue(),
+  "2020-01-15",
+  "空だった開始日の入力が詳細に残っていない"
+);
+await page.click("#btn-close-status-detail");
+await page.waitForFunction(
+  () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
 
 // --- スワイプ削除アイコンが前面に透けないこと ----------------------------
 function parseAlpha(color) {
