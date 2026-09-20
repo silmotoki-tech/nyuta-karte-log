@@ -33,7 +33,14 @@ import {
   buildHistoryDetailNode,
   openPatientHistoryAddModal,
   deletePatientHistoryEntryById,
+  createHistoryKindIcons,
 } from "./history-ui.js";
+import {
+  resolveHistoryKinds,
+  primaryHistoryKind,
+  historyKindMeta,
+  sortHistoryEntries,
+} from "./history-kinds.js";
 import { enableRowGestures } from "./row-gestures.js";
 
 let deps = {
@@ -507,32 +514,27 @@ function renderExamHistory() {
 
 // --- 既往歴 --------------------------------------------------------------
 
-const HIST_TYPE_ABBR = { disease: "疾", surgery: "術", referral: "紹" };
-
 function renderPatientHistory() {
   if (!histList) return;
   histList.innerHTML = "";
 
-  const entries = [...(state.historyEntries || [])].sort((a, b) => {
-    const sa = a.status === "active" ? 0 : 1;
-    const sb = b.status === "active" ? 0 : 1;
-    if (sa !== sb) return sa - sb;
-    const d = (b.lastUpdated || "").localeCompare(a.lastUpdated || "");
-    if (d !== 0) return d;
-    return (a.title || "").localeCompare(b.title || "", "ja");
-  });
+  const entries = sortHistoryEntries(state.historyEntries || []);
 
   if (histEmpty) histEmpty.hidden = entries.length > 0;
   setCount(histCount, entries.length);
 
   let lastGroup = null;
   entries.forEach((entry) => {
-    const group = entry.status === "active" ? "active" : "resolved";
+    const kinds = resolveHistoryKinds(entry);
+    const group = primaryHistoryKind(kinds);
     if (group !== lastGroup) {
       lastGroup = group;
+      const meta = historyKindMeta(group);
       const heading = document.createElement("li");
       heading.className = "status-group-title";
-      heading.textContent = group === "active" ? "進行中" : "終了";
+      heading.textContent = meta.icon;
+      heading.title = meta.label;
+      heading.setAttribute("aria-label", meta.label);
       histList.appendChild(heading);
     }
 
@@ -540,31 +542,19 @@ function renderPatientHistory() {
       onOpen: () => openHistoryDetail(entry.id),
       handleClick: false,
     });
+    li.dataset.kinds = kinds.join(" ");
 
     const head = document.createElement("div");
     head.className = "status-row__head";
 
-    const type = document.createElement("span");
-    type.className = `hist-type hist-type--leading hist-type--${entry.type}`;
-    type.textContent = HIST_TYPE_ABBR[entry.type] || "他";
-    type.title =
-      { disease: "疾患", surgery: "手術歴", referral: "紹介・専門治療歴" }[entry.type] ||
-      entry.type ||
-      "";
+    const icons = createHistoryKindIcons(kinds);
+    icons.classList.add("hist-kind-icons--leading");
 
     const title = document.createElement("span");
     title.className = "status-row__title";
     title.textContent = entry.title || "（タイトル未設定）";
 
-    head.append(type, title);
-
-    const statusEl = document.createElement("span");
-    statusEl.className = `hist-status hist-status--${
-      entry.status === "active" ? "active" : "resolved"
-    }`;
-    statusEl.textContent = entry.status === "active" ? "進行中" : "終了";
-    head.appendChild(statusEl);
-
+    head.append(icons, title);
     li.appendChild(head);
 
     enableRowGestures(li, {

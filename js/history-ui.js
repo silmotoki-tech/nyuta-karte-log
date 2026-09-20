@@ -1,6 +1,6 @@
 // 既往歴の追加・編集UI。
-// 名称はフリーワード。種別（疾患／手術歴／紹介）と状態（進行中／終了）は
-// ボタン選択。開始日（firstNoted）はカレンダーで直せる。未設定は空のまま残せる。
+// 名称はフリーワード。種別は 🚹現疾患／✅疾患歴／🚨手術／🔰紹介 を複数選択。
+// 開始日（firstNoted）はカレンダーで直せる。未設定は空のまま残せる。
 // メモは1つのテキスト欄で上書きする（追記型ではない）。
 // 疾患名マスタのシード・管理APIは db.js 側に残し、入力画面では使わない。
 // 将来のAI提案フローからも db.addPatientHistoryEntry(..., { source: "ai" })
@@ -14,17 +14,16 @@ import {
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
 import { canHandleShortcut } from "./ime-keys.js";
-
-const HISTORY_TYPES = [
-  { id: "disease", label: "疾患" },
-  { id: "surgery", label: "手術歴" },
-  { id: "referral", label: "紹介・専門治療歴" },
-];
-
-const HISTORY_STATUS_OPTIONS = [
-  { id: "active", label: "進行中" },
-  { id: "resolved", label: "終了" },
-];
+import {
+  HISTORY_KINDS,
+  sanitizeHistoryKinds,
+  resolveHistoryKinds,
+  primaryHistoryKind,
+  historyKindMeta,
+  titleFieldLabelForKinds,
+  titlePlaceholderForKinds,
+  sortHistoryEntries,
+} from "./history-kinds.js";
 
 let deps = {
   showToast: () => {},
@@ -42,7 +41,7 @@ const state = {
   expandedIds: new Set(),
   addDraft: {
     title: "",
-    type: "disease",
+    kinds: ["current"],
     firstNoted: "",
     noteText: "",
   },
@@ -88,20 +87,19 @@ function dateInputValue(dateStr) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || "")) ? dateStr : "";
 }
 
-function typeLabel(type) {
-  return HISTORY_TYPES.find((t) => t.id === type)?.label || type || "";
-}
-
-function titleFieldLabel(type) {
-  if (type === "surgery") return "手術名";
-  if (type === "referral") return "紹介先";
-  return "疾患名";
-}
-
-function titlePlaceholder(type) {
-  if (type === "surgery") return "例）避妊手術";
-  if (type === "referral") return "例）○○動物病院";
-  return "例）僧帽弁閉鎖不全症";
+export function createHistoryKindIcons(kinds) {
+  const wrap = document.createElement("span");
+  wrap.className = "hist-kind-icons";
+  resolveHistoryKinds({ kinds }).forEach((id) => {
+    const meta = historyKindMeta(id);
+    const el = document.createElement("span");
+    el.className = "hist-kind-icon";
+    el.textContent = meta.icon;
+    el.title = meta.label;
+    el.setAttribute("aria-label", meta.label);
+    wrap.appendChild(el);
+  });
+  return wrap;
 }
 
 /** 既存の複数メモを日付順に改行でつなぐ（表示・上書き編集用。内容は落とさない）。 */
@@ -119,20 +117,13 @@ function joinedNoteText(entry) {
 }
 
 function sortedEntries(entries) {
-  return [...entries].sort((a, b) => {
-    const sa = a.status === "active" ? 0 : 1;
-    const sb = b.status === "active" ? 0 : 1;
-    if (sa !== sb) return sa - sb;
-    const ud = (b.lastUpdated || "").localeCompare(a.lastUpdated || "");
-    if (ud !== 0) return ud;
-    return (a.title || "").localeCompare(b.title || "");
-  });
+  return sortHistoryEntries(entries);
 }
 
 function syncTitleFieldChrome() {
-  const type = state.addDraft.type;
-  if (addTitleLabel) addTitleLabel.textContent = titleFieldLabel(type);
-  if (addTitleInput) addTitleInput.placeholder = titlePlaceholder(type);
+  const kinds = state.addDraft.kinds;
+  if (addTitleLabel) addTitleLabel.textContent = titleFieldLabelForKinds(kinds);
+  if (addTitleInput) addTitleInput.placeholder = titlePlaceholderForKinds(kinds);
 }
 
 // --- 公開API --------------------------------------------------------------
@@ -209,12 +200,15 @@ function renderHistoryList() {
 
   let lastGroup = null;
   entries.forEach((entry) => {
-    const group = entry.status === "active" ? "active" : "resolved";
+    const group = primaryHistoryKind(resolveHistoryKinds(entry));
     if (group !== lastGroup) {
       lastGroup = group;
+      const meta = historyKindMeta(group);
       const heading = document.createElement("li");
       heading.className = "meds-category-heading";
-      heading.textContent = group === "active" ? "🟢 進行中" : "⚪ 終了";
+      heading.textContent = meta.icon;
+      heading.title = meta.label;
+      heading.setAttribute("aria-label", meta.label);
       historyList.appendChild(heading);
     }
     historyList.appendChild(createHistoryCard(entry));
@@ -225,8 +219,7 @@ function createHistoryCard(entry) {
   const li = document.createElement("li");
   li.className = "hist-card";
   li.dataset.entryId = entry.id;
-  if (entry.status === "active") li.classList.add("is-active");
-  else li.classList.add("is-resolved");
+  li.dataset.kinds = resolveHistoryKinds(entry).join(" ");
 
   const expanded = state.expandedIds.has(entry.id);
   if (expanded) li.classList.add("is-expanded");
@@ -237,24 +230,17 @@ function createHistoryCard(entry) {
   header.tabIndex = 0;
   header.setAttribute("aria-expanded", String(expanded));
 
-  const statusSign = document.createElement("span");
-  statusSign.className = "hist-card__sign";
-  statusSign.textContent = entry.status === "active" ? "🟢" : "⚪";
-  statusSign.title = entry.status === "active" ? "進行中" : "終了";
+  const icons = createHistoryKindIcons(resolveHistoryKinds(entry));
 
   const nameEl = document.createElement("span");
   nameEl.className = "hist-card__name";
   nameEl.textContent = entry.title || "（タイトル未設定）";
 
-  const typeEl = document.createElement("span");
-  typeEl.className = `hist-type hist-type--${entry.type}`;
-  typeEl.textContent = typeLabel(entry.type);
-
   const chevron = document.createElement("span");
   chevron.className = "med-card__chevron";
   chevron.textContent = expanded ? "▾" : "▸";
 
-  header.append(statusSign, nameEl, typeEl, chevron);
+  header.append(icons, nameEl, chevron);
   li.appendChild(header);
 
   const meta = document.createElement("p");
@@ -327,27 +313,35 @@ export async function deletePatientHistoryEntryById(entryId, karteNumber) {
   }
 }
 
-function createChoiceButtons(items, selectedId, onPick) {
+function createKindToggleButtons(draft, onChange, { id } = {}) {
   const wrap = document.createElement("div");
-  wrap.className = "exam-item-buttons";
-  const paint = (current) => {
+  wrap.className = "exam-item-buttons hist-kind-buttons";
+  if (id) wrap.id = id;
+  const paint = () => {
+    const set = new Set(sanitizeHistoryKinds(draft.kinds));
     wrap.querySelectorAll(".exam-item-btn").forEach((btn) => {
-      btn.classList.toggle("is-selected", btn.dataset.id === current);
+      const on = set.has(btn.dataset.kind);
+      btn.classList.toggle("is-selected", on);
+      btn.setAttribute("aria-pressed", String(on));
     });
   };
-  items.forEach((item) => {
+  HISTORY_KINDS.forEach((kind) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "exam-item-btn";
-    btn.dataset.id = item.id;
-    btn.textContent = item.label;
+    btn.dataset.kind = kind.id;
+    btn.textContent = `${kind.icon} ${kind.label}`;
     btn.addEventListener("click", () => {
-      onPick(item.id);
-      paint(item.id);
+      const set = new Set(sanitizeHistoryKinds(draft.kinds));
+      if (set.has(kind.id)) set.delete(kind.id);
+      else set.add(kind.id);
+      draft.kinds = sanitizeHistoryKinds([...set]);
+      paint();
+      onChange?.(draft.kinds);
     });
     wrap.appendChild(btn);
   });
-  paint(selectedId);
+  paint();
   return wrap;
 }
 
@@ -356,8 +350,7 @@ function createHistoryDetail(entry) {
   detail.className = "hist-edit-form";
 
   const draft = {
-    type: HISTORY_TYPES.some((t) => t.id === entry.type) ? entry.type : "disease",
-    status: entry.status === "resolved" ? "resolved" : "active",
+    kinds: resolveHistoryKinds(entry),
   };
 
   const typeRow = document.createElement("div");
@@ -365,25 +358,11 @@ function createHistoryDetail(entry) {
   const typeLabelEl = document.createElement("span");
   typeLabelEl.className = "label";
   typeLabelEl.textContent = "種別";
-  const typeBtns = createChoiceButtons(HISTORY_TYPES, draft.type, (id) => {
-    draft.type = id;
-    syncEditTitleChrome();
+  const typeBtns = createKindToggleButtons(draft, () => syncEditTitleChrome(), {
+    id: "hist-edit-kind-buttons",
   });
-  typeBtns.id = "hist-edit-type-buttons";
   typeRow.append(typeLabelEl, typeBtns);
   detail.appendChild(typeRow);
-
-  const statusRow = document.createElement("div");
-  statusRow.className = "field";
-  const statusLabel = document.createElement("span");
-  statusLabel.className = "label";
-  statusLabel.textContent = "状態";
-  const statusBtns = createChoiceButtons(HISTORY_STATUS_OPTIONS, draft.status, (id) => {
-    draft.status = id;
-  });
-  statusBtns.id = "hist-edit-status-buttons";
-  statusRow.append(statusLabel, statusBtns);
-  detail.appendChild(statusRow);
 
   const titleBlock = document.createElement("div");
   titleBlock.className = "field";
@@ -400,8 +379,8 @@ function createHistoryDetail(entry) {
   detail.appendChild(titleBlock);
 
   function syncEditTitleChrome() {
-    titleLabel.textContent = titleFieldLabel(draft.type);
-    titleInput.placeholder = titlePlaceholder(draft.type);
+    titleLabel.textContent = titleFieldLabelForKinds(draft.kinds);
+    titleInput.placeholder = titlePlaceholderForKinds(draft.kinds);
   }
   syncEditTitleChrome();
 
@@ -456,7 +435,13 @@ function createHistoryDetail(entry) {
   saveBtn.addEventListener("click", async () => {
     const title = titleInput.value.trim();
     if (!title) {
-      error.textContent = `${titleFieldLabel(draft.type)}を入力してください。`;
+      error.textContent = `${titleFieldLabelForKinds(draft.kinds)}を入力してください。`;
+      error.hidden = false;
+      return;
+    }
+    const kinds = sanitizeHistoryKinds(draft.kinds);
+    if (!kinds.length) {
+      error.textContent = "種別を1つ以上選んでください。";
       error.hidden = false;
       return;
     }
@@ -474,8 +459,7 @@ function createHistoryDetail(entry) {
     try {
       await updatePatientHistoryEntry(state.karteNumber, entry.id, {
         title,
-        type: draft.type,
-        status: draft.status,
+        kinds,
         firstNoted: startInput.value || "",
         notes,
       });
@@ -511,15 +495,18 @@ function wireToolbar() {
 function buildTypeButtons() {
   if (!addTypeButtons) return;
   addTypeButtons.innerHTML = "";
-  HISTORY_TYPES.forEach((t) => {
+  addTypeButtons.classList.add("hist-kind-buttons");
+  HISTORY_KINDS.forEach((kind) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "exam-item-btn";
-    btn.dataset.type = t.id;
-    btn.textContent = t.label;
+    btn.dataset.kind = kind.id;
+    btn.textContent = `${kind.icon} ${kind.label}`;
     btn.addEventListener("click", () => {
-      if (state.addDraft.type === t.id) return;
-      state.addDraft.type = t.id;
+      const set = new Set(sanitizeHistoryKinds(state.addDraft.kinds));
+      if (set.has(kind.id)) set.delete(kind.id);
+      else set.add(kind.id);
+      state.addDraft.kinds = sanitizeHistoryKinds([...set]);
       renderAddTypeSelection();
       syncTitleFieldChrome();
     });
@@ -528,8 +515,11 @@ function buildTypeButtons() {
 }
 
 function renderAddTypeSelection() {
+  const set = new Set(sanitizeHistoryKinds(state.addDraft.kinds));
   addTypeButtons?.querySelectorAll(".exam-item-btn").forEach((btn) => {
-    btn.classList.toggle("is-selected", btn.dataset.type === state.addDraft.type);
+    const on = set.has(btn.dataset.kind);
+    btn.classList.toggle("is-selected", on);
+    btn.setAttribute("aria-pressed", String(on));
   });
 }
 
@@ -546,7 +536,7 @@ function wireAddModal() {
 function openAddModal() {
   state.addDraft = {
     title: "",
-    type: "disease",
+    kinds: ["current"],
     firstNoted: todayStr(),
     noteText: "",
   };
@@ -569,7 +559,12 @@ async function handleAddSave() {
   const noteText = addNote?.value.trim() || "";
 
   if (!title) {
-    deps.showError(addError, `${titleFieldLabel(state.addDraft.type)}を入力してください。`);
+    deps.showError(addError, `${titleFieldLabelForKinds(state.addDraft.kinds)}を入力してください。`);
+    return;
+  }
+  const kinds = sanitizeHistoryKinds(state.addDraft.kinds);
+  if (!kinds.length) {
+    deps.showError(addError, "種別を1つ以上選んでください。");
     return;
   }
   if (!firstNoted) {
@@ -582,8 +577,7 @@ async function handleAddSave() {
   try {
     const entryId = await addPatientHistoryEntry(state.karteNumber, {
       title,
-      type: state.addDraft.type,
-      status: "active",
+      kinds,
       firstNoted,
       noteText,
       author: deps.getSelectedAuthor() || "",

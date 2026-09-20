@@ -69,8 +69,9 @@
 //
 //   history/{カルテ番号}/{entryId}/schemaVersion         … 既往歴
 //   history/{カルテ番号}/{entryId}/title
-//   history/{カルテ番号}/{entryId}/type                  … "disease"|"surgery"|"referral"
-//   history/{カルテ番号}/{entryId}/status                … "active"|"resolved"
+//   history/{カルテ番号}/{entryId}/type                  … 旧 "disease"|"surgery"|"referral"（残す）
+//   history/{カルテ番号}/{entryId}/status                … 旧 "active"|"resolved"（残す）
+//   history/{カルテ番号}/{entryId}/kinds                 … ["current"|"past"|"surgery"|"referral"] 複数可
 //   history/{カルテ番号}/{entryId}/firstNoted            … 開始日 "YYYY-MM-DD"（未設定は空）
 //   history/{カルテ番号}/{entryId}/lastUpdated           … "YYYY-MM-DD"
 //   history/{カルテ番号}/{entryId}/source                … "manual"|"ai"（登録経路。将来のAI連携用）
@@ -129,6 +130,11 @@ import { firebaseConfig } from "./firebase-config.js";
 import { authReady, getCurrentUser } from "./auth.js";
 import { HISTORY_DISEASE_SEED } from "./history-disease-seed.js";
 import { filterKartesByName } from "./karte-name-match.js";
+import {
+  sanitizeHistoryKinds,
+  kindsFromLegacy,
+  legacyTypeStatusFromKinds,
+} from "./history-kinds.js";
 
 const db = getDatabase(app);
 
@@ -3503,6 +3509,7 @@ export async function addHistoryReferralItem({ label, order }) {
 // --- 既往歴（history） ----------------------------------------------------
 // 手動追加と将来のAI提案からの登録の両方を想定。
 // source: "manual" | "ai" で登録経路を区別する。
+// kinds が無い既存データは type/status から読み取る（書き込みでは消さない）。
 
 export const PATIENT_HISTORY_SCHEMA_VERSION = 1;
 
@@ -3535,6 +3542,7 @@ function normalizePatientHistoryEntry(id, raw) {
     firstNoted: "",
     lastUpdated: "",
     source: "manual",
+    kinds: ["current"],
     notes: {},
   };
   if (!raw || typeof raw !== "object") return entry;
@@ -3546,6 +3554,8 @@ function normalizePatientHistoryEntry(id, raw) {
   entry.firstNoted = raw.firstNoted || "";
   entry.lastUpdated = raw.lastUpdated || entry.firstNoted || "";
   entry.source = raw.source === "ai" ? "ai" : "manual";
+  const fromField = sanitizeHistoryKinds(raw.kinds);
+  entry.kinds = fromField.length ? fromField : kindsFromLegacy(entry.type, entry.status);
 
   if (Array.isArray(raw.notes)) {
     raw.notes.forEach((n, i) => {
@@ -3601,6 +3611,7 @@ export async function addPatientHistoryEntry(
     title,
     type = "disease",
     status = "active",
+    kinds,
     firstNoted,
     noteText = "",
     author = "",
@@ -3609,13 +3620,18 @@ export async function addPatientHistoryEntry(
 ) {
   await authReady;
   const noted = firstNoted || todayDateStrLocal();
+  const resolvedKinds = sanitizeHistoryKinds(kinds).length
+    ? sanitizeHistoryKinds(kinds)
+    : kindsFromLegacy(type, status);
+  const legacy = legacyTypeStatusFromKinds(resolvedKinds);
   const newRef = push(patientHistoryRootRef(karteNumber));
   const entryId = newRef.key;
   await set(newRef, {
     schemaVersion: PATIENT_HISTORY_SCHEMA_VERSION,
     title: title || "",
-    type: HISTORY_TYPES.includes(type) ? type : "disease",
-    status: HISTORY_STATUSES.includes(status) ? status : "active",
+    type: legacy.type,
+    status: legacy.status,
+    kinds: resolvedKinds,
     firstNoted: noted,
     lastUpdated: noted,
     source: source === "ai" ? "ai" : "manual",
@@ -3634,9 +3650,10 @@ export async function addPatientHistoryEntry(
 }
 
 /**
- * タイトル・種別・状態・開始日・メモを更新する。
+ * タイトル・種別（kinds）・開始日・メモを更新する。
  * 開始日（firstNoted）は空文字を許可する（未設定のまま残せる）。
  * メモは notes ごと置き換えて上書きする（追記しない）。
+ * kinds を書くときは旧 type/status も主種別から同期する（既存フィールドは消さない）。
  */
 export async function updatePatientHistoryEntry(karteNumber, entryId, fields) {
   await authReady;
@@ -3645,11 +3662,19 @@ export async function updatePatientHistoryEntry(karteNumber, entryId, fields) {
     lastUpdated: todayDateStrLocal(),
   };
   if (fields.title != null) payload.title = fields.title;
-  if (fields.type != null) {
-    payload.type = HISTORY_TYPES.includes(fields.type) ? fields.type : "disease";
-  }
-  if (fields.status != null) {
-    payload.status = HISTORY_STATUSES.includes(fields.status) ? fields.status : "active";
+  if (fields.kinds != null) {
+    const resolvedKinds = sanitizeHistoryKinds(fields.kinds);
+    payload.kinds = resolvedKinds.length ? resolvedKinds : ["current"];
+    const legacy = legacyTypeStatusFromKinds(payload.kinds);
+    payload.type = legacy.type;
+    payload.status = legacy.status;
+  } else {
+    if (fields.type != null) {
+      payload.type = HISTORY_TYPES.includes(fields.type) ? fields.type : "disease";
+    }
+    if (fields.status != null) {
+      payload.status = HISTORY_STATUSES.includes(fields.status) ? fields.status : "active";
+    }
   }
   if (fields.firstNoted != null) payload.firstNoted = fields.firstNoted;
   if (fields.notes != null) {

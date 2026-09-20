@@ -220,6 +220,17 @@ const SEED = {
       source: "manual",
       notes: {},
     },
+    {
+      id: "hx5",
+      schemaVersion: 1,
+      title: "膵炎（既往）",
+      type: "disease",
+      status: "resolved",
+      firstNoted: "2022-01-08",
+      lastUpdated: "2022-03-01",
+      source: "manual",
+      notes: {},
+    },
   ],
   notes: [
     {
@@ -688,6 +699,7 @@ export async function addPatientHistoryEntry(
     title,
     type = "disease",
     status = "active",
+    kinds,
     firstNoted,
     noteText = "",
     author = "",
@@ -695,12 +707,33 @@ export async function addPatientHistoryEntry(
 ) {
   const id = nid("hx");
   const noted = firstNoted || "2026-08-15";
+  const order = ["current", "past", "surgery", "referral"];
+  const fromField = Array.isArray(kinds) ? kinds.filter((k) => order.includes(k)) : [];
+  const resolvedKinds = fromField.length
+    ? order.filter((k) => fromField.includes(k))
+    : type === "surgery"
+      ? ["surgery"]
+      : type === "referral"
+        ? ["referral"]
+        : status === "resolved"
+          ? ["past"]
+          : ["current"];
+  const primary = resolvedKinds[0] || "current";
+  const legacy =
+    primary === "current"
+      ? { type: "disease", status: "active" }
+      : primary === "past"
+        ? { type: "disease", status: "resolved" }
+        : primary === "surgery"
+          ? { type: "surgery", status: "resolved" }
+          : { type: "referral", status: "resolved" };
   const entry = {
     id,
     schemaVersion: 1,
     title: title || "",
-    type: type || "disease",
-    status: status || "active",
+    type: legacy.type,
+    status: legacy.status,
+    kinds: resolvedKinds,
     firstNoted: noted,
     lastUpdated: noted,
     source: "manual",

@@ -220,7 +220,7 @@ console.log(counts);
 assert.equal(counts.meds, 6, "薬剤が全件（6件）出ていない");
 assert.equal(counts.examPlans, 5, "検査・処置の予定が5件（検査3+処置2）出ていない");
 assert.equal(counts.examHistory, 2, "検査・処置の実施履歴（予定なし）が2件出ていない");
-assert.equal(counts.histories, 4, "既往歴が4件出ていない");
+assert.equal(counts.histories, 5, "既往歴が5件出ていない");
 assert.equal(counts.procBlock, false, "処置専用ブロックが残っている");
 assert.equal(counts.examTitle, "検査・処置", "状態モードの見出しが「検査・処置」になっていない");
 assert.equal(counts.notes, 5, "重要度に関わらず特記が全件（5件）出ていない");
@@ -232,42 +232,61 @@ const histMarks = await page.evaluate(() => {
     (el) => el.textContent.trim()
   );
   const rows = [...(list?.querySelectorAll(".status-row") || [])].map((el) => ({
-    type: el.querySelector(".hist-type")?.textContent,
-    status: el.querySelector(".hist-status")?.textContent,
+    kinds: el.dataset.kinds || "",
+    icons: el.querySelector(".hist-kind-icons")?.textContent || "",
+    title: el.querySelector(".status-row__title")?.textContent || "",
     text: el.innerText,
   }));
   const first = list?.querySelector(".status-row");
-  const typeEl = first?.querySelector(".hist-type");
+  const iconsEl = first?.querySelector(".hist-kind-icons");
   const titleEl = first?.querySelector(".status-row__title");
-  const statusEl = first?.querySelector(".hist-status");
-  const mid = (el) => {
-    const b = el.getBoundingClientRect();
-    return b.top + b.height / 2;
-  };
   return {
     listText: list?.innerText || "",
     groups,
     rows,
     noteCount: list?.querySelectorAll(".status-row__note").length || 0,
-    hasHead: Boolean(typeEl && titleEl && statusEl),
+    badgeCount: list?.querySelectorAll(".hist-type, .hist-status").length || 0,
+    hasHead: Boolean(iconsEl && titleEl),
     sameRow:
-      typeEl && statusEl ? Math.abs(mid(typeEl) - mid(statusEl)) < 10 : false,
+      iconsEl && titleEl
+        ? Math.abs(iconsEl.getBoundingClientRect().top - titleEl.getBoundingClientRect().top) < 12
+        : false,
   };
 });
 assert.equal(histMarks.listText.includes("🟢"), false, "既往歴に🟢が残っている");
-assert.ok(histMarks.groups.includes("進行中"), "進行中のグループ見出しが無い");
-assert.ok(histMarks.groups.includes("終了"), "終了のグループ見出しが無い");
+assert.deepEqual(histMarks.groups, ["🚹", "✅", "🚨", "🔰"], "既往歴のグループ順が 🚹→✅→🚨→🔰 になっていない");
 assert.ok(
-  histMarks.rows.some((r) => r.status === "進行中"),
-  "行末の「進行中」が無い"
+  histMarks.rows.every((r) => !r.text.includes("進行中") && !r.text.includes("終了")),
+  "行末の進行中／終了が残っている"
+);
+assert.equal(histMarks.badgeCount, 0, "文字バッジ（疾／術／紹）または進行中／終了が残っている");
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("僧帽弁") && r.icons.includes("🚹")),
+  "疾患＋進行中が🚹に移行されていない"
 );
 assert.ok(
-  histMarks.rows.some((r) => r.status === "終了"),
-  "行末の「終了」が無い"
+  histMarks.rows.some((r) => r.title.includes("膵炎") && r.icons.includes("✅")),
+  "疾患＋終了が✅に移行されていない"
 );
 assert.ok(
-  histMarks.rows.some((r) => r.type === "疾"),
-  "種別バッジ（疾）が無い"
+  histMarks.rows.some((r) => r.title.includes("皮膚科") && r.icons.includes("🔰")),
+  "紹介が🔰に移行されていない"
+);
+const titleOrder = histMarks.rows.map((r) => r.title);
+assert.ok(
+  titleOrder.findIndex((t) => t.includes("僧帽弁")) <
+    titleOrder.findIndex((t) => t.includes("膵炎")),
+  "🚹の項目が✅より後ろにある"
+);
+assert.ok(
+  titleOrder.findIndex((t) => t.includes("膵炎")) <
+    titleOrder.findIndex((t) => t.includes("避妊手術")),
+  "✅の項目が🚨より後ろにある"
+);
+assert.ok(
+  titleOrder.findIndex((t) => t.includes("避妊手術")) <
+    titleOrder.findIndex((t) => t.includes("皮膚科")),
+  "🚨の項目が🔰より後ろにある"
 );
 assert.ok(
   histMarks.rows.every((r) => !r.text.includes("🟢")),
@@ -281,8 +300,8 @@ assert.equal(
   "既往歴一覧に日付が残っている"
 );
 assert.equal(histMarks.noteCount, 0, "既往歴カードに日付行が残っている");
-assert.equal(histMarks.hasHead, true, "既往歴カードの種別・タイトル・状態が欠けている");
-assert.equal(histMarks.sameRow, true, "既往歴カードの種別バッジと進行中／終了が同じ行に並んでいない");
+assert.equal(histMarks.hasHead, true, "既往歴カードのアイコン・タイトルが欠けている");
+assert.equal(histMarks.sameRow, true, "既往歴カードのアイコンとタイトルが同じ行に並んでいない");
 
 // 並び順: 継続 → 一時的 → 投与難 → 休薬中 → 中止
 const statusSeq = counts.medOrder.map((t) =>
@@ -377,9 +396,13 @@ for (const id of addBtnIds) {
 // 既往歴
 await page.click("#btn-status-history-add");
 await page.waitForSelector("#history-add-modal:not([hidden])", { timeout: 5000 });
-await page
-  .locator("#history-add-type-buttons .exam-item-btn", { hasText: "紹介・専門治療歴" })
-  .click();
+const addKindLabels = await page.locator("#history-add-type-buttons .exam-item-btn").allInnerTexts();
+assert.ok(addKindLabels.some((t) => t.includes("🚹") && t.includes("現疾患")), "現疾患ボタンが無い");
+assert.ok(addKindLabels.some((t) => t.includes("✅") && t.includes("疾患歴")), "疾患歴ボタンが無い");
+assert.ok(addKindLabels.some((t) => t.includes("🚨") && t.includes("手術")), "手術ボタンが無い");
+assert.ok(addKindLabels.some((t) => t.includes("🔰") && t.includes("紹介")), "紹介ボタンが無い");
+await page.locator("#history-add-type-buttons .exam-item-btn", { hasText: "紹介" }).click();
+await page.locator("#history-add-type-buttons .exam-item-btn", { hasText: "現疾患" }).click();
 await page.fill("#history-add-title", ADD_HISTORY);
 await page.click("#btn-history-add-save");
 await page.waitForFunction(
@@ -479,7 +502,7 @@ const countsAfterAdd = await page.evaluate(() => ({
   notes: document.querySelectorAll("#status-notes-list .status-row").length,
 }));
 console.log("COUNTS_AFTER_ADD", countsAfterAdd);
-assert.equal(countsAfterAdd.histories, 5, "既往歴が1件増えていない");
+assert.equal(countsAfterAdd.histories, 6, "既往歴が1件増えていない");
 assert.equal(countsAfterAdd.examPlans, 7, "検査・処置予定が2件増えていない");
 assert.equal(countsAfterAdd.meds, 7, "薬剤が1件増えていない");
 assert.equal(countsAfterAdd.notes, 6, "特記が1件増えていない");
@@ -608,8 +631,9 @@ assert.equal(
   "開始日の初期値が既存の firstNoted になっていない"
 );
 await page.fill("#hist-edit-title", "僧帽弁閉鎖不全症（編集）");
-await page.locator("#hist-edit-type-buttons .exam-item-btn", { hasText: "手術歴" }).click();
-await page.locator("#hist-edit-status-buttons .exam-item-btn", { hasText: "終了" }).click();
+await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "手術" }).click();
+await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "紹介" }).click();
+await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "現疾患" }).click();
 await page.fill("#hist-edit-note", "上書きしたメモ");
 await page.fill("#hist-edit-start-date", "2018-05-01");
 await page.click("#hist-edit-save");
@@ -618,12 +642,17 @@ await page.waitForFunction(
   null,
   { timeout: 5000 }
 );
-const editedHx = await page
-  .locator("#status-history-list .status-row", { hasText: "僧帽弁閉鎖不全症（編集）" })
-  .innerText();
-assert.ok(editedHx.includes("術"), "種別の変更が一覧に反映されない");
-assert.ok(editedHx.includes("終了"), "状態の変更が一覧に反映されない");
-assert.ok(!editedHx.includes("進行中"), "終了にしても進行中が残っている");
+const editedHxRow = page.locator("#status-history-list .status-row", {
+  hasText: "僧帽弁閉鎖不全症（編集）",
+});
+const editedHx = await editedHxRow.innerText();
+const editedKinds = await editedHxRow.getAttribute("data-kinds");
+assert.equal(editedKinds, "surgery referral", "複数種別の保存が一覧に反映されない");
+assert.ok(editedHx.includes("🚨"), "手術アイコンが一覧に無い");
+assert.ok(editedHx.includes("🔰"), "紹介アイコンが一覧に無い");
+assert.ok(!editedHx.includes("🚹"), "外した現疾患アイコンが一覧に残っている");
+assert.ok(!editedHx.includes("進行中"), "進行中のテキストが残っている");
+assert.ok(!editedHx.includes("終了"), "終了のテキストが残っている");
 assert.ok(!editedHx.includes("開始日"), "一覧から外した開始日が表示されている");
 assert.ok(!editedHx.includes("2018/5/1"), "開始日が一覧に出ている");
 assert.ok(!editedHx.includes("2023/4/1"), "変更前の開始日が一覧に残っている");
@@ -638,6 +667,10 @@ assert.equal(
   "2018-05-01",
   "保存した開始日が詳細に残っていない"
 );
+const selectedKinds = await page.locator("#hist-edit-kind-buttons .exam-item-btn.is-selected").allInnerTexts();
+assert.ok(selectedKinds.some((t) => t.includes("手術")), "保存した手術が詳細で外れている");
+assert.ok(selectedKinds.some((t) => t.includes("紹介")), "保存した紹介が詳細で外れている");
+assert.ok(!selectedKinds.some((t) => t.includes("現疾患")), "外した現疾患が詳細で残っている");
 await page.click("#btn-close-status-detail");
 await page.waitForFunction(
   () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),

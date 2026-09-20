@@ -2932,6 +2932,29 @@ html.is-unlocked .app {
   max-width: 16rem;
 }
 
+.hist-kind-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.hist-kind-icons--leading {
+  min-width: 1.4em;
+}
+
+.hist-kind-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hist-kind-buttons {
+  flex-wrap: wrap;
+}
+
 .hist-type {
   display: inline-flex;
   align-items: center;
