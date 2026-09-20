@@ -37,8 +37,6 @@ import {
 } from "./history-ui.js";
 import {
   resolveHistoryKinds,
-  primaryHistoryKind,
-  historyKindMeta,
   sortHistoryEntries,
 } from "./history-kinds.js";
 import { enableRowGestures } from "./row-gestures.js";
@@ -523,20 +521,8 @@ function renderPatientHistory() {
   if (histEmpty) histEmpty.hidden = entries.length > 0;
   setCount(histCount, entries.length);
 
-  let lastGroup = null;
   entries.forEach((entry) => {
     const kinds = resolveHistoryKinds(entry);
-    const group = primaryHistoryKind(kinds);
-    if (group !== lastGroup) {
-      lastGroup = group;
-      const meta = historyKindMeta(group);
-      const heading = document.createElement("li");
-      heading.className = "status-group-title";
-      heading.textContent = meta.icon;
-      heading.title = meta.label;
-      heading.setAttribute("aria-label", meta.label);
-      histList.appendChild(heading);
-    }
 
     const li = createRow({
       onOpen: () => openHistoryDetail(entry.id),

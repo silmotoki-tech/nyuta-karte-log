@@ -254,7 +254,7 @@ const histMarks = await page.evaluate(() => {
   };
 });
 assert.equal(histMarks.listText.includes("🟢"), false, "既往歴に🟢が残っている");
-assert.deepEqual(histMarks.groups, ["🚹", "✅", "🚨", "🔰"], "既往歴のグループ順が 🚹→✅→🚨→🔰 になっていない");
+assert.deepEqual(histMarks.groups, [], "既往歴に種別の見出し行が残っている");
 assert.ok(
   histMarks.rows.every((r) => !r.text.includes("進行中") && !r.text.includes("終了")),
   "行末の進行中／終了が残っている"
