@@ -455,16 +455,16 @@
           <section class="status-block" id="status-block-history">
             <div class="status-block__head">
               <h2 class="status-block__title">
-                既往歴<span class="status-block__count" id="status-history-count"></span>
+                既往歴・特記<span class="status-block__count" id="status-history-count"></span>
               </h2>
               <button
                 type="button"
                 class="status-block__add"
                 id="btn-status-history-add"
-                aria-label="既往歴を追加"
+                aria-label="既往歴・特記を追加"
               >＋</button>
             </div>
-            <p class="field__note status-block__empty" id="status-history-empty">既往歴はありません。</p>
+            <p class="field__note status-block__empty" id="status-history-empty">既往歴・特記はありません。</p>
             <ul class="status-list" id="status-history-list"></ul>
           </section>
         </div>
@@ -508,24 +508,6 @@
             </div>
             <p class="field__note status-block__empty" id="status-meds-empty">登録された薬剤はありません。</p>
             <ul class="status-list" id="status-meds-list"></ul>
-          </section>
-        </div>
-
-        <div class="status-col" id="status-col-notes">
-          <section class="status-block" id="status-block-notes">
-            <div class="status-block__head">
-              <h2 class="status-block__title">
-                特記<span class="status-block__count" id="status-notes-count"></span>
-              </h2>
-              <button
-                type="button"
-                class="status-block__add"
-                id="btn-status-notes-add"
-                aria-label="特記を追加"
-              >＋</button>
-            </div>
-            <p class="field__note status-block__empty" id="status-notes-empty">特記事項はありません。</p>
-            <ul class="status-list" id="status-notes-list"></ul>
           </section>
         </div>
       </div>
@@ -1140,7 +1122,7 @@
   <div class="modal__backdrop" data-close-modal></div>
   <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="history-add-modal-title">
     <div class="modal__header">
-      <h2 class="modal__title" id="history-add-modal-title">既往歴を追加</h2>
+      <h2 class="modal__title" id="history-add-modal-title">既往歴・特記を追加</h2>
       <button class="modal__close" id="btn-close-history-add" type="button" aria-label="閉じる">&times;</button>
     </div>
     <div class="modal__body">

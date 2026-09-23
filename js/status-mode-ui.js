@@ -6,7 +6,6 @@ import {
   subscribeMedications,
   subscribeExamPlan,
   subscribePatientHistory,
-  subscribeSpecialNotes,
 } from "./db.js";
 import {
   deriveStatus,
@@ -24,11 +23,6 @@ import {
   openExamPlanCreateModal,
   reviveExamHistoryEntryById,
 } from "./exam-plan-ui.js";
-import {
-  openSpecialNoteEditorById,
-  openSpecialNoteCreateModal,
-  deleteSpecialNoteById,
-} from "./special-notes-ui.js";
 import {
   buildHistoryDetailNode,
   openPatientHistoryAddModal,
@@ -53,7 +47,6 @@ const state = {
   drugs: [],
   plan: null,
   historyEntries: [],
-  notes: [],
   unsubscribes: [],
 };
 
@@ -81,14 +74,9 @@ const histList = document.getElementById("status-history-list");
 const histEmpty = document.getElementById("status-history-empty");
 const histCount = document.getElementById("status-history-count");
 
-const notesList = document.getElementById("status-notes-list");
-const notesEmpty = document.getElementById("status-notes-empty");
-const notesCount = document.getElementById("status-notes-count");
-
 const btnStatusHistoryAdd = document.getElementById("btn-status-history-add");
 const btnStatusExamAdd = document.getElementById("btn-status-exam-add");
 const btnStatusMedsAdd = document.getElementById("btn-status-meds-add");
-const btnStatusNotesAdd = document.getElementById("btn-status-notes-add");
 
 const detailModal = document.getElementById("status-detail-modal");
 const detailTitle = document.getElementById("status-detail-title");
@@ -135,7 +123,6 @@ export function initStatusModeUI(helpers = {}) {
   btnStatusHistoryAdd?.addEventListener("click", () => openPatientHistoryAddModal());
   btnStatusExamAdd?.addEventListener("click", () => openExamPlanCreateModal());
   btnStatusMedsAdd?.addEventListener("click", () => openMedicationAddModal());
-  btnStatusNotesAdd?.addEventListener("click", () => openSpecialNoteCreateModal());
 
   btnCloseDetail?.addEventListener("click", closeDetailModal);
   detailModal
@@ -166,12 +153,6 @@ export function enterStatusMode(karteNumber) {
       renderPatientHistory();
     })
   );
-  state.unsubscribes.push(
-    subscribeSpecialNotes(karteNumber, (items) => {
-      state.notes = items || [];
-      renderNotes();
-    })
-  );
 
   updatePatientHeader();
 }
@@ -189,7 +170,6 @@ export function leaveStatusMode() {
   state.drugs = [];
   state.plan = null;
   state.historyEntries = [];
-  state.notes = [];
   closeDetailModal();
   hideStatusMode();
   renderAll();
@@ -230,7 +210,6 @@ function renderAll() {
   renderMeds();
   renderExam();
   renderPatientHistory();
-  renderNotes();
 }
 
 function setCount(el, n) {
@@ -576,53 +555,4 @@ function closeDetailModal() {
   if (!detailModal) return;
   detailModal.hidden = true;
   if (detailBody) detailBody.innerHTML = "";
-}
-
-// --- 特記（重要度に関わらずすべて） -----------------------------------------
-
-function renderNotes() {
-  if (!notesList) return;
-  notesList.innerHTML = "";
-
-  const items = state.notes || [];
-  if (notesEmpty) notesEmpty.hidden = items.length > 0;
-  setCount(notesCount, items.length);
-
-  items.forEach((note) => {
-    const li = createRow({
-      onOpen: () => openSpecialNoteEditorById(note.id),
-      handleClick: false,
-    });
-
-    const head = document.createElement("div");
-    head.className = "status-row__head";
-
-    const badge = document.createElement("span");
-    badge.className = `note-card__importance note-card__importance--${
-      note.importance || "medium"
-    }`;
-    badge.textContent = `重要度：${
-      note.importance === "high" ? "高" : note.importance === "low" ? "低" : "中"
-    }`;
-    head.appendChild(badge);
-    li.appendChild(head);
-
-    const content = document.createElement("div");
-    content.className = "status-row__body";
-    content.textContent = note.content || "（内容なし）";
-    li.appendChild(content);
-
-    enableRowGestures(li, {
-      actions: [
-        {
-          action: "delete",
-          title: "削除",
-          onClick: () => deleteSpecialNoteById(note.id),
-        },
-      ],
-      onActivate: () => openSpecialNoteEditorById(note.id),
-    });
-
-    notesList.appendChild(li);
-  });
 }

@@ -1,7 +1,8 @@
 // 既往歴の追加・編集UI。
-// 名称はフリーワード。種別は 🚹現疾患／✅疾患歴／🚨手術／🔰紹介 を複数選択。
+// 名称はフリーワード。種別は ⚠️重要／💬特記／🚹現疾患／✅疾患歴／🚨手術／🔰紹介 を複数選択。
 // 開始日（firstNoted）はカレンダーで直せる。未設定は空のまま残せる。
 // メモは1つのテキスト欄で上書きする（追記型ではない）。
+// 旧特記（specialNotes/）も同じ一覧・同じ編集画面で扱う。
 // 疾患名マスタのシード・管理APIは db.js 側に残し、入力画面では使わない。
 // 将来のAI提案フローからも db.addPatientHistoryEntry(..., { source: "ai" })
 // で同じデータ構造に登録できる想定。
@@ -11,6 +12,7 @@ import {
   addPatientHistoryEntry,
   updatePatientHistoryEntry,
   deletePatientHistoryEntry,
+  isSpecialNoteHistoryId,
 } from "./db.js";
 import { enableRowGestures } from "./row-gestures.js";
 import { canHandleShortcut } from "./ime-keys.js";
@@ -297,13 +299,15 @@ export async function deletePatientHistoryEntryById(entryId, karteNumber) {
     return false;
   }
   const entry = (state.entries || []).find((e) => e.id === entryId);
-  const label = entry?.title || "この既往歴";
-  const ok = window.confirm(`「${label}」を削除しますか？メモもまとめて削除されます。`);
+  const isNote = isSpecialNoteHistoryId(entryId) || entry?.store === "specialNotes";
+  const label = entry?.title || (isNote ? "この特記" : "この既往歴");
+  const extra = isNote ? "" : "メモもまとめて削除されます。";
+  const ok = window.confirm(`「${label}」を削除しますか？${extra}`);
   if (!ok) return false;
   try {
     await deletePatientHistoryEntry(karte, entryId);
     state.expandedIds.delete(entryId);
-    deps.showToast("既往歴を削除しました。");
+    deps.showToast(isNote ? "特記を削除しました。" : "既往歴を削除しました。");
     deps.onEntryDeleted?.(entryId);
     return true;
   } catch (err) {
@@ -463,7 +467,8 @@ function createHistoryDetail(entry) {
         firstNoted: startInput.value || "",
         notes,
       });
-      deps.showToast("既往歴を保存しました。");
+      const isNote = isSpecialNoteHistoryId(entry.id) || entry.store === "specialNotes";
+      deps.showToast(isNote ? "特記を保存しました。" : "既往歴を保存しました。");
       deps.onEntrySaved?.(entry.id);
     } catch (err) {
       console.error(err);
@@ -476,7 +481,9 @@ function createHistoryDetail(entry) {
   const deleteBtn = document.createElement("button");
   deleteBtn.type = "button";
   deleteBtn.className = "btn btn--small btn--danger-outline";
-  deleteBtn.textContent = "この既往歴を削除";
+  deleteBtn.textContent = isSpecialNoteHistoryId(entry.id)
+    ? "この特記を削除"
+    : "この既往歴を削除";
   deleteBtn.addEventListener("click", async () => {
     await deletePatientHistoryEntryById(entry.id);
   });
@@ -586,7 +593,7 @@ async function handleAddSave() {
     state.expandedIds.add(entryId);
     renderHistoryList();
     closeAddModal();
-    deps.showToast("既往歴を追加しました。");
+    deps.showToast("既往歴・特記を追加しました。");
   } catch (err) {
     console.error(err);
     deps.showError(addError, "追加に失敗しました。もう一度お試しください。");

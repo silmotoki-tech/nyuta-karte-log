@@ -689,9 +689,73 @@ export async function addMedicationEvent() {
 export async function updateMedicationEvent() {}
 export async function deleteMedicationEvent() {}
 
+const KIND_ORDER = ["important", "note", "current", "past", "surgery", "referral"];
+function kindsFromLegacyType(type, status) {
+  return type === "surgery"
+    ? ["surgery"]
+    : type === "referral"
+      ? ["referral"]
+      : status === "resolved"
+        ? ["past"]
+        : ["current"];
+}
+function sanitizeKinds(kinds) {
+  const set = new Set((Array.isArray(kinds) ? kinds : []).filter((k) => KIND_ORDER.includes(k)));
+  return KIND_ORDER.filter((k) => set.has(k));
+}
+
 export const PATIENT_HISTORY_SCHEMA_VERSION = 1;
+export const NOTE_HISTORY_ID_PREFIX = "note:";
+export function isSpecialNoteHistoryId(id) {
+  return typeof id === "string" && id.startsWith(NOTE_HISTORY_ID_PREFIX);
+}
+export function rawSpecialNoteId(id) {
+  return isSpecialNoteHistoryId(id) ? id.slice(NOTE_HISTORY_ID_PREFIX.length) : id;
+}
+
+function noteToHistory(n) {
+  const kinds = sanitizeKinds(n.kinds);
+  const resolved = kinds.length ? kinds : n.importance === "high" ? ["important"] : ["note"];
+  const created = String(n.createdAt || "").slice(0, 10);
+  const firstNoted = Object.prototype.hasOwnProperty.call(n, "firstNoted")
+    ? n.firstNoted || ""
+    : created;
+  const lastUpdated = String(n.lastEditedAt || n.createdAt || "").slice(0, 10) || firstNoted;
+  const memoText = String(n.memo || "").trim();
+  return {
+    id: NOTE_HISTORY_ID_PREFIX + n.id,
+    schemaVersion: 1,
+    title: n.content || "",
+    type: "disease",
+    status: "active",
+    kinds: resolved,
+    firstNoted,
+    lastUpdated,
+    source: "manual",
+    notes: memoText ? { memo: { date: lastUpdated, text: memoText, author: "" } } : {},
+    store: "specialNotes",
+    importance: n.importance || "",
+  };
+}
+
+function mergedHistory() {
+  return [...(SEED.history || []), ...(SEED.notes || []).map(noteToHistory)];
+}
+
+function notifyHistoryMerged() {
+  notifyFeed("patientHistory", mergedHistory);
+  notifyFeed("specialNotes", () => sortNotes(SEED.notes));
+}
+
+export function specialNoteToHistoryEntry(note) {
+  return noteToHistory(note);
+}
+export function mergeHistoryWithSpecialNotes() {
+  return mergedHistory();
+}
+
 export function subscribePatientHistory(karte, cb) {
-  return feed("patientHistory", () => SEED.history)(cb);
+  return feed("patientHistory", mergedHistory)(cb);
 }
 export async function addPatientHistoryEntry(
   karte,
@@ -707,17 +771,8 @@ export async function addPatientHistoryEntry(
 ) {
   const id = nid("hx");
   const noted = firstNoted || "2026-08-15";
-  const order = ["current", "past", "surgery", "referral"];
-  const fromField = Array.isArray(kinds) ? kinds.filter((k) => order.includes(k)) : [];
-  const resolvedKinds = fromField.length
-    ? order.filter((k) => fromField.includes(k))
-    : type === "surgery"
-      ? ["surgery"]
-      : type === "referral"
-        ? ["referral"]
-        : status === "resolved"
-          ? ["past"]
-          : ["current"];
+  const fromField = sanitizeKinds(kinds);
+  const resolvedKinds = fromField.length ? fromField : kindsFromLegacyType(type, status);
   const primary = resolvedKinds[0] || "current";
   const legacy =
     primary === "current"
@@ -726,7 +781,9 @@ export async function addPatientHistoryEntry(
         ? { type: "disease", status: "resolved" }
         : primary === "surgery"
           ? { type: "surgery", status: "resolved" }
-          : { type: "referral", status: "resolved" };
+          : primary === "referral"
+            ? { type: "referral", status: "resolved" }
+            : { type: "disease", status: "active" };
   const entry = {
     id,
     schemaVersion: 1,
@@ -747,13 +804,34 @@ export async function addPatientHistoryEntry(
     };
   }
   SEED.history.push(entry);
-  notifyFeed("patientHistory", () => SEED.history);
+  notifyHistoryMerged();
   return id;
 }
 export async function updatePatientHistoryEntry(karte, id, patch = {}) {
+  if (isSpecialNoteHistoryId(id)) {
+    const row = SEED.notes.find((x) => x.id === rawSpecialNoteId(id));
+    if (row) {
+      if (patch.title != null) row.content = patch.title;
+      if (patch.kinds != null) {
+        const resolved = sanitizeKinds(patch.kinds);
+        row.kinds = resolved.length ? resolved : ["note"];
+        row.importance = row.kinds.includes("important") ? "high" : "medium";
+      }
+      if (patch.firstNoted != null) row.firstNoted = patch.firstNoted;
+      if (patch.notes != null) {
+        row.memo = Object.values(patch.notes || {})
+          .map((n) => String(n?.text || "").trim())
+          .filter(Boolean)
+          .join("\n");
+      }
+      row.lastEditedAt = "2026-08-10T09:00:00.000Z";
+    }
+    notifyHistoryMerged();
+    return;
+  }
   const row = SEED.history.find((x) => x.id === id);
   if (row) Object.assign(row, patch, { lastUpdated: "2026-08-10" });
-  notifyFeed("patientHistory", () => SEED.history);
+  notifyHistoryMerged();
 }
 export async function setPatientHistoryStatus(karte, id, status) {
   const row = SEED.history.find((x) => x.id === id);
@@ -761,15 +839,21 @@ export async function setPatientHistoryStatus(karte, id, status) {
     row.status = status;
     row.lastUpdated = "2026-08-10";
   }
-  notifyFeed("patientHistory", () => SEED.history);
+  notifyHistoryMerged();
 }
 export async function appendPatientHistoryNote() {
   return nid("phn");
 }
 export async function deletePatientHistoryNote() {}
 export async function deletePatientHistoryEntry(karte, id) {
+  if (isSpecialNoteHistoryId(id)) {
+    const raw = rawSpecialNoteId(id);
+    SEED.notes = (SEED.notes || []).filter((x) => x.id !== raw);
+    notifyHistoryMerged();
+    return;
+  }
   SEED.history = (SEED.history || []).filter((x) => x.id !== id);
-  notifyFeed("patientHistory", () => SEED.history);
+  notifyHistoryMerged();
 }
 
 export const FREE_QA_SCHEMA_VERSION = 1;
@@ -1046,7 +1130,7 @@ export async function addSpecialNote(
     createdAt: new Date().toISOString(),
     createdBy: createdBy || "",
   });
-  notifyFeed("specialNotes", () => sortNotes(SEED.notes));
+  notifyHistoryMerged();
   return id;
 }
 export async function updateSpecialNote(karte, id, patch = {}) {
@@ -1055,12 +1139,12 @@ export async function updateSpecialNote(karte, id, patch = {}) {
     Object.assign(row, patch);
     row.lastEditedAt = "2026-08-10T09:00:00.000Z";
   }
-  notifyFeed("specialNotes", () => sortNotes(SEED.notes));
+  notifyHistoryMerged();
 }
 export async function deleteSpecialNote(karte, id) {
   const i = SEED.notes.findIndex((x) => x.id === id);
   if (i >= 0) SEED.notes.splice(i, 1);
-  notifyFeed("specialNotes", () => sortNotes(SEED.notes));
+  notifyHistoryMerged();
 }
 
 // ==== ここから自動生成: node scripts/check-mock-db-exports.mjs --write ====

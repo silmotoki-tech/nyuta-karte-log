@@ -5146,11 +5146,11 @@ select.input {
   gap: 14px;
 }
 
-/* 4列固定: 既往歴／検査＋処置／薬剤／特記。狭い画面では詰めずに
-   横スクロールさせ、列の中身が読めなくなるのを防ぐ */
+/* 3列固定: 既往歴・特記／検査・処置／薬剤。狭い画面では詰めずに
+  横スクロールさせ、列の中身が読めなくなるのを防ぐ */
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(230px, 1fr));
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
   align-items: start;
   gap: 12px;
   overflow-x: auto;

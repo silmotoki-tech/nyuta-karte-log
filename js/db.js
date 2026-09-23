@@ -71,7 +71,7 @@
 //   history/{カルテ番号}/{entryId}/title
 //   history/{カルテ番号}/{entryId}/type                  … 旧 "disease"|"surgery"|"referral"（残す）
 //   history/{カルテ番号}/{entryId}/status                … 旧 "active"|"resolved"（残す）
-//   history/{カルテ番号}/{entryId}/kinds                 … ["current"|"past"|"surgery"|"referral"] 複数可
+//   history/{カルテ番号}/{entryId}/kinds                 … ["important"|"note"|"current"|"past"|"surgery"|"referral"] 複数可
 //   history/{カルテ番号}/{entryId}/firstNoted            … 開始日 "YYYY-MM-DD"（未設定は空）
 //   history/{カルテ番号}/{entryId}/lastUpdated           … "YYYY-MM-DD"
 //   history/{カルテ番号}/{entryId}/source                … "manual"|"ai"（登録経路。将来のAI連携用）
@@ -93,11 +93,16 @@
 //
 //   specialNotes/{カルテ番号}/{entryId}/schemaVersion    … 特記事項（恒常的な注意）
 //   specialNotes/{カルテ番号}/{entryId}/content          … 本文
-//   specialNotes/{カルテ番号}/{entryId}/importance       … "high"|"medium"|"low"
+//   specialNotes/{カルテ番号}/{entryId}/importance       … 旧 "high"|"medium"|"low"（残す）
+//   specialNotes/{カルテ番号}/{entryId}/kinds            … 任意。未設定なら importance から読む
+//   specialNotes/{カルテ番号}/{entryId}/firstNoted       … 任意。開始日 "YYYY-MM-DD"
+//   specialNotes/{カルテ番号}/{entryId}/memo             … 任意。補足メモ
 //   specialNotes/{カルテ番号}/{entryId}/createdAt        … 追加日時ISO
 //   specialNotes/{カルテ番号}/{entryId}/createdBy        … 作成者
 //   specialNotes/{カルテ番号}/{entryId}/lastEditedAt     … 更新日時ISO（任意）
 //   specialNotes/{カルテ番号}/{entryId}/lastEditedBy     … 更新者（任意）
+//     ※状態モードでは既往歴と同じ列に混ぜて出す。新規の⚠️／💬は history/ に書く。
+//       既存の specialNotes/ は読み取り時にマージし、更新・削除だけ元パスへ返す。
 //
 //   migrationProgress/{カルテ番号}/schemaVersion         … 既存カルテからの移行進捗（カルテごと1件）
 //   migrationProgress/{カルテ番号}/status                … "not_started"|"in_progress"|"done"
@@ -133,6 +138,8 @@ import { filterKartesByName } from "./karte-name-match.js";
 import {
   sanitizeHistoryKinds,
   kindsFromLegacy,
+  kindsFromNoteImportance,
+  importanceFromKinds,
   legacyTypeStatusFromKinds,
 } from "./history-kinds.js";
 
@@ -3513,6 +3520,17 @@ export async function addHistoryReferralItem({ label, order }) {
 
 export const PATIENT_HISTORY_SCHEMA_VERSION = 1;
 
+/** 旧 specialNotes/ 由来の項目を既往歴一覧へ載せるときの ID 接頭辞 */
+export const NOTE_HISTORY_ID_PREFIX = "note:";
+
+export function isSpecialNoteHistoryId(id) {
+  return typeof id === "string" && id.startsWith(NOTE_HISTORY_ID_PREFIX);
+}
+
+export function rawSpecialNoteId(id) {
+  return isSpecialNoteHistoryId(id) ? id.slice(NOTE_HISTORY_ID_PREFIX.length) : id;
+}
+
 const HISTORY_TYPES = ["disease", "surgery", "referral"];
 const HISTORY_STATUSES = ["active", "resolved"];
 
@@ -3568,23 +3586,106 @@ function normalizePatientHistoryEntry(id, raw) {
   return entry;
 }
 
+function ymdFromIso(iso) {
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(iso || ""));
+  return m ? m[1] : "";
+}
+
+function joinedNotesText(notes) {
+  if (!notes || typeof notes !== "object") return "";
+  return Object.entries(notes)
+    .map(([id, n]) => ({ id, ...(n || {}) }))
+    .sort((a, b) => {
+      const d = (a.date || "").localeCompare(b.date || "");
+      if (d !== 0) return d;
+      return (a.id || "").localeCompare(b.id || "");
+    })
+    .map((n) => String(n.text || "").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * 旧特記を既往歴と同じ形に載せる。kinds 未設定なら importance から読む。
+ * 高→⚠️、中・低→💬。本文は title。既存フィールドは消さない。
+ */
+export function specialNoteToHistoryEntry(note) {
+  const raw = note && typeof note === "object" ? note : {};
+  const fromField = sanitizeHistoryKinds(raw.kinds);
+  const kinds = fromField.length
+    ? fromField
+    : kindsFromNoteImportance(raw.importance);
+  const firstNoted = Object.prototype.hasOwnProperty.call(raw, "firstNoted")
+    ? raw.firstNoted || ""
+    : ymdFromIso(raw.createdAt);
+  const lastUpdated =
+    ymdFromIso(raw.lastEditedAt) || firstNoted || ymdFromIso(raw.createdAt);
+  const memoText = String(raw.memo || "").trim();
+  return {
+    id: `${NOTE_HISTORY_ID_PREFIX}${raw.id || ""}`,
+    schemaVersion: PATIENT_HISTORY_SCHEMA_VERSION,
+    title: raw.content || "",
+    type: "disease",
+    status: "active",
+    firstNoted,
+    lastUpdated,
+    source: "manual",
+    kinds,
+    notes: memoText
+      ? { memo: { date: lastUpdated, text: memoText, author: raw.lastEditedBy || "" } }
+      : {},
+    store: "specialNotes",
+    importance: raw.importance || "",
+  };
+}
+
+/**
+ * 既往歴に旧特記を混ぜる。画面上は区別せず 1 リストとして扱う。
+ */
+export function mergeHistoryWithSpecialNotes(historyEntries, notes) {
+  const hx = Array.isArray(historyEntries) ? historyEntries : [];
+  const noteEntries = (Array.isArray(notes) ? notes : []).map(specialNoteToHistoryEntry);
+  return [...hx, ...noteEntries];
+}
+
 /**
  * 既往歴一覧をリアルタイム監視する。
+ * 旧 specialNotes/ も読んで 1 つの既往歴形にマージする。
  */
 export function subscribePatientHistory(karteNumber, callback) {
-  const r = patientHistoryRootRef(karteNumber);
+  const histR = patientHistoryRootRef(karteNumber);
+  const noteR = specialNotesRootRef(karteNumber);
   let unsubscribed = false;
-  let listener = null;
+  let histListener = null;
+  let noteListener = null;
+  let histVal = null;
+  let noteVal = null;
+  let histReady = false;
+  let noteReady = false;
+
+  function emit() {
+    if (unsubscribed || !histReady || !noteReady) return;
+    const historyEntries = Object.entries(histVal || {}).map(([id, raw]) =>
+      normalizePatientHistoryEntry(id, raw)
+    );
+    const notes = Object.entries(noteVal || {}).map(([id, raw]) =>
+      normalizeSpecialNoteEntry(id, raw)
+    );
+    callback(mergeHistoryWithSpecialNotes(historyEntries, notes));
+  }
 
   authReady
     .then(() => {
       if (unsubscribed) return;
-      listener = onValue(r, (snapshot) => {
-        const value = snapshot.val() || {};
-        const entries = Object.entries(value).map(([id, raw]) =>
-          normalizePatientHistoryEntry(id, raw)
-        );
-        callback(entries);
+      histListener = onValue(histR, (snapshot) => {
+        histVal = snapshot.val();
+        histReady = true;
+        emit();
+      });
+      noteListener = onValue(noteR, (snapshot) => {
+        noteVal = snapshot.val();
+        noteReady = true;
+        emit();
       });
     })
     .catch((err) => {
@@ -3593,9 +3694,13 @@ export function subscribePatientHistory(karteNumber, callback) {
 
   return () => {
     unsubscribed = true;
-    if (listener) {
-      off(r, "value", listener);
-      listener = null;
+    if (histListener) {
+      off(histR, "value", histListener);
+      histListener = null;
+    }
+    if (noteListener) {
+      off(noteR, "value", noteListener);
+      noteListener = null;
     }
   };
 }
@@ -3657,6 +3762,22 @@ export async function addPatientHistoryEntry(
  */
 export async function updatePatientHistoryEntry(karteNumber, entryId, fields) {
   await authReady;
+  if (isSpecialNoteHistoryId(entryId)) {
+    const payload = {
+      schemaVersion: SPECIAL_NOTE_SCHEMA_VERSION,
+      lastEditedAt: new Date().toISOString(),
+    };
+    if (fields.title != null) payload.content = fields.title;
+    if (fields.kinds != null) {
+      const resolvedKinds = sanitizeHistoryKinds(fields.kinds);
+      payload.kinds = resolvedKinds.length ? resolvedKinds : ["note"];
+      payload.importance = importanceFromKinds(payload.kinds);
+    }
+    if (fields.firstNoted != null) payload.firstNoted = fields.firstNoted;
+    if (fields.notes != null) payload.memo = joinedNotesText(fields.notes);
+    await update(specialNoteEntryRef(karteNumber, rawSpecialNoteId(entryId)), payload);
+    return;
+  }
   const payload = {
     schemaVersion: PATIENT_HISTORY_SCHEMA_VERSION,
     lastUpdated: todayDateStrLocal(),
@@ -3736,6 +3857,10 @@ export async function deletePatientHistoryNote(karteNumber, entryId, noteId) {
  */
 export async function deletePatientHistoryEntry(karteNumber, entryId) {
   await authReady;
+  if (isSpecialNoteHistoryId(entryId)) {
+    await remove(specialNoteEntryRef(karteNumber, rawSpecialNoteId(entryId)));
+    return;
+  }
   await remove(patientHistoryEntryRef(karteNumber, entryId));
 }
 
@@ -4214,6 +4339,9 @@ function normalizeSpecialNoteEntry(id, raw) {
     schemaVersion: SPECIAL_NOTE_SCHEMA_VERSION,
     content: "",
     importance: "medium",
+    kinds: ["note"],
+    firstNoted: "",
+    memo: "",
     createdAt: "",
     createdBy: "",
     lastEditedAt: "",
@@ -4223,6 +4351,12 @@ function normalizeSpecialNoteEntry(id, raw) {
   entry.schemaVersion = raw.schemaVersion || SPECIAL_NOTE_SCHEMA_VERSION;
   entry.content = raw.content || "";
   entry.importance = normalizeSpecialNoteImportance(raw.importance);
+  const fromField = sanitizeHistoryKinds(raw.kinds);
+  entry.kinds = fromField.length ? fromField : kindsFromNoteImportance(entry.importance);
+  entry.firstNoted = Object.prototype.hasOwnProperty.call(raw, "firstNoted")
+    ? raw.firstNoted || ""
+    : ymdFromIso(raw.createdAt);
+  entry.memo = raw.memo || "";
   entry.createdAt = raw.createdAt || "";
   entry.createdBy = raw.createdBy || "";
   entry.lastEditedAt = raw.lastEditedAt || "";

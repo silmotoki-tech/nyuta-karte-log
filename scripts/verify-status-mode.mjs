@@ -203,10 +203,10 @@ const counts = await page.evaluate(() => ({
   examHistory: document.querySelectorAll("#status-exam-history-list .status-row").length,
   histories: document.querySelectorAll("#status-history-list .status-row").length,
   procBlock: Boolean(document.getElementById("status-block-proc")),
-  notes: document.querySelectorAll("#status-notes-list .status-row").length,
-  notesHigh: document.querySelectorAll(
-    "#status-notes-list .note-card__importance--high"
-  ).length,
+  notesCol: Boolean(document.getElementById("status-col-notes")),
+  notesList: Boolean(document.getElementById("status-notes-list")),
+  histTitle:
+    document.querySelector("#status-block-history .status-block__title")?.textContent || "",
   medOrder: [...document.querySelectorAll("#status-meds-list .status-row")].map((el) =>
     el.innerText.replace(/\s+/g, " ").trim()
   ),
@@ -220,11 +220,13 @@ console.log(counts);
 assert.equal(counts.meds, 6, "薬剤が全件（6件）出ていない");
 assert.equal(counts.examPlans, 5, "検査・処置の予定が5件（検査3+処置2）出ていない");
 assert.equal(counts.examHistory, 2, "検査・処置の実施履歴（予定なし）が2件出ていない");
-assert.equal(counts.histories, 5, "既往歴が5件出ていない");
+assert.equal(counts.histories, 10, "既往歴・特記が全件（既往歴5+特記5）出ていない");
 assert.equal(counts.procBlock, false, "処置専用ブロックが残っている");
+assert.equal(counts.notesCol, false, "特記専用の列が残っている");
+assert.equal(counts.notesList, false, "特記専用の一覧が残っている");
+assert.ok(counts.histTitle.includes("既往歴"), "状態モードの見出しに既往歴が無い");
+assert.ok(counts.histTitle.includes("特記"), "状態モードの見出しに特記が無い");
 assert.equal(counts.examTitle, "検査・処置", "状態モードの見出しが「検査・処置」になっていない");
-assert.equal(counts.notes, 5, "重要度に関わらず特記が全件（5件）出ていない");
-assert.equal(counts.notesHigh, 2, "重要度「高」の特記が特記ブロックに含まれていない");
 
 const histMarks = await page.evaluate(() => {
   const list = document.getElementById("status-history-list");
@@ -237,9 +239,12 @@ const histMarks = await page.evaluate(() => {
     title: el.querySelector(".status-row__title")?.textContent || "",
     text: el.innerText,
   }));
-  const first = list?.querySelector(".status-row");
-  const iconsEl = first?.querySelector(".hist-kind-icons");
-  const titleEl = first?.querySelector(".status-row__title");
+  const sample =
+    [...(list?.querySelectorAll(".status-row") || [])].find((el) =>
+      (el.querySelector(".status-row__title")?.textContent || "").includes("避妊手術")
+    ) || list?.querySelector(".status-row");
+  const iconsEl = sample?.querySelector(".hist-kind-icons");
+  const titleEl = sample?.querySelector(".status-row__title");
   return {
     listText: list?.innerText || "",
     groups,
@@ -272,7 +277,33 @@ assert.ok(
   histMarks.rows.some((r) => r.title.includes("皮膚科") && r.icons.includes("🔰")),
   "紹介が🔰に移行されていない"
 );
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("咬傷歴") && r.icons.includes("⚠️")),
+  "重要度「高」の特記が⚠️に移行されていない"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("セファレキシン") && r.icons.includes("⚠️")),
+  "重要度「高」の特記が⚠️に移行されていない"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("缶詰") && r.icons.includes("💬")),
+  "重要度「中」の特記が💬に移行されていない"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("おやつ") && r.icons.includes("💬")),
+  "重要度「低」の特記が💬に移行されていない"
+);
 const titleOrder = histMarks.rows.map((r) => r.title);
+assert.ok(
+  titleOrder.findIndex((t) => t.includes("咬傷歴")) <
+    titleOrder.findIndex((t) => t.includes("缶詰")),
+  "⚠️の項目が💬より後ろにある"
+);
+assert.ok(
+  titleOrder.findIndex((t) => t.includes("缶詰")) <
+    titleOrder.findIndex((t) => t.includes("僧帽弁")),
+  "💬の項目が🚹より後ろにある"
+);
 assert.ok(
   titleOrder.findIndex((t) => t.includes("僧帽弁")) <
     titleOrder.findIndex((t) => t.includes("膵炎")),
@@ -341,21 +372,23 @@ assert.ok(!overlap.examHist.includes("皮下点滴"), "予定がある処置が�
 assert.ok(!overlap.examHist.includes("爪切り"), "予定がある爪切りが実施履歴にも出ている");
 assert.ok(overlap.examHist.includes("耳掃除（単発）"), "予定のない処置実施が履歴から消えている");
 
-// --- 4列固定レイアウト: 既往歴 → 検査・処置 → 薬剤 → 特記 -------------------
+// --- 3列固定レイアウト: 既往歴・特記 → 検査・処置 → 薬剤 -------------------
 const layout = await page.evaluate(() => {
   const rectOf = (id) => document.getElementById(id)?.getBoundingClientRect();
   return {
-    cols: ["status-col-history", "status-col-exam-proc", "status-col-meds", "status-col-notes"].map(
+    cols: ["status-col-history", "status-col-exam-proc", "status-col-meds"].map(
       (id) => rectOf(id)?.x
     ),
+    notesX: rectOf("status-col-notes")?.x ?? null,
   };
 });
 console.log("LAYOUT", layout);
-const [xHistory, xExamProc, xMeds, xNotes] = layout.cols;
+const [xHistory, xExamProc, xMeds] = layout.cols;
 assert.ok(
-  xHistory < xExamProc && xExamProc < xMeds && xMeds < xNotes,
-  `4列の左右順が指示通りでない: ${JSON.stringify(layout.cols)}`
+  xHistory < xExamProc && xExamProc < xMeds,
+  `3列の左右順が指示通りでない: ${JSON.stringify(layout.cols)}`
 );
+assert.equal(layout.notesX, null, "特記専用の列が残っている");
 
 const ADD_HISTORY = "状態モード検証紹介先";
 const ADD_EXAM = "CBC";
@@ -387,16 +420,18 @@ const addBtnIds = [
   "btn-status-history-add",
   "btn-status-exam-add",
   "btn-status-meds-add",
-  "btn-status-notes-add",
 ];
 for (const id of addBtnIds) {
   assert.ok(await page.locator(`#${id}`).count(), `状態モードに ${id} がない`);
 }
+assert.equal(await page.locator("#btn-status-notes-add").count(), 0, "特記専用の＋が残っている");
 
 // 既往歴
 await page.click("#btn-status-history-add");
 await page.waitForSelector("#history-add-modal:not([hidden])", { timeout: 5000 });
 const addKindLabels = await page.locator("#history-add-type-buttons .exam-item-btn").allInnerTexts();
+assert.ok(addKindLabels.some((t) => t.includes("⚠️") && t.includes("重要")), "重要ボタンが無い");
+assert.ok(addKindLabels.some((t) => t.includes("💬") && t.includes("特記")), "特記ボタンが無い");
 assert.ok(addKindLabels.some((t) => t.includes("🚹") && t.includes("現疾患")), "現疾患ボタンが無い");
 assert.ok(addKindLabels.some((t) => t.includes("✅") && t.includes("疾患歴")), "疾患歴ボタンが無い");
 assert.ok(addKindLabels.some((t) => t.includes("🚨") && t.includes("手術")), "手術ボタンが無い");
@@ -482,30 +517,29 @@ const examPlansAfterHistOnly = await page
   .count();
 assert.equal(examPlansAfterHistOnly, 7, "「実施を記録」モードなのに予定が増えている");
 
-// 特記
-await page.click("#btn-status-notes-add");
-await page.waitForSelector("#special-note-modal:not([hidden])", { timeout: 5000 });
-await page.fill("#special-note-content", ADD_NOTE);
-await page.locator("#special-note-author-row .author-btn").first().click();
-await page.click("#btn-special-note-save");
+// 特記（⚠️／💬 を既往歴と同じ追加画面で登録）
+await page.click("#btn-status-history-add");
+await page.waitForSelector("#history-add-modal:not([hidden])", { timeout: 5000 });
+await page.locator("#history-add-type-buttons .exam-item-btn", { hasText: "特記" }).click();
+await page.locator("#history-add-type-buttons .exam-item-btn", { hasText: "現疾患" }).click();
+await page.fill("#history-add-title", ADD_NOTE);
+await page.click("#btn-history-add-save");
 await page.waitForFunction(
-  () => document.getElementById("special-note-modal")?.hasAttribute("hidden"),
+  () => document.getElementById("history-add-modal")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
-await assertContains("#status-notes-list", ADD_NOTE, "特記・状態モード");
+await assertContains("#status-history-list", ADD_NOTE, "特記・状態モード");
 
 const countsAfterAdd = await page.evaluate(() => ({
   meds: document.querySelectorAll("#status-meds-list .status-row").length,
   examPlans: document.querySelectorAll("#status-exam-plan-list .status-row").length,
   histories: document.querySelectorAll("#status-history-list .status-row").length,
-  notes: document.querySelectorAll("#status-notes-list .status-row").length,
 }));
 console.log("COUNTS_AFTER_ADD", countsAfterAdd);
-assert.equal(countsAfterAdd.histories, 6, "既往歴が1件増えていない");
+assert.equal(countsAfterAdd.histories, 12, "既往歴・特記が2件増えていない");
 assert.equal(countsAfterAdd.examPlans, 7, "検査・処置予定が2件増えていない");
 assert.equal(countsAfterAdd.meds, 7, "薬剤が1件増えていない");
-assert.equal(countsAfterAdd.notes, 6, "特記が1件増えていない");
 
 // --- 右カラム: 5タブ・5パネルが削除され、検索専用スペースになっていること ---
 await goHistoryView();
@@ -581,35 +615,42 @@ await page.waitForFunction(
   "#exam-item-sheet",
   { timeout: 5000 }
 );
-// 特記は重要度に関わらず1つのブロックに入る（DB側で高→中→低の順にソート
-// されているため、先頭は重要度「高」のはず）。そのタップで編集ポップアップが
-// 開くことを確認する
-const firstNoteBadge = await page
-  .locator("#status-notes-list .status-row .note-card__importance")
-  .first()
-  .innerText();
-assert.ok(firstNoteBadge.includes("高"), "特記ブロックの先頭が重要度「高」になっていない");
 await expectOpens(
-  "#status-notes-list .status-row",
-  "#special-note-modal",
-  "#btn-close-special-note-modal",
-  "07-note-high"
+  '#status-history-list .status-row[data-kinds="note"]',
+  "#status-detail-modal",
+  "#btn-close-status-detail",
+  "07-note"
 );
 
 // --- 実際に編集して反映されること ---------------------------------------
-await page.locator("#status-notes-list .status-row").first().click();
-await page.waitForSelector("#special-note-modal:not([hidden])", { timeout: 5000 });
-await page.fill("#special-note-content", "自宅では飼い主さんが薬を潰して缶詰に混ぜている。（状態モードから編集）");
-await page.locator("#special-note-author-row .author-btn").first().click();
-await page.click("#btn-special-note-save");
+const noteRow = page.locator("#status-history-list .status-row", { hasText: "咬傷歴" });
+await noteRow.click();
+await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
+await page.waitForSelector("#hist-edit-title", { timeout: 5000 });
+const noteKindLabels = await page.locator("#hist-edit-kind-buttons .exam-item-btn").allInnerTexts();
+assert.ok(noteKindLabels.some((t) => t.includes("⚠️") && t.includes("重要")), "編集画面に⚠️重要が無い");
+assert.ok(noteKindLabels.some((t) => t.includes("💬") && t.includes("特記")), "編集画面に💬特記が無い");
+const noteSelected = await page.locator("#hist-edit-kind-buttons .exam-item-btn.is-selected").allInnerTexts();
+assert.ok(noteSelected.some((t) => t.includes("重要")), "既存の⚠️が編集画面で外れている");
+assert.equal(
+  await page.locator("#hist-edit-start-date").inputValue(),
+  "2026-06-01",
+  "特記の開始日が createdAt から入っていない"
+);
+await page.fill("#hist-edit-title", "咬傷歴あり。保定は必ず2人で、口輪を使用すること。（状態モードから編集）");
+await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "特記" }).click();
+await page.click("#hist-edit-save");
 await page.waitForFunction(
-  () => document.getElementById("special-note-modal")?.hasAttribute("hidden"),
+  () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
   null,
   { timeout: 5000 }
 );
-const editedText = await page.locator("#status-notes-list .status-row").first().innerText();
+const editedNoteRow = page.locator("#status-history-list .status-row", { hasText: "状態モードから編集" });
+const editedText = await editedNoteRow.innerText();
 console.log("EDITED", editedText.replace(/\s+/g, " "));
 assert.ok(editedText.includes("状態モードから編集"), "特記の編集結果が状態モードに反映されない");
+assert.ok(editedText.includes("⚠️"), "編集後の特記から⚠️が消えている");
+assert.ok(editedText.includes("💬"), "追加した💬が一覧に無い");
 await shot("09-after-edit");
 
 // --- 既往歴を詳細から編集できること ---------------------------------------
@@ -818,7 +859,12 @@ await assertSwipeOpaque(
   "edit"
 );
 await assertSwipeOpaque("#status-meds-list .status-row", "swipe-03-meds", "薬剤", "delete");
-await assertSwipeOpaque("#status-notes-list .status-row", "swipe-05-notes", "特記", "delete");
+await assertSwipeOpaque(
+  '#status-history-list .status-row[data-kinds="note"]',
+  "swipe-05-notes",
+  "特記",
+  "delete"
+);
 
 // 既往歴は左スワイプでも同じゴミ箱が出ること（左端カラムの右スワイプが端末操作と衝突しやすい）
 await swipeOpen("#status-history-list .status-row", "edit");
@@ -887,7 +933,12 @@ assert.equal(titlesAfterDelete.length, titlesBefore.length - 1, "既往歴の件
 assert.ok(!titlesAfterDelete.includes(removeTitle), "削除した既往歴が一覧に残っている");
 
 await assertSwipeOpaque("#status-meds-list .status-row", "swipe-03b-meds-after-hx-delete", "薬剤（既往歴削除後）", "delete");
-await assertSwipeOpaque("#status-notes-list .status-row", "swipe-05b-notes-after-hx-delete", "特記（既往歴削除後）", "delete");
+await assertSwipeOpaque(
+  '#status-history-list .status-row[data-kinds="note"]',
+  "swipe-05b-notes-after-hx-delete",
+  "特記（既往歴削除後）",
+  "delete"
+);
 
 // --- 状態 ⇄ 履歴 の切り替え ---------------------------------------------
 await page.click("#btn-view-history");
