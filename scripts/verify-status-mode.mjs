@@ -245,10 +245,21 @@ const histMarks = await page.evaluate(() => {
     ) || list?.querySelector(".status-row");
   const iconsEl = sample?.querySelector(".hist-kind-icons");
   const titleEl = sample?.querySelector(".status-row__title");
+  const kids = [...(list?.children || [])].map((el) => ({
+    split: el.classList.contains("status-hist-split"),
+    title: el.querySelector(".status-row__title")?.textContent || "",
+  }));
+  const splitAt = kids.findIndex((k) => k.split);
+  const splitEl = list?.querySelector(".status-hist-split");
+  const splitBox = splitEl?.getBoundingClientRect();
   return {
     listText: list?.innerText || "",
     groups,
     rows,
+    splitCount: list?.querySelectorAll(".status-hist-split").length || 0,
+    splitPrev: splitAt > 0 ? kids[splitAt - 1].title : "",
+    splitNext: splitAt >= 0 ? kids[splitAt + 1]?.title || "" : "",
+    splitHeight: splitBox ? splitBox.height : null,
     noteCount: list?.querySelectorAll(".status-row__note").length || 0,
     badgeCount: list?.querySelectorAll(".hist-type, .hist-status").length || 0,
     hasHead: Boolean(iconsEl && titleEl),
@@ -260,6 +271,13 @@ const histMarks = await page.evaluate(() => {
 });
 assert.equal(histMarks.listText.includes("🟢"), false, "既往歴に🟢が残っている");
 assert.deepEqual(histMarks.groups, [], "既往歴に種別の見出し行が残っている");
+assert.equal(histMarks.splitCount, 1, "特記と既往歴の間の区切り線が1本でない");
+assert.ok(histMarks.splitPrev.includes("おやつ"), "区切り線の直前が特記群の末尾でない");
+assert.ok(histMarks.splitNext.includes("僧帽弁"), "区切り線の直後が既往歴群の先頭でない");
+assert.ok(
+  histMarks.splitHeight != null && histMarks.splitHeight <= 8,
+  `区切り線の縦余白が大きすぎる (height=${histMarks.splitHeight})`
+);
 assert.ok(
   histMarks.rows.every((r) => !r.text.includes("進行中") && !r.text.includes("終了")),
   "行末の進行中／終了が残っている"

@@ -31,6 +31,7 @@ import {
 } from "./history-ui.js";
 import {
   resolveHistoryKinds,
+  isNoteKindGroup,
   sortHistoryEntries,
 } from "./history-kinds.js";
 import { enableRowGestures } from "./row-gestures.js";
@@ -500,8 +501,17 @@ function renderPatientHistory() {
   if (histEmpty) histEmpty.hidden = entries.length > 0;
   setCount(histCount, entries.length);
 
+  let prevIsNote = null;
   entries.forEach((entry) => {
     const kinds = resolveHistoryKinds(entry);
+    const isNote = isNoteKindGroup(kinds);
+    if (prevIsNote === true && isNote === false) {
+      const split = document.createElement("li");
+      split.className = "status-hist-split";
+      split.setAttribute("aria-hidden", "true");
+      histList.appendChild(split);
+    }
+    prevIsNote = isNote;
 
     const li = createRow({
       onOpen: () => openHistoryDetail(entry.id),

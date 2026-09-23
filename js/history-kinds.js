@@ -51,6 +51,12 @@ export function primaryHistoryKind(kinds) {
   return resolveHistoryKinds({ kinds })[0] || "current";
 }
 
+/** 並び上の「特記群」（⚠️／💬）。既往歴群（🚹✅🚨🔰）との区切りに使う。 */
+export function isNoteKindGroup(kinds) {
+  const id = primaryHistoryKind(kinds);
+  return id === "important" || id === "note";
+}
+
 export function legacyTypeStatusFromKinds(kinds) {
   const primary = primaryHistoryKind(kinds);
   if (primary === "current") return { type: "disease", status: "active" };
