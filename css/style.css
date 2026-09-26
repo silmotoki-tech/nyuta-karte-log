@@ -31,18 +31,15 @@
   --due-overdue-border: #dc2626;
   --due-overdue-bg: #fef2f2;
 
-  /* ★重要フラグ（検査の黄とは役割分離） */
+  /* 移行ステータス「進行中」など、黄系のアクセント（旧★の色を流用） */
   --star: #e0a92b;
   --star-text: #b57e17;
   --star-bg: #fdf3d9;
 
-  /* 「変化あり」の印（★とは別の役割なので色も分ける） */
-  --changed-mark: #c9663c;
-
   /* 見出しカテゴリ色 */
   --cat-ope: #d9534f;         /* オペ / 救急 / 麻酔 */
   --cat-admission: #4a90a4;   /* 入院 */
-  --cat-referral: #8a5fbf;    /* 紹介（★の黄と細線で紛れないよう紫） */
+  --cat-referral: #8a5fbf;    /* 紹介 */
   --cat-none: #dcdfe3;        /* 通常の記録 */
 
   --radius-lg: 18px;
@@ -509,21 +506,6 @@ html.is-unlocked .app {
   flex-shrink: 0;
 }
 
-.star-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--color-brown);
-  cursor: pointer;
-  user-select: none;
-}
-
-.star-filter input {
-  accent-color: var(--color-green);
-}
-
 .headline-list {
   list-style: none;
   margin: 0;
@@ -571,8 +553,7 @@ html.is-unlocked .app {
   box-shadow: inset 0 0 0 1.5px var(--color-green);
 }
 
-/* カテゴリ／★を表す縦線。行の高さいっぱいに伸ばす。
-   色は --hl-cat-color に集約し、変化ありの上下2色塗りと共有する */
+/* カテゴリを表す縦線。行の高さいっぱいに伸ばす。 */
 .hl-item__rule {
   align-self: stretch;
   border-radius: 2px;
@@ -588,21 +569,6 @@ html.is-unlocked .app {
 }
 .hl-item[data-category="referral"] .hl-item__rule {
   --hl-cat-color: var(--cat-referral);
-}
-/* カテゴリなしで手動★を付けた記録 */
-.hl-item.is-important[data-category="none"] .hl-item__rule {
-  --hl-cat-color: var(--star);
-}
-
-/* 変化ありの記録は、同じ線を上下半分に分けて上をオレンジにする。
-   太さ・位置は変えず、色の塗り分けだけで区別する */
-.hl-item.is-changed .hl-item__rule {
-  background-color: initial;
-  background-image: linear-gradient(
-    to bottom,
-    var(--changed-mark) 50%,
-    var(--hl-cat-color) 50%
-  );
 }
 
 .hl-item__date {
@@ -1331,7 +1297,7 @@ html.is-unlocked .app {
   color: var(--color-white);
 }
 
-/* 見出しオプション（カテゴリ + ★） */
+/* 見出しオプション（カテゴリ） */
 .headline-options {
   display: flex;
   align-items: center;
@@ -1388,34 +1354,6 @@ html.is-unlocked .app {
   color: var(--color-brown);
 }
 
-/* ★トグル */
-.star-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1.5px solid var(--color-border);
-  background-color: var(--color-cream);
-  color: var(--color-text-muted);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 0.82rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  font-family: inherit;
-}
-
-.star-toggle__icon {
-  font-size: 0.95rem;
-  line-height: 1;
-}
-
-.star-toggle[aria-pressed="true"] {
-  border-color: var(--star);
-  background-color: var(--star-bg);
-  color: var(--star-text);
-}
-
 /* 定型文ボタン */
 .template-buttons {
   display: flex;
@@ -1445,7 +1383,6 @@ html.is-unlocked .app {
 /* ===== 時系列 ===== */
 .timeline-wrap {
   --tl-bar-w: 5px;
-  --tl-star-w: 1.15rem;
   --tl-date-w: 3.1em;
   --tl-head-gap: 6px;
   --tl-pad-x: 12px;
@@ -1526,34 +1463,6 @@ html.is-unlocked .app {
   min-width: 0;
 }
 
-.tl-item__star {
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 0.88rem;
-  line-height: 1.2;
-  color: var(--color-border);
-  width: var(--tl-star-w);
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: color 0.12s ease, transform 0.05s ease;
-}
-
-.tl-item__star:hover {
-  color: var(--star);
-}
-
-.tl-item__star:active {
-  transform: scale(0.9);
-}
-
-.tl-item__star[aria-pressed="true"] {
-  color: var(--star);
-}
-
 .tl-item__title {
   display: flex;
   align-items: baseline;
@@ -1581,32 +1490,8 @@ html.is-unlocked .app {
   word-break: break-word;
 }
 
-/* 同じ見出しが続く中で、実際に内容が変わった回の目印 */
-.tl-item__changed {
-  flex-shrink: 0;
-  align-self: center;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background-color: var(--changed-mark, #c9663c);
-  color: var(--color-white);
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  line-height: 1.5;
-}
-
-.tl-item__changed[hidden] {
-  display: none !important;
-}
-
-.tl-item--changed .tl-item__headline {
-  color: var(--changed-mark, #c9663c);
-}
-
 .tl-item__body {
   margin: 0;
-  /* ★列の右端から本文を開始（日付・見出しの読み軸と揃える） */
-  padding-left: calc(var(--tl-star-w) + var(--tl-head-gap));
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.5;
@@ -1628,7 +1513,6 @@ html.is-unlocked .app {
 
 .tl-item__meta {
   margin: 0;
-  padding-left: calc(var(--tl-star-w) + var(--tl-head-gap));
   font-size: 0.72rem;
   color: var(--color-text-muted);
   font-weight: 600;
@@ -1644,7 +1528,6 @@ html.is-unlocked .app {
   justify-content: flex-start;
   gap: 2px;
   margin-top: 2px;
-  padding-left: calc(var(--tl-star-w) + var(--tl-head-gap));
 }
 
 /* ===== 右カラム ===== */
@@ -5460,7 +5343,7 @@ select.input {
   gap: 8px;
 }
 
-/* 記入者・分類・★・記録日は横並び。入りきらない分だけ折り返す */
+/* 記入者・分類・記録日・見出し絵文字は横並び。入りきらない分だけ折り返す */
 .input-meta-row {
   display: flex;
   align-items: center;
@@ -5473,6 +5356,46 @@ select.input {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.input-meta-group--date {
+  flex-shrink: 0;
+  min-width: auto;
+  flex-wrap: nowrap;
+}
+
+.input-headline-emoji {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.input-headline-emoji__btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1.5px solid var(--color-border);
+  border-radius: 10px;
+  background-color: var(--color-white);
+  color: var(--color-text);
+  font-size: 1.15rem;
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.input-headline-emoji__btn[aria-pressed="true"] {
+  border-color: var(--color-brown);
+  background-color: var(--color-brown-light);
+  box-shadow: inset 0 0 0 1px var(--color-brown);
 }
 
 .input-meta-group--author {
@@ -5500,11 +5423,6 @@ select.input {
   font-size: 0.78rem;
 }
 
-.star-toggle--compact {
-  padding: 3px 10px;
-  font-size: 0.78rem;
-}
-
 .input--compact {
   padding: 4px 8px;
   font-size: 0.82rem;
@@ -5526,27 +5444,6 @@ select.input {
 .input-headline-row .input {
   flex: 1;
   min-width: 0;
-}
-
-.input-changed {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-white);
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  cursor: pointer;
-}
-
-.input-changed:has(input:checked) {
-  border-color: var(--changed-mark, #c9663c);
-  background-color: #fdf1ea;
-  color: var(--changed-mark, #c9663c);
 }
 
 .input-template-row {

@@ -10,7 +10,8 @@
 //   karte/{カルテ番号}/entries/{entryId}/enteredAtIso    … 入力時刻のISO文字列（表示・並び替えのフォールバック）
 //   karte/{カルテ番号}/entries/{entryId}/headline        … 見出し（その日のメインの出来事）
 //   karte/{カルテ番号}/entries/{entryId}/category        … カテゴリ（"none"|"ope"|"admission"|"referral"）
-//   karte/{カルテ番号}/entries/{entryId}/important       … 重要フラグ（★, true/false）
+//   karte/{カルテ番号}/entries/{entryId}/important       … 旧★フラグ。新規には書かない。残っていても無視する
+//   karte/{カルテ番号}/entries/{entryId}/changed         … 旧「変化あり」。新規には書かない。残っていても無視する
 //   karte/{カルテ番号}/entries/{entryId}/author          … 記入者名（初回）
 //   karte/{カルテ番号}/entries/{entryId}/body            … 本文フリーテキスト
 //   karte/{カルテ番号}/entries/{entryId}/source          … "manual"|"template"（AI解析対象の判定に使用予定）
@@ -384,7 +385,7 @@ export async function searchKartesByName(query) {
  */
 export async function addEntry(
   karteNumber,
-  { recordDate, headline, category, important, author, body, source, changed }
+  { recordDate, headline, category, author, body, source }
 ) {
   await authReady;
   const newRef = push(entriesRef(karteNumber));
@@ -395,9 +396,6 @@ export async function addEntry(
     enteredAtIso: now.toISOString(),
     headline: headline || "",
     category: category || "none",
-    important: Boolean(important),
-    // 同じ見出しが続く中で、内容が変わった回であることの印
-    changed: Boolean(changed),
     author,
     body: body || "",
     source: source || "manual",
@@ -406,21 +404,21 @@ export async function addEntry(
 }
 
 /**
- * 重要フラグ(★)のみを切り替える。
+ * 旧★フラグ。UIからは呼ばない。既存データの書き換えはしない。
  */
-export async function setEntryImportant(karteNumber, entryId, important) {
-  await authReady;
-  await update(entryRef(karteNumber, entryId), { important: Boolean(important) });
+export async function setEntryImportant() {
+  return;
 }
 
 /**
- * 既存エントリを上書き更新する（見出し・本文・カテゴリ・★）。
+ * 既存エントリを上書き更新する（見出し・本文・カテゴリ）。
  * 最終編集日時・編集者を記録する（差分履歴は残さない）。
+ * 旧 important フィールドは触らない。
  */
 export async function updateEntry(
   karteNumber,
   entryId,
-  { headline, body, category, important, editedBy }
+  { headline, body, category, editedBy }
 ) {
   await authReady;
   const now = new Date();
@@ -428,7 +426,6 @@ export async function updateEntry(
     headline: headline || "",
     body: body || "",
     category: category || "none",
-    important: Boolean(important),
     lastEditedAt: serverTimestamp(),
     lastEditedAtIso: now.toISOString(),
     lastEditedBy: editedBy || "",
@@ -501,7 +498,10 @@ function normalizeEntry(id, raw) {
 
   entry.headline = entry.headline || "";
   entry.category = entry.category || "none";
+  // 旧★フラグ。残っていても UI では使わない
   entry.important = Boolean(entry.important);
+  // 旧「変化あり」。残っていても UI では使わない
+  entry.changed = Boolean(entry.changed);
   entry.source = entry.source || "manual";
   entry.lastEditedBy = entry.lastEditedBy || "";
   entry.lastEditedAtIso = entry.lastEditedAtIso || "";

@@ -580,6 +580,13 @@ export async function updateMedicationEvent() {}
 export async function deleteMedicationEvent() {}
 
 export const PATIENT_HISTORY_SCHEMA_VERSION = 1;
+export const NOTE_HISTORY_ID_PREFIX = "note:";
+export function isSpecialNoteHistoryId(id) {
+  return typeof id === "string" && id.startsWith(NOTE_HISTORY_ID_PREFIX);
+}
+export function rawSpecialNoteId(id) {
+  return isSpecialNoteHistoryId(id) ? id.slice(NOTE_HISTORY_ID_PREFIX.length) : id;
+}
 export function subscribePatientHistory(karte, cb) {
   return feed("patientHistory", () => SEED.history)(cb);
 }

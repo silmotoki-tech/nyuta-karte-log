@@ -181,10 +181,6 @@
 
       <div class="left-head">
         <h2 class="col__title">見出し</h2>
-        <label class="star-filter" id="star-filter-wrap" hidden>
-          <input type="checkbox" id="star-filter" />
-          <span>★のみ</span>
-        </label>
       </div>
       <p class="col-empty" id="left-empty">カルテを開くと<br />見出しが表示されます。</p>
       <ul class="headline-list" id="headline-list" hidden></ul>
@@ -554,20 +550,76 @@
               <div class="category-buttons category-buttons--compact" id="input-category-buttons"></div>
             </div>
 
-            <button
-              id="btn-input-important"
-              class="star-toggle star-toggle--compact"
-              type="button"
-              aria-pressed="false"
-              title="重要（★）"
-            >
-              <span class="star-toggle__icon">★</span>
-              <span class="star-toggle__label">重要</span>
-            </button>
-
-            <div class="input-meta-group">
+            <div class="input-meta-group input-meta-group--date">
               <label class="label input-meta-group__label" for="input-record-date">記録日</label>
               <input id="input-record-date" class="input input--date input--compact" type="date" />
+              <div
+                class="input-headline-emoji"
+                id="input-headline-emoji"
+                role="group"
+                aria-label="見出しの目印"
+              >
+                <button
+                  type="button"
+                  class="input-headline-emoji__btn"
+                  data-headline-emoji="⭐"
+                  aria-pressed="false"
+                  aria-label="重要"
+                  title="重要"
+                >
+                  ⭐
+                </button>
+                <button
+                  type="button"
+                  class="input-headline-emoji__btn"
+                  data-headline-emoji="🆕"
+                  aria-pressed="false"
+                  aria-label="新しい症状"
+                  title="新しい症状"
+                >
+                  🆕
+                </button>
+                <button
+                  type="button"
+                  class="input-headline-emoji__btn"
+                  data-headline-emoji="😄"
+                  aria-pressed="false"
+                  aria-label="良い"
+                  title="良い"
+                >
+                  😄
+                </button>
+                <button
+                  type="button"
+                  class="input-headline-emoji__btn"
+                  data-headline-emoji="😐"
+                  aria-pressed="false"
+                  aria-label="悪くない"
+                  title="悪くない"
+                >
+                  😐
+                </button>
+                <button
+                  type="button"
+                  class="input-headline-emoji__btn"
+                  data-headline-emoji="😓"
+                  aria-pressed="false"
+                  aria-label="イマイチ"
+                  title="イマイチ"
+                >
+                  😓
+                </button>
+                <button
+                  type="button"
+                  class="input-headline-emoji__btn"
+                  data-headline-emoji="😨"
+                  aria-pressed="false"
+                  aria-label="悪い"
+                  title="悪い"
+                >
+                  😨
+                </button>
+              </div>
               <span class="field__note" id="input-record-date-note"></span>
             </div>
           </div>
@@ -581,10 +633,6 @@
               autocomplete="off"
               placeholder="例）左前肢の跛行で来院"
             />
-            <label class="input-changed" for="input-changed" title="前回から内容が変わった回">
-              <input type="checkbox" id="input-changed" />
-              <span class="input-changed__text">変化あり</span>
-            </label>
           </div>
 
           <div class="input-template-row">
@@ -810,11 +858,9 @@
     <span class="tl-item__bar" aria-hidden="true"></span>
     <div class="tl-item__main">
       <div class="tl-item__head">
-        <button class="tl-item__star" type="button" aria-pressed="false" title="重要（★）">★</button>
         <div class="tl-item__title">
           <span class="tl-item__date"></span>
           <span class="tl-item__headline"></span>
-          <span class="tl-item__changed" hidden>変化</span>
         </div>
       </div>
       <p class="tl-item__body"></p>
@@ -856,10 +902,6 @@
         <span class="label">カテゴリ</span>
         <div class="headline-options">
           <div class="category-buttons" id="entry-edit-category-buttons"></div>
-          <button id="entry-edit-important" class="star-toggle" type="button" aria-pressed="false" title="重要（★）">
-            <span class="star-toggle__icon">★</span>
-            <span class="star-toggle__label">重要</span>
-          </button>
         </div>
       </div>
       <div class="field">

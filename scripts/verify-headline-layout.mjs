@@ -2,8 +2,8 @@
  * 左カラム（見出し一覧）の2列レイアウトを本番 index.html + app.js 経路で検証する。
  * - 日付が縦一列に揃う
  * - 見出しが折り返し、2行目も1行目と同じ左端から始まる（省略記号で切らない）
- * - 日付と見出しの境目の縦線がカテゴリ／★で色分けされる
- * - 丸マーク・★マークが無くなっている
+ * - 日付と見出しの境目の縦線がカテゴリで色分けされる
+ * - 丸マーク・旧★マークが無くなっている
  */
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -120,10 +120,9 @@ const SEED_ENTRIES = [
   {
     id: "e5",
     recordDate: "2026-07-20",
-    headline: "手動で★を付けた通常記録の見出しはこのくらい長くなることがある",
-    body: "★のみのケース。",
+    headline: "手動で付けた通常記録の見出しはこのくらい長くなることがある",
+    body: "カテゴリなしの長い見出し。",
     category: "none",
-    important: true,
     createdAt: "2026-07-20T11:00:00.000Z",
   },
   {
@@ -297,7 +296,6 @@ info.items.forEach((i) => {
 const RED = "rgb(217, 83, 79)";
 const BLUE = "rgb(74, 144, 164)";
 const PURPLE = "rgb(138, 95, 191)";
-const YELLOW = "rgb(224, 169, 43)";
 const GREY = "rgb(220, 223, 227)";
 // 描画順は SEED_ENTRIES の記録日降順と一致する
 const expectedRules = [
@@ -305,7 +303,7 @@ const expectedRules = [
   [GREY, "通常＝薄いグレー"],
   [BLUE, "入院＝青"],
   [PURPLE, "紹介＝紫"],
-  [YELLOW, "★のみ＝黄"],
+  [GREY, "通常（長い見出し）＝薄いグレー"],
   [GREY, "通常（前年）＝薄いグレー"],
 ];
 expectedRules.forEach(([color, name], i) => {

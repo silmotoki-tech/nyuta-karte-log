@@ -232,7 +232,6 @@ await shot("01-chips");
 await page.click('#input-author-row .author-btn[data-author="大辻"]');
 await page.fill("#input-headline", "皮膚炎の再診");
 await page.click('#input-category-buttons .category-btn[data-category="admission"]');
-await page.click("#btn-input-important");
 
 // --- 登録済みの薬チップ → 出来事の追加（新規登録にはしない） --------------
 await page.click('#input-chip-list .input-chip[data-chip-label="プレドニゾロン"]');
@@ -377,7 +376,6 @@ assert.ok(entryWrite, "本文が保存されていない");
 assert.equal(entryWrite.headline, "皮膚炎の再診", "見出しが保存されていない");
 assert.equal(entryWrite.author, "大辻", "記入者が保存されていない");
 assert.equal(entryWrite.category, "admission", "カテゴリが保存されていない");
-assert.equal(entryWrite.important, true, "★が保存されていない");
 assert.equal(entryWrite.recordDate, todayStr, "記録日が保存されていない");
 assert.ok(entryWrite.body.includes("エンロフロキサシン"), "本文が保存されていない");
 

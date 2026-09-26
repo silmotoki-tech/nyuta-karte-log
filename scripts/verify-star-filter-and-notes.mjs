@@ -521,11 +521,6 @@ const harness = `<!DOCTYPE html>
 <link rel="stylesheet" href="/css/style.css" />
 <style>body{margin:0;padding:16px;background:#f5f6f7;font-family:system-ui}</style>
 </head><body>
-<section style="margin-bottom:24px">
-  <h2>★フィルター</h2>
-  <label><input type="checkbox" id="star-filter" /> ★のみ</label>
-  <ul id="headline-out"></ul>
-</section>
 <aside class="col col--right" style="width:340px;border:1px solid #ddd;background:#fff;padding:8px">
   <div class="right-tabs" id="right-tabs">
     <button class="right-tab is-active" type="button" data-tab="notes">特記</button>
@@ -548,29 +543,6 @@ ${htmlFragment("special-note-modal")}
     enterSpecialNotes,
   } from "/js/special-notes-ui.js";
 
-  // --- star filter unit (inline, mirrors app.js) ---
-  function entryMatchesStarFilter(entry) {
-    if (entry?.important) return true;
-    const cat = entry?.category || "none";
-    return cat === "ope" || cat === "admission" || cat === "referral";
-  }
-  const entries = [
-    { id: "1", headline: "通常のみ", important: false, category: "none" },
-    { id: "2", headline: "手動★", important: true, category: "none" },
-    { id: "3", headline: "オペ（★なし）", important: false, category: "ope" },
-    { id: "4", headline: "紹介（★なし）", important: false, category: "referral" },
-  ];
-  const out = document.getElementById("headline-out");
-  const box = document.getElementById("star-filter");
-  function render() {
-    const list = box.checked ? entries.filter(entryMatchesStarFilter) : entries;
-    out.innerHTML = list.map((e) => "<li>" + e.headline + "</li>").join("");
-    out.dataset.count = String(list.length);
-    out.dataset.titles = list.map((e) => e.headline).join("|");
-  }
-  box.addEventListener("change", render);
-  render();
-
   initSpecialNotesUI({
     showToast: () => {},
     showError: (el, msg) => { if (el) { el.textContent = msg || ""; el.hidden = !msg; } },
@@ -578,7 +550,6 @@ ${htmlFragment("special-note-modal")}
     getSelectedAuthor: () => "院長",
   });
   enterSpecialNotes("12345");
-  window.__test = { render };
 </script>
 </body></html>`;
 
@@ -616,16 +587,6 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" });
 
-// 1) star filter
-const before = await page.locator("#headline-out").getAttribute("data-titles");
-await page.check("#star-filter");
-await page.waitForTimeout(50);
-const after = await page.locator("#headline-out").getAttribute("data-titles");
-const starOk =
-  before === "通常のみ|手動★|オペ（★なし）|紹介（★なし）" &&
-  after === "手動★|オペ（★なし）|紹介（★なし）";
-
-// 2) special notes: add low, high, medium — order should be high, medium, low
 await page.click("#btn-special-note-add");
 await page.fill("#special-note-content", "低：参考メモ");
 await page.click('#special-note-importance-row [data-importance="low"]');
@@ -678,9 +639,6 @@ await page.screenshot({
 console.log(
   JSON.stringify(
     {
-      starOk,
-      before,
-      after,
       sortOk,
       order,
       badges,
@@ -697,7 +655,7 @@ console.log(
 
 await browser.close();
 server.close();
-if (!starOk || !sortOk || !createMetaOk || !editOk) {
+if (!sortOk || !createMetaOk || !editOk) {
   console.error("VERIFY_FAILED");
   process.exit(1);
 }

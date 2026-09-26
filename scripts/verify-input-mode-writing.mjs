@@ -3,7 +3,7 @@
  * - 左カラムの見出し一覧が入力中も残り、タップで見出しだけが写ること（続きから選ぶ）
  * - 本文は写さず、すでに書いてあればそのまま残ること
  * - 写した後も編集でき、別の記録を何度でも選び直せること
- * - 「変化あり」で保存すると changed が付き、時系列の該当行に印が出ること
+ * - 保存すると時系列と左カラムに見出しが出ること
  * - 本文欄が記入面の高さの大半を占め、「今日の登録」が畳まれていること
  */
 import assert from "node:assert/strict";
@@ -76,6 +76,7 @@ const ENTRIES = [
     body: "左前肢の跛行を主訴に来院。",
     category: "none",
     important: true,
+    changed: true,
     author: "大辻",
   },
 ];
@@ -189,7 +190,6 @@ const layout = await page.evaluate(() => {
     metaRowTops: [
       "#input-author-field",
       "#input-category-buttons",
-      "#btn-input-important",
       "#input-record-date",
     ].map((sel) => rect(sel)?.y),
   };
@@ -213,16 +213,15 @@ assert.ok(layout.today.y > layout.chips.y, "「今日の登録」が検出チッ
 assert.equal(layout.todayOpen, false, "「今日の登録」が畳まれていない");
 assert.ok(layout.today.h < 60, `畳んだ「今日の登録」が高い: ${layout.today.h}px`);
 
-// 記入者・分類・★・記録日は縦積みをやめて横並びにする。
-// 記入者13名のボタンだけで1行を使い切るため、分類・★・記録日が2行目に回るところまでが限界。
-const [authorTop, catTop, starTop, dateTop] = layout.metaRowTops;
+// 記入者は1行、分類・記録日は2行目に横並び。
+const [authorTop, catTop, dateTop] = layout.metaRowTops;
 assert.ok(
-  Math.abs(catTop - starTop) < 12 && Math.abs(catTop - dateTop) < 12,
-  `分類・★・記録日が横並びになっていない: ${layout.metaRowTops}`
+  Math.abs(catTop - dateTop) < 12,
+  `分類・記録日が横並びになっていない: ${layout.metaRowTops}`
 );
 assert.ok(catTop > authorTop, "記入者と分類が同じ行に重なっている");
 assert.ok(
-  layout.meta.h <= 80,
+  layout.meta.h <= 110,
   `記入者〜記録日の帯が高い: ${layout.meta.h}px`
 );
 assert.ok(
@@ -319,11 +318,15 @@ assert.ok(now.body.endsWith("跛行は改善傾向。"), "写した後の本文�
 assert.equal(dialogCount, 0, `続きから選ぶで確認ダイアログが出た（${dialogCount}回）`);
 await shot("14-repicked");
 
-// --- 【2】変化あり --------------------------------------------------------
+// --- 【2】保存 --------------------------------------------------------
+assert.equal(
+  await page.locator("#input-changed").count(),
+  0,
+  "「変化あり」チェックが残っている"
+);
 await page.click('#input-author-row .author-btn[data-author="大辻"]');
 await page.fill("#input-headline", "入院4日目");
 await page.fill("#input-body-text", "食欲が戻り、点滴を終了した。");
-await page.check("#input-changed");
 await shot("15-changed-checked");
 
 await page.click("#btn-input-save");
@@ -333,20 +336,13 @@ const writes = await page.evaluate(() => globalThis.__writes || []);
 const saved = writes.filter((w) => w.op === "addEntry").at(-1);
 console.log("SAVED_ENTRY", saved);
 assert.equal(saved.headline, "入院4日目", "保存された見出しが違う");
-assert.equal(saved.changed, true, "変化フラグが保存されていない");
+assert.equal(saved.changed, undefined, "変化フラグを新規保存に書いている");
 
-// 保存後は既定に戻る（次の記録に変化ありが残らない）
 await page.click("#btn-start-compose");
 await page.waitForSelector("#screen-input:not([hidden])", { timeout: 5000 });
-assert.equal(
-  await page.isChecked("#input-changed"),
-  false,
-  "保存後も「変化あり」が入ったままになっている"
-);
 await page.click("#btn-input-back");
 await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
 
-// 中央カラムの時系列で、変化ありの回に印が出る
 await page.click("#btn-view-history");
 await page.waitForFunction(
   () => document.getElementById("screen-status").hidden,
@@ -357,30 +353,18 @@ const marks = await page.evaluate(() =>
   [...document.querySelectorAll("#timeline .tl-item")].map((li) => ({
     headline: li.querySelector(".tl-item__headline").textContent.trim(),
     changed: li.classList.contains("tl-item--changed"),
-    badge: !li.querySelector(".tl-item__changed").hidden,
+    badge: Boolean(li.querySelector(".tl-item__changed")),
   }))
 );
 console.log("TIMELINE", marks);
 assert.equal(marks[0].headline, "入院4日目", "保存した記録が時系列の先頭にない");
-assert.equal(marks[0].changed, true, "変化ありの行に印が付いていない");
-assert.equal(marks[0].badge, true, "変化ありのバッジが出ていない");
 assert.ok(
-  marks.slice(1).every((m) => !m.changed && !m.badge),
-  "変化なしの行にも印が付いている"
+  marks.every((m) => !m.changed && !m.badge),
+  "変化ありの印またはバッジが残っている"
 );
-
-const badgeColor = await page.evaluate(() => {
-  const el = document.querySelector("#timeline .tl-item--changed .tl-item__changed");
-  const cs = getComputedStyle(el);
-  return { text: el.textContent.trim(), bg: cs.backgroundColor };
-});
-console.log("BADGE", badgeColor);
-assert.equal(badgeColor.text, "変化", "バッジの文言が違う");
-assert.equal(badgeColor.bg, "rgb(201, 102, 60)", `バッジの色が違う: ${badgeColor.bg}`);
 
 await shot("16-timeline-changed-mark");
 
-// 左カラムの見出し一覧でも、縦線が上下2色に分かれて変化ありが分かる
 const ruleMarks = await page.evaluate(() =>
   [...document.querySelectorAll("#headline-list .hl-item")].map((li) => {
     const rule = li.querySelector(".hl-item__rule");
@@ -398,29 +382,13 @@ const ruleMarks = await page.evaluate(() =>
   })
 );
 console.log("RULE_MARKS", ruleMarks.slice(0, 3));
-const changedRule = ruleMarks.find((m) => m.headline === "入院4日目");
-const plainRule = ruleMarks.find((m) => m.isChanged === false);
-assert.ok(changedRule, "左カラムに変化ありの見出しが見つからない");
-assert.ok(changedRule.isChanged, "左カラムの is-changed が付いていない");
 assert.ok(
-  changedRule.backgroundImage.includes("linear-gradient"),
-  `変化ありの縦線が単色のまま: ${changedRule.backgroundImage}`
+  ruleMarks.some((m) => m.headline === "初診"),
+  "旧変化ありの記録が一覧から消えている"
 );
-assert.equal(plainRule.backgroundImage, "none", "変化なしの縦線にグラデーションが付いている");
-assert.equal(
-  changedRule.ruleWidth,
-  plainRule.ruleWidth,
-  "変化ありとなしで縦線の太さが変わっている"
-);
-assert.equal(
-  changedRule.textLeft,
-  plainRule.textLeft,
-  "変化ありとなしで見出しの開始位置がずれている"
-);
-assert.equal(
-  changedRule.btnLeft,
-  plainRule.btnLeft,
-  "変化ありとなしで行の開始位置がずれている"
+assert.ok(
+  ruleMarks.every((m) => !m.isChanged && m.backgroundImage === "none"),
+  "左カラムに変化ありの縦線が残っている"
 );
 await shot("16b-headline-list-changed-mark");
 
@@ -454,14 +422,14 @@ const fromHistory = await page.evaluate(() => {
     textarea: rect("#input-body-text"),
     pane: rect(".input-pane"),
     todayOpen: document.getElementById("input-today").open,
-    changedChecked: document.getElementById("input-changed").checked,
+    changedGone: !document.getElementById("input-changed"),
   };
 });
 console.log("FROM_HISTORY", fromHistory);
 assert.equal(fromHistory.layoutHidden, true, "3カラムが隠れていない");
 assert.equal(fromHistory.leftInInput, true, "左カラムが入力モードに移っていない");
 assert.equal(fromHistory.todayOpen, false, "「今日の登録」が畳まれていない");
-assert.equal(fromHistory.changedChecked, false, "「変化あり」が入ったまま開いている");
+assert.equal(fromHistory.changedGone, true, "「変化あり」チェックが残っている");
 assert.ok(
   fromHistory.textarea.h / fromHistory.pane.h > 0.45,
   "本文欄が狭い（3カラムから開いた場合）"
@@ -506,10 +474,9 @@ assert.equal(
   "3カラム経由で登録が積まれない"
 );
 
-// 変化あり付きで保存 → 3カラムに戻り、時系列に印が出る
+// 保存 → 3カラムに戻り、時系列の先頭に出る
 await page.click('#input-author-row .author-btn[data-author="院長"]');
 await page.fill("#input-headline", "3カラムから記録");
-await page.check("#input-changed");
 await shot("17-from-history-input-mode");
 await page.click("#btn-input-save");
 await page.waitForFunction(
@@ -526,7 +493,7 @@ const backTo3col = await page.evaluate(() => ({
     const li = document.querySelector("#timeline .tl-item");
     return {
       headline: li.querySelector(".tl-item__headline").textContent.trim(),
-      badge: !li.querySelector(".tl-item__changed").hidden,
+      badge: Boolean(li.querySelector(".tl-item__changed")),
     };
   })(),
 }));
@@ -535,11 +502,11 @@ assert.equal(backTo3col.layoutHidden, false, "3カラムに戻っていない");
 assert.equal(backTo3col.statusHidden, true, "3カラムから開いたのに状態モードへ移っている");
 assert.equal(backTo3col.leftHome, "layout", "左カラムが3カラムに戻っていない");
 assert.equal(backTo3col.first.headline, "3カラムから記録", "保存した記録が時系列の先頭にない");
-assert.equal(backTo3col.first.badge, true, "3カラム経由の変化ありに印が付いていない");
+assert.equal(backTo3col.first.badge, false, "変化バッジが残っている");
 
 const writesFromHistory = await page.evaluate(() => globalThis.__writes || []);
 const savedFromHistory = writesFromHistory.filter((w) => w.op === "addEntry").at(-1);
-assert.equal(savedFromHistory.changed, true, "3カラム経由で変化フラグが保存されていない");
+assert.equal(savedFromHistory.changed, undefined, "3カラム経由で変化フラグを書いている");
 assert.ok(
   writesFromHistory.some((w) => w.op === "saveExamScheduledPlan"),
   "3カラム経由で「今日の登録」が保存されていない"

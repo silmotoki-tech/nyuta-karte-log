@@ -25,6 +25,13 @@ import { listExamMatchTargets } from "./exam-item-match.js";
 import { detectNoteChips } from "./chip-detect.js";
 import { openPatientHistoryAddModal } from "./history-ui.js";
 import { canHandleShortcut } from "./ime-keys.js";
+import {
+  HEADLINE_EMOJI_NEW,
+  HEADLINE_EMOJI_STAR,
+  parseHeadlineMarks,
+  stripHeadlineMarks,
+  toggleHeadlineEmoji,
+} from "./headline-emoji.js";
 
 const AUTHORS = [
   "院長", "大辻", "川邉", "齋藤", "横井", "德永",
@@ -69,7 +76,6 @@ const state = {
   visible: false,
   author: null,
   category: "none",
-  important: false,
   usedTemplate: false,
   drugs: [],
   plan: null,
@@ -106,11 +112,10 @@ const btnTemplates = document.getElementById("btn-input-templates");
 const errorEl = document.getElementById("input-error");
 const authorRow = document.getElementById("input-author-row");
 const headlineInput = document.getElementById("input-headline");
-const changedCheck = document.getElementById("input-changed");
 const categoryButtons = document.getElementById("input-category-buttons");
-const btnImportant = document.getElementById("btn-input-important");
 const recordDateInput = document.getElementById("input-record-date");
 const recordDateNote = document.getElementById("input-record-date-note");
+const headlineEmojiGroup = document.getElementById("input-headline-emoji");
 const bodyInput = document.getElementById("input-body-text");
 
 const chipList = document.getElementById("input-chip-list");
@@ -168,6 +173,38 @@ function showError(el, message) {
   el.hidden = !message;
 }
 
+function syncHeadlineEmojiButtons() {
+  if (!headlineEmojiGroup) return;
+  const marks = parseHeadlineMarks(headlineInput?.value || "");
+  headlineEmojiGroup.querySelectorAll("[data-headline-emoji]").forEach((btn) => {
+    const emoji = btn.getAttribute("data-headline-emoji") || "";
+    const on =
+      emoji === HEADLINE_EMOJI_STAR
+        ? marks.star
+        : emoji === HEADLINE_EMOJI_NEW
+          ? marks.isNew
+          : marks.face === emoji;
+    btn.setAttribute("aria-pressed", String(on));
+  });
+}
+
+function applyHeadlineValue(nextText) {
+  if (!headlineInput) return;
+  const prev = headlineInput.value;
+  const prevMarks = parseHeadlineMarks(prev);
+  const prevPrefixLen = prev.length - prevMarks.body.length;
+  const caret = headlineInput.selectionStart ?? prev.length;
+  const bodyCaret = Math.max(0, caret - prevPrefixLen);
+  headlineInput.value = nextText;
+  const nextMarks = parseHeadlineMarks(nextText);
+  const nextPrefixLen = nextText.length - nextMarks.body.length;
+  const nextCaret = nextMarks.body ? nextPrefixLen + bodyCaret : nextPrefixLen;
+  const clamped = Math.min(Math.max(nextCaret, 0), nextText.length);
+  headlineInput.setSelectionRange(clamped, clamped);
+  headlineInput.focus();
+  syncHeadlineEmojiButtons();
+}
+
 // --- 公開API --------------------------------------------------------------
 
 export function initInputModeUI(helpers = {}) {
@@ -179,12 +216,15 @@ export function initInputModeUI(helpers = {}) {
   btnBack?.addEventListener("click", () => requestClose());
   btnTemplates?.addEventListener("click", () => deps.onOpenTemplates());
 
-  btnImportant?.addEventListener("click", () => {
-    state.important = !state.important;
-    btnImportant.setAttribute("aria-pressed", String(state.important));
-  });
-
   recordDateInput?.addEventListener("change", updateRecordDateNote);
+
+  headlineEmojiGroup?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-headline-emoji]");
+    if (!btn || !headlineInput) return;
+    const emoji = btn.getAttribute("data-headline-emoji");
+    applyHeadlineValue(toggleHeadlineEmoji(headlineInput.value, emoji));
+  });
+  headlineInput?.addEventListener("input", syncHeadlineEmojiButtons);
 
   bodyInput?.addEventListener("input", () => {
     clearTimeout(state.detectTimer);
@@ -341,13 +381,14 @@ export function isInputModeVisible() {
 export function copyEntryToInput(entry) {
   if (!state.visible || !entry) return false;
 
-  const headline = entry.headline || "";
-  if (headlineInput) headlineInput.value = headline;
+  const copied = stripHeadlineMarks(entry.headline || "");
+  if (headlineInput) headlineInput.value = copied;
+  syncHeadlineEmojiButtons();
   showError(errorEl, "");
   runDetection();
   bodyInput?.focus();
   deps.showToast(
-    headline ? `「${headline}」を写しました。` : "選んだ記録を写しました。"
+    copied ? `「${copied}」を写しました。` : "選んだ記録を写しました。"
   );
   return true;
 }
@@ -444,6 +485,7 @@ function renderTemplateButtons() {
 function applyTemplate(tpl) {
   if (headlineInput && !headlineInput.value.trim() && tpl.label) {
     headlineInput.value = tpl.label;
+    syncHeadlineEmojiButtons();
   }
   if (bodyInput) {
     const current = bodyInput.value;
@@ -461,15 +503,13 @@ function applyTemplate(tpl) {
 function resetForm({ keepAuthor = false } = {}) {
   if (!keepAuthor) state.author = null;
   state.category = "none";
-  state.important = false;
   state.usedTemplate = false;
   state.chips = [];
   state.queue = [];
   if (headlineInput) headlineInput.value = "";
   if (bodyInput) bodyInput.value = "";
-  if (changedCheck) changedCheck.checked = false;
   if (recordDateInput) recordDateInput.value = todayStr();
-  btnImportant?.setAttribute("aria-pressed", "false");
+  syncHeadlineEmojiButtons();
   showError(errorEl, "");
   renderAuthorSelection();
   renderCategorySelection();
@@ -1114,8 +1154,6 @@ async function handleSave({ next }) {
       recordDate,
       headline,
       category: state.category,
-      important: state.important,
-      changed: Boolean(changedCheck?.checked),
       author,
       body,
       source,

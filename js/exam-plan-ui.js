@@ -2591,8 +2591,6 @@ async function handlePlanSave() {
         headline: `${item}実施`,
         body: doneNote,
         category: "none",
-        important: false,
-        changed: false,
         author: deps.getSelectedAuthor?.() || "",
         source: "manual",
       });

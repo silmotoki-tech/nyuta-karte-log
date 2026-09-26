@@ -3,7 +3,6 @@ import {
   setAnimalName,
   addEntry,
   updateEntry,
-  setEntryImportant,
   deleteEntry,
   subscribeEntries,
   sortEntriesDescending,
@@ -135,7 +134,6 @@ const state = {
   entries: [],
   unsubscribeEntries: null,
   templates: [],
-  starFilter: false,
   // 定型文編集中のID（null なら新規追加モード）
   editingTemplateId: null,
   // 入力モードを開く前の画面（閉じたときの戻り先）
@@ -149,7 +147,6 @@ const state = {
   editDraft: {
     author: null,
     category: "none",
-    important: false,
   },
 };
 
@@ -204,7 +201,6 @@ const btnCloseEntryEdit = document.getElementById("btn-close-entry-edit");
 const entryEditAuthorRow = document.getElementById("entry-edit-author-row");
 const entryEditHeadline = document.getElementById("entry-edit-headline");
 const entryEditCategoryButtons = document.getElementById("entry-edit-category-buttons");
-const entryEditImportant = document.getElementById("entry-edit-important");
 const entryEditBody = document.getElementById("entry-edit-body");
 const entryEditError = document.getElementById("entry-edit-error");
 const btnEntryEditSave = document.getElementById("btn-entry-edit-save");
@@ -217,8 +213,6 @@ const timelineItemTemplate = document.getElementById("timeline-item-template");
 const leftEmpty = document.getElementById("left-empty");
 const headlineList = document.getElementById("headline-list");
 const headlineItemTemplate = document.getElementById("headline-item-template");
-const starFilterWrap = document.getElementById("star-filter-wrap");
-const starFilterInput = document.getElementById("star-filter");
 
 const templatesModal = document.getElementById("templates-modal");
 const btnCloseTemplates = document.getElementById("btn-close-templates");
@@ -335,7 +329,6 @@ function showCenterState(s) {
   const inMain = s === "main";
   leftEmpty.hidden = inMain;
   headlineList.hidden = !inMain;
-  starFilterWrap.hidden = !inMain;
   if (btnChangeKarte) btnChangeKarte.hidden = !inMain;
   if (!inMain) {
     hideInputMode();
@@ -1203,27 +1196,14 @@ function renderEditCategorySelection() {
   });
 }
 
-entryEditImportant?.addEventListener("click", () => {
-  state.editDraft.important = !state.editDraft.important;
-  entryEditImportant.setAttribute(
-    "aria-pressed",
-    String(state.editDraft.important)
-  );
-});
-
 function openEntryEdit(entry) {
   state.editingEntryId = entry.id;
   state.editDraft = {
     author: state.sessionAuthor || null,
     category: entry.category || "none",
-    important: Boolean(entry.important),
   };
   if (entryEditHeadline) entryEditHeadline.value = entry.headline || "";
   if (entryEditBody) entryEditBody.value = entry.body || "";
-  entryEditImportant?.setAttribute(
-    "aria-pressed",
-    String(state.editDraft.important)
-  );
   renderEditAuthorSelection();
   renderEditCategorySelection();
   showError(entryEditError, "");
@@ -1233,7 +1213,7 @@ function openEntryEdit(entry) {
 
 function closeEntryEdit() {
   state.editingEntryId = null;
-  state.editDraft = { author: null, category: "none", important: false };
+  state.editDraft = { author: null, category: "none" };
   if (entryEditModal) entryEditModal.hidden = true;
   entryEditAuthorRow?.classList.remove("is-error-target");
   showError(entryEditError, "");
@@ -1265,7 +1245,6 @@ async function handleEntryEditSave() {
       headline,
       body,
       category: state.editDraft.category,
-      important: state.editDraft.important,
       editedBy: state.editDraft.author,
     });
     state.sessionAuthor = state.editDraft.author;
@@ -1353,8 +1332,6 @@ function leaveMain() {
   state.sessionAuthor = null;
   clearChartSearch();
   // lastAuthor は端末内の作業継続用に残す（カルテ変更後も処置ログ等で使える）
-  state.starFilter = false;
-  if (starFilterInput) starFilterInput.checked = false;
   if (timelineEl) timelineEl.innerHTML = "";
   if (headlineList) headlineList.innerHTML = "";
   if (leftPatientKarte) leftPatientKarte.textContent = "";
@@ -1363,21 +1340,11 @@ function leaveMain() {
 
 // --- 時系列・見出しの描画 -------------------------------------------------
 
-function entryMatchesStarFilter(entry) {
-  if (entry?.important) return true;
-  const cat = entry?.category || "none";
-  return cat === "ope" || cat === "admission" || cat === "referral";
-}
-
 function visibleEntries() {
   // 記録日の降順（新しい→古い）。同一記録日は入力時刻の降順。
   // db 側でも降順だが、描画直前にもう一度並べ替えて順序を保証する。
   // 時系列（中央）と見出し（左）は同じ配列を forEach するため常に一致する。
-  // ★フィルターは手動★に加え、カテゴリ付き（オペ／入院／紹介）も重要扱いで含める。
-  const filtered = state.starFilter
-    ? state.entries.filter(entryMatchesStarFilter)
-    : state.entries;
-  return sortEntriesDescending(filtered);
+  return sortEntriesDescending(state.entries);
 }
 
 function renderEntries() {
@@ -1389,12 +1356,7 @@ function renderEntries() {
 function renderTimeline(entries) {
   timelineEl.innerHTML = "";
   timelineEmptyEl.hidden = entries.length > 0;
-  if (state.starFilter && entries.length === 0) {
-    timelineEmptyEl.hidden = false;
-    timelineEmptyEl.textContent = "★またはカテゴリ付きの記録はありません。";
-  } else {
-    timelineEmptyEl.textContent = "まだ記録がありません。";
-  }
+  timelineEmptyEl.textContent = "まだ記録がありません。";
 
   entries.forEach((entry) => {
     timelineEl.appendChild(createTimelineItem(entry));
@@ -1407,21 +1369,15 @@ function createTimelineItem(entry) {
   li.id = `tl-${entry.id}`;
   li.dataset.category = entry.category || "none";
 
-  const starBtn = li.querySelector(".tl-item__star");
   const dateEl = li.querySelector(".tl-item__date");
   const headlineEl = li.querySelector(".tl-item__headline");
-  const changedEl = li.querySelector(".tl-item__changed");
   const metaEl = li.querySelector(".tl-item__meta");
   const bodyEl = li.querySelector(".tl-item__body");
   const sideMeta = buildEntrySideMeta(entry);
   const catName = categoryShort(entry.category);
 
-  starBtn.setAttribute("aria-pressed", String(Boolean(entry.important)));
   dateEl.textContent = mdFromStr(entry.recordDate) || "";
   headlineEl.textContent = entry.headline || "（見出しなし）";
-  const changed = Boolean(entry.changed);
-  li.classList.toggle("tl-item--changed", changed);
-  if (changedEl) changedEl.hidden = !changed;
   const bodyText = (entry.body || "").trim();
   bodyEl.textContent = bodyText;
   bodyEl.hidden = !bodyText;
@@ -1435,18 +1391,6 @@ function createTimelineItem(entry) {
     metaEl.textContent = metaParts.join("　·　");
     metaEl.hidden = true;
   }
-
-  starBtn.addEventListener("click", async () => {
-    const next = !entry.important;
-    starBtn.setAttribute("aria-pressed", String(next));
-    try {
-      await setEntryImportant(state.karteNumber, entry.id, next);
-    } catch (err) {
-      console.error(err);
-      starBtn.setAttribute("aria-pressed", String(entry.important));
-      showToast("★の更新に失敗しました。", { isError: true });
-    }
-  });
 
   enableRowGestures(li, {
     actions: [
@@ -1503,9 +1447,7 @@ function renderHeadlines(entries) {
     const textEl = li.querySelector(".hl-item__text");
     const dateEl = li.querySelector(".hl-item__date");
 
-    // カテゴリと★は日付・見出しの間の縦線の色で表す
-    li.classList.toggle("is-important", Boolean(entry.important));
-    li.classList.toggle("is-changed", Boolean(entry.changed));
+    // カテゴリは日付・見出しの間の縦線の色で表す
     li.dataset.category = entry.category || "none";
     dateEl.textContent = mdFromStr(entry.recordDate) || "（日付なし）";
     textEl.textContent = entry.headline || "（見出しなし）";
@@ -1539,12 +1481,6 @@ function jumpToEntry(entryId, headlineLi = null) {
 
   markHeadlineTarget(headlineLi);
 }
-
-// ★フィルタ
-starFilterInput.addEventListener("change", () => {
-  state.starFilter = starFilterInput.checked;
-  renderEntries();
-});
 
 // --- 定型文管理モーダル ---------------------------------------------------
 
