@@ -82,6 +82,42 @@ const mockAuth = MOCK_AUTH_LOGGED_IN;
 
 const SEED_ENTRIES = [
   {
+    id: "e-dec",
+    recordDate: "2026-12-31",
+    headline: "⭐🆕😄 年末の様子",
+    body: "2桁の月・2桁の日。",
+    category: "none",
+    important: false,
+    createdAt: "2026-12-31T10:00:00.000Z",
+  },
+  {
+    id: "e-oct",
+    recordDate: "2026-10-01",
+    headline: "10月に入った記録",
+    body: "2桁の月・1桁の日。",
+    category: "none",
+    important: false,
+    createdAt: "2026-10-01T10:00:00.000Z",
+  },
+  {
+    id: "e-sep30",
+    recordDate: "2026-09-30",
+    headline: "9月末の記録",
+    body: "1桁の月・2桁の日。",
+    category: "none",
+    important: false,
+    createdAt: "2026-09-30T10:00:00.000Z",
+  },
+  {
+    id: "e-sep1",
+    recordDate: "2026-09-01",
+    headline: "9月初めの記録",
+    body: "1桁の月・1桁の日。",
+    category: "none",
+    important: false,
+    createdAt: "2026-09-01T10:00:00.000Z",
+  },
+  {
     id: "e1",
     recordDate: "2026-07-23",
     headline: "白血病の継続治療",
@@ -200,6 +236,11 @@ const info = await page.evaluate(() => {
     const rule = li.querySelector(".hl-item__rule");
     const text = li.querySelector(".hl-item__text");
     const textCs = getComputedStyle(text);
+    const dateCs = getComputedStyle(date);
+    const dateBox = date.getBoundingClientRect();
+    const dateRange = document.createRange();
+    dateRange.selectNodeContents(date);
+    const dateText = dateRange.getBoundingClientRect();
     const lineHeight = parseFloat(textCs.lineHeight);
     const textRect = text.getBoundingClientRect();
     // 折り返し後の各行の左端（同じ左端から始まるかを見る）
@@ -211,7 +252,11 @@ const info = await page.evaluate(() => {
       category: li.dataset.category,
       important: li.classList.contains("is-important"),
       date: date.textContent,
+      headline: text.textContent,
       dateLeft: round(date.getBoundingClientRect().left),
+      dateFontSize: dateCs.fontSize,
+      dateVariant: dateCs.fontVariantNumeric,
+      dateFits: dateText.width <= dateBox.width + 0.5 && dateText.right <= dateBox.right + 0.5,
       ruleLeft: round(rule.getBoundingClientRect().left),
       ruleColor: getComputedStyle(rule).backgroundColor,
       ruleHeight: round(rule.getBoundingClientRect().height),
@@ -299,6 +344,10 @@ const PURPLE = "rgb(138, 95, 191)";
 const GREY = "rgb(220, 223, 227)";
 // 描画順は SEED_ENTRIES の記録日降順と一致する
 const expectedRules = [
+  [GREY, "12/31＝通常"],
+  [GREY, "10/1＝通常"],
+  [GREY, "9/30＝通常"],
+  [GREY, "9/1＝通常"],
   [RED, "オペ＝赤"],
   [GREY, "通常＝薄いグレー"],
   [BLUE, "入院＝青"],
@@ -314,6 +363,24 @@ expectedRules.forEach(([color, name], i) => {
 const referralBar = info.timelineBars.find((b) => b.category === "referral");
 assert.equal(referralBar?.barColor, PURPLE, "中央カラムの紹介バーが紫ではありません");
 assert.equal(info.referralVar, "#8a5fbf");
+
+const neededDates = ["9/1", "9/30", "10/1", "12/31"];
+for (const label of neededDates) {
+  const rows = info.items.filter((i) => i.date === label);
+  assert.ok(rows.length > 0, `${label} が一覧に無い`);
+  rows.forEach((row) => {
+    assert.equal(row.dateFits, true, `${label} が見切れている`);
+    assert.equal(row.dateFontSize, "13.6px", `${label} の文字サイズが変わっている`);
+    assert.ok(
+      String(row.dateVariant).includes("tabular-nums"),
+      `${label} の数字が等幅になっていない`
+    );
+  });
+}
+assert.ok(
+  info.items.some((i) => i.headline.includes("⭐🆕😄")),
+  "見出し先頭の絵文字が消えている"
+);
 
 // 左カラムは 210px から約10%拡大
 assert.ok(
