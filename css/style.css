@@ -12,6 +12,10 @@
   --color-white: #ffffff;
   --color-text: #2c3034;
   --color-text-muted: #6b7280;
+  /* 記録の文字だけ。ボタンや状態モードには使わない。
+     次の「重要でない」グレーは、この隣に足す。 */
+  --entry-text: #111111;
+  --entry-text-body: #2b2b2b;
   --color-border: #e2e5e8;
 
   /* 危険操作（削除など）…彩度を抑えた赤。超過警告とは別トーン */
@@ -580,7 +584,7 @@ html.is-unlocked .app {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
-  color: var(--color-text);
+  color: var(--entry-text);
   line-height: 1.35;
   white-space: nowrap;
   overflow: hidden;
@@ -591,7 +595,7 @@ html.is-unlocked .app {
   align-self: start;
   font-size: 0.82rem;
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--entry-text);
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
@@ -1476,7 +1480,7 @@ html.is-unlocked .app {
   min-width: 0;
   font-size: 0.96rem;
   font-weight: 800;
-  color: var(--color-text);
+  color: var(--entry-text);
   line-height: 1.35;
 }
 
@@ -1502,7 +1506,7 @@ html.is-unlocked .app {
   line-height: 1.5;
   font-size: 0.84rem;
   font-weight: 400;
-  color: #5c6570;
+  color: var(--entry-text-body);
 }
 
 .tl-item__body[hidden] {

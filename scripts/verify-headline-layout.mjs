@@ -284,6 +284,16 @@ const info = await page.evaluate(() => {
       category: li.dataset.category,
       barColor: getComputedStyle(li.querySelector(".tl-item__bar")).backgroundColor,
     })),
+    colors: {
+      leftDate: getComputedStyle(document.querySelector(".hl-item__date")).color,
+      leftText: getComputedStyle(document.querySelector(".hl-item__text")).color,
+      leftTextWeight: getComputedStyle(document.querySelector(".hl-item__text")).fontWeight,
+      tlHeadline: getComputedStyle(document.querySelector(".tl-item__headline")).color,
+      tlDate: getComputedStyle(document.querySelector(".tl-item__date")).color,
+      tlBody: getComputedStyle(document.querySelector(".tl-item__body")).color,
+      tlBodyWeight: getComputedStyle(document.querySelector(".tl-item__body")).fontWeight,
+      pageText: getComputedStyle(document.body).color,
+    },
   };
 });
 
@@ -381,6 +391,18 @@ assert.ok(
   info.items.some((i) => i.headline.includes("⭐🆕😄")),
   "見出し先頭の絵文字が消えている"
 );
+
+const ENTRY = "rgb(17, 17, 17)";
+const ENTRY_BODY = "rgb(43, 43, 43)";
+assert.equal(info.colors.leftText, ENTRY, "左カラムの見出し色");
+assert.equal(info.colors.leftDate, ENTRY, "左カラムの日付色");
+assert.equal(info.colors.tlHeadline, ENTRY, "時系列の見出し色");
+assert.equal(info.colors.tlDate, ENTRY, "時系列の日付が見出しと揃っていない");
+assert.equal(info.colors.tlBody, ENTRY_BODY, "時系列の本文色");
+assert.notEqual(info.colors.tlBody, info.colors.tlHeadline, "本文と見出しが同じ色");
+assert.equal(info.colors.leftTextWeight, "500", "左カラム見出しの太さが変わっている");
+assert.equal(info.colors.tlBodyWeight, "400", "本文の太さが変わっている");
+assert.equal(info.colors.pageText, "rgb(44, 48, 52)", "記録以外の文字色が変わっている");
 
 // 左カラムは 210px から約10%拡大
 assert.ok(
