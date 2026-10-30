@@ -578,6 +578,11 @@ export function closeStatusDetailModal() {
   closeDetailModal();
 }
 
+/** 全文検索から既往歴・特記の詳細を開く。 */
+export function focusHistorySearchTarget(entryId) {
+  return openHistoryDetail(entryId);
+}
+
 function closeDetailModal() {
   if (!detailModal) return;
   detailModal.hidden = true;

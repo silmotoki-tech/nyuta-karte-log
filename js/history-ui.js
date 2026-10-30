@@ -20,6 +20,7 @@ import {
   HISTORY_KINDS,
   sanitizeHistoryKinds,
   resolveHistoryKinds,
+  isNoteKindGroup,
   primaryHistoryKind,
   historyKindMeta,
   titleFieldLabelForKinds,
@@ -27,6 +28,7 @@ import {
   sortHistoryEntries,
 } from "./history-kinds.js";
 import { bindYmdDigitsInput, todayIso, validateYmdDigits } from "./ymd-digits.js";
+import { refreshChartSearch } from "./chart-search-ui.js";
 
 let deps = {
   showToast: () => {},
@@ -145,6 +147,7 @@ export function enterHistory(karteNumber) {
   state.unsubscribe = subscribePatientHistory(karteNumber, (entries) => {
     state.entries = entries;
     renderHistoryList();
+    refreshChartSearch();
   });
 }
 
@@ -158,6 +161,31 @@ export function leaveHistory() {
   state.expandedIds = new Set();
   closeAddModal();
   if (historyList) historyList.innerHTML = "";
+}
+
+export function getHistorySearchItems() {
+  return (state.entries || [])
+    .map((entry) => {
+      const kinds = resolveHistoryKinds(entry);
+      const note = historyNoteText(entry);
+      return {
+        id: entry.id,
+        title: entry.title || "",
+        note,
+        date: entry.firstNoted || entry.lastUpdated || "",
+        badge: isNoteKindGroup(kinds) ? "特記" : "既往歴",
+      };
+    })
+    .filter((item) => item.title || item.note);
+}
+
+function historyNoteText(entry) {
+  const notes = entry?.notes;
+  if (!notes || typeof notes !== "object") return "";
+  return Object.values(notes)
+    .map((note) => String(note?.text || "").trim())
+    .filter(Boolean)
+    .join("\n");
 }
 
 export async function addHistoryFromExternal(karteNumber, payload) {

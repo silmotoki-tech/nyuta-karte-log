@@ -5233,6 +5233,11 @@ select.input {
   opacity: 0.6;
 }
 
+.view-toggle__btn[hidden],
+.view-toggle[hidden] {
+  display: none !important;
+}
+
 /* 状態モード表示中は3カラムを隠す（.layout の display:grid が [hidden] に勝つため） */
 .app > .layout[hidden] {
   display: none !important;
@@ -5788,6 +5793,12 @@ select.input {
   flex: 1;
   min-height: 160px;
   resize: none;
+}
+
+.input-chips[hidden],
+.input-today[hidden],
+#btn-bulk-register[hidden] {
+  display: none !important;
 }
 
 .input-chips {

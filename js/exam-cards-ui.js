@@ -3,6 +3,7 @@
 // 状態モードには出さない。examPlan の予定・実施履歴は触らない。
 
 import { EXAM_CARD_KINDS, subscribeExamCards, saveExamCard } from "./db.js";
+import { refreshChartSearch } from "./chart-search-ui.js";
 
 const PLACEHOLDER = "例）肝スク（絶食）11月中旬\nT4 3ヶ月後 1/下旬";
 
@@ -88,6 +89,20 @@ function render() {
       node.meta.textContent = "";
     }
   });
+  refreshChartSearch();
+}
+
+export function getExamCardSearchItems() {
+  return EXAM_CARD_KINDS.map((kind) => ({
+    id: kind.id,
+    label: `${kind.icon} ${kind.label}`,
+    text: String(state.records[kind.id]?.text || "").trim(),
+  })).filter((item) => item.text);
+}
+
+export function focusExamCardSearchTarget(kindId) {
+  const node = nodes.get(kindId);
+  node?.root?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function startEdit(kindId) {

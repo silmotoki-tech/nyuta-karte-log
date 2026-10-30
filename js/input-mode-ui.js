@@ -242,8 +242,14 @@ export function initInputModeUI(helpers = {}) {
     setTimeout(runDetection, 0);
   });
 
-  btnAddMed?.addEventListener("click", () => openMedSheet({ mode: "new" }));
-  btnAddExam?.addEventListener("click", () => openExamSheet({ mode: "plan" }));
+  btnAddMed?.addEventListener("click", () => {
+    if (todayDetails?.hidden) return;
+    openMedSheet({ mode: "new" });
+  });
+  btnAddExam?.addEventListener("click", () => {
+    if (todayDetails?.hidden) return;
+    openExamSheet({ mode: "plan" });
+  });
 
   btnSave?.addEventListener("click", () => handleSave({ next: false }));
   btnSaveNext?.addEventListener("click", () => handleSave({ next: true }));
@@ -677,6 +683,8 @@ function renderChips() {
 }
 
 function handleChipClick(chip) {
+  // 手順4: チップからの薬剤・検査・既往歴の登録はしない。
+  return;
   if (chip.kind === "med") {
     if (chip.registered && chip.drugId) {
       openMedSheet({ mode: "event", name: chip.label, drugId: chip.drugId });
@@ -1165,11 +1173,9 @@ async function handleSave({ next }) {
       source,
     });
 
-    for (const item of state.queue) {
-      await commitQueueItem(item, { recordDate, author });
-    }
-
-    const registered = state.queue.length;
+    // 手順4: 今日の登録は medications / examPlan / 既往歴へ書かない。
+    // commitQueueItem は手順5まで残す。
+    const registered = 0;
     deps.onAuthorChosen(author);
     resetForm();
     state.author = author;

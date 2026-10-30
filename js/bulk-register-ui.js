@@ -172,7 +172,7 @@ async function handleChipClick(chip, btn) {
 }
 
 function openModal() {
-  if (!state.karteNumber || !modal) return;
+  if (!state.karteNumber || !modal || btnOpen?.hidden) return;
   state.visible = true;
   modal.hidden = false;
   runDetection();

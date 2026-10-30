@@ -2,6 +2,7 @@
 // 空の患者もカードは出し、「なし」と表示する。状態モードには出さない。
 
 import { subscribeContraindication, saveContraindication } from "./db.js";
+import { refreshChartSearch } from "./chart-search-ui.js";
 
 let deps = {
   showToast: () => {},
@@ -76,6 +77,15 @@ function render() {
       metaEl.textContent = `最終更新 ${date}`;
     }
   }
+  refreshChartSearch();
+}
+
+export function getContraindicationSearchText() {
+  return String(state.record?.text || "").trim();
+}
+
+export function focusContraindicationSearchTarget() {
+  card?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function startEdit() {

@@ -224,11 +224,9 @@ assert.ok(empty.docOverflow <= 1, "空のカードで横スクロール");
 assert.ok(empty.panelOverflow <= 1, "空のカードで右カラムが横にはみ出す");
 await shot("01-empty");
 
-await page.click("#btn-view-status");
-await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
-assert.equal(await page.locator("#right-block-exam-cards").isVisible(), false, "状態モードで検査カードが見えている");
-await page.click("#btn-view-history");
-await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
+assert.equal(await page.locator("#btn-view-status").isVisible(), false, "状態ボタンが見えている");
+assert.equal(await page.locator("#screen-status").isVisible(), false, "状態モードが開いている");
+assert.equal(await page.locator("#right-block-exam-cards").isVisible(), true, "右カラムの検査カードが見えない");
 
 const urine = page.locator('.exam-note-wrap[data-kind="urine"] .exam-note__view');
 await urine.click();

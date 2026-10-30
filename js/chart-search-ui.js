@@ -1,13 +1,16 @@
 // 検索タブ上部のカルテ内全文検索。
-// 中央カラム（見出し・本文）、検査予定・実施履歴、薬剤の出来事を横断する。
+// 記録（見出し・本文）、既往歴・特記、禁忌・副作用歴、検査カードを対象にする。
+// 薬剤と検査予定（実施履歴を含む）は手順4で対象から外した。
 
 let deps = {
   getTimelineEntries: () => [],
-  getExamSearchItems: () => [],
-  getMedSearchItems: () => [],
+  getHistorySearchItems: () => [],
+  getContraindicationSearchText: () => "",
+  getExamCardSearchItems: () => [],
   jumpToEntry: () => {},
-  jumpToExamTarget: () => {},
-  jumpToMedTarget: () => {},
+  jumpToHistory: () => {},
+  jumpToContraindication: () => {},
+  jumpToExamCard: () => {},
 };
 
 const searchInput = document.getElementById("chart-search-input");
@@ -83,41 +86,40 @@ function runSearch() {
     });
   }
 
-  for (const item of deps.getExamSearchItems() || []) {
-    const text = haystack(item.item, item.note, item.date, item.kindLabel);
+  for (const item of deps.getHistorySearchItems() || []) {
+    const text = haystack(item.title, item.note, item.date);
     if (!text.includes(q)) continue;
     hits.push({
-      kind: "exam",
+      kind: "history",
       id: item.id,
-      examKind: item.kind,
-      itemName: item.item || "",
       date: item.date || "",
-      title: item.item || "（項目未設定）",
-      snippet: snippetAround(item.note || item.kindLabel || "", q),
-      badge: item.kindLabel || "検査",
+      title: item.title || "（タイトルなし）",
+      snippet: snippetAround(item.note || item.title || "", q),
+      badge: item.badge || "既往歴",
     });
   }
 
-  for (const item of deps.getMedSearchItems() || []) {
-    const text = haystack(
-      item.drugName,
-      item.typeLabel,
-      item.detail,
-      item.date,
-      item.changedBy
-    );
-    if (!text.includes(q)) continue;
+  const contraText = String(deps.getContraindicationSearchText() || "").trim();
+  if (contraText && haystack(contraText).includes(q)) {
     hits.push({
-      kind: "med",
-      drugId: item.drugId,
-      eventId: item.eventId,
-      date: item.date || "",
-      title: item.drugName || "（薬剤名なし）",
-      snippet: snippetAround(
-        [item.typeLabel, item.detail].filter(Boolean).join(" · ") || "",
-        q
-      ),
-      badge: "薬剤",
+      kind: "contra",
+      date: "",
+      title: "禁忌・副作用歴",
+      snippet: snippetAround(contraText, q),
+      badge: "禁忌",
+    });
+  }
+
+  for (const item of deps.getExamCardSearchItems() || []) {
+    const text = haystack(item.label, item.text);
+    if (!item.text || !text.includes(q)) continue;
+    hits.push({
+      kind: "examCard",
+      id: item.id,
+      date: "",
+      title: item.label || "検査",
+      snippet: snippetAround(item.text, q),
+      badge: "検査",
     });
   }
 
@@ -182,16 +184,16 @@ function createResultItem(hit) {
       deps.jumpToEntry(hit.id);
       return;
     }
-    if (hit.kind === "exam") {
-      deps.jumpToExamTarget({
-        kind: hit.examKind,
-        id: hit.id,
-        itemName: hit.itemName,
-      });
+    if (hit.kind === "history") {
+      deps.jumpToHistory(hit.id);
       return;
     }
-    if (hit.kind === "med") {
-      deps.jumpToMedTarget({ drugId: hit.drugId, eventId: hit.eventId });
+    if (hit.kind === "contra") {
+      deps.jumpToContraindication();
+      return;
+    }
+    if (hit.kind === "examCard") {
+      deps.jumpToExamCard(hit.id);
     }
   });
 

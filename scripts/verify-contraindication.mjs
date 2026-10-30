@@ -191,16 +191,9 @@ assert.ok(empty.docOverflow <= 1, "未記載で横スクロールが出ている
 assert.ok(empty.panelOverflow <= 1, "未記載で右カラムが横にはみ出している");
 await shot("01-empty");
 
-await page.click("#btn-view-status");
-await page.waitForSelector("#screen-status:not([hidden])", { timeout: 5000 });
-assert.equal(await page.locator("#right-block-contra").isVisible(), false, "状態モードで禁忌カードが見えている");
-assert.equal(
-  await page.locator("#screen-status").innerText().then((t) => t.includes("禁忌・副作用歴")),
-  false,
-  "状態モードに禁忌カードの見出しがある"
-);
-await page.click("#btn-view-history");
-await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
+assert.equal(await page.locator("#btn-view-status").isVisible(), false, "状態ボタンが見えている");
+assert.equal(await page.locator("#screen-status").isVisible(), false, "状態モードが開いている");
+assert.equal(await page.locator("#right-block-contra").isVisible(), true, "右カラムの禁忌カードが見えない");
 
 await page.click("#contra-card-view");
 await page.waitForSelector("#contra-card-edit:not([hidden])", { timeout: 3000 });

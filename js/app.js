@@ -16,15 +16,11 @@ import {
   enterExamPlan,
   leaveExamPlan,
   setRightTabChangeHandler,
-  getExamSearchItems,
-  focusExamSearchTarget,
 } from "./exam-plan-ui.js";
 import {
   initMedsUI,
   enterMeds,
   leaveMeds,
-  getMedSearchItems,
-  focusMedSearchTarget,
 } from "./meds-ui.js";
 import {
   initChartSearchUI,
@@ -35,11 +31,11 @@ import {
   initStatusModeUI,
   enterStatusMode,
   leaveStatusMode,
-  showStatusMode,
   hideStatusMode,
   isStatusModeVisible,
   updatePatientHeader as updateStatusPatientHeader,
   closeStatusDetailModal,
+  focusHistorySearchTarget,
 } from "./status-mode-ui.js";
 import {
   initInputModeUI,
@@ -56,6 +52,7 @@ import {
   initHistoryUI,
   enterHistory,
   leaveHistory,
+  getHistorySearchItems,
 } from "./history-ui.js";
 import { clearRightTabAlerts } from "./right-tab-alerts.js";
 import {
@@ -72,10 +69,14 @@ import {
   initContraindicationUI,
   enterContraindication,
   leaveContraindication,
+  getContraindicationSearchText,
+  focusContraindicationSearchTarget,
 } from "./contraindication-ui.js";
 import {
   initExamCardsUI,
   enterExamCards,
+  getExamCardSearchItems,
+  focusExamCardSearchTarget,
   leaveExamCards,
 } from "./exam-cards-ui.js";
 import {
@@ -95,7 +96,6 @@ import {
 } from "./free-qa-ui.js";
 import {
   initAiSuggestUI,
-  runAiSuggestAfterSave,
   isAiReviewBlocking,
 } from "./ai-suggest-ui.js";
 import {
@@ -354,21 +354,20 @@ function showHistoryView() {
   syncViewToggle();
 }
 
-/** 入力モードを開く。origin は閉じたときに戻る先。 */
-function openInputMode(origin) {
+/** 入力モードを開く。閉じたあとは常に履歴画面へ戻す。 */
+function openInputMode() {
   if (state.centerState !== "main") return;
-  state.inputModeOrigin = origin;
+  state.inputModeOrigin = "history";
   hideStatusMode();
   showInputMode();
   syncViewToggle();
 }
 
-/** 入力モードを閉じ、開く前の画面に戻す */
+/** 入力モードを閉じ、履歴画面へ戻す。 */
 function closeInputMode() {
-  const origin = state.inputModeOrigin;
   state.inputModeOrigin = null;
   hideInputMode();
-  if (origin === "status") showStatusMode();
+  hideStatusMode();
   syncViewToggle();
 }
 
@@ -1288,7 +1287,7 @@ btnChangeKarte.addEventListener("click", () => {
 
 // 3カラムからの記入も、状態モードからの記入と同じ全画面の入力モードで行う
 btnStartCompose?.addEventListener("click", () => {
-  openInputMode(isStatusModeVisible() ? "status" : "history");
+  openInputMode();
 });
 
 function enterMain() {
@@ -1752,11 +1751,8 @@ initInputModeUI({
     state.lastAuthor = name;
   },
   onClose: () => closeInputMode(),
-  // 定型文入力は対象外。手動入力のみ AI 提案フローへ（フラグで無効化可）
-  onSaved: async ({ karteNumber, headline, body, recordDate, author, source }) => {
-    if (source !== "manual" || !body) return;
-    await runAiSuggestAfterSave({ karteNumber, body, headline, recordDate, author });
-  },
+  // 手順4: 保存直後のAI提案は、フラグに関係なく呼び出さない。
+  onSaved: async () => {},
   onSavedAndNext: () => {
     state.inputModeOrigin = null;
     leaveMain();
@@ -1767,20 +1763,20 @@ initInputModeUI({
 });
 
 btnViewStatus?.addEventListener("click", () => {
-  if (state.centerState !== "main") return;
-  showStatusMode();
-  syncViewToggle();
+  // 手順4: 状態モードは画面から開かない。showStatusMode は残す。
 });
 
 btnViewHistory?.addEventListener("click", () => showHistoryView());
 
 initChartSearchUI({
   getTimelineEntries: () => state.entries || [],
-  getExamSearchItems,
-  getMedSearchItems,
+  getHistorySearchItems,
+  getContraindicationSearchText,
+  getExamCardSearchItems,
   jumpToEntry: (entryId) => jumpToEntry(entryId),
-  jumpToExamTarget: focusExamSearchTarget,
-  jumpToMedTarget: focusMedSearchTarget,
+  jumpToHistory: (entryId) => focusHistorySearchTarget(entryId),
+  jumpToContraindication: () => focusContraindicationSearchTarget(),
+  jumpToExamCard: (kindId) => focusExamCardSearchTarget(kindId),
 });
 
 // 検索タブ表示時に入力欄・APIキー案内を再確認（他タブ操作の影響を受けないようにする）

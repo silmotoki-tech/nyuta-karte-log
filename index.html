@@ -123,14 +123,15 @@
 
 <!-- ============ 本編（パスコード認証後に表示） ============ -->
 <div id="app-shell" class="app" hidden>
-  <!-- 状態｜履歴 と「記録する」は画面を問わず、履歴（3カラム）の位置に固定する -->
+  <!-- 「記録する」は画面を問わず、履歴（3カラム）の位置に固定する -->
   <div class="app-view-chrome" id="app-view-chrome" hidden>
-    <div class="view-toggle" role="group" aria-label="表示の切り替え">
+    <div class="view-toggle" role="group" aria-label="表示の切り替え" hidden>
       <button
         type="button"
         class="view-toggle__btn"
         id="btn-view-status"
         data-view="status"
+        hidden
       >
         状態
       </button>
@@ -281,9 +282,9 @@
 
         <div class="center-toolbar">
           <div class="app-view-chrome-slot" aria-hidden="true">
-            <div class="view-toggle">
-              <button type="button" class="view-toggle__btn" tabindex="-1" disabled>状態</button>
-              <button type="button" class="view-toggle__btn" tabindex="-1" disabled>履歴</button>
+            <div class="view-toggle" hidden>
+              <button type="button" class="view-toggle__btn" tabindex="-1" disabled hidden>状態</button>
+              <button type="button" class="view-toggle__btn" tabindex="-1" disabled hidden>履歴</button>
             </div>
             <button class="btn btn--small btn--primary" type="button" tabindex="-1" disabled>記録する</button>
           </div>
@@ -306,6 +307,7 @@
               class="btn btn--small btn--outline"
               type="button"
               title="電子カルテからの名前だけ一括登録"
+              hidden
             >
               一括登録
             </button>
@@ -433,7 +435,7 @@
               placeholder="例）エコー / 肝臓 / アモキシ"
             />
             <p class="field__note" id="chart-search-hint">
-              見出し・本文、検査・処置の予定・実施履歴、薬剤の出来事を横断検索します。
+              見出し・本文、既往歴・特記、禁忌・副作用歴、検査カードを検索します。
             </p>
             <p class="field__note" id="chart-search-empty" hidden>一致する記録はありません。</p>
             <ul class="chart-search-results" id="chart-search-results"></ul>
@@ -718,7 +720,7 @@
             ></textarea>
           </div>
 
-          <section class="input-chips">
+          <section class="input-chips" hidden>
             <div class="input-chips__head">
               <span class="label">本文から検出</span>
               <span class="field__note" id="input-chips-hint">
@@ -728,7 +730,7 @@
             <ul class="input-chip-list" id="input-chip-list"></ul>
           </section>
 
-          <details class="input-today" id="input-today">
+          <details class="input-today" id="input-today" hidden>
             <summary class="input-today__head">
               <h2 class="input-today__title">
                 今日の登録<span class="status-block__count" id="input-today-count"></span>
