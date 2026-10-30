@@ -208,6 +208,32 @@ assert.ok(Math.abs(chrome.composeTop - chrome.templatesTop) <= 8, "記録する�
 assert.ok(Math.abs(chrome.composeTop - chrome.menuTop) <= 8, "記録すると設定の高さがずれている");
 assert.ok(Math.abs(chrome.backTop - chrome.composeTop) <= 12, "戻ると記録するの高さがずれている");
 
+const groupColors = await page.evaluate(() => {
+  const bg = (id) => getComputedStyle(document.querySelector(id)).backgroundColor;
+  const title = getComputedStyle(document.querySelector("#right-block-history .status-block__title")).color;
+  return {
+    history: bg("#right-block-history"),
+    statusHistory: bg("#status-block-history"),
+    contra: bg("#contra-card"),
+    exam: bg("#right-block-exam-cards .exam-note"),
+    examCount: document.querySelectorAll("#right-block-exam-cards .exam-note").length,
+    examColors: [...document.querySelectorAll("#right-block-exam-cards .exam-note")].map(
+      (el) => getComputedStyle(el).backgroundColor
+    ),
+    search: bg("#right-section-search"),
+    ai: bg("#right-ai-fold"),
+    title,
+  };
+});
+assert.equal(groupColors.history, "rgb(227, 246, 230)", `既往歴の背景: ${groupColors.history}`);
+assert.equal(groupColors.statusHistory, "rgb(255, 255, 255)", "状態モードの既往歴まで色が付いた");
+assert.equal(groupColors.contra, "rgb(255, 255, 255)", "空の禁忌カードが白でない");
+assert.equal(groupColors.examCount, 6, "検査カードが6枚でない");
+assert.ok(groupColors.examColors.every((c) => c === "rgb(228, 242, 251)"), `検査カードの背景: ${groupColors.examColors}`);
+assert.equal(groupColors.search, "rgb(255, 255, 255)", "全文検索の背景が変わった");
+assert.equal(groupColors.ai, "rgb(255, 255, 255)", "AI質問の背景が変わった");
+assert.equal(groupColors.title, "rgb(107, 72, 52)", "既往歴の文字色が変わった");
+
 await page.locator("#right-history-list .status-row").first().click();
 await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
 await page.click("#btn-close-status-detail");
@@ -284,6 +310,16 @@ await page.waitForFunction(
 );
 const contraHit = await searchText(page, "ペニシリン系");
 assert.ok(contraHit.includes("禁忌"), `禁忌がヒットしない: ${contraHit}`);
+assert.equal(
+  await page.locator("#contra-card").evaluate((el) => getComputedStyle(el).backgroundColor),
+  "rgb(253, 232, 232)",
+  "本文のある禁忌カードが薄い赤でない"
+);
+assert.equal(
+  await page.locator("#contra-card-title").evaluate((el) => getComputedStyle(el).color),
+  "rgb(185, 28, 28)",
+  "禁忌の見出し色が変わった"
+);
 
 await page.locator('.exam-note-wrap[data-kind="blood"] .exam-note__view').click();
 await page.fill("#exam-card-input-blood", "肝スク検索用");

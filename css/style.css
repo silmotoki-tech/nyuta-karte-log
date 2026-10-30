@@ -35,6 +35,11 @@
   --due-overdue-border: #dc2626;
   --due-overdue-bg: #fef2f2;
 
+  /* 右カラムのまとまり。文字色は変えず、背景だけ。数値だけ後から調整する */
+  --right-group-history-bg: #e3f6e6;
+  --right-group-contra-bg: #fde8e8;
+  --right-group-exam-bg: #e4f2fb;
+
   /* 移行ステータス「進行中」など、黄系のアクセント（旧★の色を流用） */
   --star: #e0a92b;
   --star-text: #b57e17;
@@ -1682,6 +1687,7 @@ html.is-unlocked .app {
 /* 既往歴・特記は状態モードと同じカード。高さは切らず、右カラムの縦スクロールで下の検索・AIまで届く */
 #right-block-history {
   min-width: 0;
+  background-color: var(--right-group-history-bg);
 }
 
 /* 禁忌・副作用歴。空のときは目立たせない。本文があるときだけ赤系。 */
@@ -1703,7 +1709,7 @@ html.is-unlocked .app {
 
 .contra-card.is-filled {
   border-color: var(--due-overdue-border);
-  background-color: var(--due-overdue-bg);
+  background-color: var(--right-group-contra-bg);
 }
 
 .contra-card__view {
@@ -1801,7 +1807,7 @@ html.is-unlocked .app {
   min-width: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background-color: var(--color-white);
+  background-color: var(--right-group-exam-bg);
   padding: 3px 8px;
 }
 
