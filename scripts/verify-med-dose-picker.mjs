@@ -602,6 +602,31 @@ export async function saveContraindication() {
   return __mockNextId();
 }
 
+export const EXAM_CARD_SCHEMA_VERSION = 1;
+
+export const EXAM_CARD_KINDS = [
+  { id: "blood", icon: "🩸", label: "血液" },
+  { id: "abdomenEcho", icon: "🎥", label: "腹部エコー" },
+  { id: "heartEcho", icon: "🫀", label: "心臓エコー" },
+  { id: "urine", icon: "🧪", label: "尿検査" },
+  { id: "xray", icon: "🩻", label: "レントゲン" },
+  { id: "other", icon: "📋", label: "その他" },
+];
+
+export function normalizeExamCards(value) {
+  return value;
+}
+
+export function subscribeExamCards(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function saveExamCard() {
+  return __mockNextId();
+}
+
 // ==== 自動生成ここまで ====
 `;
 

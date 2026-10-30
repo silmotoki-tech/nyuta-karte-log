@@ -155,7 +155,7 @@ const order = await page.evaluate(() =>
 );
 assert.deepEqual(
   order,
-  ["right-block-history", "right-block-contra", "right-section-search", "right-ai-fold"],
+  ["right-block-history", "right-block-contra", "right-block-exam-cards", "right-section-search", "right-ai-fold"],
   "右カラムの並び"
 );
 
@@ -206,7 +206,8 @@ await page.click("#contra-card-view");
 await page.waitForSelector("#contra-card-edit:not([hidden])", { timeout: 3000 });
 assert.equal(await page.locator("#contra-card-save").isVisible(), true, "保存ボタンが無い");
 assert.equal(await page.locator("#contra-card-cancel").isVisible(), true, "取り消しボタンが無い");
-assert.ok((await page.locator("#contra-card-authors .author-btn").count()) >= 10, "記入者選択が無い");
+assert.equal(await page.locator("#contra-card-authors").count(), 0, "禁忌カードに記入者選択が残っている");
+assert.ok((await page.locator("#input-author-row .author-btn").count()) >= 10, "記録の記入者選択まで消えている");
 await page.fill("#contra-card-input", "取り消し確認");
 await page.click("#contra-card-cancel");
 await page.waitForSelector("#contra-card-view:not([hidden])", { timeout: 3000 });
@@ -214,16 +215,6 @@ assert.equal(await page.locator("#contra-card-text").innerText(), "なし", "取
 
 await page.click("#contra-card-view");
 await page.fill("#contra-card-input", LONG_TEXT);
-await page.click("#contra-card-save");
-const blocked = await page.locator("#contra-card-error").innerText();
-assert.ok(blocked.includes("記入者"), `記入者なしで保存が止まっていない: ${blocked}`);
-assert.equal(
-  await page.locator("#contra-card-edit").evaluate((el) => el.hidden),
-  false,
-  "記入者なしなのに編集が閉じた"
-);
-
-await page.click('#contra-card-authors .author-btn[data-author="大辻"]');
 await page.click("#contra-card-save");
 await page.waitForSelector("#contra-card-view:not([hidden])", { timeout: 5000 });
 
@@ -262,7 +253,8 @@ assert.ok(filled.text.includes("NSAIDs 嘔吐（2024/5）"), "1行目が無い")
 assert.ok(filled.text.includes("ペニシリン系 発疹"), "2行目が無い");
 assert.ok(filled.text.includes("とても長い禁忌"), "長い文章が無い");
 assert.equal(filled.filled, true, "記載があるのに赤系になっていない");
-assert.equal(filled.meta, `最終更新 ${today} 大辻`, `最終更新の表示が違う: ${filled.meta}`);
+assert.equal(filled.meta, `最終更新 ${today}`, `最終更新の表示が違う: ${filled.meta}`);
+assert.equal(filled.meta.includes("大辻"), false, "最終更新に記入者が出ている");
 assert.ok(filled.textH > 70, `カードが縦に伸びていない (textH=${filled.textH})`);
 assert.ok(filled.cardH > filled.textH, "カードが本文より低い");
 assert.ok(filled.textScroll <= filled.textClient + 2, "本文がカード内で切れている");
@@ -284,28 +276,38 @@ const other = await page2.locator("#contra-card-text").innerText();
 assert.ok(other.includes("NSAIDs 嘔吐（2024/5）"), "別タブに保存内容が出ていない");
 assert.equal(
   await page2.locator("#contra-card-meta").innerText(),
-  `最終更新 ${today} 大辻`,
+  `最終更新 ${today}`,
   "別タブの最終更新が違う"
 );
 await page2.screenshot({ path: path.join(outDir, "03-other-tab.png") });
 
+await page2.evaluate(() => {
+  const key = "nyuta-mock-contraindication";
+  const store = JSON.parse(localStorage.getItem(key) || "{}");
+  store["00001"].updatedBy = "大辻";
+  localStorage.setItem(key, JSON.stringify(store));
+});
 await page2.click("#contra-card-view");
 await page2.fill("#contra-card-input", "   ");
-await page2.click('#contra-card-authors .author-btn[data-author="大辻"]');
 await page2.click("#contra-card-save");
 await page.waitForFunction(
   () => document.getElementById("contra-card-text")?.textContent === "なし",
   null,
   { timeout: 5000 }
 );
-const cleared = await page.evaluate(() => ({
-  text: document.getElementById("contra-card-text").textContent,
-  filled: document.getElementById("contra-card").classList.contains("is-filled"),
-  meta: document.getElementById("contra-card-meta").textContent,
-}));
+const cleared = await page.evaluate(() => {
+  const store = JSON.parse(localStorage.getItem("nyuta-mock-contraindication") || "{}");
+  return {
+    text: document.getElementById("contra-card-text").textContent,
+    filled: document.getElementById("contra-card").classList.contains("is-filled"),
+    meta: document.getElementById("contra-card-meta").textContent,
+    storedBy: store["00001"]?.updatedBy || "",
+  };
+});
 assert.equal(cleared.text, "なし", "空保存後も本文が残っている");
 assert.equal(cleared.filled, false, "空保存後も赤系のまま");
-assert.ok(cleared.meta.startsWith(`最終更新 ${today}`), `空保存後の最終更新が無い: ${cleared.meta}`);
+assert.equal(cleared.meta, `最終更新 ${today}`, `空保存後の最終更新: ${cleared.meta}`);
+assert.equal(cleared.storedBy, "大辻", "保存済みの記入者が消えている");
 await shot("04-cleared");
 
 await browser.close();

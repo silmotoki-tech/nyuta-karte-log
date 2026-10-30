@@ -74,6 +74,11 @@ import {
   leaveContraindication,
 } from "./contraindication-ui.js";
 import {
+  initExamCardsUI,
+  enterExamCards,
+  leaveExamCards,
+} from "./exam-cards-ui.js";
+import {
   initBulkRegisterUI,
   enterBulkRegister,
   leaveBulkRegister,
@@ -1305,6 +1310,7 @@ function enterMain() {
   enterSpecialNotes(state.karteNumber);
   enterMigrationProgress(state.karteNumber);
   enterContraindication(state.karteNumber);
+  enterExamCards(state.karteNumber);
   enterBulkRegister(state.karteNumber);
   enterFreeQa(state.karteNumber);
   // 状態モードは同じカルテを別購読で見る。表示切替を即時にするため入場時から購読する。
@@ -1326,6 +1332,7 @@ function leaveMain() {
   leaveSpecialNotes();
   leaveMigrationProgress();
   leaveContraindication();
+  leaveExamCards();
   leaveBulkRegister();
   leaveFreeQa();
   leaveStatusMode();
@@ -1659,12 +1666,12 @@ initContraindicationUI({
   showToast,
   showError,
   setBusy,
-  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
-  onAuthorChosen: (name) => {
-    if (!name) return;
-    state.sessionAuthor = name;
-    state.lastAuthor = name;
-  },
+});
+
+initExamCardsUI({
+  showToast,
+  showError,
+  setBusy,
 });
 
 initBulkRegisterUI({

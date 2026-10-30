@@ -1202,17 +1202,107 @@ export function subscribeContraindication(karte, cb) {
 
 export async function saveContraindication(karte, { text, updatedBy } = {}) {
   const store = readContraStore();
+  const prev = store[karte];
+  const keptBy = typeof updatedBy === "string"
+    ? updatedBy
+    : (typeof prev?.updatedBy === "string" ? prev.updatedBy : "");
   const payload = {
     schemaVersion: 1,
     text: typeof text === "string" ? text.replace(/\r\n/g, "\n").trim() : "",
     updatedAt: new Date().toISOString(),
-    updatedBy: updatedBy || "",
+    updatedBy: keptBy,
   };
   store[karte] = payload;
   localStorage.setItem(CONTRA_STORAGE_KEY, JSON.stringify(store));
   emitContra(karte);
   try {
     const channel = new BroadcastChannel(CONTRA_CHANNEL);
+    channel.postMessage({ karte });
+    channel.close();
+  } catch {
+    // ignore
+  }
+  return payload;
+}
+
+// 種類別の手書き検査カード。別タブでも見えるように localStorage で共有する。
+const EXAM_CARD_IDS = ["blood", "abdomenEcho", "heartEcho", "urine", "xray", "other"];
+const EXAM_CARD_STORAGE_KEY = "nyuta-mock-exam-cards";
+const EXAM_CARD_CHANNEL = "nyuta-mock-exam-cards";
+const examCardListeners = new Set();
+
+function readExamCardStore() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(EXAM_CARD_STORAGE_KEY) || "{}");
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeExamCardMap(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const cards = {};
+  EXAM_CARD_IDS.forEach((id) => {
+    const row = source[id];
+    cards[id] = {
+      schemaVersion: 1,
+      text: typeof row?.text === "string" ? row.text : "",
+      updatedAt: typeof row?.updatedAt === "string" ? row.updatedAt : "",
+      updatedBy: typeof row?.updatedBy === "string" ? row.updatedBy : "",
+    };
+  });
+  return cards;
+}
+
+function emitExamCards(karte) {
+  const cards = normalizeExamCardMap(readExamCardStore()[karte]);
+  examCardListeners.forEach((entry) => {
+    if (entry.karte === karte) entry.cb(cards);
+  });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== EXAM_CARD_STORAGE_KEY) return;
+    const kartes = new Set([...examCardListeners].map((entry) => entry.karte));
+    kartes.forEach((karte) => emitExamCards(karte));
+  });
+  try {
+    const channel = new BroadcastChannel(EXAM_CARD_CHANNEL);
+    channel.onmessage = (event) => {
+      if (event?.data?.karte) emitExamCards(event.data.karte);
+    };
+  } catch {
+    // storage イベントだけを使う
+  }
+}
+
+export function subscribeExamCards(karte, cb) {
+  const entry = { karte, cb };
+  examCardListeners.add(entry);
+  cb(normalizeExamCardMap(readExamCardStore()[karte]));
+  return () => examCardListeners.delete(entry);
+}
+
+export async function saveExamCard(karte, kindId, { text, updatedBy } = {}) {
+  if (!EXAM_CARD_IDS.includes(kindId)) throw new Error("未知の検査カードです。");
+  const store = readExamCardStore();
+  const prev = store[karte]?.[kindId];
+  const keptBy = typeof updatedBy === "string"
+    ? updatedBy
+    : (typeof prev?.updatedBy === "string" ? prev.updatedBy : "");
+  const payload = {
+    schemaVersion: 1,
+    text: typeof text === "string" ? text.replace(/\r\n/g, "\n").trim() : "",
+    updatedAt: new Date().toISOString(),
+    updatedBy: keptBy,
+  };
+  store[karte] = { ...(store[karte] || {}), [kindId]: payload };
+  localStorage.setItem(EXAM_CARD_STORAGE_KEY, JSON.stringify(store));
+  emitExamCards(karte);
+  try {
+    const channel = new BroadcastChannel(EXAM_CARD_CHANNEL);
     channel.postMessage({ karte });
     channel.close();
   } catch {
@@ -1341,6 +1431,21 @@ export async function ensureHistorySurgeryItemDefaults() {}
 export const CONTRAINDICATION_SCHEMA_VERSION = 1;
 
 export function normalizeContraindication(value) {
+  return value;
+}
+
+export const EXAM_CARD_SCHEMA_VERSION = 1;
+
+export const EXAM_CARD_KINDS = [
+  { id: "blood", icon: "🩸", label: "血液" },
+  { id: "abdomenEcho", icon: "🎥", label: "腹部エコー" },
+  { id: "heartEcho", icon: "🫀", label: "心臓エコー" },
+  { id: "urine", icon: "🧪", label: "尿検査" },
+  { id: "xray", icon: "🩻", label: "レントゲン" },
+  { id: "other", icon: "📋", label: "その他" },
+];
+
+export function normalizeExamCards(value) {
   return value;
 }
 

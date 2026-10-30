@@ -3,17 +3,10 @@
 
 import { subscribeContraindication, saveContraindication } from "./db.js";
 
-const AUTHORS = [
-  "院長", "大辻", "川邉", "齋藤", "横井", "德永",
-  "種田", "竹内", "神子島", "大澤", "川合", "嶋本", "道野",
-];
-
 let deps = {
   showToast: () => {},
   showError: () => {},
   setBusy: () => {},
-  getSelectedAuthor: () => "",
-  onAuthorChosen: () => {},
 };
 
 const state = {
@@ -21,7 +14,6 @@ const state = {
   record: emptyRecord(),
   unsubscribe: null,
   editing: false,
-  author: "",
 };
 
 const wrap = document.getElementById("right-block-contra");
@@ -30,7 +22,6 @@ const view = document.getElementById("contra-card-view");
 const edit = document.getElementById("contra-card-edit");
 const textEl = document.getElementById("contra-card-text");
 const input = document.getElementById("contra-card-input");
-const authorRow = document.getElementById("contra-card-authors");
 const errorEl = document.getElementById("contra-card-error");
 const metaEl = document.getElementById("contra-card-meta");
 const btnSave = document.getElementById("contra-card-save");
@@ -65,14 +56,6 @@ function currentText() {
   return String(state.record.text || "").trim();
 }
 
-function renderAuthors() {
-  authorRow?.querySelectorAll(".author-btn").forEach((btn) => {
-    const on = btn.dataset.author === state.author;
-    btn.classList.toggle("is-selected", on);
-    btn.setAttribute("aria-pressed", String(on));
-  });
-}
-
 function render() {
   if (!card || !textEl) return;
   const saved = String(state.record.text || "").trim();
@@ -89,18 +72,15 @@ function render() {
       metaEl.hidden = true;
       metaEl.textContent = "";
     } else {
-      const who = state.record.updatedBy ? ` ${state.record.updatedBy}` : "";
       metaEl.hidden = false;
-      metaEl.textContent = `最終更新 ${date}${who}`;
+      metaEl.textContent = `最終更新 ${date}`;
     }
   }
-  renderAuthors();
 }
 
 function startEdit() {
   if (!state.karteNumber || state.editing) return;
   state.editing = true;
-  state.author = deps.getSelectedAuthor() || state.record.updatedBy || "";
   if (input) input.value = state.record.text || "";
   deps.showError(errorEl, "");
   render();
@@ -109,30 +89,20 @@ function startEdit() {
 
 function cancelEdit() {
   state.editing = false;
-  state.author = "";
   deps.showError(errorEl, "");
   render();
 }
 
 async function handleSave() {
   if (!state.karteNumber) return;
-  const author = state.author || "";
-  if (!author) {
-    deps.showError(errorEl, "記入者を選択してください。");
-    authorRow?.classList.add("is-error-target");
-    return;
-  }
-  authorRow?.classList.remove("is-error-target");
   deps.setBusy(btnSave, true, "保存中...", "保存");
   deps.showError(errorEl, "");
   try {
     const saved = await saveContraindication(state.karteNumber, {
       text: input?.value ?? "",
-      updatedBy: author,
     });
     state.record = asRecord(saved);
     state.editing = false;
-    deps.onAuthorChosen(author);
     deps.showToast("禁忌・副作用歴を保存しました。");
     render();
   } catch (err) {
@@ -143,28 +113,8 @@ async function handleSave() {
   }
 }
 
-function buildAuthorButtons() {
-  if (!authorRow || authorRow.childElementCount > 0) return;
-  AUTHORS.forEach((name) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "author-btn";
-    btn.textContent = name;
-    btn.dataset.author = name;
-    btn.addEventListener("click", () => {
-      state.author = name;
-      authorRow.classList.remove("is-error-target");
-      deps.showError(errorEl, "");
-      deps.onAuthorChosen(name);
-      renderAuthors();
-    });
-    authorRow.appendChild(btn);
-  });
-}
-
 export function initContraindicationUI(helpers = {}) {
   deps = { ...deps, ...helpers };
-  buildAuthorButtons();
   view?.addEventListener("click", startEdit);
   view?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -199,7 +149,6 @@ export function leaveContraindication() {
   state.karteNumber = null;
   state.record = emptyRecord();
   state.editing = false;
-  state.author = "";
   deps.showError(errorEl, "");
   render();
 }

@@ -1782,6 +1782,115 @@ html.is-unlocked .app {
   color: var(--color-text-muted);
 }
 
+/* 種類別の手書き検査カード。空は見出し1行。赤系にはしない。 */
+.exam-cards {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exam-note-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.exam-note {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-white);
+  padding: 3px 8px;
+}
+
+.exam-note.has-text,
+.exam-note-wrap.is-editing .exam-note {
+  padding: 6px 8px 7px;
+}
+
+.exam-note__view {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.exam-note__view:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-green);
+  border-radius: 4px;
+}
+
+.exam-note__line {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.exam-note__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--color-brown);
+}
+
+.exam-note__mark {
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+.exam-note__text {
+  margin: 3px 0 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.exam-note__edit {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exam-note__edit[hidden],
+.exam-note__view[hidden],
+.exam-note__mark[hidden],
+.exam-note__text[hidden],
+.exam-note__meta[hidden] {
+  display: none !important;
+}
+
+.exam-note__edit .textarea {
+  min-height: 4.6em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.exam-note__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exam-note__meta {
+  margin: 0;
+  padding: 0 2px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--color-text-muted);
+}
+
 .right-ai-fold {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);

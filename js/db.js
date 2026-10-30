@@ -114,7 +114,14 @@
 //   contraindications/{カルテ番号}/schemaVersion         … 禁忌・副作用歴（カルテごと1件。自由記述）
 //   contraindications/{カルテ番号}/text                  … 本文。空は未記載
 //   contraindications/{カルテ番号}/updatedAt             … 最終更新日時ISO
-//   contraindications/{カルテ番号}/updatedBy             … 記入者
+//   contraindications/{カルテ番号}/updatedBy             … 以前の記入者。選択・表示はしない。再保存でも消さない
+//
+//   examCards/{カルテ番号}/{種類}/schemaVersion          … 種類別の手書き検査カード
+//   examCards/{カルテ番号}/{種類}/text                   … 本文。空は未記載
+//   examCards/{カルテ番号}/{種類}/updatedAt              … 最終更新日時ISO
+//   examCards/{カルテ番号}/{種類}/updatedBy              … 以前の記入者。選択・表示はしない。再保存でも消さない
+//     ※種類は blood / abdomenEcho / heartEcho / urine / xray / other
+//     ※examPlan/ の予定・実施履歴とは別。移さない。
 //
 //   appSettings/adminPasscode                           … マスタ削除用管理者パスコード（全端末共通）
 //   appSettings/retiredMasterIds/{collection}/{itemId}  … 削除済みシードの再投入防止
@@ -4608,15 +4615,125 @@ export function subscribeContraindication(karteNumber, callback) {
 /**
  * 禁忌・副作用歴を保存する（カルテごと1件の上書き）。
  * text は前後の空白を除く。空文字は「なし」。
+ * updatedBy を渡さないときは、保存済みの記入者をそのまま残す。
  */
 export async function saveContraindication(karteNumber, { text, updatedBy } = {}) {
   await authReady;
+  const keptBy = typeof updatedBy === "string"
+    ? updatedBy
+    : normalizeContraindication((await get(contraindicationRef(karteNumber))).val()).updatedBy;
   const payload = {
     schemaVersion: CONTRAINDICATION_SCHEMA_VERSION,
     text: typeof text === "string" ? text.replace(/\r\n/g, "\n").trim() : "",
     updatedAt: new Date().toISOString(),
-    updatedBy: updatedBy || "",
+    updatedBy: keptBy,
   };
   await set(contraindicationRef(karteNumber), payload);
+  return payload;
+}
+
+// --- 種類別の手書き検査カード（examCards） --------------------------------
+
+export const EXAM_CARD_SCHEMA_VERSION = 1;
+
+/** 右カラムに出す順。id は examCards/{カルテ番号}/{id} のキー。 */
+export const EXAM_CARD_KINDS = [
+  { id: "blood", icon: "🩸", label: "血液" },
+  { id: "abdomenEcho", icon: "🎥", label: "腹部エコー" },
+  { id: "heartEcho", icon: "🫀", label: "心臓エコー" },
+  { id: "urine", icon: "🧪", label: "尿検査" },
+  { id: "xray", icon: "🩻", label: "レントゲン" },
+  { id: "other", icon: "📋", label: "その他" },
+];
+
+const EXAM_CARD_KIND_IDS = new Set(EXAM_CARD_KINDS.map((kind) => kind.id));
+
+function examCardsRef(karteNumber) {
+  return ref(db, `examCards/${karteNumber}`);
+}
+
+function examCardRef(karteNumber, kindId) {
+  return ref(db, `examCards/${karteNumber}/${kindId}`);
+}
+
+function emptyExamCard() {
+  return {
+    schemaVersion: EXAM_CARD_SCHEMA_VERSION,
+    text: "",
+    updatedAt: "",
+    updatedBy: "",
+  };
+}
+
+function normalizeExamCardRow(raw) {
+  const entry = emptyExamCard();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return entry;
+  entry.schemaVersion = raw.schemaVersion || EXAM_CARD_SCHEMA_VERSION;
+  entry.text = typeof raw.text === "string" ? raw.text : "";
+  entry.updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt : "";
+  entry.updatedBy = typeof raw.updatedBy === "string" ? raw.updatedBy : "";
+  return entry;
+}
+
+/** 6種類ぶんの空欄を埋めて返す。未知のキーは捨てる。 */
+export function normalizeExamCards(raw) {
+  const source = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  const cards = {};
+  EXAM_CARD_KINDS.forEach((kind) => {
+    cards[kind.id] = normalizeExamCardRow(source[kind.id]);
+  });
+  return cards;
+}
+
+/**
+ * カルテの検査カード6枚をリアルタイム監視する。未設定の種類は空欄。
+ * examPlan の予定・実施履歴は読まない。
+ */
+export function subscribeExamCards(karteNumber, callback) {
+  const r = examCardsRef(karteNumber);
+  let unsubscribed = false;
+  let listener = null;
+
+  authReady
+    .then(() => {
+      if (unsubscribed) return;
+      listener = onValue(r, (snapshot) => {
+        callback(normalizeExamCards(snapshot.val()));
+      });
+    })
+    .catch((err) => {
+      console.error("検査カードの監視開始に失敗しました", err);
+      callback(normalizeExamCards(null));
+    });
+
+  return () => {
+    unsubscribed = true;
+    if (listener) {
+      off(r, "value", listener);
+      listener = null;
+    }
+  };
+}
+
+/**
+ * 1種類だけ上書き保存する。他の種類と examPlan には触れない。
+ * text は前後の空白を除く。空文字は未記載。
+ * updatedBy を渡さないときは、その種類に保存済みの記入者をそのまま残す。
+ */
+export async function saveExamCard(karteNumber, kindId, { text, updatedBy } = {}) {
+  if (!EXAM_CARD_KIND_IDS.has(kindId)) {
+    throw new Error("未知の検査カードです。");
+  }
+  await authReady;
+  const keptBy = typeof updatedBy === "string"
+    ? updatedBy
+    : normalizeExamCardRow((await get(examCardRef(karteNumber, kindId))).val()).updatedBy;
+  const payload = {
+    schemaVersion: EXAM_CARD_SCHEMA_VERSION,
+    text: typeof text === "string" ? text.replace(/\r\n/g, "\n").trim() : "",
+    updatedAt: new Date().toISOString(),
+    updatedBy: keptBy,
+  };
+  await set(examCardRef(karteNumber, kindId), payload);
   return payload;
 }
