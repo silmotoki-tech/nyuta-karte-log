@@ -111,6 +111,11 @@
 //   migrationProgress/{カルテ番号}/updatedAt             … 最終更新日時ISO
 //   migrationProgress/{カルテ番号}/updatedBy             … 更新者（任意。未選択でも保存可）
 //
+//   contraindications/{カルテ番号}/schemaVersion         … 禁忌・副作用歴（カルテごと1件。自由記述）
+//   contraindications/{カルテ番号}/text                  … 本文。空は未記載
+//   contraindications/{カルテ番号}/updatedAt             … 最終更新日時ISO
+//   contraindications/{カルテ番号}/updatedBy             … 記入者
+//
 //   appSettings/adminPasscode                           … マスタ削除用管理者パスコード（全端末共通）
 //   appSettings/retiredMasterIds/{collection}/{itemId}  … 削除済みシードの再投入防止
 //
@@ -4540,5 +4545,78 @@ export async function saveMigrationProgress(
     updatedBy: updatedBy || "",
   };
   await set(migrationProgressRef(karteNumber), payload);
+  return payload;
+}
+
+// --- 禁忌・副作用歴（contraindications） ----------------------------------
+
+export const CONTRAINDICATION_SCHEMA_VERSION = 1;
+
+function contraindicationRef(karteNumber) {
+  return ref(db, `contraindications/${karteNumber}`);
+}
+
+function emptyContraindication() {
+  return {
+    schemaVersion: CONTRAINDICATION_SCHEMA_VERSION,
+    text: "",
+    updatedAt: "",
+    updatedBy: "",
+  };
+}
+
+/** 未設定のカルテは空欄として扱う。既存の他データには触れない。 */
+export function normalizeContraindication(raw) {
+  const entry = emptyContraindication();
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return entry;
+  entry.schemaVersion = raw.schemaVersion || CONTRAINDICATION_SCHEMA_VERSION;
+  entry.text = typeof raw.text === "string" ? raw.text : "";
+  entry.updatedAt = typeof raw.updatedAt === "string" ? raw.updatedAt : "";
+  entry.updatedBy = typeof raw.updatedBy === "string" ? raw.updatedBy : "";
+  return entry;
+}
+
+/**
+ * カルテの禁忌・副作用歴をリアルタイム監視する。未設定時は空欄を返す。
+ */
+export function subscribeContraindication(karteNumber, callback) {
+  const r = contraindicationRef(karteNumber);
+  let unsubscribed = false;
+  let listener = null;
+
+  authReady
+    .then(() => {
+      if (unsubscribed) return;
+      listener = onValue(r, (snapshot) => {
+        callback(normalizeContraindication(snapshot.val()));
+      });
+    })
+    .catch((err) => {
+      console.error("禁忌・副作用歴の監視開始に失敗しました", err);
+      callback(normalizeContraindication(null));
+    });
+
+  return () => {
+    unsubscribed = true;
+    if (listener) {
+      off(r, "value", listener);
+      listener = null;
+    }
+  };
+}
+
+/**
+ * 禁忌・副作用歴を保存する（カルテごと1件の上書き）。
+ * text は前後の空白を除く。空文字は「なし」。
+ */
+export async function saveContraindication(karteNumber, { text, updatedBy } = {}) {
+  await authReady;
+  const payload = {
+    schemaVersion: CONTRAINDICATION_SCHEMA_VERSION,
+    text: typeof text === "string" ? text.replace(/\r\n/g, "\n").trim() : "",
+    updatedAt: new Date().toISOString(),
+    updatedBy: updatedBy || "",
+  };
+  await set(contraindicationRef(karteNumber), payload);
   return payload;
 }

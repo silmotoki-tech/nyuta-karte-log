@@ -365,7 +365,7 @@
     <!-- ============ 右カラム: 患者情報タブ ============ -->
     <aside class="col col--right" id="col-right">
       <p class="right-empty" id="right-empty">
-        カルテを開くと、ここで既往歴・特記、全文検索・AIへの質問ができます。
+        カルテを開くと、ここで既往歴・特記、禁忌・副作用歴、全文検索・AIへの質問ができます。
       </p>
 
       <!-- 検索: カルテ内全文検索＋AI自由質問（右カラム全体を使用） -->
@@ -385,6 +385,40 @@
           <p class="field__note status-block__empty" id="right-history-empty">既往歴・特記はありません。</p>
           <ul class="status-list" id="right-history-list"></ul>
         </section>
+
+        <div class="contra-card-wrap" id="right-block-contra">
+          <section class="contra-card" id="contra-card" aria-labelledby="contra-card-title">
+            <div
+              class="contra-card__view"
+              id="contra-card-view"
+              role="button"
+              tabindex="0"
+            >
+              <h2 class="contra-card__title" id="contra-card-title">❌ 禁忌・副作用歴</h2>
+              <p class="contra-card__text is-empty" id="contra-card-text">なし</p>
+            </div>
+            <div class="contra-card__edit" id="contra-card-edit" hidden>
+              <h2 class="contra-card__title">❌ 禁忌・副作用歴</h2>
+              <label class="label" for="contra-card-input">内容</label>
+              <textarea
+                id="contra-card-input"
+                class="textarea"
+                rows="5"
+                inputmode="text"
+                enterkeyhint="enter"
+                placeholder="例）NSAIDs 嘔吐（2024/5）&#10;ペニシリン系 発疹"
+              ></textarea>
+              <span class="label">記入者</span>
+              <div class="author-row author-row--compact" id="contra-card-authors"></div>
+              <p id="contra-card-error" class="error-text" role="alert" hidden></p>
+              <div class="contra-card__actions">
+                <button id="contra-card-save" class="btn btn--small btn--primary" type="button">保存</button>
+                <button id="contra-card-cancel" class="btn btn--small btn--ghost" type="button">取り消し</button>
+              </div>
+            </div>
+          </section>
+          <p class="contra-card__meta" id="contra-card-meta" hidden></p>
+        </div>
 
         <section class="exam-section" id="right-section-search">
           <h3 class="exam-section__title">カルテ内検索</h3>

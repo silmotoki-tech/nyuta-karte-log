@@ -1147,6 +1147,80 @@ export async function deleteSpecialNote(karte, id) {
   notifyHistoryMerged();
 }
 
+// 禁忌・副作用歴。別タブでも見えるように localStorage と BroadcastChannel で共有する。
+const CONTRA_STORAGE_KEY = "nyuta-mock-contraindication";
+const CONTRA_CHANNEL = "nyuta-mock-contraindication";
+const contraListeners = new Set();
+
+function readContraStore() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CONTRA_STORAGE_KEY) || "{}");
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeContraRow(raw) {
+  return {
+    schemaVersion: 1,
+    text: typeof raw?.text === "string" ? raw.text : "",
+    updatedAt: typeof raw?.updatedAt === "string" ? raw.updatedAt : "",
+    updatedBy: typeof raw?.updatedBy === "string" ? raw.updatedBy : "",
+  };
+}
+
+function emitContra(karte) {
+  const row = normalizeContraRow(readContraStore()[karte]);
+  contraListeners.forEach((entry) => {
+    if (entry.karte === karte) entry.cb(row);
+  });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== CONTRA_STORAGE_KEY) return;
+    const kartes = new Set([...contraListeners].map((entry) => entry.karte));
+    kartes.forEach((karte) => emitContra(karte));
+  });
+  try {
+    const channel = new BroadcastChannel(CONTRA_CHANNEL);
+    channel.onmessage = (event) => {
+      if (event?.data?.karte) emitContra(event.data.karte);
+    };
+  } catch {
+    // BroadcastChannel が無い環境では storage イベントだけを使う
+  }
+}
+
+export function subscribeContraindication(karte, cb) {
+  const entry = { karte, cb };
+  contraListeners.add(entry);
+  cb(normalizeContraRow(readContraStore()[karte]));
+  return () => contraListeners.delete(entry);
+}
+
+export async function saveContraindication(karte, { text, updatedBy } = {}) {
+  const store = readContraStore();
+  const payload = {
+    schemaVersion: 1,
+    text: typeof text === "string" ? text.replace(/\r\n/g, "\n").trim() : "",
+    updatedAt: new Date().toISOString(),
+    updatedBy: updatedBy || "",
+  };
+  store[karte] = payload;
+  localStorage.setItem(CONTRA_STORAGE_KEY, JSON.stringify(store));
+  emitContra(karte);
+  try {
+    const channel = new BroadcastChannel(CONTRA_CHANNEL);
+    channel.postMessage({ karte });
+    channel.close();
+  } catch {
+    // ignore
+  }
+  return payload;
+}
+
 // ==== ここから自動生成: node scripts/check-mock-db-exports.mjs --write ====
 // db.js にあってこのモックが定義していない名前を、起動が通る最小限の実装で埋める。
 // 挙動が必要になったら、この上でその名前を普通に定義すれば生成対象から外れる。
@@ -1263,5 +1337,11 @@ export const MED_FOOD_ROYAL_CANIN_GROUP_ID = "seed-med-food-royal-canin";
 export const MED_FOOD_OTHER_GROUP_ID = "seed-med-food-other";
 
 export async function ensureHistorySurgeryItemDefaults() {}
+
+export const CONTRAINDICATION_SCHEMA_VERSION = 1;
+
+export function normalizeContraindication(value) {
+  return value;
+}
 
 // ==== 自動生成ここまで ====

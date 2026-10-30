@@ -534,7 +534,7 @@ async function assertRightHistoryColumn(label) {
   });
   assert.deepEqual(
     info.children,
-    ["right-block-history", "right-section-search", "right-ai-fold"],
+    ["right-block-history", "right-block-contra", "right-section-search", "right-ai-fold"],
     `${label}: 右カラムの並び`
   );
   assert.deepEqual(info.right, info.status, `${label}: 右カラムと状態モードの既往歴が一致しない`);

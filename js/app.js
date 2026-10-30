@@ -69,6 +69,11 @@ import {
   leaveMigrationProgress,
 } from "./migration-progress-ui.js";
 import {
+  initContraindicationUI,
+  enterContraindication,
+  leaveContraindication,
+} from "./contraindication-ui.js";
+import {
   initBulkRegisterUI,
   enterBulkRegister,
   leaveBulkRegister,
@@ -1299,6 +1304,7 @@ function enterMain() {
   enterHistory(state.karteNumber);
   enterSpecialNotes(state.karteNumber);
   enterMigrationProgress(state.karteNumber);
+  enterContraindication(state.karteNumber);
   enterBulkRegister(state.karteNumber);
   enterFreeQa(state.karteNumber);
   // 状態モードは同じカルテを別購読で見る。表示切替を即時にするため入場時から購読する。
@@ -1319,6 +1325,7 @@ function leaveMain() {
   leaveHistory();
   leaveSpecialNotes();
   leaveMigrationProgress();
+  leaveContraindication();
   leaveBulkRegister();
   leaveFreeQa();
   leaveStatusMode();
@@ -1646,6 +1653,18 @@ initMigrationProgressUI({
   showError,
   setBusy,
   getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
+});
+
+initContraindicationUI({
+  showToast,
+  showError,
+  setBusy,
+  getSelectedAuthor: () => state.sessionAuthor || state.lastAuthor || "",
+  onAuthorChosen: (name) => {
+    if (!name) return;
+    state.sessionAuthor = name;
+    state.lastAuthor = name;
+  },
 });
 
 initBulkRegisterUI({

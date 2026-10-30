@@ -851,6 +851,9 @@ export async function deleteSpecialNote(karte, id) {
 // db.js にあってこのモックが定義していない名前を、起動が通る最小限の実装で埋める。
 // 挙動が必要になったら、この上でその名前を普通に定義すれば生成対象から外れる。
 
+let __mockSeq = 0;
+const __mockNextId = () => "mock" + (__mockSeq += 1);
+
 export async function getOwnerName() {}
 
 export async function setOwnerName() {}
@@ -862,6 +865,8 @@ export async function searchKartesByName() {}
 export function examItemCategoryLabel() {
   return "";
 }
+
+export async function mergeExamPlanWithProcedures() {}
 
 export async function updateExamHistory() {}
 
@@ -963,5 +968,25 @@ export const MED_FOOD_ROYAL_CANIN_GROUP_ID = "seed-med-food-royal-canin";
 export const MED_FOOD_OTHER_GROUP_ID = "seed-med-food-other";
 
 export async function ensureHistorySurgeryItemDefaults() {}
+
+export async function specialNoteToHistoryEntry() {}
+
+export async function mergeHistoryWithSpecialNotes() {}
+
+export const CONTRAINDICATION_SCHEMA_VERSION = 1;
+
+export function normalizeContraindication(value) {
+  return value;
+}
+
+export function subscribeContraindication(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function saveContraindication() {
+  return __mockNextId();
+}
 
 // ==== 自動生成ここまで ====

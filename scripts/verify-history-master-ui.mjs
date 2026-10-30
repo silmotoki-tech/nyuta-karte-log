@@ -330,6 +330,14 @@ export async function deleteExamItem() {}
 
 export const EXAM_PLAN_SCHEMA_VERSION = 2;
 
+export const PROC_PLAN_ID_PREFIX = "proc-plan:";
+
+export const PROC_HIST_ID_PREFIX = "proc-hist:";
+
+export const PROC_LEGACY_ID_PREFIX = "proc-legacy:";
+
+export async function mergeExamPlanWithProcedures() {}
+
 export function subscribeExamPlan(...args) {
   const cb = args[args.length - 1];
   if (typeof cb === "function") cb([]);
@@ -532,6 +540,16 @@ export async function deleteMedicationEvent() {}
 
 export const PATIENT_HISTORY_SCHEMA_VERSION = 1;
 
+export const NOTE_HISTORY_ID_PREFIX = "note:";
+
+export async function isSpecialNoteHistoryId() {}
+
+export async function rawSpecialNoteId() {}
+
+export async function specialNoteToHistoryEntry() {}
+
+export async function mergeHistoryWithSpecialNotes() {}
+
 export const FREE_QA_SCHEMA_VERSION = 1;
 
 export function subscribeFreeQA(...args) {
@@ -623,6 +641,22 @@ export function subscribeMigrationProgress(...args) {
 }
 
 export async function saveMigrationProgress() {
+  return __mockNextId();
+}
+
+export const CONTRAINDICATION_SCHEMA_VERSION = 1;
+
+export function normalizeContraindication(value) {
+  return value;
+}
+
+export function subscribeContraindication(...args) {
+  const cb = args[args.length - 1];
+  if (typeof cb === "function") cb([]);
+  return () => {};
+}
+
+export async function saveContraindication() {
   return __mockNextId();
 }
 
