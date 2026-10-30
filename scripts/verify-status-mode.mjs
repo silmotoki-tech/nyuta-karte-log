@@ -173,7 +173,7 @@ async function chromePos() {
 const historyChrome = await chromePos();
 console.log("CHROME_HISTORY", historyChrome);
 assert.equal(historyChrome.hidden, false, "履歴画面でトグルが見えない");
-assert.equal(historyChrome.toggle.x, 247, `トグルの左位置が履歴基準と違う: ${historyChrome.toggle.x}`);
+assert.equal(historyChrome.toggle.x, 257, `トグルの左位置が履歴基準と違う: ${historyChrome.toggle.x}`);
 assert.equal(historyChrome.toggle.y, 10, `トグルの高さが履歴基準と違う: ${historyChrome.toggle.y}`);
 assert.equal(historyChrome.compose.y, historyChrome.toggle.y, "記録するがトグルと高さが揃っていない");
 await chromeShot("chrome-01-history");
@@ -237,6 +237,7 @@ const histMarks = await page.evaluate(() => {
     kinds: el.dataset.kinds || "",
     icons: el.querySelector(".hist-kind-icons")?.textContent || "",
     title: el.querySelector(".status-row__title")?.textContent || "",
+    started: el.querySelector(".status-row__started")?.textContent || "",
     text: el.innerText,
   }));
   const sample =
@@ -341,13 +342,30 @@ assert.ok(
   histMarks.rows.every((r) => !r.text.includes("🟢")),
   "既往歴の行に🟢が残っている"
 );
-assert.ok(!histMarks.listText.includes("開始日"), "既往歴一覧に開始日が残っている");
+assert.ok(!histMarks.listText.includes("開始日"), "既往歴一覧に「開始日」のラベルが出ている");
 assert.ok(!histMarks.listText.includes("更新"), "既往歴一覧に更新日が残っている");
 assert.equal(
   histMarks.rows.some((r) => /\d{4}\/\d{1,2}\/\d{1,2}/.test(r.text)),
   false,
-  "既往歴一覧に日付が残っている"
+  "既往歴一覧に日までの日付が出ている"
 );
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("僧帽弁") && r.started === "2023/04"),
+  "僧帽弁の開始日が「2023/04」になっていない"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("慢性腎臓病") && r.started === ""),
+  "開始日が空の項目に日付が出ている"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("避妊手術") && r.started === "2019/06"),
+  "避妊手術の開始日が「2019/06」になっていない"
+);
+assert.ok(
+  histMarks.rows.some((r) => r.title.includes("咬傷歴") && r.started === "2026/06"),
+  "特記の開始日が年/月で出ていない"
+);
+await assertStartedDateLayout("#status-history-list", "状態モード");
 assert.equal(histMarks.noteCount, 0, "既往歴カードに日付行が残っている");
 assert.equal(histMarks.hasHead, true, "既往歴カードのアイコン・タイトルが欠けている");
 assert.equal(histMarks.sameRow, true, "既往歴カードのアイコンとタイトルが同じ行に並んでいない");
@@ -368,9 +386,12 @@ assert.ok(
   counts.dueClasses.some((c) => c.includes("exam-due-text--overdue")),
   "超過の色分けが付いていない"
 );
+// シードの最遠予定は 2026-11-01。2026-10-30 時点では「近い」になり、「余裕あり」は出ない。
 assert.ok(
-  counts.dueClasses.some((c) => c.includes("exam-due-text--far")),
-  "余裕ありの色分けが付いていない"
+  counts.dueClasses.some(
+    (c) => c.includes("exam-due-text--far") || c.includes("exam-due-text--close")
+  ),
+  "期限が近い、または余裕ありの色分けが付いていない"
 );
 
 const overlap = await page.evaluate(() => {
@@ -433,6 +454,115 @@ async function assertContains(selector, text, label) {
   assert.ok(body.includes(text), `${label}: ${selector} に「${text}」がない`);
 }
 
+async function assertStartedDateLayout(listId, label) {
+  const info = await page.evaluate((id) => {
+    const list = document.querySelector(id);
+    const row = [...(list?.querySelectorAll(".status-row") || [])].find((el) =>
+      el.querySelector(".status-row__started")
+    );
+    const title = row?.querySelector(".status-row__title");
+    const date = row?.querySelector(".status-row__started");
+    const head = row?.querySelector(".status-row__head");
+    if (!list || !row || !title || !date || !head) return { ok: false };
+    const original = title.textContent;
+    const beforeH = title.getBoundingClientRect().height;
+    title.textContent =
+      "とても長い既往歴の項目名です。右端の開始日を押し出さずに折り返すことを確認するための文章。さらに長くして複数行にする。ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    const titleBox = title.getBoundingClientRect();
+    const dateBox = date.getBoundingClientRect();
+    const headBox = head.getBoundingClientRect();
+    const dateStyle = getComputedStyle(date);
+    const titleStyle = getComputedStyle(title);
+    const doc = document.documentElement;
+    const result = {
+      ok: true,
+      titleWraps: titleBox.height > beforeH + 4,
+      dateOneLine: dateBox.height < 22,
+      noOverlap: titleBox.right <= dateBox.left + 1.5,
+      dateAtRight: Math.abs(dateBox.right - headBox.right) < 2,
+      dateSmaller: parseFloat(dateStyle.fontSize) < parseFloat(titleStyle.fontSize),
+      dateLighter: dateStyle.color !== titleStyle.color,
+      dateNowrap: dateStyle.whiteSpace === "nowrap",
+      docOverflow: doc.scrollWidth - doc.clientWidth,
+      listOverflow: list.scrollWidth - list.clientWidth,
+    };
+    title.textContent = original;
+    return result;
+  }, listId);
+  assert.equal(info.ok, true, `${label}: 開始日のある行が無い`);
+  assert.equal(info.titleWraps, true, `${label}: 長い項目名が折り返さない`);
+  assert.equal(info.dateOneLine, true, `${label}: 開始日が1行に収まらない`);
+  assert.equal(info.noOverlap, true, `${label}: 項目名が開始日に重なる`);
+  assert.equal(info.dateAtRight, true, `${label}: 開始日が右端にない`);
+  assert.equal(info.dateSmaller, true, `${label}: 開始日の文字が項目名より小さくない`);
+  assert.equal(info.dateLighter, true, `${label}: 開始日の色が項目名と同じ`);
+  assert.equal(info.dateNowrap, true, `${label}: 開始日が折り返し得る`);
+  assert.ok(info.docOverflow <= 1, `${label}: 横スクロールが出る (${info.docOverflow})`);
+  assert.ok(info.listOverflow <= 1, `${label}: 一覧が横にはみ出す (${info.listOverflow})`);
+}
+
+async function assertRightHistoryColumn(label) {
+  const info = await page.evaluate(() => {
+    const sig = (id) =>
+      [...(document.getElementById(id)?.children || [])].map((el) => {
+        if (el.classList.contains("status-hist-split")) return "split";
+        return [
+          el.dataset.kinds || "",
+          el.querySelector(".hist-kind-icons")?.textContent || "",
+          el.querySelector(".status-row__title")?.textContent || "",
+          el.querySelector(".status-row__started")?.textContent || "",
+        ].join("|");
+      });
+    const panel = document.getElementById("panel-qa");
+    const doc = document.documentElement;
+    const layout = document.querySelector("#app-shell .layout");
+    const cols = [...document.querySelectorAll("#app-shell .layout > .col")].map((el) =>
+      Math.round(el.getBoundingClientRect().width)
+    );
+    return {
+      children: [...panel.children].map((el) => el.id),
+      status: sig("status-history-list"),
+      right: sig("right-history-list"),
+      cols,
+      overflowY: getComputedStyle(panel).overflowY,
+      aiOpen: document.getElementById("right-ai-fold")?.hasAttribute("open") === true,
+      docOverflow: doc.scrollWidth - doc.clientWidth,
+      layoutOverflow: layout.scrollWidth - layout.clientWidth,
+      emptyHidden: document.getElementById("right-history-empty")?.hidden === true,
+      statusEmptyHidden: document.getElementById("status-history-empty")?.hidden === true,
+    };
+  });
+  assert.deepEqual(
+    info.children,
+    ["right-block-history", "right-section-search", "right-ai-fold"],
+    `${label}: 右カラムの並び`
+  );
+  assert.deepEqual(info.right, info.status, `${label}: 右カラムと状態モードの既往歴が一致しない`);
+  assert.equal(info.aiOpen, false, `${label}: AI質問が開いている`);
+  assert.deepEqual(info.cols, [241, 494, 445], `${label}: 列幅が変わっている`);
+  assert.ok(info.docOverflow <= 1, `${label}: ページに横スクロールが出ている`);
+  assert.ok(info.layoutOverflow <= 1, `${label}: 3カラムが横にはみ出している`);
+  assert.equal(info.overflowY, "auto", `${label}: 右カラムが縦スクロールできない`);
+  assert.equal(info.emptyHidden, info.right.length > 0, `${label}: 空表示が件数と一致しない`);
+  assert.equal(info.statusEmptyHidden, info.status.length > 0, `${label}: 状態モードの空表示が件数と一致しない`);
+  const icons = info.right.filter((row) => row !== "split").map((row) => row.split("|")[1]);
+  const order = ["⚠️", "💬", "🚹", "✅", "🚨", "🔰"];
+  for (const icon of icons) {
+    let last = -1;
+    for (const mark of order) {
+      const at = icon.indexOf(mark);
+      if (at === -1) continue;
+      assert.ok(at >= last, `${label}: アイコン順が ⚠️💬🚹✅🚨🔰 でない (${icon})`);
+      last = at;
+    }
+  }
+  const splitAt = info.right.indexOf("split");
+  if (splitAt !== -1) {
+    assert.equal(info.right.filter((row) => row === "split").length, 1, `${label}: 区切りが複数ある`);
+  }
+  return info;
+}
+
 // --- 各ブロックの「＋」から新規追加 ---------------------------------------
 const addBtnIds = [
   "btn-status-history-add",
@@ -456,7 +586,49 @@ assert.ok(addKindLabels.some((t) => t.includes("🚨") && t.includes("手術")),
 assert.ok(addKindLabels.some((t) => t.includes("🔰") && t.includes("紹介")), "紹介ボタンが無い");
 await page.locator("#history-add-type-buttons .exam-item-btn", { hasText: "紹介" }).click();
 await page.locator("#history-add-type-buttons .exam-item-btn", { hasText: "現疾患" }).click();
+const todayDigits = await page.evaluate(() => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+});
+assert.equal(
+  await page.inputValue("#history-add-first-noted"),
+  todayDigits,
+  "追加の開始日が今日の8桁ではない"
+);
+assert.match(
+  await page.locator("#history-add-first-noted-preview").innerText(),
+  /^\d{4}\/\d{1,2}\/\d{1,2}$/,
+  "追加の開始日の確認表示が「年/月/日」でない"
+);
+assert.equal(
+  (await page.locator("#history-add-first-noted-preview").innerText()).includes("（"),
+  false,
+  "追加の開始日の確認表示に曜日が残っている"
+);
+assert.equal(
+  await page.locator("#exam-plan-due-date").getAttribute("type"),
+  "date",
+  "検査の予定日まで8桁入力になっている"
+);
+assert.equal(
+  await page.locator("#med-add-expiry").getAttribute("type"),
+  "date",
+  "薬剤の期限まで8桁入力になっている"
+);
 await page.fill("#history-add-title", ADD_HISTORY);
+await page.fill("#history-add-first-noted", "20260231");
+await page.click("#btn-history-add-save");
+assert.ok(
+  (await page.locator("#history-add-error").innerText()).includes("存在しない"),
+  "存在しない開始日で追加が止まっていない"
+);
+assert.equal(
+  await page.locator("#history-add-modal").evaluate((el) => el.hidden),
+  false,
+  "存在しない開始日なのに追加モーダルが閉じた"
+);
+await page.fill("#history-add-first-noted", todayDigits);
 await page.click("#btn-history-add-save");
 await page.waitForFunction(
   () => document.getElementById("history-add-modal")?.hasAttribute("hidden"),
@@ -567,6 +739,50 @@ for (const panelId of ["panel-history", "panel-exam", "panel-meds", "panel-proc"
 }
 assert.equal(await page.locator(".right-panel").count(), 1, "右カラムの検索パネル以外に .right-panel が残っている");
 await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
+const rightBefore = await assertRightHistoryColumn("履歴・追加後");
+assert.ok(rightBefore.right.length > 2, "既往歴・特記が多い状態を確認できていない");
+const scrolled = await page.evaluate(() => {
+  const panel = document.getElementById("panel-qa");
+  const list = document.getElementById("right-history-list");
+  const search = document.getElementById("right-section-search");
+  const ai = document.getElementById("right-ai-fold");
+  list.style.minHeight = "1600px";
+  panel.scrollTop = panel.scrollHeight;
+  const panelBox = panel.getBoundingClientRect();
+  const searchBox = search.getBoundingClientRect();
+  const aiBox = ai.getBoundingClientRect();
+  const reached =
+    searchBox.top < panelBox.bottom - 4 &&
+    searchBox.bottom > panelBox.top &&
+    aiBox.top < panelBox.bottom - 4;
+  const docOverflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+  list.style.minHeight = "";
+  panel.scrollTop = 0;
+  return { reached, docOverflow };
+});
+assert.equal(scrolled.reached, true, "項目が多いとき検索・AIまでスクロールできない");
+assert.ok(scrolled.docOverflow <= 1, "右カラムを伸ばすと横スクロールが出る");
+await assertStartedDateLayout("#right-history-list", "右カラム");
+
+await page.locator("#right-history-list .status-row").first().click();
+await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
+await page.click("#btn-close-status-detail");
+await page.waitForFunction(
+  () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+
+await page.click("#btn-right-history-add");
+await page.waitForSelector("#history-add-modal:not([hidden])", { timeout: 5000 });
+await page.fill("#history-add-title", "右カラムから追加");
+await page.click("#btn-history-add-save");
+await page.waitForFunction(
+  () => document.getElementById("history-add-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await assertContains("#right-history-list", "右カラムから追加", "右カラム追加");
 
 // 検索は検査予定・薬剤の出来事を横断できること（既往歴・処置・特記は対象外）
 await page.fill("#chart-search-input", ADD_EXAM);
@@ -579,6 +795,7 @@ await page.fill("#chart-search-input", "");
 await page.waitForTimeout(150);
 
 await goStatusView();
+await assertContains("#status-history-list", "右カラムから追加", "右カラム追加が状態モードに出ない");
 await shot("08-after-status-adds");
 
 await shot("01-overview");
@@ -652,8 +869,13 @@ const noteSelected = await page.locator("#hist-edit-kind-buttons .exam-item-btn.
 assert.ok(noteSelected.some((t) => t.includes("重要")), "既存の⚠️が編集画面で外れている");
 assert.equal(
   await page.locator("#hist-edit-start-date").inputValue(),
-  "2026-06-01",
-  "特記の開始日が createdAt から入っていない"
+  "20260601",
+  "特記の開始日が createdAt から8桁で入っていない"
+);
+assert.equal(
+  await page.locator("#hist-edit-start-preview").innerText(),
+  "2026/6/1",
+  "特記の開始日の確認表示が「2026/6/1」でない"
 );
 await page.fill("#hist-edit-title", "咬傷歴あり。保定は必ず2人で、口輪を使用すること。（状態モードから編集）");
 await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "特記" }).click();
@@ -669,6 +891,7 @@ console.log("EDITED", editedText.replace(/\s+/g, " "));
 assert.ok(editedText.includes("状態モードから編集"), "特記の編集結果が状態モードに反映されない");
 assert.ok(editedText.includes("⚠️"), "編集後の特記から⚠️が消えている");
 assert.ok(editedText.includes("💬"), "追加した💬が一覧に無い");
+await assertContains("#right-history-list", "状態モードから編集", "特記の編集が右カラムに出ない");
 await shot("09-after-edit");
 
 // --- 既往歴を詳細から編集できること ---------------------------------------
@@ -686,15 +909,43 @@ assert.equal(
 );
 assert.equal(
   await page.locator("#hist-edit-start-date").inputValue(),
-  "2023-04-01",
-  "開始日の初期値が既存の firstNoted になっていない"
+  "20230401",
+  "開始日の初期値が既存の firstNoted の8桁になっていない"
 );
+assert.equal(
+  await page.locator("#hist-edit-start-preview").innerText(),
+  "2023/4/1",
+  "既存の開始日の確認表示が「2023/4/1」でない"
+);
+await page.fill("#hist-edit-start-date", "20261");
+assert.equal(
+  await page.locator("#hist-edit-error").evaluate((el) => el.hidden),
+  true,
+  "開始日の途中入力でエラーが出ている"
+);
+for (const [digits, part] of [
+  ["20260231", "存在しない"],
+  ["20260229", "存在しない"],
+  ["20261310", "存在しない"],
+  ["19891231", "1990"],
+  ["20990101", "今日より先"],
+]) {
+  await page.fill("#hist-edit-start-date", digits);
+  await page.click("#hist-edit-save");
+  const err = await page.locator("#hist-edit-error").innerText();
+  assert.ok(err.includes(part), `開始日「${digits}」のエラーが違う: ${err}`);
+  assert.equal(
+    await page.locator("#status-detail-modal").evaluate((el) => el.hidden),
+    false,
+    `開始日「${digits}」なのに詳細が閉じた`
+  );
+}
 await page.fill("#hist-edit-title", "僧帽弁閉鎖不全症（編集）");
 await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "手術" }).click();
 await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "紹介" }).click();
 await page.locator("#hist-edit-kind-buttons .exam-item-btn", { hasText: "現疾患" }).click();
 await page.fill("#hist-edit-note", "上書きしたメモ");
-await page.fill("#hist-edit-start-date", "2018-05-01");
+await page.fill("#hist-edit-start-date", "20180501");
 await page.click("#hist-edit-save");
 await page.waitForFunction(
   () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
@@ -712,9 +963,12 @@ assert.ok(editedHx.includes("🔰"), "紹介アイコンが一覧に無い");
 assert.ok(!editedHx.includes("🚹"), "外した現疾患アイコンが一覧に残っている");
 assert.ok(!editedHx.includes("進行中"), "進行中のテキストが残っている");
 assert.ok(!editedHx.includes("終了"), "終了のテキストが残っている");
-assert.ok(!editedHx.includes("開始日"), "一覧から外した開始日が表示されている");
-assert.ok(!editedHx.includes("2018/5/1"), "開始日が一覧に出ている");
+assert.ok(!editedHx.includes("開始日"), "一覧に「開始日」のラベルが出ている");
+assert.ok(editedHx.includes("2018/05"), "保存した開始日が一覧で「2018/05」になっていない");
+assert.ok(!editedHx.includes("2018/5/1"), "一覧の開始日に日まで出ている");
+assert.ok(!editedHx.includes("2023/04"), "変更前の開始日が一覧に残っている");
 assert.ok(!editedHx.includes("2023/4/1"), "変更前の開始日が一覧に残っている");
+await assertContains("#right-history-list", "僧帽弁閉鎖不全症（編集）", "既往歴の編集が右カラムに出ない");
 
 await page.locator("#status-history-list .status-row", { hasText: "僧帽弁閉鎖不全症（編集）" }).click();
 await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
@@ -723,8 +977,13 @@ assert.equal(overwritten, "上書きしたメモ", "メモが上書きされず�
 assert.ok(!overwritten.includes("心拡大"), "旧メモが残っている");
 assert.equal(
   await page.locator("#hist-edit-start-date").inputValue(),
-  "2018-05-01",
-  "保存した開始日が詳細に残っていない"
+  "20180501",
+  "保存した開始日が詳細に8桁で残っていない"
+);
+assert.equal(
+  await page.locator("#hist-edit-start-preview").innerText(),
+  "2018/5/1",
+  "保存した開始日の確認表示が「2018/5/1」でない"
 );
 const selectedKinds = await page.locator("#hist-edit-kind-buttons .exam-item-btn.is-selected").allInnerTexts();
 assert.ok(selectedKinds.some((t) => t.includes("手術")), "保存した手術が詳細で外れている");
@@ -736,6 +995,16 @@ await page.waitForFunction(
   null,
   { timeout: 5000 }
 );
+await goHistoryView();
+await page.locator("#right-history-list .status-row", { hasText: "僧帽弁閉鎖不全症（編集）" }).click();
+await page.waitForSelector("#hist-edit-start-date", { timeout: 5000 });
+assert.equal(
+  await page.locator("#hist-edit-start-date").inputValue(),
+  "20180501",
+  "右カラムから開いた開始日が状態モードの保存と違う"
+);
+await page.click("#btn-close-status-detail");
+await goStatusView();
 
 // 開始日が未設定の既存データは詳細が空欄のまま開け、後から入れられること
 const emptyDateRow = page.locator("#status-history-list .status-row", {
@@ -752,7 +1021,7 @@ assert.equal(
   "",
   "開始日未設定なのに日付欄に値が入っている"
 );
-await page.fill("#hist-edit-start-date", "2020-01-15");
+await page.fill("#hist-edit-start-date", "20200115");
 await page.click("#hist-edit-save");
 await page.waitForFunction(
   () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
@@ -762,13 +1031,33 @@ await page.waitForFunction(
 const filledDateHx = await page
   .locator("#status-history-list .status-row", { hasText: "慢性腎臓病 IRIS ステージ2" })
   .innerText();
-assert.ok(!filledDateHx.includes("2020/1/15"), "開始日が一覧に出ている");
+assert.ok(filledDateHx.includes("2020/01"), "入れた開始日が一覧で「2020/01」になっていない");
+assert.ok(!filledDateHx.includes("2020/1/15"), "一覧の開始日に日まで出ている");
 await page.locator("#status-history-list .status-row", { hasText: "慢性腎臓病 IRIS ステージ2" }).click();
 await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
 assert.equal(
   await page.locator("#hist-edit-start-date").inputValue(),
-  "2020-01-15",
-  "空だった開始日の入力が詳細に残っていない"
+  "20200115",
+  "空だった開始日の入力が詳細に8桁で残っていない"
+);
+assert.equal(
+  await page.locator("#hist-edit-start-preview").innerText(),
+  "2020/1/15",
+  "入れた開始日の確認表示が「2020/1/15」でない"
+);
+await page.fill("#hist-edit-start-date", "");
+await page.click("#hist-edit-save");
+await page.waitForFunction(
+  () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
+  null,
+  { timeout: 5000 }
+);
+await page.locator("#status-history-list .status-row", { hasText: "慢性腎臓病 IRIS ステージ2" }).click();
+await page.waitForSelector("#hist-edit-start-date", { timeout: 5000 });
+assert.equal(
+  await page.locator("#hist-edit-start-date").inputValue(),
+  "",
+  "空欄の開始日を保存できていない"
 );
 await page.click("#btn-close-status-detail");
 await page.waitForFunction(
@@ -982,6 +1271,19 @@ await shot("10-history-view");
 const rightTabsAfter = await page.locator("#right-tabs").count();
 assert.equal(rightTabsAfter, 0, "右カラムに旧タブが復活している");
 await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
+const rightAfterEdit = await assertRightHistoryColumn("履歴・編集後");
+assert.ok(
+  rightAfterEdit.right.some((row) => row.includes("僧帽弁閉鎖不全症（編集）")),
+  "状態モードでの編集が右カラムに出ていない"
+);
+await page.locator("#right-ai-fold summary").click();
+await page.waitForSelector("#free-qa-input", { state: "visible", timeout: 5000 });
+await page.locator("#right-ai-fold summary").click();
+await page.waitForFunction(
+  () => document.getElementById("right-ai-fold")?.hasAttribute("open") !== true,
+  null,
+  { timeout: 3000 }
+);
 
 // 状態へ戻す（再読み込みなしで即時）
 await page.click("#btn-view-status");
@@ -991,6 +1293,33 @@ const medsStillThere = await page
   .count();
 assert.equal(medsStillThere, 7, "切替後に薬剤一覧が消えている");
 await shot("11-back-to-status");
+
+const historyCount = await page.locator("#status-history-list .status-row").count();
+for (let i = 0; i < historyCount; i += 1) {
+  await page.locator("#status-history-list .status-row").first().click();
+  await page.waitForSelector("#status-detail-modal:not([hidden])", { timeout: 5000 });
+  page.once("dialog", (d) => d.accept());
+  await page.locator("#status-detail-modal .btn--danger-outline").click();
+  await page.waitForFunction(
+    () => document.getElementById("status-detail-modal")?.hasAttribute("hidden"),
+    null,
+    { timeout: 5000 }
+  );
+}
+assert.equal(await page.locator("#status-history-list .status-row").count(), 0, "既往歴を空にできていない");
+assert.equal(
+  await page.locator("#status-history-empty").evaluate((el) => el.hidden),
+  false,
+  "0件のとき状態モードの空表示が出ない"
+);
+await goHistoryView();
+const rightEmpty = await assertRightHistoryColumn("履歴・0件");
+assert.equal(rightEmpty.right.length, 0, "0件のとき右カラムに行が残っている");
+await page.fill("#chart-search-input", ADD_EXAM);
+await page.waitForTimeout(150);
+await assertContains("#chart-search-results", ADD_EXAM, "0件のあと検索");
+await page.fill("#chart-search-input", "");
+await goStatusView();
 
 // 「記録する」で入力モードが開くこと
 await page.click("#btn-start-compose");

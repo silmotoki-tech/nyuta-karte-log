@@ -162,6 +162,9 @@ await page.waitForSelector("#center-main:not([hidden])", { timeout: 10000 });
 // 右カラムはタブなしの検索専用スペースになったため、カルテを開けば
 // panel-qa がそのまま表示される（タブクリックは不要）。
 await page.waitForSelector("#panel-qa:not([hidden])", { timeout: 5000 });
+const aiStartsClosed = await page.locator("#right-ai-fold").evaluate((el) => el.open);
+if (aiStartsClosed) throw new Error("AI fold should start closed");
+await page.locator("#right-ai-fold summary").click();
 
 const inputVisible = await page.locator("#free-qa-input").isVisible();
 const btnVisible = await page.locator("#btn-free-qa-ask").isVisible();

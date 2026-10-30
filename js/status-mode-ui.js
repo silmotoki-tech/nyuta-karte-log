@@ -1,6 +1,6 @@
 // 状態モード: 患者の状態を全画面で一覧する。
-// 既存の3カラム画面には手を入れず、同じカルテのデータを別購読で描画する。
-// 各項目のタップは、既存タブで使っている編集ポップアップをそのまま開く。
+// 既往歴・特記だけは、同じ描画を履歴画面の右カラム先頭にも出す。
+// 各項目のタップは、既存の編集ポップアップをそのまま開く。
 
 import {
   subscribeMedications,
@@ -35,6 +35,7 @@ import {
   sortHistoryEntries,
 } from "./history-kinds.js";
 import { enableRowGestures } from "./row-gestures.js";
+import { ymdYearMonth } from "./ymd-digits.js";
 
 let deps = {
   showToast: () => {},
@@ -74,8 +75,12 @@ const examHistoryCount = document.getElementById("status-exam-history-count");
 const histList = document.getElementById("status-history-list");
 const histEmpty = document.getElementById("status-history-empty");
 const histCount = document.getElementById("status-history-count");
+const rightHistList = document.getElementById("right-history-list");
+const rightHistEmpty = document.getElementById("right-history-empty");
+const rightHistCount = document.getElementById("right-history-count");
 
 const btnStatusHistoryAdd = document.getElementById("btn-status-history-add");
+const btnRightHistoryAdd = document.getElementById("btn-right-history-add");
 const btnStatusExamAdd = document.getElementById("btn-status-exam-add");
 const btnStatusMedsAdd = document.getElementById("btn-status-meds-add");
 
@@ -122,6 +127,7 @@ export function initStatusModeUI(helpers = {}) {
   btnChangeKarte?.addEventListener("click", () => deps.onChangeKarte());
 
   btnStatusHistoryAdd?.addEventListener("click", () => openPatientHistoryAddModal());
+  btnRightHistoryAdd?.addEventListener("click", () => openPatientHistoryAddModal());
   btnStatusExamAdd?.addEventListener("click", () => openExamPlanCreateModal());
   btnStatusMedsAdd?.addEventListener("click", () => openMedicationAddModal());
 
@@ -493,13 +499,16 @@ function renderExamHistory() {
 // --- 既往歴 --------------------------------------------------------------
 
 function renderPatientHistory() {
-  if (!histList) return;
-  histList.innerHTML = "";
-
   const entries = sortHistoryEntries(state.historyEntries || []);
+  fillHistoryList(histList, histEmpty, histCount, entries);
+  fillHistoryList(rightHistList, rightHistEmpty, rightHistCount, entries);
+}
 
-  if (histEmpty) histEmpty.hidden = entries.length > 0;
-  setCount(histCount, entries.length);
+function fillHistoryList(list, empty, count, entries) {
+  if (!list) return;
+  list.innerHTML = "";
+  if (empty) empty.hidden = entries.length > 0;
+  setCount(count, entries.length);
 
   let prevIsNote = null;
   entries.forEach((entry) => {
@@ -509,7 +518,7 @@ function renderPatientHistory() {
       const split = document.createElement("li");
       split.className = "status-hist-split";
       split.setAttribute("aria-hidden", "true");
-      histList.appendChild(split);
+      list.appendChild(split);
     }
     prevIsNote = isNote;
 
@@ -530,6 +539,14 @@ function renderPatientHistory() {
     title.textContent = entry.title || "（タイトル未設定）";
 
     head.append(icons, title);
+    const startedLabel = ymdYearMonth(entry.firstNoted);
+    if (startedLabel) {
+      const started = document.createElement("span");
+      started.className = "status-row__started";
+      started.textContent = startedLabel;
+      started.title = "開始日";
+      head.appendChild(started);
+    }
     li.appendChild(head);
 
     enableRowGestures(li, {
@@ -543,7 +560,7 @@ function renderPatientHistory() {
       onActivate: () => openHistoryDetail(entry.id),
     });
 
-    histList.appendChild(li);
+    list.appendChild(li);
   });
 }
 

@@ -365,12 +365,28 @@
     <!-- ============ 右カラム: 患者情報タブ ============ -->
     <aside class="col col--right" id="col-right">
       <p class="right-empty" id="right-empty">
-        カルテを開くと、ここで全文検索・AIへの質問ができます。
+        カルテを開くと、ここで既往歴・特記、全文検索・AIへの質問ができます。
       </p>
 
       <!-- 検索: カルテ内全文検索＋AI自由質問（右カラム全体を使用） -->
       <div class="right-panel right-panel--search" id="panel-qa" data-panel="qa" hidden>
-        <section class="exam-section">
+        <section class="status-block" id="right-block-history">
+          <div class="status-block__head">
+            <h2 class="status-block__title">
+              既往歴・特記<span class="status-block__count" id="right-history-count"></span>
+            </h2>
+            <button
+              type="button"
+              class="status-block__add"
+              id="btn-right-history-add"
+              aria-label="既往歴・特記を追加"
+            >＋</button>
+          </div>
+          <p class="field__note status-block__empty" id="right-history-empty">既往歴・特記はありません。</p>
+          <ul class="status-list" id="right-history-list"></ul>
+        </section>
+
+        <section class="exam-section" id="right-section-search">
           <h3 class="exam-section__title">カルテ内検索</h3>
           <div class="chart-search">
             <label class="label" for="chart-search-input">キーワード</label>
@@ -390,6 +406,8 @@
           </div>
         </section>
 
+        <details class="right-ai-fold" id="right-ai-fold">
+          <summary class="right-ai-fold__summary">AIへの質問</summary>
         <section class="exam-section">
           <h3 class="exam-section__title">AIへの自由質問</h3>
           <div class="qa-compose">
@@ -422,6 +440,7 @@
           <p class="field__note" id="free-qa-empty">まだ質問はありません。</p>
           <ul class="qa-list" id="free-qa-list"></ul>
         </section>
+        </details>
       </div>
     </aside>
 
@@ -552,7 +571,20 @@
 
             <div class="input-meta-group input-meta-group--date">
               <label class="label input-meta-group__label" for="input-record-date">記録日</label>
-              <input id="input-record-date" class="input input--date input--compact" type="date" />
+              <input
+                id="input-record-date"
+                class="input input--ymd input--compact"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="8"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                enterkeyhint="done"
+                aria-label="記録日（8桁）"
+              />
+              <span class="ymd-preview" id="input-record-date-preview"></span>
               <div
                 class="input-headline-emoji"
                 id="input-headline-emoji"
@@ -1185,7 +1217,22 @@
       </div>
       <div class="field">
         <label class="label" for="history-add-first-noted">開始日</label>
-        <input id="history-add-first-noted" class="input input--date" type="date" />
+        <div class="ymd-field">
+          <input
+            id="history-add-first-noted"
+            class="input input--ymd"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            maxlength="8"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            enterkeyhint="done"
+            aria-label="開始日（8桁）"
+          />
+          <span class="ymd-preview" id="history-add-first-noted-preview"></span>
+        </div>
       </div>
       <div class="field">
         <label class="label" for="history-add-note">補足・自由記述（任意）</label>

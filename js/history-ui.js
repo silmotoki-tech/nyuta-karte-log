@@ -1,6 +1,6 @@
 // 既往歴の追加・編集UI。
 // 名称はフリーワード。種別は ⚠️重要／💬特記／🚹現疾患／✅疾患歴／🚨手術／🔰紹介 を複数選択。
-// 開始日（firstNoted）はカレンダーで直せる。未設定は空のまま残せる。
+// 開始日（firstNoted）は8桁（YYYYMMDD）で直す。詳細では未設定の空欄も保存できる。
 // メモは1つのテキスト欄で上書きする（追記型ではない）。
 // 旧特記（specialNotes/）も同じ一覧・同じ編集画面で扱う。
 // 疾患名マスタのシード・管理APIは db.js 側に残し、入力画面では使わない。
@@ -26,6 +26,7 @@ import {
   titlePlaceholderForKinds,
   sortHistoryEntries,
 } from "./history-kinds.js";
+import { bindYmdDigitsInput, todayIso, validateYmdDigits } from "./ymd-digits.js";
 
 let deps = {
   showToast: () => {},
@@ -60,6 +61,10 @@ const addTitleLabel = document.getElementById("history-add-title-label");
 const addTitleInput = document.getElementById("history-add-title");
 const addTypeButtons = document.getElementById("history-add-type-buttons");
 const addFirstNoted = document.getElementById("history-add-first-noted");
+const addFirstNotedPreview = document.getElementById("history-add-first-noted-preview");
+const addDateField = bindYmdDigitsInput(addFirstNoted, addFirstNotedPreview, {
+  onInput: () => deps.showError(addError, ""),
+});
 const addNote = document.getElementById("history-add-note");
 const addError = document.getElementById("history-add-error");
 const btnAddSave = document.getElementById("btn-history-add-save");
@@ -83,10 +88,6 @@ function ymdFromStr(dateStr) {
   const [y, m, d] = dateStr.split("-");
   if (!y || !m || !d) return dateStr;
   return `${y}/${Number(m)}/${Number(d)}`;
-}
-
-function dateInputValue(dateStr) {
-  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || "")) ? dateStr : "";
 }
 
 export function createHistoryKindIcons(kinds) {
@@ -394,13 +395,23 @@ function createHistoryDetail(entry) {
   startLabel.className = "label";
   startLabel.htmlFor = "hist-edit-start-date";
   startLabel.textContent = "開始日";
+  const startRow = document.createElement("div");
+  startRow.className = "ymd-field";
   const startInput = document.createElement("input");
   startInput.id = "hist-edit-start-date";
-  startInput.className = "input input--date";
-  startInput.type = "date";
-  startInput.value = dateInputValue(entry.firstNoted);
-  startInput.setAttribute("aria-label", "開始日");
-  startBlock.append(startLabel, startInput);
+  startInput.className = "input input--ymd";
+  startInput.setAttribute("aria-label", "開始日（8桁）");
+  const startPreview = document.createElement("span");
+  startPreview.className = "ymd-preview";
+  startPreview.id = "hist-edit-start-preview";
+  startRow.append(startInput, startPreview);
+  const startDateField = bindYmdDigitsInput(startInput, startPreview, {
+    onInput: () => {
+      error.hidden = true;
+    },
+  });
+  startDateField.setIso(entry.firstNoted || "");
+  startBlock.append(startLabel, startRow);
   detail.appendChild(startBlock);
 
   const noteBlock = document.createElement("div");
@@ -449,6 +460,15 @@ function createHistoryDetail(entry) {
       error.hidden = false;
       return;
     }
+    const startChecked = validateYmdDigits(startInput.value, {
+      allowEmpty: true,
+      label: "開始日",
+    });
+    if (!startChecked.ok) {
+      error.textContent = startChecked.message;
+      error.hidden = false;
+      return;
+    }
     error.hidden = true;
     const trimmedNote = noteInput.value.replace(/^\n+|\n+$/g, "");
     const notes = {};
@@ -464,7 +484,7 @@ function createHistoryDetail(entry) {
       await updatePatientHistoryEntry(state.karteNumber, entry.id, {
         title,
         kinds,
-        firstNoted: startInput.value || "",
+        firstNoted: startChecked.iso,
         notes,
       });
       const isNote = isSpecialNoteHistoryId(entry.id) || entry.store === "specialNotes";
@@ -544,11 +564,11 @@ function openAddModal() {
   state.addDraft = {
     title: "",
     kinds: ["current"],
-    firstNoted: todayStr(),
+    firstNoted: todayIso(),
     noteText: "",
   };
   if (addTitleInput) addTitleInput.value = "";
-  if (addFirstNoted) addFirstNoted.value = todayStr();
+  addDateField.setIso(todayIso());
   if (addNote) addNote.value = "";
   deps.showError(addError, "");
   renderAddTypeSelection();
@@ -562,7 +582,6 @@ function closeAddModal() {
 
 async function handleAddSave() {
   const title = (addTitleInput?.value || state.addDraft.title || "").trim();
-  const firstNoted = addFirstNoted?.value || "";
   const noteText = addNote?.value.trim() || "";
 
   if (!title) {
@@ -574,10 +593,13 @@ async function handleAddSave() {
     deps.showError(addError, "種別を1つ以上選んでください。");
     return;
   }
-  if (!firstNoted) {
-    deps.showError(addError, "開始日を選択してください。");
+  const startChecked = validateYmdDigits(addFirstNoted?.value || "", { label: "開始日" });
+  if (!startChecked.ok) {
+    deps.showError(addError, startChecked.message);
+    addFirstNoted?.focus();
     return;
   }
+  const firstNoted = startChecked.iso;
 
   deps.showError(addError, "");
   deps.setBusy(btnAddSave, true, "保存中...", "追加する");

@@ -162,11 +162,47 @@ const todayStr = await page.evaluate(() => {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 });
+const todayDigits = todayStr.replaceAll("-", "");
 assert.equal(
   await page.inputValue("#input-record-date"),
-  todayStr,
-  "記録日の既定が今日ではない"
+  todayDigits,
+  "記録日の既定が今日の8桁ではない"
 );
+assert.equal(
+  await page.locator("#input-record-date").getAttribute("inputmode"),
+  "numeric",
+  "記録日が数字キーボードになっていない"
+);
+const recordPreview = await page.locator("#input-record-date-preview").innerText();
+const expectedPreview = await page.evaluate((iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${y}/${m}/${d}`;
+}, todayStr);
+assert.equal(recordPreview, expectedPreview, "記録日の確認表示が「年/月/日」でない");
+assert.equal(recordPreview.includes("（"), false, "記録日の確認表示に曜日が残っている");
+
+await page.fill("#input-record-date", "20261");
+assert.equal(await page.locator("#input-record-date-preview").innerText(), "", "途中入力で確認表示が出ている");
+assert.equal(await hiddenOf("#input-error"), true, "途中入力でエラーが出ている");
+
+await page.click('#input-author-row .author-btn[data-author="大辻"]');
+await page.fill("#input-headline", "日付確認");
+for (const [digits, part] of [
+  ["20260231", "存在しない"],
+  ["20260229", "存在しない"],
+  ["20261310", "存在しない"],
+  ["19891231", "1990"],
+  ["20991231", "今日より先"],
+  ["", "8桁"],
+]) {
+  await page.fill("#input-record-date", digits);
+  await page.click("#btn-input-save");
+  const err = await page.locator("#input-error").innerText();
+  assert.ok(err.includes(part), `記録日「${digits}」のエラーが違う: ${err}`);
+  assert.equal(await hiddenOf("#screen-input"), false, "不正な記録日なのに保存が進んだ");
+}
+await page.fill("#input-record-date", todayDigits);
+await page.fill("#input-headline", "");
 
 // --- 本文を貼り付けてチップ検出 ------------------------------------------
 const BODY = [

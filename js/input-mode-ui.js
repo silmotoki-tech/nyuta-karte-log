@@ -32,6 +32,7 @@ import {
   stripHeadlineMarks,
   toggleHeadlineEmoji,
 } from "./headline-emoji.js";
+import { bindYmdDigitsInput, validateYmdDigits, ymdDisplay } from "./ymd-digits.js";
 
 const AUTHORS = [
   "院長", "大辻", "川邉", "齋藤", "横井", "德永",
@@ -114,7 +115,14 @@ const authorRow = document.getElementById("input-author-row");
 const headlineInput = document.getElementById("input-headline");
 const categoryButtons = document.getElementById("input-category-buttons");
 const recordDateInput = document.getElementById("input-record-date");
+const recordDatePreview = document.getElementById("input-record-date-preview");
 const recordDateNote = document.getElementById("input-record-date-note");
+const recordDateField = bindYmdDigitsInput(recordDateInput, recordDatePreview, {
+  onInput: () => {
+    showError(errorEl, "");
+    updateRecordDateNote();
+  },
+});
 const headlineEmojiGroup = document.getElementById("input-headline-emoji");
 const bodyInput = document.getElementById("input-body-text");
 
@@ -215,8 +223,6 @@ export function initInputModeUI(helpers = {}) {
 
   btnBack?.addEventListener("click", () => requestClose());
   btnTemplates?.addEventListener("click", () => deps.onOpenTemplates());
-
-  recordDateInput?.addEventListener("change", updateRecordDateNote);
 
   headlineEmojiGroup?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-headline-emoji]");
@@ -344,7 +350,6 @@ export function showInputMode() {
   borrowLeftColumn();
   screenInput.hidden = false;
   updatePatientHeader();
-  if (recordDateInput) recordDateInput.max = todayStr();
   updateRecordDateNote();
   renderAuthorSelection();
   renderCategorySelection();
@@ -458,11 +463,12 @@ function renderCategorySelection() {
 }
 
 function updateRecordDateNote() {
-  if (!recordDateNote) return;
-  const value = recordDateInput?.value || "";
-  recordDateNote.textContent =
-    !value || value === todayStr() ? "" : `${ymdFromStr(value)} として記録します`;
+  if (recordDateNote) recordDateNote.textContent = "";
   renderQueue();
+}
+
+function recordDateLabel() {
+  return ymdDisplay(recordDateInput?.value || "") || "—";
 }
 
 function renderTemplateButtons() {
@@ -508,7 +514,7 @@ function resetForm({ keepAuthor = false } = {}) {
   state.queue = [];
   if (headlineInput) headlineInput.value = "";
   if (bodyInput) bodyInput.value = "";
-  if (recordDateInput) recordDateInput.value = todayStr();
+  recordDateField.setIso(todayStr());
   syncHeadlineEmojiButtons();
   showError(errorEl, "");
   renderAuthorSelection();
@@ -851,9 +857,7 @@ function dateField(labelText, initial, onInput) {
 function appliedNote() {
   const p = document.createElement("p");
   p.className = "field__note";
-  p.textContent = `記入者「${state.author || "未選択"}」と記録日 ${
-    ymdFromStr(recordDateInput?.value) || "—"
-  } が自動で適用されます。`;
+  p.textContent = `記入者「${state.author || "未選択"}」と記録日 ${recordDateLabel()} が自動で適用されます。`;
   return p;
 }
 
@@ -1080,7 +1084,7 @@ function renderQueue() {
     todayCount.textContent = state.queue.length ? `（${state.queue.length}）` : "";
   }
   if (todayNote) {
-    const date = ymdFromStr(recordDateInput?.value) || "—";
+    const date = recordDateLabel();
     todayNote.textContent = `記入者「${state.author || "未選択"}」／記録日 ${date} がまとめて適用されます。`;
   }
 
@@ -1121,7 +1125,6 @@ function renderQueue() {
 async function handleSave({ next }) {
   const headline = headlineInput?.value.trim() || "";
   const body = bodyInput?.value.trim() || "";
-  const recordDate = recordDateInput?.value || "";
   const author = state.author;
 
   if (!author) {
@@ -1136,10 +1139,13 @@ async function handleSave({ next }) {
     headlineInput?.focus();
     return;
   }
-  if (!recordDate) {
-    showError(errorEl, "記録日を選択してください。");
+  const recordChecked = validateYmdDigits(recordDateInput?.value || "", { label: "記録日" });
+  if (!recordChecked.ok) {
+    showError(errorEl, recordChecked.message);
+    recordDateInput?.focus();
     return;
   }
+  const recordDate = recordChecked.iso;
 
   showError(errorEl, "");
   const btn = next ? btnSaveNext : btnSave;

@@ -963,6 +963,31 @@ html.is-unlocked .app {
   box-sizing: border-box;
 }
 
+/* YYYYMMDD の8桁欄。カレンダー欄（.input--date）とは別 */
+.ymd-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.input.input--ymd {
+  width: 8.6em;
+  min-width: 8.6em;
+  max-width: 8.6em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: 0.04em;
+}
+
+.ymd-preview {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
 /* 検査予定: 項目選択を広めに見せ、予定／実施の2セクションを対等に並べる */
 .modal__panel--exam-plan .modal__body {
   gap: 10px;
@@ -1652,6 +1677,44 @@ html.is-unlocked .app {
 /* 右カラムがタブなし・検索専用になったため、他カラムと同じ上余白をここで取る */
 .right-panel--search {
   padding-top: var(--col-pad-top);
+}
+
+/* 既往歴・特記は状態モードと同じカード。高さは切らず、右カラムの縦スクロールで下の検索・AIまで届く */
+#right-block-history {
+  min-width: 0;
+}
+
+.right-ai-fold {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-white);
+  min-width: 0;
+}
+
+.right-ai-fold__summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--color-brown);
+  padding: 8px 10px;
+  background-color: var(--color-brown-light);
+  list-style: none;
+}
+
+.right-ai-fold__summary::-webkit-details-marker {
+  display: none;
+}
+
+.right-ai-fold__summary::before {
+  content: "▸ ";
+}
+
+.right-ai-fold[open] > .right-ai-fold__summary::before {
+  content: "▾ ";
+}
+
+.right-ai-fold > .exam-section {
+  margin: 8px 8px 10px;
 }
 
 .right-placeholder {
@@ -5252,6 +5315,12 @@ select.input {
   min-width: 0;
 }
 
+/* 既往歴・特記は項目名が折り返しても、開始日を先頭行の右端に置く */
+#status-history-list .status-row__head,
+#right-history-list .status-row__head {
+  align-items: flex-start;
+}
+
 .status-row__title {
   flex: 1;
   min-width: 0;
@@ -5259,6 +5328,18 @@ select.input {
   font-weight: 700;
   color: var(--color-text);
   word-break: break-word;
+}
+
+/* 既往歴・特記の開始日。項目名より小さく薄く、右端で1行のまま。 */
+.status-row__started {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .status-row__due {
