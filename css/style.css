@@ -53,8 +53,11 @@
 
   --header-height: 56px;
 
-  /* 履歴（3カラム）の左カラム幅。状態モードでもトグル位置の基準にする */
+  /* 状態モードの患者名幅。履歴の列幅とは分け、状態モードの中身は変えない */
   --hist-left-col-width: 231px;
+  /* 履歴（3カラム）だけ。1180px で左 241 / 中央 494 / 右 445 */
+  --history-col-left: 241px;
+  --history-col-right: 445px;
   --col-pad-top: 10px;
   --view-chrome-pad-x: 16px;
 
@@ -301,8 +304,8 @@ html.is-unlocked .app {
   min-height: 0;
   height: 100%;
   display: grid;
-  --left-col-width: var(--hist-left-col-width);
-  --right-col-width: 308px; /* 280px から約10%拡大 */
+  --left-col-width: var(--history-col-left);
+  --right-col-width: var(--history-col-right);
   grid-template-columns: var(--left-col-width) minmax(0, 1fr) var(--right-col-width);
   /* 行を viewport 高さに拘束し、各カラム内スクロールを有効にする */
   grid-template-rows: minmax(0, 1fr);
@@ -764,7 +767,7 @@ html.is-unlocked .app {
   align-items: flex-start;
   gap: 8px;
   flex-shrink: 0;
-  margin-left: calc(var(--hist-left-col-width) - var(--left-col-width));
+  margin-left: calc(var(--history-col-left) - var(--left-col-width));
   visibility: hidden;
   pointer-events: none;
 }
@@ -4694,10 +4697,8 @@ select.input {
 @media (max-width: 820px) {
   :root {
     --hist-left-col-width: 187px;
-  }
-
-  .layout {
-    --right-col-width: 264px; /* 240px から約10%拡大 */
+    --history-col-left: 187px;
+    --history-col-right: 264px;
   }
 
   .layout.is-left-collapsed {
@@ -4921,7 +4922,7 @@ select.input {
 .app-view-chrome {
   position: absolute;
   top: var(--col-pad-top);
-  left: calc(var(--hist-left-col-width) + var(--view-chrome-pad-x));
+  left: calc(var(--history-col-left) + var(--view-chrome-pad-x));
   z-index: 20;
   display: flex;
   align-items: flex-start;

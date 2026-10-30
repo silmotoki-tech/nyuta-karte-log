@@ -268,7 +268,14 @@ const info = await page.evaluate(() => {
       overflow: textCs.overflow,
     };
   });
-  const layout = getComputedStyle(document.querySelector(".layout"));
+  const layoutEl = document.querySelector(".layout");
+  const layout = getComputedStyle(layoutEl);
+  const center = document.querySelector(".col--center");
+  const centerOverflow = center
+    ? [...center.querySelectorAll(".tl-item__headline, .tl-item__body")].some(
+        (el) => el.scrollWidth > el.clientWidth + 1
+      )
+    : false;
   return {
     items,
     years: [...document.querySelectorAll("#headline-list .hl-year")].map(
@@ -276,6 +283,9 @@ const info = await page.evaluate(() => {
     ),
     leftWidth: round(document.getElementById("col-left").getBoundingClientRect().width),
     columns: layout.gridTemplateColumns,
+    layoutScrollWidth: layoutEl.scrollWidth,
+    layoutClientWidth: layoutEl.clientWidth,
+    centerTextOverflow: centerOverflow,
     leftoverDots: document.querySelectorAll(".hl-item__dot, .hl-item__star").length,
     referralVar: getComputedStyle(document.documentElement)
       .getPropertyValue("--cat-referral")
@@ -404,11 +414,17 @@ assert.equal(info.colors.leftTextWeight, "500", "左カラム見出しの太さ�
 assert.equal(info.colors.tlBodyWeight, "400", "本文の太さが変わっている");
 assert.equal(info.colors.pageText, "rgb(44, 48, 52)", "記録以外の文字色が変わっている");
 
-// 左カラムは 210px から約10%拡大
+const colWidths = info.columns.split(" ").map((v) => Math.round(parseFloat(v)));
+assert.deepEqual(colWidths, [241, 494, 445], `履歴の列幅: ${info.columns}`);
 assert.ok(
-  Math.abs(info.leftWidth - 231) <= 1,
+  Math.abs(info.leftWidth - 241) <= 1,
   `左カラム幅が想定と違います: ${info.leftWidth}`
 );
+assert.ok(
+  info.layoutScrollWidth <= info.layoutClientWidth + 1,
+  `横にはみ出している: scroll ${info.layoutScrollWidth} client ${info.layoutClientWidth}`
+);
+assert.equal(info.centerTextOverflow, false, "中央カラムの記録が欄からはみ出している");
 
 fs.mkdirSync(path.join(root, "tools"), { recursive: true });
 await page.locator("#col-left").screenshot({
