@@ -438,7 +438,12 @@ export async function addEntry(karte, data = {}) {
   notifyEntries(karte);
   return id;
 }
-export async function updateEntry() {}
+export async function updateEntry(karte, entryId, data = {}) {
+  const entry = currentEntries(karte).find((item) => item.id === entryId);
+  if (!entry) return;
+  Object.assign(entry, data);
+  notifyEntries(karte);
+}
 export async function setEntryImportant() {}
 export async function deleteEntry() {}
 

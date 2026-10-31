@@ -12,6 +12,7 @@
 //   karte/{カルテ番号}/entries/{entryId}/category        … カテゴリ（"none"|"ope"|"admission"|"referral"）
 //   karte/{カルテ番号}/entries/{entryId}/important       … 旧★フラグ。新規には書かない。残っていても無視する
 //   karte/{カルテ番号}/entries/{entryId}/changed         … 旧「変化あり」。新規には書かない。残っていても無視する
+//   karte/{カルテ番号}/entries/{entryId}/dimmed          … 重要でない（true のとき左・中央をグレー。未設定は印なし）
 //   karte/{カルテ番号}/entries/{entryId}/author          … 記入者名（初回）
 //   karte/{カルテ番号}/entries/{entryId}/body            … 本文フリーテキスト
 //   karte/{カルテ番号}/entries/{entryId}/source          … "manual"|"template"（AI解析対象の判定に使用予定）
@@ -397,7 +398,7 @@ export async function searchKartesByName(query) {
  */
 export async function addEntry(
   karteNumber,
-  { recordDate, headline, category, author, body, source }
+  { recordDate, headline, category, author, body, source, dimmed }
 ) {
   await authReady;
   const newRef = push(entriesRef(karteNumber));
@@ -411,6 +412,7 @@ export async function addEntry(
     author,
     body: body || "",
     source: source || "manual",
+    dimmed: dimmed === true,
   });
   return newRef.key;
 }
@@ -425,12 +427,12 @@ export async function setEntryImportant() {
 /**
  * 既存エントリを上書き更新する（見出し・本文・カテゴリ）。
  * 最終編集日時・編集者を記録する（差分履歴は残さない）。
- * 旧 important フィールドは触らない。
+ * 旧 important フィールドは触らない。dimmed は渡した真偽で上書きする。
  */
 export async function updateEntry(
   karteNumber,
   entryId,
-  { headline, body, category, editedBy }
+  { headline, body, category, editedBy, dimmed }
 ) {
   await authReady;
   const now = new Date();
@@ -438,6 +440,7 @@ export async function updateEntry(
     headline: headline || "",
     body: body || "",
     category: category || "none",
+    dimmed: dimmed === true,
     lastEditedAt: serverTimestamp(),
     lastEditedAtIso: now.toISOString(),
     lastEditedBy: editedBy || "",
@@ -514,6 +517,8 @@ function normalizeEntry(id, raw) {
   entry.important = Boolean(entry.important);
   // 旧「変化あり」。残っていても UI では使わない
   entry.changed = Boolean(entry.changed);
+  // 重要でない。未設定の既存記録は印なし
+  entry.dimmed = entry.dimmed === true;
   entry.source = entry.source || "manual";
   entry.lastEditedBy = entry.lastEditedBy || "";
   entry.lastEditedAtIso = entry.lastEditedAtIso || "";

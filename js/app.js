@@ -37,6 +37,7 @@ import {
   closeStatusDetailModal,
   focusHistorySearchTarget,
 } from "./status-mode-ui.js";
+import { parseHeadlineMarks } from "./headline-emoji.js";
 import {
   initInputModeUI,
   enterInputMode,
@@ -157,6 +158,7 @@ const state = {
   editDraft: {
     author: null,
     category: "none",
+    dimmed: false,
   },
 };
 
@@ -209,6 +211,7 @@ const btnViewHistory = document.getElementById("btn-view-history");
 const entryEditModal = document.getElementById("entry-edit-modal");
 const btnCloseEntryEdit = document.getElementById("btn-close-entry-edit");
 const entryEditAuthorRow = document.getElementById("entry-edit-author-row");
+const entryEditDimmedBtn = document.getElementById("entry-edit-dimmed");
 const entryEditHeadline = document.getElementById("entry-edit-headline");
 const entryEditCategoryButtons = document.getElementById("entry-edit-category-buttons");
 const entryEditBody = document.getElementById("entry-edit-body");
@@ -1196,6 +1199,13 @@ CATEGORIES.forEach((cat) => {
   entryEditCategoryButtons?.appendChild(btn);
 });
 
+function syncEditDimmedButton() {
+  entryEditDimmedBtn?.setAttribute(
+    "aria-pressed",
+    state.editDraft.dimmed ? "true" : "false"
+  );
+}
+
 function renderEditCategorySelection() {
   entryEditCategoryButtons?.querySelectorAll(".category-btn").forEach((btn) => {
     btn.classList.toggle(
@@ -1210,11 +1220,13 @@ function openEntryEdit(entry) {
   state.editDraft = {
     author: state.sessionAuthor || null,
     category: entry.category || "none",
+    dimmed: entry.dimmed === true,
   };
   if (entryEditHeadline) entryEditHeadline.value = entry.headline || "";
   if (entryEditBody) entryEditBody.value = entry.body || "";
   renderEditAuthorSelection();
   renderEditCategorySelection();
+  syncEditDimmedButton();
   showError(entryEditError, "");
   if (entryEditModal) entryEditModal.hidden = false;
   setTimeout(() => entryEditHeadline?.focus(), 0);
@@ -1222,7 +1234,8 @@ function openEntryEdit(entry) {
 
 function closeEntryEdit() {
   state.editingEntryId = null;
-  state.editDraft = { author: null, category: "none" };
+  state.editDraft = { author: null, category: "none", dimmed: false };
+  syncEditDimmedButton();
   if (entryEditModal) entryEditModal.hidden = true;
   entryEditAuthorRow?.classList.remove("is-error-target");
   showError(entryEditError, "");
@@ -1255,6 +1268,7 @@ async function handleEntryEditSave() {
       body,
       category: state.editDraft.category,
       editedBy: state.editDraft.author,
+      dimmed: state.editDraft.dimmed === true,
     });
     state.sessionAuthor = state.editDraft.author;
     state.lastAuthor = state.editDraft.author;
@@ -1274,6 +1288,10 @@ entryEditModal
   ?.querySelector("[data-close-modal]")
   ?.addEventListener("click", closeEntryEdit);
 btnEntryEditSave?.addEventListener("click", handleEntryEditSave);
+entryEditDimmedBtn?.addEventListener("click", () => {
+  state.editDraft.dimmed = !state.editDraft.dimmed;
+  syncEditDimmedButton();
+});
 
 btnChangeKarte.addEventListener("click", () => {
   if (isAiReviewBlocking()) {
@@ -1360,6 +1378,11 @@ function visibleEntries() {
   return sortEntriesDescending(state.entries);
 }
 
+function entryShowsDimmed(entry) {
+  if (entry?.dimmed !== true) return false;
+  return !parseHeadlineMarks(entry.headline || "").star;
+}
+
 function renderEntries() {
   const entries = visibleEntries();
   renderTimeline(entries);
@@ -1381,6 +1404,7 @@ function createTimelineItem(entry) {
   const li = fragment.querySelector(".tl-item");
   li.id = `tl-${entry.id}`;
   li.dataset.category = entry.category || "none";
+  li.classList.toggle("is-dimmed", entryShowsDimmed(entry));
 
   const dateEl = li.querySelector(".tl-item__date");
   const headlineEl = li.querySelector(".tl-item__headline");
@@ -1462,6 +1486,7 @@ function renderHeadlines(entries) {
 
     // カテゴリは日付・見出しの間の縦線の色で表す
     li.dataset.category = entry.category || "none";
+    li.classList.toggle("is-dimmed", entryShowsDimmed(entry));
     dateEl.textContent = mdFromStr(entry.recordDate) || "（日付なし）";
     textEl.textContent = entry.headline || "（見出しなし）";
 

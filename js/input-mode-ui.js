@@ -77,6 +77,7 @@ const state = {
   visible: false,
   author: null,
   category: "none",
+  dimmed: false,
   usedTemplate: false,
   drugs: [],
   plan: null,
@@ -124,6 +125,7 @@ const recordDateField = bindYmdDigitsInput(recordDateInput, recordDatePreview, {
   },
 });
 const headlineEmojiGroup = document.getElementById("input-headline-emoji");
+const dimmedBtn = document.getElementById("input-dimmed");
 const bodyInput = document.getElementById("input-body-text");
 
 const chipList = document.getElementById("input-chip-list");
@@ -181,6 +183,10 @@ function showError(el, message) {
   el.hidden = !message;
 }
 
+function syncDimmedButton() {
+  dimmedBtn?.setAttribute("aria-pressed", state.dimmed ? "true" : "false");
+}
+
 function syncHeadlineEmojiButtons() {
   if (!headlineEmojiGroup) return;
   const marks = parseHeadlineMarks(headlineInput?.value || "");
@@ -231,6 +237,10 @@ export function initInputModeUI(helpers = {}) {
     applyHeadlineValue(toggleHeadlineEmoji(headlineInput.value, emoji));
   });
   headlineInput?.addEventListener("input", syncHeadlineEmojiButtons);
+  dimmedBtn?.addEventListener("click", () => {
+    state.dimmed = !state.dimmed;
+    syncDimmedButton();
+  });
 
   bodyInput?.addEventListener("input", () => {
     clearTimeout(state.detectTimer);
@@ -515,6 +525,7 @@ function applyTemplate(tpl) {
 function resetForm({ keepAuthor = false } = {}) {
   if (!keepAuthor) state.author = null;
   state.category = "none";
+  state.dimmed = false;
   state.usedTemplate = false;
   state.chips = [];
   state.queue = [];
@@ -522,6 +533,7 @@ function resetForm({ keepAuthor = false } = {}) {
   if (bodyInput) bodyInput.value = "";
   recordDateField.setIso(todayStr());
   syncHeadlineEmojiButtons();
+  syncDimmedButton();
   showError(errorEl, "");
   renderAuthorSelection();
   renderCategorySelection();
@@ -1171,6 +1183,7 @@ async function handleSave({ next }) {
       author,
       body,
       source,
+      dimmed: state.dimmed === true,
     });
 
     // 手順4: 今日の登録は medications / examPlan / 既往歴へ書かない。

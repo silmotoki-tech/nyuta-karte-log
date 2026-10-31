@@ -688,6 +688,14 @@
                   😨
                 </button>
               </div>
+              <button
+                type="button"
+                class="input-dimmed-btn"
+                id="input-dimmed"
+                aria-pressed="false"
+              >
+                重要でない
+              </button>
               <span class="field__note" id="input-record-date-note"></span>
             </div>
           </div>
@@ -963,7 +971,17 @@
         <p class="field__note">この編集を行った人を選択してください。</p>
       </div>
       <div class="field">
-        <label class="label" for="entry-edit-headline">見出し</label>
+        <div class="entry-edit-headline-head">
+          <label class="label" for="entry-edit-headline">見出し</label>
+          <button
+            type="button"
+            class="input-dimmed-btn"
+            id="entry-edit-dimmed"
+            aria-pressed="false"
+          >
+            重要でない
+          </button>
+        </div>
         <input id="entry-edit-headline" class="input" type="text" autocomplete="off" />
       </div>
       <div class="field">
