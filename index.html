@@ -367,7 +367,7 @@
     <!-- ============ 右カラム: 患者情報タブ ============ -->
     <aside class="col col--right" id="col-right">
       <p class="right-empty" id="right-empty">
-        カルテを開くと、ここで既往歴・特記、禁忌・副作用歴、検査、全文検索・AIへの質問ができます。
+        カルテを開くと、ここで既往歴・特記、気をつけること、検査、全文検索・AIへの質問ができます。
       </p>
 
       <!-- 検索: カルテ内全文検索＋AI自由質問（右カラム全体を使用） -->
@@ -396,11 +396,11 @@
               role="button"
               tabindex="0"
             >
-              <h2 class="contra-card__title" id="contra-card-title">❌ 禁忌・副作用歴</h2>
+              <h2 class="contra-card__title" id="contra-card-title">❗ 気をつけること</h2>
               <p class="contra-card__text is-empty" id="contra-card-text">なし</p>
             </div>
             <div class="contra-card__edit" id="contra-card-edit" hidden>
-              <h2 class="contra-card__title">❌ 禁忌・副作用歴</h2>
+              <h2 class="contra-card__title">❗ 気をつけること</h2>
               <label class="label" for="contra-card-input">内容</label>
               <textarea
                 id="contra-card-input"
@@ -408,7 +408,7 @@
                 rows="5"
                 inputmode="text"
                 enterkeyhint="enter"
-                placeholder="例）NSAIDs 嘔吐（2024/5）&#10;ペニシリン系 発疹"
+                placeholder="例）NSAIDs 嘔吐／咬むので保定2人／採血は左前肢"
               ></textarea>
               <p id="contra-card-error" class="error-text" role="alert" hidden></p>
               <div class="contra-card__actions">
@@ -435,7 +435,7 @@
               placeholder="例）エコー / 肝臓 / アモキシ"
             />
             <p class="field__note" id="chart-search-hint">
-              見出し・本文、既往歴・特記、禁忌・副作用歴、検査カードを検索します。
+              見出し・本文、既往歴・特記、気をつけること、検査カードを検索します。
             </p>
             <p class="field__note" id="chart-search-empty" hidden>一致する記録はありません。</p>
             <ul class="chart-search-results" id="chart-search-results"></ul>

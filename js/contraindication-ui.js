@@ -1,4 +1,5 @@
-// 右カラムの禁忌・副作用歴。カルテごとに1件の自由記述。
+// 右カラムの「気をつけること」。カルテごとに1件の自由記述。
+// 保存先は contraindications/{カルテ番号} のまま。
 // 空の患者もカードは出し、「なし」と表示する。状態モードには出さない。
 
 import { subscribeContraindication, saveContraindication } from "./db.js";
@@ -113,7 +114,7 @@ async function handleSave() {
     });
     state.record = asRecord(saved);
     state.editing = false;
-    deps.showToast("禁忌・副作用歴を保存しました。");
+    deps.showToast("気をつけることを保存しました。");
     render();
   } catch (err) {
     console.error(err);

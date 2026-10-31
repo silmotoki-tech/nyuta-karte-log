@@ -309,7 +309,8 @@ await page.waitForFunction(
   { timeout: 5000 }
 );
 const contraHit = await searchText(page, "ペニシリン系");
-assert.ok(contraHit.includes("禁忌"), `禁忌がヒットしない: ${contraHit}`);
+assert.ok(contraHit.includes("気をつけること"), `気をつけることがヒットしない: ${contraHit}`);
+assert.equal(contraHit.includes("禁忌"), false, `検索結果に旧名称が残っている: ${contraHit}`);
 assert.equal(
   await page.locator("#contra-card").evaluate((el) => getComputedStyle(el).backgroundColor),
   "rgb(253, 232, 232)",

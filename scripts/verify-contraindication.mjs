@@ -1,5 +1,5 @@
 /**
- * 右カラムの「❌ 禁忌・副作用歴」カード。
+ * 右カラムの「❗ 気をつけること」カード。保存先は contraindications のまま。
  * - 未記載は「なし」で目立たない。記載があると赤系になり、縦に伸びて読める
  * - 別タブでも保存内容が見える
  * - 状態モードには出さない。列幅は変えない
@@ -185,7 +185,7 @@ assert.equal(empty.emptyClass, true, "未記載の文字が薄くない");
 assert.equal(empty.filled, false, "未記載なのに赤系になっている");
 assert.equal(empty.metaHidden, true, "未保存なのに最終更新が出ている");
 assert.equal(empty.inStatus, false, "状態モードの中に禁忌カードがある");
-assert.equal(empty.title, "❌ 禁忌・副作用歴", "見出しが違う");
+assert.equal(empty.title, "❗ 気をつけること", "見出しが違う");
 assert.deepEqual(empty.cols, [241, 494, 445], `列幅が変わっている: ${empty.cols}`);
 assert.ok(empty.docOverflow <= 1, "未記載で横スクロールが出ている");
 assert.ok(empty.panelOverflow <= 1, "未記載で右カラムが横にはみ出している");
@@ -199,7 +199,17 @@ await page.click("#contra-card-view");
 await page.waitForSelector("#contra-card-edit:not([hidden])", { timeout: 3000 });
 assert.equal(await page.locator("#contra-card-save").isVisible(), true, "保存ボタンが無い");
 assert.equal(await page.locator("#contra-card-cancel").isVisible(), true, "取り消しボタンが無い");
-assert.equal(await page.locator("#contra-card-authors").count(), 0, "禁忌カードに記入者選択が残っている");
+assert.equal(await page.locator("#contra-card-authors").count(), 0, "気をつけることに記入者選択が残っている");
+assert.equal(
+  await page.locator("#contra-card-edit .contra-card__title").innerText(),
+  "❗ 気をつけること",
+  "編集中の見出しが違う"
+);
+assert.equal(
+  await page.locator("#contra-card-input").getAttribute("placeholder"),
+  "例）NSAIDs 嘔吐／咬むので保定2人／採血は左前肢",
+  "入力例が違う"
+);
 assert.ok((await page.locator("#input-author-row .author-btn").count()) >= 10, "記録の記入者選択まで消えている");
 await page.fill("#contra-card-input", "取り消し確認");
 await page.click("#contra-card-cancel");
@@ -305,4 +315,4 @@ await shot("04-cleared");
 
 await browser.close();
 await new Promise((r) => server.close(r));
-console.log("OK: 禁忌・副作用歴カードを確認");
+console.log("OK: 気をつけることカードを確認");
