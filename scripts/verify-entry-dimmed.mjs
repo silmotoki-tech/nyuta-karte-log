@@ -18,7 +18,7 @@ import { HEADLINE_EMOJI_STAR } from "../js/headline-emoji.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const STAR = HEADLINE_EMOJI_STAR;
-const DIM = "rgb(92, 101, 112)";
+const DIM = "rgb(163, 169, 176)";
 const BLACK = "rgb(17, 17, 17)";
 const BODY = "rgb(43, 43, 43)";
 const OPE = "rgb(217, 83, 79)";
