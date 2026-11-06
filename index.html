@@ -281,6 +281,7 @@
       <div class="center-main" id="center-main" hidden>
 
         <div class="center-toolbar">
+          <div class="center-toolbar__main">
           <div class="app-view-chrome-slot" aria-hidden="true">
             <div class="view-toggle" hidden>
               <button type="button" class="view-toggle__btn" tabindex="-1" disabled hidden>状態</button>
@@ -350,6 +351,12 @@
               </div>
             </div>
           </div>
+          </div>
+          <label class="hide-dimmed" id="hide-dimmed-label">
+            <input id="hide-dimmed" class="hide-dimmed__input" type="checkbox">
+            <span>重要でない回を隠す</span>
+            <span class="hide-dimmed__count" id="hide-dimmed-count" hidden></span>
+          </label>
         </div>
 
         <!-- 記入は全画面の入力モード（#screen-input）に一本化 -->

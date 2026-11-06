@@ -155,6 +155,8 @@ const state = {
   sessionAuthor: null,
   // 編集中エントリ
   editingEntryId: null,
+  // 重要でない回を左・中央から隠す。カルテを開き直すと毎回オフ
+  hideDimmed: false,
   editDraft: {
     author: null,
     category: "none",
@@ -212,6 +214,9 @@ const entryEditModal = document.getElementById("entry-edit-modal");
 const btnCloseEntryEdit = document.getElementById("btn-close-entry-edit");
 const entryEditAuthorRow = document.getElementById("entry-edit-author-row");
 const entryEditDimmedBtn = document.getElementById("entry-edit-dimmed");
+const hideDimmedInput = document.getElementById("hide-dimmed");
+const hideDimmedLabel = document.getElementById("hide-dimmed-label");
+const hideDimmedCount = document.getElementById("hide-dimmed-count");
 const entryEditHeadline = document.getElementById("entry-edit-headline");
 const entryEditCategoryButtons = document.getElementById("entry-edit-category-buttons");
 const entryEditBody = document.getElementById("entry-edit-body");
@@ -1308,9 +1313,17 @@ btnStartCompose?.addEventListener("click", () => {
   openInputMode();
 });
 
+hideDimmedInput?.addEventListener("change", () => {
+  if (hideDimmedInput.disabled) return;
+  state.hideDimmed = hideDimmedInput.checked;
+  renderEntries();
+});
+
 function enterMain() {
   // カルテ入場直後の1回目は記入者未選択（セッション引き継ぎをリセット）
   state.sessionAuthor = null;
+  state.hideDimmed = false;
+  syncHideDimmedControl();
   updateLeftPatient();
 
   showCenterState("main");
@@ -1361,6 +1374,8 @@ function leaveMain() {
   state.ownerName = null;
   state.entries = [];
   state.sessionAuthor = null;
+  state.hideDimmed = false;
+  syncHideDimmedControl();
   clearChartSearch();
   // lastAuthor は端末内の作業継続用に残す（カルテ変更後も処置ログ等で使える）
   if (timelineEl) timelineEl.innerHTML = "";
@@ -1375,7 +1390,9 @@ function visibleEntries() {
   // 記録日の降順（新しい→古い）。同一記録日は入力時刻の降順。
   // db 側でも降順だが、描画直前にもう一度並べ替えて順序を保証する。
   // 時系列（中央）と見出し（左）は同じ配列を forEach するため常に一致する。
-  return sortEntriesDescending(state.entries);
+  const sorted = sortEntriesDescending(state.entries);
+  if (!state.hideDimmed) return sorted;
+  return sorted.filter((entry) => !entryShowsDimmed(entry));
 }
 
 function entryShowsDimmed(entry) {
@@ -1383,7 +1400,32 @@ function entryShowsDimmed(entry) {
   return !parseHeadlineMarks(entry.headline || "").star;
 }
 
+function hideableEntryCount() {
+  return (state.entries || []).filter((entry) => entryShowsDimmed(entry)).length;
+}
+
+function syncHideDimmedControl() {
+  const count = hideableEntryCount();
+  const disabled = count === 0;
+  if (disabled) state.hideDimmed = false;
+  if (hideDimmedInput) {
+    hideDimmedInput.disabled = disabled;
+    hideDimmedInput.checked = state.hideDimmed;
+  }
+  hideDimmedLabel?.classList.toggle("is-disabled", disabled);
+  if (hideDimmedCount) {
+    if (state.hideDimmed && count > 0) {
+      hideDimmedCount.hidden = false;
+      hideDimmedCount.textContent = `${count}件を非表示中`;
+    } else {
+      hideDimmedCount.hidden = true;
+      hideDimmedCount.textContent = "";
+    }
+  }
+}
+
 function renderEntries() {
+  syncHideDimmedControl();
   const entries = visibleEntries();
   renderTimeline(entries);
   renderHeadlines(entries);
@@ -1391,7 +1433,8 @@ function renderEntries() {
 
 function renderTimeline(entries) {
   timelineEl.innerHTML = "";
-  timelineEmptyEl.hidden = entries.length > 0;
+  // 隠しているだけのときは「まだ記録がありません」にしない
+  timelineEmptyEl.hidden = state.entries.length > 0;
   timelineEmptyEl.textContent = "まだ記録がありません。";
 
   entries.forEach((entry) => {
@@ -1509,6 +1552,11 @@ function markHeadlineTarget(headlineLi) {
 }
 
 function jumpToEntry(entryId, headlineLi = null) {
+  const entry = (state.entries || []).find((item) => item.id === entryId);
+  if (state.hideDimmed && entry && entryShowsDimmed(entry)) {
+    state.hideDimmed = false;
+    renderEntries();
+  }
   const target = document.getElementById(`tl-${entryId}`);
   if (!target) return;
   target.classList.add("is-search-target");

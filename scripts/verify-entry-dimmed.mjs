@@ -216,6 +216,13 @@ const page = await context.newPage();
 try {
   await openKarte(page);
 
+  const gate = await page.evaluate(() => {
+    const input = document.getElementById("hide-dimmed");
+    return { disabled: input.disabled, checked: input.checked };
+  });
+  assert.equal(gate.disabled, true, "印がないのにチェックを押せた");
+  assert.equal(gate.checked, false, "初期状態でチェックが入っている");
+
   const before = await colors(page, "既存の通常記録");
   assert.equal(before.hlDim, false, "印のない既存記録がグレー");
   assert.equal(before.hlText, BLACK, `既存の見出し色: ${before.hlText}`);
@@ -273,6 +280,70 @@ try {
   assert.equal(starred.tlDim, false, "星付きなのに中央がグレー");
   assert.equal(starred.hlText, BLACK, `星付きの見出し色: ${starred.hlText}`);
   assert.equal(starred.tlBody, BODY, `星付きの本文色: ${starred.tlBody}`);
+
+  const listed = () =>
+    page.evaluate(() => ({
+      left: document.getElementById("headline-list").innerText,
+      center: document.getElementById("timeline").innerText,
+      checked: document.getElementById("hide-dimmed").checked,
+      disabled: document.getElementById("hide-dimmed").disabled,
+      count: document.getElementById("hide-dimmed-count").textContent,
+      countHidden: document.getElementById("hide-dimmed-count").hidden,
+      dim: getComputedStyle(document.documentElement).getPropertyValue("--entry-dimmed").trim(),
+    }));
+
+  await page.locator("#hide-dimmed").check();
+  let view = await listed();
+  assert.equal(view.dim, "#a3a9b0", `グレーの値: ${view.dim}`);
+  assert.equal(view.checked, true, "チェックが入らない");
+  assert.equal(view.count, "2件を非表示中", `件数: ${view.count}`);
+  assert.equal(view.countHidden, false, "件数が出ない");
+  assert.equal(view.left.includes("爪切りだけ"), false, "隠したのに左に残っている");
+  assert.equal(view.center.includes("爪切りだけ"), false, "隠したのに中央に残っている");
+  assert.equal(view.left.includes("オペの経過"), false, "隠したオペが左に残っている");
+  assert.equal(view.center.includes("オペの経過"), false, "隠したオペが中央に残っている");
+  assert.ok(view.left.includes("大事な回"), "星付きまで隠れた");
+  assert.ok(view.center.includes("既存の通常記録"), "印のない回まで隠れた");
+
+  await page.locator("#hide-dimmed").uncheck();
+  view = await listed();
+  assert.equal(view.checked, false, "チェックが外れない");
+  assert.equal(view.countHidden, true, "外したのに件数が残る");
+  assert.ok(view.left.includes("爪切りだけ"), "外しても左に戻らない");
+  assert.ok(view.center.includes("オペの経過"), "外しても中央に戻らない");
+
+  await page.locator("#hide-dimmed").check();
+  await page.fill("#chart-search-input", "読み飛ばしてよい");
+  await page.waitForTimeout(250);
+  const hiddenHit = await page.locator("#chart-search-results").innerText();
+  assert.ok(hiddenHit.includes("爪切りだけ"), `隠した回が検索に出ない: ${hiddenHit}`);
+  await page.locator("#chart-search-results .chart-search-item__btn").first().click();
+  await page.waitForFunction(
+    () =>
+      document.getElementById("hide-dimmed").checked === false &&
+      document.getElementById("timeline").innerText.includes("爪切りだけ"),
+    null,
+    { timeout: 5000 }
+  );
+
+  await page.locator("#hide-dimmed").check();
+  await page.click("#btn-change-karte");
+  await page.waitForSelector("#gate-karte:not([hidden])", { timeout: 5000 });
+  for (const d of ["0", "0", "0", "0", "1"]) {
+    await page.click(`#karte-numpad [data-karte-digit="${d}"]`);
+  }
+  await page.click('#karte-numpad [data-karte-action="confirm"]');
+  await page.waitForSelector("#gate-animal:not([hidden])", { timeout: 5000 });
+  await page.click("#btn-animal-next");
+  await page.waitForSelector("#center-main:not([hidden])", { timeout: 5000 });
+  await page.waitForFunction(
+    () => document.getElementById("timeline")?.innerText.includes("爪切りだけ"),
+    null,
+    { timeout: 5000 }
+  );
+  view = await listed();
+  assert.equal(view.checked, false, "開き直してもチェックが残っている");
+  assert.ok(view.center.includes("爪切りだけ"), "開き直すと隠したまま");
 
   const cols = await page.evaluate(() =>
     [...document.querySelectorAll("#app-shell .layout > .col")].map((el) =>
